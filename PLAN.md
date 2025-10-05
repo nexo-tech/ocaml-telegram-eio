@@ -16,7 +16,7 @@ Principles
 
 Master Checklist
 
-**Completion: 28/92 tasks (30%)**
+**Completion: 30/92 tasks (33%)**
 
 Phase 1 — Architecture & Tooling (10/10 ✓)
 - [x] Task 1.1 Decide core architecture, layering, and error strategy
@@ -40,12 +40,12 @@ Phase 2 — Spec Ingestion & Codegen (8/8 ✓)
 - [x] Task 2.7 Add generator CLI and regeneration workflow
 - [x] Task 2.8 Baseline golden tests for generated outputs
 
-Phase 3 — Core Types & JSON (2/6)
-- [ ] Task 3.1 Hand-written foundation types (identifiers, common enums) — PARTIAL: basic types only
+Phase 3 — Core Types & JSON (4/6)
+- [x] Task 3.1 Hand-written foundation types (Money, Duration, File_size, Chat_action)
 - [ ] Task 3.2 Yojson codecs with unknown-field preservation
 - [x] Task 3.3 Phantom-typed IDs and safe conversions
-- [ ] Task 3.4 Time/units: seconds vs ms, file sizes
-- [ ] Task 3.5 Polymorphic variants for tagged unions — PARTIAL: parse_mode only
+- [x] Task 3.4 Time/units (Duration, File_size with pretty-printing)
+- [ ] Task 3.5 Polymorphic variants for tagged unions — PARTIAL: parse_mode, chat_action
 - [ ] Task 3.6 Roundtrip tests against curated samples
 
 Phase 4 — HTTP Engine (2/6)
@@ -227,7 +227,28 @@ Task 2.8 — Baseline golden tests for generated outputs
 - All tests passing with clear error messages showing diff commands when failures occur
 
 Task 3.1 — Hand-written foundation types (identifiers, common enums)
-- Modules: Ids, Money, Parse_mode, Chat_member_status, etc., with codecs and invariants.
+- COMPLETED: Comprehensive foundation type library with elegant, boilerplate-free APIs
+- **Money module** (src/money.ml(i)):
+  * Type-safe money with currency codes (ISO 4217)
+  * Automatic decimal formatting based on currency (JPY=0, BHD=3, USD=2, etc.)
+  * Comparison and equality with currency mismatch detection
+  * JSON codecs with int64 support for large amounts
+  * Pretty-printing: "123.45 USD", "1234 JPY", "12.345 BHD"
+- **Units module** (src/units.ml(i)):
+  * Duration: newtype for seconds with smart formatting ("45s", "1m30s", "1h1m1s")
+  * File_size: newtype for bytes (int64) with SI units ("1.5 KB", "2.0 MB", "1.0 GB")
+  * Both with JSON codecs
+- **Chat_action module** (src/chat_action.ml(i)):
+  * Polymorphic variant enum for sendChatAction
+  * 11 action types: typing, upload_photo, record_video, etc.
+  * Bidirectional string conversion with pattern matching
+  * JSON codecs
+- **13 comprehensive tests** in test/foundation.ml covering:
+  * Money: basics, decimal places, JSON roundtrip, equality, comparison
+  * Duration: formatting, JSON roundtrip
+  * File_size: formatting with SI units, JSON roundtrip
+  * Chat_action: string conversion, JSON roundtrip
+- All tests passing, zero warnings, fully type-safe
 
 Task 3.2 — Yojson codecs with unknown-field preservation
 - For core objects prone to extensions (Message, Update), keep extra fields map for forward compatibility.
@@ -236,7 +257,10 @@ Task 3.3 — Phantom-typed IDs and safe conversions
 - type 'k Id.t with phantom markers Chat_k, User_k; functions ensure no accidental mixing.
 
 Task 3.4 — Time/units: seconds vs ms, file sizes
-- Provide safe constructors and printers; validate ranges from reference when available.
+- COMPLETED: See Task 3.1 - Units module provides Duration and File_size newtypes
+- Duration: smart formatting for human readability (45s, 1m30s, 1h1m1s)
+- File_size: int64 support for large files (>2^31), SI unit formatting (KB, MB, GB, TB)
+- Both types prevent mixing with raw integers, ensuring type safety
 
 Task 3.5 — Polymorphic variants for tagged unions where ergonomic
 - For content types (message kinds), use [ `Text | `Photo of ... | ... ] where it simplifies matching.

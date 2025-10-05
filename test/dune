@@ -17,3 +17,8 @@
  (name update_golden)
  (libraries unix)
  (modules update_golden))
+
+(test
+ (name foundation)
+ (libraries ocaml_telegram_eio.telegram alcotest)
+ (modules foundation))
