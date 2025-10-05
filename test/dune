@@ -29,6 +29,16 @@
  (modules json_compat))
 
 (test
+ (name response_test)
+ (libraries ocaml_telegram_eio.telegram alcotest yojson)
+ (modules response_test))
+
+(test
+ (name retry_test)
+ (libraries ocaml_telegram_eio.telegram alcotest unix)
+ (modules retry_test))
+
+(test
  (name samples)
  (libraries ocaml_telegram_eio.generated alcotest yojson)
  (modules samples))

@@ -56,27 +56,16 @@ let call (type a) (client : Client.t) (req : a Request.t) : (a, Error.t) result 
           match Http.Cohttp_eio.call http ~meth:`POST ~url ~headers:[ "Content-Type", "application/json" ] ~body:(Http.String body) with
           | Error e -> Error e
           | Ok resp ->
-            (match Yojson.Safe.from_string resp.body with
-             | exception _ -> Error (Decode_error "invalid json")
-             | json ->
-                 let open Yojson.Safe.Util in
-                 if json |> member "ok" |> to_bool_option |> Option.value ~default:false then (
-                   let res = json |> member "result" in
-                   let open Types in
-                   try
-                     let message_id = res |> member "message_id" |> to_int in
-                     let chat_id = res |> member "chat" |> member "id" |> to_int |> Int64.of_int |> fun i -> Id.Chat.of_int i in
-                     let text = res |> member "text" |> to_string_option in
-                     Ok { message_id; chat_id; text }
-                   with _ -> Error (Decode_error "message decode")
-                 ) else (
-                   let desc = json |> member "description" |> to_string_option |> Option.value ~default:"" in
-                   let code = json |> member "error_code" |> to_int_option |> Option.value ~default:400 in
-                   let p = json |> member "parameters" in
-                   let retry_after = p |> member "retry_after" |> to_int_option in
-                   let migrate_to_chat_id = p |> member "migrate_to_chat_id" |> to_int_option |> Option.map (fun i -> Id.Chat.of_int (Int64.of_int i)) in
-                   Error (Api_error { code; description = desc; parameters = Some { migrate_to_chat_id; retry_after } })
-                 ))
+              Response.parse_json resp.body
+              |> Response.bind_result (fun res ->
+                  let open Yojson.Safe.Util in
+                  let open Types in
+                  try
+                    let message_id = res |> member "message_id" |> to_int in
+                    let chat_id = res |> member "chat" |> member "id" |> to_int |> Int64.of_int |> fun i -> Id.Chat.of_int i in
+                    let text = res |> member "text" |> to_string_option in
+                    Ok { message_id; chat_id; text }
+                  with _ -> Error (Decode_error "message decode"))
       end
   | Request.Send_photo _ ->
       let url = build_url client "sendPhoto" in
@@ -90,43 +79,20 @@ let call (type a) (client : Client.t) (req : a Request.t) : (a, Error.t) result 
       (match Http.Cohttp_eio.call http ~meth:`POST ~url ~headers ~body with
        | Error e -> Error e
        | Ok resp ->
-      (match Yojson.Safe.from_string resp.body with
-       | exception _ -> Error (Decode_error "invalid json")
-       | json ->
-           let open Yojson.Safe.Util in
-           if json |> member "ok" |> to_bool_option |> Option.value ~default:false then (
-             let res = json |> member "result" in
-             let open Types in
-             try
-               let message_id = res |> member "message_id" |> to_int in
-               let chat_id = res |> member "chat" |> member "id" |> to_int |> Int64.of_int |> fun i -> Id.Chat.of_int i in
-               let text = res |> member "text" |> to_string_option in
-               Ok { message_id; chat_id; text }
-             with _ -> Error (Decode_error "message decode")
-           ) else (
-             let desc = json |> member "description" |> to_string_option |> Option.value ~default:"" in
-             let code = json |> member "error_code" |> to_int_option |> Option.value ~default:400 in
-             let p = json |> member "parameters" in
-             let retry_after = p |> member "retry_after" |> to_int_option in
-             let migrate_to_chat_id = p |> member "migrate_to_chat_id" |> to_int_option |> Option.map (fun i -> Id.Chat.of_int (Int64.of_int i)) in
-             Error (Api_error { code; description = desc; parameters = Some { migrate_to_chat_id; retry_after } })
-           )))
+           Response.parse_json resp.body
+           |> Response.bind_result (fun res ->
+               let open Yojson.Safe.Util in
+               let open Types in
+               try
+                 let message_id = res |> member "message_id" |> to_int in
+                 let chat_id = res |> member "chat" |> member "id" |> to_int |> Int64.of_int |> fun i -> Id.Chat.of_int i in
+                 let text = res |> member "text" |> to_string_option in
+                 Ok { message_id; chat_id; text }
+               with _ -> Error (Decode_error "message decode")))
 
 let call_json client ~method_name body =
   let url = Printf.sprintf "%s/bot%s/%s" (Client.base_url client) (Client.token client) method_name in
   let http = Http.Cohttp_eio.v () in
   match Http.Cohttp_eio.call http ~meth:`POST ~url ~headers:[ "Content-Type", "application/json" ] ~body:(Http.String (Yojson.Safe.to_string body)) with
   | Error e -> Error e
-  | Ok resp ->
-      (match Yojson.Safe.from_string resp.body with
-       | exception _ -> Error (Decode_error "invalid json")
-       | json ->
-           let open Yojson.Safe.Util in
-           if json |> member "ok" |> to_bool_option |> Option.value ~default:false then Ok (member "result" json)
-           else
-             let desc = json |> member "description" |> to_string_option |> Option.value ~default:"" in
-             let code = json |> member "error_code" |> to_int_option |> Option.value ~default:400 in
-             let p = json |> member "parameters" in
-             let retry_after = p |> member "retry_after" |> to_int_option in
-             let migrate_to_chat_id = p |> member "migrate_to_chat_id" |> to_int_option |> Option.map (fun i -> Id.Chat.of_int (Int64.of_int i)) in
-             Error (Api_error { code; description = desc; parameters = Some { migrate_to_chat_id; retry_after } }))
+  | Ok resp -> Response.parse_json resp.body

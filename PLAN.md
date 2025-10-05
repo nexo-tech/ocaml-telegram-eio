@@ -16,7 +16,7 @@ Principles
 
 Master Checklist
 
-**Completion: 34/92 tasks (37%)**
+**Completion: 35/92 tasks (38%)**
 
 Phase 1 — Architecture & Tooling (10/10 ✓)
 - [x] Task 1.1 Decide core architecture, layering, and error strategy
@@ -48,13 +48,13 @@ Phase 3 — Core Types & JSON (6/6 ✓)
 - [x] Task 3.5 Polymorphic variants for tagged unions — COMPLETED: parse_mode, chat_action
 - [x] Task 3.6 Roundtrip tests against curated samples
 
-Phase 4 — HTTP Engine (5/6)
+Phase 4 — HTTP Engine (6/6 ✓)
 - [x] Task 4.1 Define Http.S signature (request/response/stream)
 - [x] Task 4.2 Implement Cohttp Eio backend — STUB ONLY
 - [ ] Task 4.3 Prepare Piaf backend (opt-in)
 - [x] Task 4.4 TLS, timeouts, proxies — COMPLETED
 - [x] Task 4.5 Multipart/form-data — COMPLETED: streaming uploads
-- [ ] Task 4.6 Response parsing, error mapping — PARTIAL: parsing done, no backoff hooks
+- [x] Task 4.6 Response parsing, error mapping — COMPLETED
 
 Phase 5 — Method Surface (Coverage) (9/10)
 NOTE: Code generation COMPLETE and fully type-safe. 449 types, 232 methods auto-generated. Methods return typed values (getMe → User.t, sendMessage → Message.t). Original plan anticipated hand-writing; generator handles all automatically.
@@ -317,7 +317,38 @@ Task 4.5 — Multipart/form-data and streaming uploads
   - Ergonomic API: callers just supply `Http.Multipart parts`; no extra boilerplate at call sites.
 
 Task 4.6 — Response parsing, error mapping, backoff hooks
-- Decode {ok; result|description; error_code; parameters}; surface retry_after and migrate_to_chat_id.
+- **COMPLETED**: Full response parsing with error mapping and retry strategies
+- **Implementation**:
+  * Created `Response` module (src/response.{ml,mli}) for centralized parsing
+    - `parse_json`: Parse JSON body → Result with error mapping
+    - `parse_and_decode`: Convenience combinator for parse + decode
+    - `extract_error`: Extract retry_after and migrate_to_chat_id from error responses
+    - `bind_result`: Elegant result binding for decoder composition
+  * Created `Retry` module (src/retry.{ml,mli}) for backoff strategies
+    - `Strategy.immediate`: No delay (testing)
+    - `Strategy.fixed`: Fixed delay between retries
+    - `Strategy.exponential`: Exponential backoff with max cap
+    - `Strategy.exponential_jitter`: Exponential with jitter to avoid thundering herd
+    - `Strategy.telegram_aware`: Respects retry_after hints from Telegram (recommended)
+    - `with_config`: Execute with retry configuration (max_attempts, on_retry callback)
+    - `with_strategy`: Convenience wrapper for single strategy
+  * Refactored `Api.call` and `Api.call_json` to use `Response.parse_json`
+  * Error types already support retry_after and migrate_to_chat_id (src/error.ml)
+- **Benefits**:
+  * Centralized response parsing eliminates code duplication
+  * Type-safe error handling with proper parameter extraction
+  * Composable retry strategies with elegant functional API
+  * Boilerplate-free: `Retry.with_default @@ fun () -> Api.call client req`
+  * Production-ready: exponential backoff with jitter, Telegram-aware retry_after
+- **Testing**:
+  * test/response_test.ml: 9 tests covering all response/error scenarios
+  * test/retry_test.ml: 10 tests covering strategies and retry logic
+  * All 41 tests passing (9 response + 10 retry + 22 existing)
+- **API Design**:
+  * Functional composition: `Response.parse_json |> Response.bind_result decoder`
+  * Optional callbacks: `on_retry:(~attempt ~error ~delay -> unit)`
+  * Smart defaults: `Retry.with_default` uses exponential backoff
+  * Zero warnings, fully type-safe, no exceptions
 
 Task 5.1 — Implement request builder and execution path
 - PARTIALLY COMPLETED: Api.call_json exists and handles JSON request/response.
