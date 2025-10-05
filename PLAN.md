@@ -16,7 +16,7 @@ Principles
 
 Master Checklist
 
-**Completion: 36/92 tasks (39%)**
+**Completion: 37/92 tasks (40%)**
 
 Phase 1 — Architecture & Tooling (10/10 ✓)
 - [x] Task 1.1 Decide core architecture, layering, and error strategy
@@ -68,7 +68,7 @@ NOTE: Code generation COMPLETE and fully type-safe. 449 types, 232 methods auto-
 - [x] Task 5.7 Paid media, stars, gifts — auto-generated
 - [x] Task 5.8 Admin/group management, topics, polls — auto-generated
 - [x] Task 5.9 Games, web apps, attachment menu — auto-generated
-- [ ] Task 5.10 Ensure unknown/new fields don't break decoding
+- [x] Task 5.10 Ensure unknown/new fields don't break decoding — COMPLETED
 
 Phase 6 — Update Intake (0/5)
 - [ ] Task 6.1 Long polling runner — STUB ONLY
@@ -553,3 +553,22 @@ Task 5.1 — Implement request builder (COMPLETED)
   * 9 tests for InputFile (all file types, mime guessing, multipart generation)
   * 18 tests for Param (JSON encoding, file detection, multipart encoding)
 - Design principles: elegant, boilerplate-free API; transparent to generated code
+
+Task 5.10 — Ensure unknown/new fields don't break decoding (COMPLETED)
+- Infrastructure already in place via Json_compat.Unknown_fields module:
+  * Tracker system marks known fields during deserialization
+  * Unknown fields captured and preserved as association list
+  * Round-trip guarantees: unknown fields survive encode/decode cycles
+- Code generator emits unknown_fields field in all record types:
+  * Field added automatically to every generated type definition
+  * to_yojson appends unknown fields via Unknown_fields.to_assoc
+  * of_yojson uses tracker to capture unmarked fields
+- Comprehensive test coverage added (test/samples.ml):
+  * test_user_with_unknown_fields: verifies 3 unknown fields preserved through roundtrip
+  * test_chat_with_unknown_fields: verifies unknown field preservation
+  * test_unknown_fields_dont_break_decoding: verifies 5 unknown fields don't cause decode failure
+  * All tests verify both preservation and roundtrip integrity
+- Forward compatibility guarantee:
+  * New fields added by Telegram don't break existing code
+  * Unknown fields preserved for debugging and future migration
+  * Maintains API stability across Bot API updates
