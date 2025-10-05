@@ -2,18 +2,91 @@
 
 open Telegram
 
+type request_info = {
+  client_addr : string;
+  headers : (string * string) list;
+  path : string;
+  method_ : string;
+}
+
+type validation_result =
+  | Accept
+  | Reject of string
+
 type config = {
   port : int;
   path : string;
   secret_token : string option;
   max_connections : int;
   on_error : (Error.t -> unit) option;
+  ip_allowlist : string list option;
+  custom_validator : (request_info -> validation_result) option;
 }
 
-let make ?(port = 8443) ?(path = "/webhook") ?secret_token ?(max_connections = 100) ?on_error () =
-  { port; path; secret_token; max_connections; on_error }
+let make ?(port = 8443) ?(path = "/webhook") ?secret_token ?(max_connections = 100) ?on_error ?ip_allowlist ?custom_validator () =
+  { port; path; secret_token; max_connections; on_error; ip_allowlist; custom_validator }
 
 let default = make ()
+
+(* Telegram's official IP ranges as of 2024 *)
+let telegram_ip_ranges = [
+  "149.154.160.0/20";
+  "91.108.4.0/22";
+]
+
+(* Parse CIDR notation into (base_ip, prefix_length) *)
+let parse_cidr cidr =
+  match String.split_on_char '/' cidr with
+  | [ip; prefix] ->
+      let prefix_len = int_of_string prefix in
+      (* Convert IP string to int32 *)
+      let parse_ip ip_str =
+        match String.split_on_char '.' ip_str with
+        | [a; b; c; d] ->
+            let open Int32 in
+            let a = of_int (int_of_string a) in
+            let b = of_int (int_of_string b) in
+            let c = of_int (int_of_string c) in
+            let d = of_int (int_of_string d) in
+            logor (shift_left a 24)
+              (logor (shift_left b 16)
+                (logor (shift_left c 8) d))
+        | _ -> 0l
+      in
+      (parse_ip ip, prefix_len)
+  | _ -> (0l, 0)
+
+(* Check if IP is in CIDR range *)
+let ip_in_range ip cidr =
+  try
+    let (base_ip, prefix_len) = parse_cidr cidr in
+    let ip_int =
+      match String.split_on_char '.' ip with
+      | [a; b; c; d] ->
+          let open Int32 in
+          let a = of_int (int_of_string a) in
+          let b = of_int (int_of_string b) in
+          let c = of_int (int_of_string c) in
+          let d = of_int (int_of_string d) in
+          logor (shift_left a 24)
+            (logor (shift_left b 16)
+              (logor (shift_left c 8) d))
+      | _ -> 0l
+    in
+    (* Create mask from prefix length *)
+    let mask = Int32.shift_left (-1l) (32 - prefix_len) in
+    let masked_base = Int32.logand base_ip mask in
+    let masked_ip = Int32.logand ip_int mask in
+    masked_base = masked_ip
+  with _ -> false
+
+(* Create IP validator from allowlist *)
+let make_ip_validator allowlist request =
+  let ip_allowed = List.exists (fun cidr -> ip_in_range request.client_addr cidr) allowlist in
+  if ip_allowed then
+    Accept
+  else
+    Reject ("IP not in allowlist: " ^ request.client_addr)
 
 (* Parse JSON body and decode Update *)
 let parse_update body =
@@ -26,6 +99,37 @@ let parse_update body =
          | Error msg -> Error (Error.Decode_error ("Failed to decode Update: " ^ msg)))
   with exn ->
     Error (Error.Decode_error ("Exception parsing webhook body: " ^ Printexc.to_string exn))
+
+(* Helper to read body and handle update *)
+let handle_update_body flow chunk content_length handler on_error =
+  let body_buf = Buffer.create content_length in
+  let remaining = ref content_length in
+  while !remaining > 0 do
+    match Eio.Flow.single_read flow chunk with
+    | 0 -> remaining := 0
+    | n ->
+        let to_read = min n !remaining in
+        Buffer.add_string body_buf (Cstruct.to_string (Cstruct.sub chunk 0 to_read));
+        remaining := !remaining - to_read
+  done;
+  let body_str = Buffer.contents body_buf in
+
+  (* Parse and handle update *)
+  match parse_update body_str with
+  | Error err ->
+      (match on_error with
+       | Some f -> f err
+       | None -> ());
+      ("400 Bad Request", "Bad Request: Invalid update format")
+  | Ok update ->
+      (try
+         handler update
+       with exn ->
+         let err = Error.Decode_error ("Handler exception: " ^ Printexc.to_string exn) in
+         (match on_error with
+          | Some f -> f err
+          | None -> ()));
+      ("200 OK", "OK")
 
 (* Simple HTTP server using Eio directly *)
 let run_server client config sw ~handler =
@@ -47,7 +151,15 @@ let run_server client config sw ~handler =
       match on_error with
       | Some f -> f err
       | None -> ()
-    ) (fun flow _addr ->
+    ) (fun flow addr ->
+      (* Extract client IP address *)
+      let client_ip =
+        match addr with
+        | `Tcp (ip_addr, _port) ->
+            Ipaddr.of_octets_exn (ip_addr :> string) |> Ipaddr.to_string
+        | `Unix _ -> "unix"
+      in
+
       (* Simple HTTP request parsing - just get body for POST *)
       try
         (* Read the request *)
@@ -57,6 +169,7 @@ let run_server client config sw ~handler =
         let path_info = ref "" in
         let method_type = ref "" in
         let secret_token_header = ref None in
+        let all_headers = ref [] in
 
         (* Read headers *)
         let rec read_headers current_line =
@@ -86,12 +199,28 @@ let run_server client config sw ~handler =
                   match String.split_on_char ':' line with
                   | _ :: token :: _ -> secret_token_header := Some (String.trim token)
                   | _ -> ()
+                );
+                (* Collect all headers for custom validator *)
+                if line <> "" && line <> "\r" && String.contains line ':' then (
+                  match String.split_on_char ':' line with
+                  | name :: rest ->
+                      let value = String.trim (String.concat ":" rest) in
+                      all_headers := (String.trim name, value) :: !all_headers
+                  | _ -> ()
                 )
               ) lines;
               if not !headers_done then
                 read_headers (List.nth lines (List.length lines - 1))
         in
         read_headers "";
+
+        (* Build request info for validation *)
+        let request_info = {
+          client_addr = client_ip;
+          headers = List.rev !all_headers;
+          path = !path_info;
+          method_ = !method_type;
+        } in
 
         (* Validate request *)
         let response_status, response_body =
@@ -102,35 +231,38 @@ let run_server client config sw ~handler =
                        | Some expected -> !secret_token_header = Some expected) then
             ("403 Forbidden", "Forbidden: Invalid secret token")
           else (
-            (* Read body *)
-            let body_buf = Buffer.create !content_length in
-            let remaining = ref !content_length in
-            while !remaining > 0 do
-              match Eio.Flow.single_read flow chunk with
-              | 0 -> remaining := 0
-              | n ->
-                  let to_read = min n !remaining in
-                  Buffer.add_string body_buf (Cstruct.to_string (Cstruct.sub chunk 0 to_read));
-                  remaining := !remaining - to_read
-            done;
-            let body_str = Buffer.contents body_buf in
-
-            (* Parse and handle update *)
-            match parse_update body_str with
-            | Error err ->
-                (match on_error with
-                 | Some f -> f err
-                 | None -> ());
-                ("400 Bad Request", "Bad Request: Invalid update format")
-            | Ok update ->
-                (try
-                   handler update
-                 with exn ->
-                   let err = Error.Decode_error ("Handler exception: " ^ Printexc.to_string exn) in
-                   (match on_error with
-                    | Some f -> f err
-                    | None -> ()));
-                ("200 OK", "OK")
+            (* Check IP allowlist if configured *)
+            match config.ip_allowlist with
+            | Some allowlist ->
+                let ip_allowed = List.exists (fun cidr -> ip_in_range client_ip cidr) allowlist in
+                if not ip_allowed then
+                  ("403 Forbidden", "Forbidden: IP not in allowlist")
+                else (
+                  (* Check custom validator if configured *)
+                  match config.custom_validator with
+                  | Some validator ->
+                      (match validator request_info with
+                       | Accept ->
+                           (* Proceed to handle update *)
+                           handle_update_body flow chunk !content_length handler on_error
+                       | Reject reason ->
+                           ("403 Forbidden", "Forbidden: " ^ reason))
+                  | None ->
+                      (* No custom validator, proceed *)
+                      handle_update_body flow chunk !content_length handler on_error
+                )
+            | None ->
+                (* No IP allowlist, check custom validator *)
+                (match config.custom_validator with
+                 | Some validator ->
+                     (match validator request_info with
+                      | Accept ->
+                          handle_update_body flow chunk !content_length handler on_error
+                      | Reject reason ->
+                          ("403 Forbidden", "Forbidden: " ^ reason))
+                 | None ->
+                     (* No validators, proceed *)
+                     handle_update_body flow chunk !content_length handler on_error)
           )
         in
 

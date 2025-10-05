@@ -16,7 +16,7 @@ Principles
 
 Master Checklist
 
-**Completion: 39/92 tasks (42%)**
+**Completion: 40/92 tasks (43%)**
 
 Phase 1 — Architecture & Tooling (10/10 ✓)
 - [x] Task 1.1 Decide core architecture, layering, and error strategy
@@ -70,10 +70,10 @@ NOTE: Code generation COMPLETE and fully type-safe. 449 types, 232 methods auto-
 - [x] Task 5.9 Games, web apps, attachment menu — auto-generated
 - [x] Task 5.10 Ensure unknown/new fields don't break decoding — COMPLETED
 
-Phase 6 — Update Intake (2/5)
+Phase 6 — Update Intake (3/5)
 - [x] Task 6.1 Long polling runner — COMPLETED
 - [x] Task 6.2 Webhook runner — COMPLETED
-- [ ] Task 6.3 Secret token verification, IP allowlist hooks
+- [x] Task 6.3 Secret token verification, IP allowlist hooks — COMPLETED
 - [ ] Task 6.4 Update batching, offset handling, idempotency
 - [ ] Task 6.5 Graceful shutdown and draining
 
@@ -635,3 +635,48 @@ Task 6.2 — Webhook runner (COMPLETED)
   * Lightweight: no heavy HTTP dependencies, uses Eio directly
   * Production-ready: secret tokens, error handling, concurrent processing
   * Composable: run, config, switch variants for different needs
+
+Task 6.3 — Secret token verification, IP allowlist hooks (COMPLETED)
+- Enhanced Webhook module with comprehensive security hooks and validation:
+  * Added request_info type exposing client_addr, headers, path, method_
+  * Added validation_result type (Accept | Reject of string) for custom validators
+  * Extended config with ip_allowlist and custom_validator fields
+- IP allowlist implementation:
+  * CIDR notation support (e.g., "149.154.160.0/20", "91.108.4.0/22")
+  * parse_cidr: Parse CIDR to (base_ip: Int32.t, prefix_len: int)
+  * ip_in_range: Check if IP is in CIDR range using bitmask matching
+  * make_ip_validator: Create validator from list of CIDR ranges
+  * telegram_ip_ranges: Telegram's official IP ranges (2024)
+- Custom validation hooks:
+  * Called after IP/secret token checks
+  * Access to full request_info (headers, IP, path, method)
+  * Use cases: rate limiting, header-based auth, custom security
+- Client IP extraction:
+  * Extracts IP from Eio.Net.Sockaddr.stream using Ipaddr conversion
+  * Supports IPv4 and IPv6 (via Ipaddr.of_octets_exn)
+  * Handles Unix sockets gracefully
+- Request validation flow:
+  1. Basic checks: POST method, correct path
+  2. Secret token verification (X-Telegram-Bot-Api-Secret-Token header)
+  3. IP allowlist check (if configured)
+  4. Custom validator (if configured)
+  5. Update processing (if all validations pass)
+- Comprehensive documentation in webhook.mli:
+  * Reverse proxy configuration (Nginx/TLS offload)
+  * Nginx examples: basic config, IP filtering, secret token verification
+  * Real client IP extraction with X-Forwarded-For/X-Real-IP
+  * Security best practices and header spoofing prevention
+  * Example custom validators for rate limiting
+- Comprehensive tests (test/webhook_test.ml - 15 tests total):
+  * IP range validation: /20, /22, /32, /8 subnets
+  * Telegram IP ranges validation
+  * make_ip_validator: accept/reject scenarios
+  * Custom validators: accept/reject with reasons
+  * Config with security features
+  * All tests passing
+- Design principles:
+  * Security by default: Easy to restrict to Telegram IPs
+  * Flexible: Custom validators for advanced use cases
+  * Type-safe: Strong types for request_info and validation_result
+  * Production-ready: Nginx integration guides, header extraction
+  * Efficient: CIDR matching with Int32 bitmasks
