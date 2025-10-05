@@ -7,7 +7,170 @@ type +'s ctx = {
   chat : Id.Chat.k Id.t option;
   user : Telegram.Types.user option;
   msg : Telegram.Types.message option;
+  full_message : Telegram_generated.Gen_types.Message.t option;
 }
+
+(* Argument parsing helpers *)
+module Args = struct
+  (* Parse integer from string *)
+  let parse_int s =
+    try Some (int_of_string s)
+    with Failure _ -> None
+
+  (* Parse float from string *)
+  let parse_float s =
+    try Some (float_of_string s)
+    with Failure _ -> None
+
+  (* Parse boolean from string (true/false, yes/no, 1/0) *)
+  let parse_bool s =
+    match String.lowercase_ascii s with
+    | "true" | "yes" | "1" -> Some true
+    | "false" | "no" | "0" -> Some false
+    | _ -> None
+
+  (* Get nth argument *)
+  let nth args n = List.nth_opt args n
+
+  (* Pattern matching helpers *)
+  let expect_1 args = match args with [a] -> Some a | _ -> None
+  let expect_2 args = match args with [a; b] -> Some (a, b) | _ -> None
+  let expect_3 args = match args with [a; b; c] -> Some (a, b, c) | _ -> None
+
+  (* Get remaining args after n *)
+  let rest args n =
+    let rec drop n lst =
+      if n <= 0 then lst
+      else match lst with
+        | [] -> []
+        | _ :: tl -> drop (n - 1) tl
+    in
+    drop n args
+
+  (* Join remaining args into single string *)
+  let join_rest args n = String.concat " " (rest args n)
+end
+
+(* Entity-aware text parsing *)
+module Entity = struct
+  open Telegram_generated.Gen_types
+
+  type entity_type =
+    | Mention
+    | Hashtag
+    | Cashtag
+    | BotCommand
+    | Url
+    | Email
+    | PhoneNumber
+    | Bold
+    | Italic
+    | Underline
+    | Strikethrough
+    | Spoiler
+    | Code
+    | Pre
+    | TextLink of string
+    | TextMention of User.t
+    | CustomEmoji of string
+    | Other of string
+
+  let entity_type_of_string s =
+    match s with
+    | "mention" -> Mention
+    | "hashtag" -> Hashtag
+    | "cashtag" -> Cashtag
+    | "bot_command" -> BotCommand
+    | "url" -> Url
+    | "email" -> Email
+    | "phone_number" -> PhoneNumber
+    | "bold" -> Bold
+    | "italic" -> Italic
+    | "underline" -> Underline
+    | "strikethrough" -> Strikethrough
+    | "spoiler" -> Spoiler
+    | "code" -> Code
+    | "pre" -> Pre
+    | "text_link" -> TextLink ""
+    | "text_mention" -> TextMention (Obj.magic ()) (* placeholder *)
+    | "custom_emoji" -> CustomEmoji ""
+    | other -> Other other
+
+  type entity_info = {
+    entity_type : entity_type;
+    offset : int;
+    length : int;
+    text : string;
+  }
+
+  (* Extract text substring respecting UTF-8 encoding *)
+  let utf8_substring text offset length =
+    let rec skip_chars text pos count =
+      if count = 0 || pos >= String.length text then pos
+      else
+        let char_len =
+          let c = Char.code text.[pos] in
+          if c < 0x80 then 1
+          else if c < 0xE0 then 2
+          else if c < 0xF0 then 3
+          else 4
+        in
+        skip_chars text (pos + char_len) (count - 1)
+    in
+    let start_pos = skip_chars text 0 offset in
+    let end_pos = skip_chars text start_pos length in
+    String.sub text start_pos (end_pos - start_pos)
+
+  (* Parse entities from a message *)
+  let parse_entities text entities =
+    match entities with
+    | None -> []
+    | Some ents ->
+        List.map (fun (ent : MessageEntity.t) ->
+          let MessageEntity.{ type_; offset; length; url; user; custom_emoji_id; _ } = ent in
+          let offset_int = Int64.to_int offset in
+          let length_int = Int64.to_int length in
+          let extracted_text = utf8_substring text offset_int length_int in
+          let entity_type =
+            match type_ with
+            | "text_link" -> TextLink (Option.value url ~default:"")
+            | "text_mention" -> (match user with Some u -> TextMention u | None -> Other type_)
+            | "custom_emoji" -> CustomEmoji (Option.value custom_emoji_id ~default:"")
+            | _ -> entity_type_of_string type_
+          in
+          { entity_type; offset = offset_int; length = length_int; text = extracted_text }
+        ) ents
+
+  (* Get all entities of a specific type *)
+  let filter_by_type typ entities =
+    List.filter (fun e ->
+      match typ, e.entity_type with
+      | `BotCommand, BotCommand -> true
+      | `Url, Url -> true
+      | `Mention, Mention -> true
+      | `Hashtag, Hashtag -> true
+      | `Code, Code -> true
+      | `Pre, Pre -> true
+      | _ -> false
+    ) entities
+
+  (* Extract command arguments from text, respecting entities *)
+  let parse_command_args text entities =
+    (* Find the bot_command entity *)
+    let cmd_entities = filter_by_type `BotCommand (parse_entities text entities) in
+    match cmd_entities with
+    | [] -> None  (* No command found *)
+    | cmd :: _ ->
+        (* Get text after the command *)
+        let args_start = cmd.offset + cmd.length in
+        if args_start >= String.length text then
+          Some []  (* Command with no args *)
+        else
+          let args_text = String.sub text args_start (String.length text - args_start) in
+          let trimmed = String.trim args_text in
+          if trimmed = "" then Some []
+          else Some (String.split_on_char ' ' trimmed |> List.filter (fun s -> s <> ""))
+end
 
 module Event = struct
   (* GADT for typed event matchers *)
@@ -42,6 +205,7 @@ module Event = struct
             chat = None;
             user = None;
             msg = None;
+            full_message = None;
           } in
           Some (upd_param, ctx)
 
@@ -74,6 +238,7 @@ module Event = struct
                  chat = Some chat_id;
                  user = user;
                  msg = Some message;
+                 full_message = Some msg;
                } in
                Some (msg, ctx)
            | None -> None)
@@ -95,21 +260,56 @@ module Event = struct
            | Some msg ->
                (match msg.text with
                 | Some text when String.length text > 0 && text.[0] = '/' ->
-                    (* Parse command: /command[@botname] args *)
-                    let parts = String.split_on_char ' ' text in
-                    (match parts with
-                     | cmd_part :: args when String.length cmd_part > 1 ->
-                         let cmd_text = String.sub cmd_part 1 (String.length cmd_part - 1) in
-                         (* Remove @botname if present *)
-                         let cmd_name = (match String.index_opt cmd_text '@' with
-                           | Some idx -> String.sub cmd_text 0 idx
-                           | None -> cmd_text) in
-                         if cmd_name = cmd then
-                           (match match_event Message upd_param with
-                            | Some (_, ctx) -> Some (args, ctx)
-                            | None -> None)
-                         else None
-                     | _ -> None)
+                    (* Try entity-aware parsing first *)
+                    (match Entity.parse_command_args text msg.entities with
+                     | Some args ->
+                         (* Extract command name from first bot_command entity *)
+                         let cmd_entities = Entity.filter_by_type `BotCommand (Entity.parse_entities text msg.entities) in
+                         (match cmd_entities with
+                          | cmd_entity :: _ ->
+                              (* Extract command text and strip @botname if present *)
+                              let cmd_text = cmd_entity.Entity.text in
+                              let cmd_text_no_slash = if String.length cmd_text > 0 && cmd_text.[0] = '/' then
+                                String.sub cmd_text 1 (String.length cmd_text - 1)
+                              else cmd_text in
+                              let cmd_name = (match String.index_opt cmd_text_no_slash '@' with
+                                | Some idx -> String.sub cmd_text_no_slash 0 idx
+                                | None -> cmd_text_no_slash) in
+                              if cmd_name = cmd then
+                                (match match_event Message upd_param with
+                                 | Some (_, ctx) -> Some (args, ctx)
+                                 | None -> None)
+                              else None
+                          | [] ->
+                              (* Fallback to simple parsing if no entities *)
+                              let parts = String.split_on_char ' ' text in
+                              (match parts with
+                               | cmd_part :: args when String.length cmd_part > 1 ->
+                                   let cmd_text = String.sub cmd_part 1 (String.length cmd_part - 1) in
+                                   let cmd_name = (match String.index_opt cmd_text '@' with
+                                     | Some idx -> String.sub cmd_text 0 idx
+                                     | None -> cmd_text) in
+                                   if cmd_name = cmd then
+                                     (match match_event Message upd_param with
+                                      | Some (_, ctx) -> Some (args, ctx)
+                                      | None -> None)
+                                   else None
+                               | _ -> None))
+                     | None ->
+                         (* Fallback to simple parsing *)
+                         let parts = String.split_on_char ' ' text in
+                         (match parts with
+                          | cmd_part :: args when String.length cmd_part > 1 ->
+                              let cmd_text = String.sub cmd_part 1 (String.length cmd_part - 1) in
+                              let cmd_name = (match String.index_opt cmd_text '@' with
+                                | Some idx -> String.sub cmd_text 0 idx
+                                | None -> cmd_text) in
+                              if cmd_name = cmd then
+                                (match match_event Message upd_param with
+                                 | Some (_, ctx) -> Some (args, ctx)
+                                 | None -> None)
+                              else None
+                          | _ -> None))
                 | _ -> None)
            | None -> None)
 
@@ -128,6 +328,7 @@ module Event = struct
                  chat = None;
                  user = None;
                  msg = None;
+                 full_message = None;
                } in
                Some (iq, ctx)
            | None -> None)
@@ -209,6 +410,21 @@ module Ctx = struct
               | Ok _ -> Ok ()
               | Error err -> Error (Decode_error ("Failed to decode edited message: " ^ err))))
     | Error err -> Error err
+
+  (* Entity access helpers *)
+  let entities (c : [ `Chat ] t) =
+    match c.full_message with
+    | Some full_msg ->
+        let open Telegram_generated.Gen_types in
+        let Message.{ text; entities; _ } = full_msg in
+        (match text with
+         | Some txt -> Entity.parse_entities txt entities
+         | None -> [])
+    | None -> []
+
+  (* Get entities of a specific type *)
+  let get_entities (c : [ `Chat ] t) typ =
+    Entity.filter_by_type typ (entities c)
 end
 
 type handler = Handler : 'a Event.t * ('a -> [ `Chat ] ctx -> unit) -> handler

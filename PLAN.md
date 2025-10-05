@@ -412,8 +412,9 @@ Task 7.2 — Router with composable predicates and matchers ✅
  - Follow API_DESIGN.md Router/Matcher signatures closely; deviations require revising the design doc first.
  - **Status**: Implemented Event GADT with typed matchers (message, text, command, callback, inline_query, any, combine, filter); router with ordered first-match-wins semantics; wired to polling/webhook. Also fixed code generator to expose record fields in signatures (.ml and .mli).
 
-Task 7.3 — Command parser and entity-aware text parsing
+Task 7.3 — Command parser and entity-aware text parsing ✅
 - Robust parsing that respects MessageEntity offsets; supports bot usernames in groups; helpers for args parsing.
+ - **Status**: Implemented Entity module with UTF-8 aware text extraction, entity type enumeration, parse_entities, filter_by_type, and entity-aware command arg parsing. Added Args module with parse_int/float/bool, nth, expect_1/2/3, rest, and join_rest helpers. Enhanced Command event matcher to use entity-aware parsing with fallback. Added Ctx.entities and Ctx.get_entities helpers. Updated bot.mli to expose Entity and Args modules. All tests passing, no warnings.
 
 Task 7.4 — Middleware pipeline (logging, rate-limit, auth)
 - Before/after hooks; error boundary per route; ctx enrichers.
