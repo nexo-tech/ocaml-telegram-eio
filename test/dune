@@ -87,3 +87,13 @@
  (name limits_test)
  (libraries ocaml_telegram_eio.telegram alcotest)
  (modules limits_test))
+
+(test
+ (name media_group_test)
+ (libraries ocaml_telegram_eio.telegram alcotest)
+ (modules media_group_test))
+
+(test
+ (name album_test)
+ (libraries ocaml_telegram_eio.tg alcotest)
+ (modules album_test))

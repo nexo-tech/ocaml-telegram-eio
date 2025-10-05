@@ -86,11 +86,11 @@ Phase 7 — Ergonomic Bot DSL (4/7)
 - [x] Task 7.6 Reply markup builders — PARTIAL: API defined, minimal impl
 - [x] Task 7.7 Error handling strategy (per-route, global) — COMPLETED
 
-Phase 8 — Files & Media (4/5)
+Phase 8 — Files & Media (5/5)
 - [x] Task 8.1 Download by file_id and via URLs — COMPLETED
 - [x] Task 8.2 Uploads — COMPLETED
 - [x] Task 8.3 Temp storage policy and backpressure — COMPLETED
-- [ ] Task 8.4 Media groups and captions entities
+- [x] Task 8.4 Media groups and captions entities — COMPLETED
 - [ ] Task 8.5 Large files and chunking strategy
 
 Phase 9 — Payments & Stars (3/4)
@@ -510,8 +510,20 @@ Implementation:
   * 14 comprehensive tests covering limits validation, policies, builders, and application
   * Zero warnings, fully type-safe, elegant functional API
 
-Task 8.4 — Media groups and captions entities
-- Build album send; enforce constraints (10 items, types rules) at compile/run time where feasible.
+Task 8.4 — Media groups and captions entities — COMPLETED ✓
+Implementation:
+  * Media_group module with type-safe album builder (guaranteed 2-10 items)
+  * Item types: Photo and Video with comprehensive options (caption, parse_mode, spoiler, dimensions, etc.)
+  * Builder API enforces minimum 2 items at creation: `create item1 item2`
+  * Fluent API for adding items: `add item builder` (silently caps at 10)
+  * Result-based API for explicit error handling: `try_add item builder`
+  * Convenience function with validation: `of_list items` (returns Error if <2 or >10)
+  * Album module in Tg library for high-level sendMediaGroup integration
+  * Automatic JSON serialization with proper field handling
+  * Support for file_id, URL, and upload (attach://) input files
+  * 14 comprehensive tests for Media_group (builder, validation, serialization)
+  * 5 tests for Album API integration
+  * Zero warnings, fully type-safe, elegant functional API with compile-time guarantees
 
 Task 8.5 — Large files and chunking strategy
 - Ensure chunked transfer compatibility; retries on mid-stream failures with restart.
