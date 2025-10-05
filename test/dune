@@ -72,3 +72,8 @@
  (name keyboard_test)
  (libraries ocaml_telegram_eio.tg alcotest yojson)
  (modules keyboard_test))
+
+(test
+ (name download_test)
+ (libraries ocaml_telegram_eio.tg eio_main alcotest)
+ (modules download_test))

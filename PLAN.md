@@ -86,8 +86,8 @@ Phase 7 — Ergonomic Bot DSL (4/7)
 - [x] Task 7.6 Reply markup builders — PARTIAL: API defined, minimal impl
 - [x] Task 7.7 Error handling strategy (per-route, global) — COMPLETED
 
-Phase 8 — Files & Media (1/5)
-- [ ] Task 8.1 Download by file_id and via URLs
+Phase 8 — Files & Media (2/5)
+- [x] Task 8.1 Download by file_id and via URLs — COMPLETED
 - [ ] Task 8.2 Uploads — PARTIAL: basic multipart, no streaming
 - [ ] Task 8.3 Temp storage policy and backpressure
 - [ ] Task 8.4 Media groups and captions entities
@@ -456,8 +456,22 @@ Task 7.7 — Error handling strategy (per-route, global) ✅
    * Zero warnings, fully type-safe, boilerplate-free API
    * Total of 38 bot tests passing (31 original + 7 error handling)
 
-Task 8.1 — Download by file_id and via URLs
+Task 8.1 — Download by file_id and via URLs ✅
 - Helper to getFile, build download URL, stream to writer; content-length exposure.
+ - **Status**: Implemented comprehensive Download module with elegant functional API:
+   * `get_file ~file_id`: Get file information from Telegram (calls getFile API)
+   * `download_url ~file_path`: Build download URL (https://api.telegram.org/file/bot<token>/<file_path>)
+   * `download_url_from_info`: Build URL from file_info (None if file_path missing)
+   * `to_buffer ~file_path buffer`: Download file contents to buffer
+   * `to_string ~file_path`: Download file contents as string (convenience)
+   * `get_and_download ~file_id buffer`: Combined get_file + download
+   * `get_and_download_string ~file_id`: Combined get_file + download as string
+   * Clean separation of concerns: get file info, build URLs, download content
+   * Returns file_info record with file_id, file_unique_id, file_size, file_path
+   * Uses existing Http.Cohttp_eio backend for downloads (reuses TLS/timeout infrastructure)
+   * 4 comprehensive tests covering URL building, file_info type, and API structure
+   * Zero warnings, fully type-safe, boilerplate-free API
+   * Module added to Tg library (ocaml_telegram_eio.tg)
 
 Task 8.2 — Uploads: multipart builder and streaming
 - Stream from Eio.Flow.source; avoid buffering whole file; progress callbacks.
