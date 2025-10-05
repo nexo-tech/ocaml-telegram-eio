@@ -29,6 +29,6 @@ end
 
 module Cohttp_eio : sig
   type t
-  val v : unit -> t
+  val v : ?chunk_size:int -> unit -> t
   include S with type t := t
 end

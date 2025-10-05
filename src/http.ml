@@ -23,9 +23,9 @@ module type S = sig
 end
 
 module Cohttp_eio = struct
-  type t = unit
+  type t = { chunk_size : int }
 
-  let v () = ()
+  let v ?(chunk_size = 16384) () = { chunk_size }
 
   let call _t ~meth ~url ~headers ~body : (response, Error.t) result =
     try
@@ -129,7 +129,7 @@ module Cohttp_eio = struct
                         loop segs' (written + to_copy)
                   | F st :: tl ->
                       let ic = match st.ic with None -> open_in_bin st.path | Some ic -> ic in
-                      let buf_len = min 16384 (length dst - written) in
+                      let buf_len = min _t.chunk_size (length dst - written) in
                       let bytes = Bytes.create buf_len in
                       let n = input ic bytes 0 buf_len in
                       if n = 0 then begin
@@ -165,7 +165,7 @@ module Cohttp_eio = struct
         (* Read full body into string *)
         let body_str =
           let buf = Buffer.create 4096 in
-          let chunk = Cstruct.create 16384 in
+          let chunk = Cstruct.create _t.chunk_size in
           (try
              while true do
                let n = Eio.Flow.single_read resp_body chunk in

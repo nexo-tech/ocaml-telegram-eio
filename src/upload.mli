@@ -60,6 +60,15 @@ val with_progress :
       ]
     ]} *)
 
+val calculate_size : (string * Telegram.Http.part_value) list -> int64
+(** Calculate total size of multipart upload parts.
+
+    Example:
+    {[
+      let size = Upload.calculate_size parts in
+      Printf.printf "Total upload size: %Ld bytes\n" size
+    ]} *)
+
 val with_limits :
   ?on_progress:(progress -> unit) ->
   limits:Telegram.Limits.t ->

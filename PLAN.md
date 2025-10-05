@@ -86,12 +86,12 @@ Phase 7 — Ergonomic Bot DSL (4/7)
 - [x] Task 7.6 Reply markup builders — PARTIAL: API defined, minimal impl
 - [x] Task 7.7 Error handling strategy (per-route, global) — COMPLETED
 
-Phase 8 — Files & Media (5/5)
+Phase 8 — Files & Media (5/5) ✓ COMPLETE
 - [x] Task 8.1 Download by file_id and via URLs — COMPLETED
 - [x] Task 8.2 Uploads — COMPLETED
 - [x] Task 8.3 Temp storage policy and backpressure — COMPLETED
 - [x] Task 8.4 Media groups and captions entities — COMPLETED
-- [ ] Task 8.5 Large files and chunking strategy
+- [x] Task 8.5 Large files and chunking strategy — COMPLETED
 
 Phase 9 — Payments & Stars (3/4)
 - [x] Task 9.1 Payments API methods and types — auto-generated
@@ -525,8 +525,21 @@ Implementation:
   * 5 tests for Album API integration
   * Zero warnings, fully type-safe, elegant functional API with compile-time guarantees
 
-Task 8.5 — Large files and chunking strategy
-- Ensure chunked transfer compatibility; retries on mid-stream failures with restart.
+Task 8.5 — Large files and chunking strategy — COMPLETED ✓
+Implementation:
+  * Configurable chunk size throughout HTTP layer (upload & download)
+  * Http.Cohttp_eio.v now accepts optional ~chunk_size parameter (default: 16KB)
+  * Upload streaming uses configured chunk size for file reading
+  * Download streaming uses configured chunk size for response buffering
+  * Large_file module for retry-aware large file transfers
+  * Config type combining Limits.t + Retry.config + chunk_size
+  * download_with_retry: automatic retry with buffer clearing on failure
+  * upload_with_retry: size validation + retry wrapper for multipart uploads
+  * Fluent configuration API: with_chunk_size, with_retry_attempts
+  * Integration with existing Limits and Retry infrastructure
+  * 5 comprehensive tests for configuration and builder patterns
+  * Zero warnings, fully type-safe, clean functional API
+  * Phase 8 (Files & Media) now 100% COMPLETE!
 
 Task 9.1 — Payments API methods and types
 - Invoices, shipping queries, pre-checkout; ergonomic helpers; currency type.
