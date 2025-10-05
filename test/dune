@@ -42,3 +42,13 @@
  (name samples)
  (libraries ocaml_telegram_eio.generated alcotest yojson)
  (modules samples))
+
+(test
+ (name input_file_test)
+ (libraries ocaml_telegram_eio.telegram alcotest)
+ (modules input_file_test))
+
+(test
+ (name param_test)
+ (libraries ocaml_telegram_eio.telegram alcotest yojson)
+ (modules param_test))

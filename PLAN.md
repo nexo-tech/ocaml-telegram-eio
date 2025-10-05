@@ -16,7 +16,7 @@ Principles
 
 Master Checklist
 
-**Completion: 35/92 tasks (38%)**
+**Completion: 36/92 tasks (39%)**
 
 Phase 1 — Architecture & Tooling (10/10 ✓)
 - [x] Task 1.1 Decide core architecture, layering, and error strategy
@@ -56,10 +56,10 @@ Phase 4 — HTTP Engine (6/6 ✓)
 - [x] Task 4.5 Multipart/form-data — COMPLETED: streaming uploads
 - [x] Task 4.6 Response parsing, error mapping — COMPLETED
 
-Phase 5 — Method Surface (Coverage) (9/10)
+Phase 5 — Method Surface (Coverage) (10/10 ✓)
 NOTE: Code generation COMPLETE and fully type-safe. 449 types, 232 methods auto-generated. Methods return typed values (getMe → User.t, sendMessage → Message.t). Original plan anticipated hand-writing; generator handles all automatically.
 
-- [ ] Task 5.1 Implement request builder — PARTIAL: Api.call/call_json exist
+- [x] Task 5.1 Implement request builder — COMPLETED: InputFile, Param, Api.call_method
 - [x] Task 5.2 Auth/basic methods (getMe, logOut, close) — auto-generated
 - [x] Task 5.3 Chats/messages (sendMessage, forward, copy) — auto-generated
 - [x] Task 5.4 Media (sendPhoto, sendVideo, etc.) — auto-generated (needs InputFile)
@@ -532,3 +532,24 @@ Acceptance Criteria
 - 100% coverage of published Bot API methods and types in generated surface; high-level DSL covers frequent flows.
 - Robust handling of retries, rate limits, and graceful shutdown.
 - Strong tests for codecs, request builders, and runners; examples run successfully against local Bot API server.
+
+Task Completion Notes
+
+Task 5.1 — Implement request builder (COMPLETED)
+- Created Input_file module with three file upload methods:
+  * file_id: Reference existing Telegram file by ID
+  * url: Provide HTTP URL for Telegram to download
+  * path: Upload local file (smart mime-type guessing from extension)
+- Created Param module for unified parameter encoding:
+  * Auto-detects if parameters contain file uploads
+  * Transparently switches between JSON and multipart/form-data encoding
+  * Supports all parameter types: string, int, int64, bool, float, file, json, list
+  * Recursive file detection in nested lists
+- Enhanced Api with call_method function:
+  * Takes method name and Param.t list
+  * Automatically selects encoding based on Param.has_files check
+  * Returns typed result using Response.parse_json
+- Comprehensive test coverage:
+  * 9 tests for InputFile (all file types, mime guessing, multipart generation)
+  * 18 tests for Param (JSON encoding, file detection, multipart encoding)
+- Design principles: elegant, boilerplate-free API; transparent to generated code

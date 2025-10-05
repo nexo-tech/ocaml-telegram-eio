@@ -96,3 +96,22 @@ let call_json client ~method_name body =
   match Http.Cohttp_eio.call http ~meth:`POST ~url ~headers:[ "Content-Type", "application/json" ] ~body:(Http.String (Yojson.Safe.to_string body)) with
   | Error e -> Error e
   | Ok resp -> Response.parse_json resp.body
+
+(* New unified call_method that auto-detects JSON vs multipart *)
+let call_method client ~method_name params =
+  let url = build_url client method_name in
+  let http = Http.Cohttp_eio.v () in
+
+  (* Auto-detect if we need multipart encoding *)
+  if Param.has_files params then
+    (* Use multipart/form-data for file uploads *)
+    let parts = Param.to_multipart params in
+    match Http.Cohttp_eio.call http ~meth:`POST ~url ~headers:[] ~body:(Http.Multipart parts) with
+    | Error e -> Error e
+    | Ok resp -> Response.parse_json resp.body
+  else
+    (* Use application/json for simple requests *)
+    let json = Param.to_json params in
+    match Http.Cohttp_eio.call http ~meth:`POST ~url ~headers:[ "Content-Type", "application/json" ] ~body:(Http.String (Yojson.Safe.to_string json)) with
+    | Error e -> Error e
+    | Ok resp -> Response.parse_json resp.body
