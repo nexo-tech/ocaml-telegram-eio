@@ -407,9 +407,10 @@ Task 6.5 — Graceful shutdown and draining
 Task 7.1 — Context object (chat, user, reply helpers)
 - ctx has chat_id, user, message, answer/reply/edit convenience functions; captures client and logger.
 
-Task 7.2 — Router with composable predicates and matchers
+Task 7.2 — Router with composable predicates and matchers ✅
 - route [ on_command "start" |> then_ f; on_text (re ...) |> then_ g; on_callback_data (prefix ...) … ]; ordered matching; fallthrough.
  - Follow API_DESIGN.md Router/Matcher signatures closely; deviations require revising the design doc first.
+ - **Status**: Implemented Event GADT with typed matchers (message, text, command, callback, inline_query, any, combine, filter); router with ordered first-match-wins semantics; wired to polling/webhook. Also fixed code generator to expose record fields in signatures (.ml and .mli).
 
 Task 7.3 — Command parser and entity-aware text parsing
 - Robust parsing that respects MessageEntity offsets; supports bot usernames in groups; helpers for args parsing.

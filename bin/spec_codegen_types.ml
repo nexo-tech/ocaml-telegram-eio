@@ -135,24 +135,41 @@ let gen_ml defs =
   List.iter (fun (d:Telegram.Spec_ast.tdef) ->
     let mname = ocaml_module_name d.title in
 
-    if !first then (Buffer.add_string b ("module rec " ^ mname ^ " : sig\n  type t\n  val to_yojson : t -> Yojson.Safe.t\n  val of_yojson : Yojson.Safe.t -> (t, string) result\nend = struct\n"))
-    else Buffer.add_string b ("and " ^ mname ^ " : sig\n  type t\n  val to_yojson : t -> Yojson.Safe.t\n  val of_yojson : Yojson.Safe.t -> (t, string) result\nend = struct\n");
+    (* Helper to generate the type definition (used in both sig and struct) *)
+    let gen_type_def () =
+      if d.fields = [] then (
+        Buffer.add_string b "  type t = unit\n"
+      ) else (
+        Buffer.add_string b "  type t = {\n";
+        List.iter (fun (f:Telegram.Spec_ast.field) ->
+          let fname = ocaml_field_name f.name in
+          let ocaml_t = parse_type f.typ |> to_ocaml_type in
+          let ocaml_t = if String.equal ocaml_t (mname ^ ".t") then "t" else ocaml_t in
+          let ocaml_t = if f.optional then ocaml_t ^ " option" else ocaml_t in
+          Buffer.add_string b ("    " ^ fname ^ " : " ^ ocaml_t ^ ";\n")
+        ) d.fields;
+        Buffer.add_string b "    unknown_fields : Telegram.Json_compat.Unknown_fields.t;\n";
+        Buffer.add_string b "  }\n"
+      )
+    in
 
-    (* Type definition *)
-    if d.fields = [] then (
-      Buffer.add_string b "  type t = unit\n"
+    (* Generate signature with exposed record type *)
+    if !first then (
+      Buffer.add_string b ("module rec " ^ mname ^ " : sig\n");
+      gen_type_def ();
+      Buffer.add_string b "  val to_yojson : t -> Yojson.Safe.t\n";
+      Buffer.add_string b "  val of_yojson : Yojson.Safe.t -> (t, string) result\n";
+      Buffer.add_string b "end = struct\n"
     ) else (
-      Buffer.add_string b "  type t = {\n";
-      List.iter (fun (f:Telegram.Spec_ast.field) ->
-        let fname = ocaml_field_name f.name in
-        let ocaml_t = parse_type f.typ |> to_ocaml_type in
-        let ocaml_t = if String.equal ocaml_t (mname ^ ".t") then "t" else ocaml_t in
-        let ocaml_t = if f.optional then ocaml_t ^ " option" else ocaml_t in
-        Buffer.add_string b ("    " ^ fname ^ " : " ^ ocaml_t ^ ";\n")
-      ) d.fields;
-      Buffer.add_string b "    unknown_fields : Telegram.Json_compat.Unknown_fields.t;\n";
-      Buffer.add_string b "  }\n"
+      Buffer.add_string b ("and " ^ mname ^ " : sig\n");
+      gen_type_def ();
+      Buffer.add_string b "  val to_yojson : t -> Yojson.Safe.t\n";
+      Buffer.add_string b "  val of_yojson : Yojson.Safe.t -> (t, string) result\n";
+      Buffer.add_string b "end = struct\n"
     );
+
+    (* Type definition in struct (same as signature) *)
+    gen_type_def ();
 
     (* to_yojson implementation *)
     if d.fields = [] then (
@@ -245,7 +262,27 @@ let gen_mli defs =
   let b = Buffer.create 4096 in
   List.iter (fun (d:Telegram.Spec_ast.tdef) ->
     let mname = ocaml_module_name d.title in
-    Buffer.add_string b ("module " ^ mname ^ " : sig\n  type t\n  val to_yojson : t -> Yojson.Safe.t\n  val of_yojson : Yojson.Safe.t -> (t, string) result\nend\n")
+    Buffer.add_string b ("module " ^ mname ^ " : sig\n");
+
+    (* Generate type definition (same as in sig part of .ml) *)
+    if d.fields = [] then (
+      Buffer.add_string b "  type t = unit\n"
+    ) else (
+      Buffer.add_string b "  type t = {\n";
+      List.iter (fun (f:Telegram.Spec_ast.field) ->
+        let fname = ocaml_field_name f.name in
+        let ocaml_t = parse_type f.typ |> to_ocaml_type in
+        let ocaml_t = if String.equal ocaml_t (mname ^ ".t") then "t" else ocaml_t in
+        let ocaml_t = if f.optional then ocaml_t ^ " option" else ocaml_t in
+        Buffer.add_string b ("    " ^ fname ^ " : " ^ ocaml_t ^ ";\n")
+      ) d.fields;
+      Buffer.add_string b "    unknown_fields : Telegram.Json_compat.Unknown_fields.t;\n";
+      Buffer.add_string b "  }\n"
+    );
+
+    Buffer.add_string b "  val to_yojson : t -> Yojson.Safe.t\n";
+    Buffer.add_string b "  val of_yojson : Yojson.Safe.t -> (t, string) result\n";
+    Buffer.add_string b "end\n"
   ) defs;
   Buffer.contents b
 

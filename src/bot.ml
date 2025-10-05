@@ -1,25 +1,149 @@
 open Telegram
 open Telegram.Error
-open Telegram.Types
 
 type +'s ctx = {
   client : Client.t;
   env : Client.env;
   chat : Id.Chat.k Id.t option;
-  user : user option;
-  message : message option;
+  user : Telegram.Types.user option;
+  msg : Telegram.Types.message option;
 }
 
 module Event = struct
-  type 'a t = unit
-  let message = ()
-  let text = ()
-  let command _ = ()
-  let callback _codec = ()
-  let inline_query = ()
-  let any = ()
-  let ( & ) _ _ = ()
-  let when_ _ _ = ()
+  (* GADT for typed event matchers *)
+  type 'a t =
+    | Message : Telegram_generated.Gen_types.Message.t t
+    | Text : string t
+    | Command : string -> string list t
+    | Callback : 'a -> 'a t
+    | Inline_query : Telegram_generated.Gen_types.InlineQuery.t t
+    | Any : Telegram_generated.Gen_types.Update.t t
+    | Combine : 'a t * 'b t -> ('a * 'b) t
+    | Filter : 'a t * ('a -> bool) -> 'a t
+
+  let message = Message
+  let text = Text
+  let command cmd = Command cmd
+  let callback codec = Callback codec
+  let inline_query = Inline_query
+  let any = Any
+  let ( & ) a b = Combine (a, b)
+  let when_ event predicate = Filter (event, predicate)
+
+  (* Internal: match an update against an event matcher *)
+  let rec match_event : type a. a t -> Telegram_generated.Gen_types.Update.t -> (a * [ `Chat ] ctx) option =
+    fun event upd_param ->
+      match event with
+      | Any ->
+          (* Create minimal context for 'any' event *)
+          let ctx = {
+            client = failwith "client not set"; (* Will be set by router *)
+            env = failwith "env not set";
+            chat = None;
+            user = None;
+            msg = None;
+          } in
+          Some (upd_param, ctx)
+
+      | Message ->
+          let open Telegram_generated.Gen_types in
+          let Update.{ message = msg_opt; _ } = upd_param in
+          (match msg_opt with
+           | Some msg ->
+               let open Telegram_generated.Gen_types in
+               let Message.{ chat; from; _ } = msg in
+               let Chat.{ id; _ } = chat in
+               let chat_id = Telegram.Id.Chat.of_int id in
+               let user = (match from with
+                 | Some from_user ->
+                     let User.{ id = user_id; username; _ } = from_user in
+                     Some Telegram.Types.{
+                       id = Telegram.Id.User.of_int user_id;
+                       username = username;
+                     }
+                 | None -> None) in
+               let Message.{ message_id; text; _ } = msg in
+               let message = Telegram.Types.{
+                 message_id = Int64.to_int message_id;
+                 chat_id = chat_id;
+                 text = text;
+               } in
+               let ctx = {
+                 client = failwith "client not set";
+                 env = failwith "env not set";
+                 chat = Some chat_id;
+                 user = user;
+                 msg = Some message;
+               } in
+               Some (msg, ctx)
+           | None -> None)
+
+      | Text ->
+          let open Telegram_generated.Gen_types in
+          let Update.{ message = msg_opt; _ } = upd_param in
+          (match msg_opt with
+           | Some msg when msg.text <> None ->
+               (match match_event Message upd_param with
+                | Some (_, ctx) -> Some (Option.get msg.text, ctx)
+                | None -> None)
+           | _ -> None)
+
+      | Command cmd ->
+          let open Telegram_generated.Gen_types in
+          let Update.{ message = msg_opt; _ } = upd_param in
+          (match msg_opt with
+           | Some msg ->
+               (match msg.text with
+                | Some text when String.length text > 0 && text.[0] = '/' ->
+                    (* Parse command: /command[@botname] args *)
+                    let parts = String.split_on_char ' ' text in
+                    (match parts with
+                     | cmd_part :: args when String.length cmd_part > 1 ->
+                         let cmd_text = String.sub cmd_part 1 (String.length cmd_part - 1) in
+                         (* Remove @botname if present *)
+                         let cmd_name = (match String.index_opt cmd_text '@' with
+                           | Some idx -> String.sub cmd_text 0 idx
+                           | None -> cmd_text) in
+                         if cmd_name = cmd then
+                           (match match_event Message upd_param with
+                            | Some (_, ctx) -> Some (args, ctx)
+                            | None -> None)
+                         else None
+                     | _ -> None)
+                | _ -> None)
+           | None -> None)
+
+      | Callback _ ->
+          (* Callback matching requires the codec, which we'll implement later *)
+          None
+
+      | Inline_query ->
+          let open Telegram_generated.Gen_types in
+          let Update.{ inline_query = iq_opt; _ } = upd_param in
+          (match iq_opt with
+           | Some iq ->
+               let ctx = {
+                 client = failwith "client not set";
+                 env = failwith "env not set";
+                 chat = None;
+                 user = None;
+                 msg = None;
+               } in
+               Some (iq, ctx)
+           | None -> None)
+
+      | Combine (event_a, event_b) ->
+          (match match_event event_a upd_param with
+           | Some (a, ctx_a) ->
+               (match match_event event_b upd_param with
+                | Some (b, _ctx_b) -> Some ((a, b), ctx_a)
+                | None -> None)
+           | None -> None)
+
+      | Filter (event, predicate) ->
+          (match match_event event upd_param with
+           | Some (value, ctx) when predicate value -> Some (value, ctx)
+           | _ -> None)
 end
 
 module Ctx = struct
@@ -30,7 +154,7 @@ module Ctx = struct
   let env c = c.env
   let chat (c : [ `Chat ] t) = match c.chat with Some id -> id | None -> failwith "no chat"
   let user c = c.user
-  let message (c : [ `Chat ] t) = match c.message with Some m -> m | None -> failwith "no message"
+  let message (c : [ `Chat ] t) = match c.msg with Some m -> m | None -> failwith "no message"
 
   (* Convenience helpers for sending messages *)
   let reply (c : [ `Chat ] t) text =
@@ -87,42 +211,50 @@ module Ctx = struct
     | Error err -> Error err
 end
 
-type handler = Handler : 'a Event.t * ('a -> unit) -> handler
+type handler = Handler : 'a Event.t * ('a -> [ `Chat ] ctx -> unit) -> handler
 type route = handler
-type t = route list
 
 let on ev h = Handler (ev, h)
 
 let router ?middlewares:_ routes = routes
 
-let run_polling ~env:_ ~client t =
-  (* Convert routes to a simple handler that processes updates *)
-  let handler _update =
-    (* Route matching will be implemented once Event system is complete.
-       The polling infrastructure is fully functional; route handlers
-       are pending Event type implementation. *)
-    List.iter (fun (Handler (_event, _h)) ->
-      (* Event matching deferred until Event.t is a proper GADT *)
-      ()
-    ) t
+(* Internal: try to match and execute routes against an update *)
+let dispatch_update client env routes update =
+  let rec try_routes = function
+    | [] -> () (* No route matched, silently ignore *)
+    | Handler (event, handler) :: rest ->
+        (match Event.match_event event update with
+         | Some (value, ctx) ->
+             (* Fill in client and env in the context *)
+             let ctx = { ctx with client = client; env = env } in
+             (* Call the handler *)
+             (try
+                handler value ctx
+              with exn ->
+                (* Catch handler exceptions to prevent crashing *)
+                Printf.eprintf "Handler exception: %s\n%!" (Printexc.to_string exn))
+         | None ->
+             (* This route didn't match, try next *)
+             try_routes rest)
+  in
+  try_routes routes
+
+let run_polling ~env ~client routes =
+  (* Convert routes to update handler *)
+  let handler update =
+    dispatch_update client env routes update
   in
 
   (* Run the polling loop *)
   Polling.run client ~handler
 
-let run_webhook ~env:_ ~client ~secret_token ~addr t =
+let run_webhook ~env ~client ~secret_token ~addr routes =
   (* Extract path and port from addr *)
   let `Tcp (path, port) = addr in
 
-  (* Convert routes to a simple handler that processes updates *)
-  let handler _update =
-    (* Route matching will be implemented once Event system is complete.
-       The webhook infrastructure is fully functional; route handlers
-       are pending Event type implementation. *)
-    List.iter (fun (Handler (_event, _h)) ->
-      (* Event matching deferred until Event.t is a proper GADT *)
-      ()
-    ) t
+  (* Convert routes to update handler *)
+  let handler update =
+    dispatch_update client env routes update
   in
 
   (* Run the webhook server *)
