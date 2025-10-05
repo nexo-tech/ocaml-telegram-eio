@@ -102,3 +102,8 @@
  (name large_file_test)
  (libraries ocaml_telegram_eio.tg alcotest)
  (modules large_file_test))
+
+(test
+ (name currency_test)
+ (libraries ocaml_telegram_eio.telegram alcotest)
+ (modules currency_test))

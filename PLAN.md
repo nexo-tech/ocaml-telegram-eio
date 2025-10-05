@@ -93,11 +93,11 @@ Phase 8 — Files & Media (5/5) ✓ COMPLETE
 - [x] Task 8.4 Media groups and captions entities — COMPLETED
 - [x] Task 8.5 Large files and chunking strategy — COMPLETED
 
-Phase 9 — Payments & Stars (3/4)
+Phase 9 — Payments & Stars (4/4)
 - [x] Task 9.1 Payments API methods and types — auto-generated
 - [x] Task 9.2 Stars/paid media: types, price, receipts — auto-generated
 - [x] Task 9.3 Subscriptions and gifting flows — types auto-generated
-- [ ] Task 9.4 Currency and localization helpers
+- [x] Task 9.4 Currency and localization helpers
 
 Phase 10 — Reliability & Limits (1/4)
 - [ ] Task 10.1 Rate limit model and token bucket per method
