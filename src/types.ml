@@ -17,7 +17,7 @@ type inline_query = {
   query : string;
 }
 
-type parse_mode = [ `Markdown | `MarkdownV2 | `HTML ]
+type parse_mode = Parse_mode.t
 
 type message_entity = unit
 

@@ -16,7 +16,7 @@ Principles
 
 Master Checklist
 
-**Completion: 31/92 tasks (34%)**
+**Completion: 32/92 tasks (35%)**
 
 Phase 1 — Architecture & Tooling (10/10 ✓)
 - [x] Task 1.1 Decide core architecture, layering, and error strategy
@@ -40,12 +40,12 @@ Phase 2 — Spec Ingestion & Codegen (8/8 ✓)
 - [x] Task 2.7 Add generator CLI and regeneration workflow
 - [x] Task 2.8 Baseline golden tests for generated outputs
 
-Phase 3 — Core Types & JSON (5/6)
+Phase 3 — Core Types & JSON (6/6 ✓)
 - [x] Task 3.1 Hand-written foundation types (Money, Duration, File_size, Chat_action)
 - [x] Task 3.2 Yojson codecs with unknown-field preservation
 - [x] Task 3.3 Phantom-typed IDs and safe conversions
 - [x] Task 3.4 Time/units (Duration, File_size with pretty-printing)
-- [ ] Task 3.5 Polymorphic variants for tagged unions — PARTIAL: parse_mode, chat_action
+- [x] Task 3.5 Polymorphic variants for tagged unions — COMPLETED: parse_mode, chat_action
 - [ ] Task 3.6 Roundtrip tests against curated samples
 
 Phase 4 — HTTP Engine (2/6)
@@ -276,7 +276,10 @@ Task 3.4 — Time/units: seconds vs ms, file sizes
 - Both types prevent mixing with raw integers, ensuring type safety
 
 Task 3.5 — Polymorphic variants for tagged unions where ergonomic
-- For content types (message kinds), use [ `Text | `Photo of ... | ... ] where it simplifies matching.
+- COMPLETED:
+  - Parse mode as polymorphic variant with codecs: module `Telegram.Parse_mode` provides [`Markdown | `MarkdownV2 | `HTML], `to_string`/`of_string`, `to_yojson`/`of_yojson`, and `pp`. `Telegram.Types.parse_mode` aliases `Parse_mode.t` for ergonomic use across the API and builders.
+  - Chat action as polymorphic variant with codecs: module `Telegram.Chat_action` already implements the full set with conversions and JSON.
+  - Message builders expose content kinds as variants in `Tg.Msg` (e.g., `Text | `Photo of ...`) to simplify matching and composition.
 
 Task 3.6 — Roundtrip tests against curated samples
 - Build a sample corpus of real-world JSON snippets from docs and bots; ensure decode/encode stability (modulo ordering).

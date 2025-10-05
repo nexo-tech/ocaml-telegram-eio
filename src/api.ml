@@ -3,12 +3,6 @@ open Error
 let string_of_chat_id (id : Id.Chat.k Id.t) =
   Id.to_string id
 
-let parse_mode_to_string (pm : Types.parse_mode) =
-  match pm with
-  | `Markdown -> "Markdown"
-  | `MarkdownV2 -> "MarkdownV2"
-  | `HTML -> "HTML"
-
 let encode_send_message (r : _ Request.t) =
   match r with
   | Request.Send_message { chat_id; text; parse_mode; reply_parameters } ->
@@ -16,7 +10,7 @@ let encode_send_message (r : _ Request.t) =
         [ "chat_id", `String (string_of_chat_id chat_id)
         ; "text", `String text
         ] @
-        (match parse_mode with None -> [] | Some pm -> [ "parse_mode", `String (parse_mode_to_string pm) ]) @
+        (match parse_mode with None -> [] | Some pm -> [ "parse_mode", `String (Parse_mode.to_string pm) ]) @
         (match reply_parameters with
          | None -> []
          | Some rp ->
