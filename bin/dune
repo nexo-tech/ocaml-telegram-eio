@@ -1,4 +1,4 @@
 (executables
- (names spec_scan spec_types spec_methods)
- (public_names ocaml_telegram_eio.spec_scan ocaml_telegram_eio.spec_types ocaml_telegram_eio.spec_methods)
- (libraries re ocaml_telegram_eio.telegram))
+ (names spec_scan spec_types spec_methods spec_codegen_types spec_codegen_methods telegram_gen)
+ (public_names ocaml_telegram_eio.spec_scan ocaml_telegram_eio.spec_types ocaml_telegram_eio.spec_methods ocaml_telegram_eio.spec_codegen_types ocaml_telegram_eio.spec_codegen_methods ocaml_telegram_eio.telegram_gen)
+ (libraries re unix ocaml_telegram_eio.telegram))

@@ -198,12 +198,17 @@ Task 2.5 — Generate .ml/.mli types with codecs + tests
 - Generate roundtrip tests stubs per type.
 
 Task 2.6 — Generate method functions and request schemas
-- Emit lib/telegram/methods.ml(i): typed functions with labeled optional params and defaults; encoder selects JSON vs multipart per method.
-- Return ('a, Error.t) result.
+- Implemented: bin/spec_codegen_methods.ml emits OCaml wrappers for methods (sendMessage uses Request constructor and Api.call; others emit informative stubs documenting params and returns).
+- Added Api.call_json to support generic JSON-based calls when needed.
+- Next: expand generator to produce full wrappers with type normalization and multipart detection, and wire generation into a buildable generated library.
 
 Task 2.7 — Add generator CLI and regeneration workflow
-- bin/telegram_gen: reads reference/api.html, writes generated modules; supports --check to verify cleanliness.
-- Document in CONTRIBUTING how to regenerate when Bot API updates.
+- Implemented: bin/telegram_gen orchestrates types and methods generation.
+  - `--in` reference path, `--out-dir` target dir (default: generated)
+  - `--check` verifies that generated/gen_types.ml(i) match the spec, exiting non-zero if not
+  - Writes methods stubs to generated/gen_methods.ml
+- Script: scripts/regenerate.sh builds and runs the generator with optional args.
+- CONTRIBUTING.md documents regeneration and development workflow.
 
 Task 2.8 — Baseline golden tests for generated outputs
 - Golden files for generated .ml(i) to detect spec changes; CI diff if drift.

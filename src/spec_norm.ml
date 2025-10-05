@@ -53,7 +53,7 @@ let rec parse_type s =
       begin match parts with
       | [] -> TCustom s
       | [one] -> TCustom one
-      | many ->
+  | many ->
           let ts = List.map parse_type many in
           TUnion ts
       end
@@ -74,7 +74,10 @@ let sanitize_ident s =
     | 'A'..'Z' -> Buffer.add_char b (Char.lowercase_ascii c)
     | _ -> Buffer.add_char b '_'
   ) s;
-  let r = Buffer.contents b in
+  let r0 = Buffer.contents b in
+  let r = if r0 = "" then "_" else r0 in
+  let first = r.[0] in
+  let r = if (first >= 'a' && first <= 'z') || first = '_' then r else "_" ^ r in
   if is_reserved r then r ^ "_" else r
 
 let ocaml_field_name s = sanitize_ident s
@@ -89,3 +92,28 @@ let ocaml_type_name s =
     else go ((String.make 1 (Char.lowercase_ascii c)) :: acc) (i+1)
   in
   sanitize_ident (String.concat "" (go [] 0))
+
+let ocaml_module_name s =
+  (* Produce a CamelCase module name based on the source title *)
+  let b = Buffer.create (String.length s) in
+  let prev_sep = ref true in
+  String.iter (fun c ->
+    if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') then (
+      if !prev_sep then Buffer.add_char b (Char.uppercase_ascii c)
+      else Buffer.add_char b c;
+      prev_sep := false
+    ) else prev_sep := true
+  ) s;
+  let r = Buffer.contents b in
+  if r = "" then "X" else r
+
+let ocaml_type_ref s = ocaml_module_name s ^ ".t"
+
+let rec to_ocaml_type = function
+  | TInt64 -> "int64"
+  | TString -> "string"
+  | TBool -> "bool"
+  | TFloat -> "float"
+  | TCustom s -> ocaml_type_ref s
+  | TArray t -> (to_ocaml_type t) ^ " list"
+  | TUnion _ -> "string"
