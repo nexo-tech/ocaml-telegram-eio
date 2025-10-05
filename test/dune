@@ -82,3 +82,8 @@
  (name upload_test)
  (libraries ocaml_telegram_eio.tg ocaml_telegram_eio.telegram alcotest)
  (modules upload_test))
+
+(test
+ (name limits_test)
+ (libraries ocaml_telegram_eio.telegram alcotest)
+ (modules limits_test))

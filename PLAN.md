@@ -86,10 +86,10 @@ Phase 7 — Ergonomic Bot DSL (4/7)
 - [x] Task 7.6 Reply markup builders — PARTIAL: API defined, minimal impl
 - [x] Task 7.7 Error handling strategy (per-route, global) — COMPLETED
 
-Phase 8 — Files & Media (3/5)
+Phase 8 — Files & Media (4/5)
 - [x] Task 8.1 Download by file_id and via URLs — COMPLETED
 - [x] Task 8.2 Uploads — COMPLETED
-- [ ] Task 8.3 Temp storage policy and backpressure
+- [x] Task 8.3 Temp storage policy and backpressure — COMPLETED
 - [ ] Task 8.4 Media groups and captions entities
 - [ ] Task 8.5 Large files and chunking strategy
 
@@ -497,8 +497,18 @@ Task 8.2 — Uploads: multipart builder and streaming ✅
    * Zero warnings, fully type-safe, boilerplate-free API
    * Module added to Tg library (ocaml_telegram_eio.tg)
 
-Task 8.3 — Temp storage policy and backpressure
-- Configurable temp dir, size limits, cancellation when slow consumer.
+Task 8.3 — Temp storage policy and backpressure — COMPLETED ✓
+Implementation:
+  * Limits module with configurable resource policies
+  * Size limit types: Unlimited | Max_bytes int64 | Max_mb int (megabytes)
+  * Policy configuration: max_upload_size, max_download_size, temp_dir, request_timeout, chunk_size
+  * Preset policies: `default` (unlimited), `telegram_limits` (50MB upload, 20MB download, 60s timeout)
+  * Fluent builder API: with_max_upload, with_max_download, with_temp_dir, with_timeout, with_chunk_size
+  * Integration with Client (optional limits parameter, defaults to telegram_limits)
+  * Download size checking in Download.to_buffer with proper error reporting
+  * Upload size checking via Upload.with_limits (returns Result for validation before upload)
+  * 14 comprehensive tests covering limits validation, policies, builders, and application
+  * Zero warnings, fully type-safe, elegant functional API
 
 Task 8.4 — Media groups and captions entities
 - Build album send; enforce constraints (10 items, types rules) at compile/run time where feasible.

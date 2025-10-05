@@ -59,3 +59,24 @@ val with_progress :
         Upload.file_part ~name:"photo" ~path:"/tmp/photo.jpg" ();
       ]
     ]} *)
+
+val with_limits :
+  ?on_progress:(progress -> unit) ->
+  limits:Telegram.Limits.t ->
+  (string * Telegram.Http.part_value) list ->
+  (Telegram.Http.body, string) result
+(** Create multipart body with size limit validation and optional progress tracking.
+
+    Validates total upload size against limits before creating the body.
+    Returns Error if the upload exceeds the configured limit.
+
+    Example:
+    {[
+      let limits = Limits.telegram_limits in
+      match Upload.with_limits ~limits [
+        Upload.string_part ~name:"chat_id" ~value:"123456";
+        Upload.file_part ~name:"photo" ~path:"/tmp/photo.jpg" ();
+      ] with
+      | Ok body -> (* use body *)
+      | Error msg -> (* handle size limit error *)
+    ]} *)

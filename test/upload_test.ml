@@ -97,6 +97,48 @@ let test_progress_type () =
   Alcotest.(check (option int64)) "total_bytes" (Some 2048L) p.Upload.total_bytes;
   Alcotest.(check (option (float 0.1))) "percent" (Some 50.0) p.Upload.percent
 
+let test_with_limits_success () =
+  (* Test with_limits when size is under limit *)
+  let limits = Telegram.Limits.default |> Telegram.Limits.with_max_upload 1 in (* 1MB *)
+  let parts = [
+    Upload.string_part ~name:"chat_id" ~value:"123";
+    Upload.string_part ~name:"caption" ~value:"Small message";
+  ] in
+  match Upload.with_limits ~limits parts with
+  | Ok body ->
+      (match body with
+       | Telegram.Http.Multipart ps -> Alcotest.(check int) "parts count" 2 (List.length ps)
+       | _ -> Alcotest.fail "Expected Multipart body")
+  | Error _ -> Alcotest.fail "Should succeed for small upload"
+
+let test_with_limits_failure () =
+  (* Test with_limits when size exceeds limit *)
+  let limits = Telegram.Limits.default |> Telegram.Limits.with_max_upload 1 in (* 1MB *)
+  (* Create a large string that exceeds 1MB *)
+  let large_value = String.make 2_000_000 'x' in
+  let parts = [
+    Upload.string_part ~name:"data" ~value:large_value;
+  ] in
+  match Upload.with_limits ~limits parts with
+  | Ok _ -> Alcotest.fail "Should fail for large upload"
+  | Error _ -> ()
+
+let test_with_limits_and_progress () =
+  (* Test with_limits with progress callback *)
+  let limits = Telegram.Limits.default |> Telegram.Limits.with_max_upload 10 in
+  let called = ref false in
+  let on_progress _p = called := true in
+  let parts = [
+    Upload.string_part ~name:"chat_id" ~value:"123";
+  ] in
+  match Upload.with_limits ~limits ~on_progress parts with
+  | Ok body ->
+      (match body with
+       | Telegram.Http.Multipart_progress (ps, _cb) ->
+           Alcotest.(check int) "parts count" 1 (List.length ps)
+       | _ -> Alcotest.fail "Expected Multipart_progress body")
+  | Error _ -> Alcotest.fail "Should succeed"
+
 let () =
   let open Alcotest in
   run "Upload" [
@@ -110,5 +152,10 @@ let () =
       test_case "with_progress without callback" `Quick test_with_progress_no_callback;
       test_case "with_progress with callback" `Quick test_with_progress_with_callback;
       test_case "progress type" `Quick test_progress_type;
+    ];
+    "limits", [
+      test_case "with_limits success" `Quick test_with_limits_success;
+      test_case "with_limits failure" `Quick test_with_limits_failure;
+      test_case "with_limits with progress" `Quick test_with_limits_and_progress;
     ];
   ]

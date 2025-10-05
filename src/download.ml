@@ -47,8 +47,14 @@ let to_buffer client ~file_path buffer =
   | Error e -> Error e
   | Ok response ->
       let body = response.Telegram.Http.body in
-      Buffer.add_string buffer body;
-      Ok (Int64.of_int (String.length body))
+      let size = Int64.of_int (String.length body) in
+      (* Check download size limit *)
+      let limits = Telegram.Client.limits client in
+      (match Telegram.Limits.check_download_size limits size with
+       | Error msg -> Error (Telegram.Error.Decode_error ("Download size limit exceeded: " ^ msg))
+       | Ok () ->
+           Buffer.add_string buffer body;
+           Ok size)
 
 (* Download file contents as a string *)
 let to_string client ~file_path =
