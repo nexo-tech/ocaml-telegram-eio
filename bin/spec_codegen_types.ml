@@ -150,6 +150,7 @@ let gen_ml defs =
         let ocaml_t = if f.optional then ocaml_t ^ " option" else ocaml_t in
         Buffer.add_string b ("    " ^ fname ^ " : " ^ ocaml_t ^ ";\n")
       ) d.fields;
+      Buffer.add_string b "    unknown_fields : Telegram.Json_compat.Unknown_fields.t;\n";
       Buffer.add_string b "  }\n"
     );
 
@@ -158,7 +159,7 @@ let gen_ml defs =
       Buffer.add_string b "  let to_yojson (_ : t) : Yojson.Safe.t = `Null\n"
     ) else (
       Buffer.add_string b "  let to_yojson (v : t) : Yojson.Safe.t =\n";
-      Buffer.add_string b "    `Assoc [\n";
+      Buffer.add_string b "    `Assoc ([\n";
       List.iter (fun (f:Telegram.Spec_ast.field) ->
         let fname = ocaml_field_name f.name in
         let json_name = f.name in
@@ -179,7 +180,7 @@ let gen_ml defs =
         else
           Buffer.add_string b (Printf.sprintf "      (\"%s\", %s);\n" json_name (gen_encoder typ ("v." ^ fname)))
       ) d.fields;
-      Buffer.add_string b "    ]\n"
+      Buffer.add_string b "    ] @ Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)\n"
     );
 
     (* of_yojson implementation *)
@@ -190,6 +191,7 @@ let gen_ml defs =
       Buffer.add_string b "    match j with\n";
       Buffer.add_string b "    | `Assoc fields ->\n";
       Buffer.add_string b "        let open Yojson.Safe.Util in\n";
+      Buffer.add_string b "        let uf = Telegram.Json_compat.Unknown_fields.create () in\n";
       Buffer.add_string b "        (try\n";
 
       (* Field extraction *)
@@ -207,6 +209,7 @@ let gen_ml defs =
           | TArray inner -> Printf.sprintf "(List.map (fun x -> %s) (to_list %s))" (gen_decoder inner "x") json_expr
           | TUnion _ -> Printf.sprintf "(to_string %s)" json_expr
         in
+        Buffer.add_string b (Printf.sprintf "          Telegram.Json_compat.Unknown_fields.mark_known uf \"%s\";\n" json_name);
         if f.optional then
           Buffer.add_string b (Printf.sprintf "          let %s = match List.assoc_opt \"%s\" fields with None | Some `Null -> None | Some x -> Some (%s) in\n"
             fname json_name (gen_decoder typ "x"))
@@ -215,6 +218,9 @@ let gen_ml defs =
             fname (gen_decoder typ (Printf.sprintf "(List.assoc \"%s\" fields)" json_name)))
       ) d.fields;
 
+      (* Capture unknown fields *)
+      Buffer.add_string b "          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in\n";
+
       (* Construct record *)
       Buffer.add_string b "          Ok { ";
       List.iteri (fun i (f:Telegram.Spec_ast.field) ->
@@ -222,7 +228,7 @@ let gen_ml defs =
         if i > 0 then Buffer.add_string b "; ";
         Buffer.add_string b (fname ^ " = " ^ fname)
       ) d.fields;
-      Buffer.add_string b " }\n";
+      Buffer.add_string b "; unknown_fields }\n";
       Buffer.add_string b "        with\n";
       Buffer.add_string b "        | Not_found -> Error \"Missing required field\"\n";
       Buffer.add_string b "        | Type_error (msg, _) -> Error msg\n";

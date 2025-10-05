@@ -16,7 +16,7 @@ Principles
 
 Master Checklist
 
-**Completion: 30/92 tasks (33%)**
+**Completion: 31/92 tasks (34%)**
 
 Phase 1 — Architecture & Tooling (10/10 ✓)
 - [x] Task 1.1 Decide core architecture, layering, and error strategy
@@ -40,9 +40,9 @@ Phase 2 — Spec Ingestion & Codegen (8/8 ✓)
 - [x] Task 2.7 Add generator CLI and regeneration workflow
 - [x] Task 2.8 Baseline golden tests for generated outputs
 
-Phase 3 — Core Types & JSON (4/6)
+Phase 3 — Core Types & JSON (5/6)
 - [x] Task 3.1 Hand-written foundation types (Money, Duration, File_size, Chat_action)
-- [ ] Task 3.2 Yojson codecs with unknown-field preservation
+- [x] Task 3.2 Yojson codecs with unknown-field preservation
 - [x] Task 3.3 Phantom-typed IDs and safe conversions
 - [x] Task 3.4 Time/units (Duration, File_size with pretty-printing)
 - [ ] Task 3.5 Polymorphic variants for tagged unions — PARTIAL: parse_mode, chat_action
@@ -251,7 +251,20 @@ Task 3.1 — Hand-written foundation types (identifiers, common enums)
 - All tests passing, zero warnings, fully type-safe
 
 Task 3.2 — Yojson codecs with unknown-field preservation
-- For core objects prone to extensions (Message, Update), keep extra fields map for forward compatibility.
+- **COMPLETED**: All generated types now include `unknown_fields` field for forward compatibility
+- **Implementation**:
+  * Created `Json_compat.Unknown_fields` module with tracker/capture mechanism
+  * Modified code generator to add `unknown_fields : Telegram.Json_compat.Unknown_fields.t` to all record types
+  * Updated `of_yojson` to track known fields and capture unknown ones
+  * Updated `to_yojson` to re-serialize unknown fields alongside known fields
+- **Benefits**:
+  * Forward compatibility: New Telegram API fields won't break existing code
+  * Roundtrip preservation: Deserialize → modify → serialize preserves all fields
+  * Type-safe: Unknown fields represented as `(string * Yojson.Safe.t) list`
+- **Testing**:
+  * Created test/json_compat.ml with 2 tests covering unknown field tracking
+  * All 449 generated types now support unknown-field preservation
+  * Golden tests updated with new generated code (baselines refreshed)
 
 Task 3.3 — Phantom-typed IDs and safe conversions
 - type 'k Id.t with phantom markers Chat_k, User_k; functions ensure no accidental mixing.

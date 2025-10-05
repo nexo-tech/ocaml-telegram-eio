@@ -22,3 +22,8 @@
  (name foundation)
  (libraries ocaml_telegram_eio.telegram alcotest)
  (modules foundation))
+
+(test
+ (name json_compat)
+ (libraries ocaml_telegram_eio.telegram alcotest yojson)
+ (modules json_compat))

@@ -3,5 +3,5 @@
  (public_name ocaml_telegram_eio.generated)
  (libraries yojson ocaml_telegram_eio.telegram)
  (preprocess (pps ppx_deriving_yojson))
- (flags (:standard -w -69-33-11))
+ (flags (:standard -w -69-33))
  (modules gen_types gen_methods))
