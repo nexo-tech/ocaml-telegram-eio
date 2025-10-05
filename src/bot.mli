@@ -85,6 +85,52 @@ module Entity : sig
   (** Extract command arguments using entity information *)
 end
 
+module Middleware : sig
+  (** Middleware system for before/after hooks, authorization, and error handling *)
+
+  type 's t
+  (** Middleware type with phantom type for context scope *)
+
+  val make :
+    ?before:('s ctx -> ('s ctx, string) result) ->
+    ?after:('s ctx -> unit) ->
+    ?on_error:('s ctx -> exn -> unit) ->
+    string -> 's t
+  (** Create custom middleware with optional before/after/error hooks.
+      - [before]: Run before handler, can transform context or reject request
+      - [after]: Run after successful handler execution
+      - [on_error]: Run when handler raises an exception
+      - name: Middleware identifier for debugging *)
+
+  (** {2 Common Middleware} *)
+
+  val logging : ?prefix:string -> unit -> 's t
+  (** Log updates and handler execution. Default prefix is "[Bot]" *)
+
+  val only_users : Telegram.Id.User.k Telegram.Id.t list -> 's t
+  (** Only allow updates from specific user IDs *)
+
+  val require_user : unit -> 's t
+  (** Require user to be present in update *)
+
+  val require_chat : unit -> 's t
+  (** Require chat to be present in update *)
+
+  val rate_limit : max_per_minute:int -> unit -> 's t
+  (** Simple in-memory rate limiting per user (max requests per minute) *)
+
+  val enrich : ('s ctx -> 's ctx) -> 's t
+  (** Transform/enrich context before handler *)
+
+  (** {2 Combinators} *)
+
+  val combine : 's t list -> 's t
+  (** Combine multiple middleware into one *)
+
+  val ( >> ) : 's t -> 's t -> 's t
+  (** Chain operator: [m1 >> m2] runs m1 then m2 *)
+end
+
 module Ctx : sig
   type +'s t = 's ctx
 
@@ -123,7 +169,16 @@ end
 type route
 
 val on : 'a Event.t -> ('a -> [ `Chat ] ctx -> unit) -> route
-val router : ?middlewares:(unit -> unit) list -> route list -> route list
+(** Create a route from an event matcher and handler *)
+
+val with_middleware : [ `Chat ] Middleware.t list -> route -> route
+(** Add middleware to a specific route *)
+
+val with_error_handler : ([ `Chat ] ctx -> exn -> unit) -> route -> route
+(** Add a custom error handler to a specific route *)
+
+val router : ?middlewares:[ `Chat ] Middleware.t list -> route list -> route list
+(** Create a router with optional global middleware applied to all routes *)
 
 val run_polling : env:Telegram.Client.env -> client:Telegram.Client.t -> route list -> unit
 val run_webhook : env:Telegram.Client.env -> client:Telegram.Client.t -> secret_token:string -> addr:[ `Tcp of (string * int) ] -> route list -> unit

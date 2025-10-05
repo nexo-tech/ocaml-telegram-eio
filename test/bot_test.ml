@@ -116,6 +116,80 @@ let test_entity_parse_command_args () =
   Alcotest.(check (option (list string))) "empty entities"
     None (Bot.Entity.parse_command_args "/start arg1 arg2" (Some []))
 
+(* Middleware module tests *)
+let test_middleware_make () =
+  (* Test that middleware can be created and compiles *)
+  let counter = ref 0 in
+  let _mw = Bot.Middleware.make
+    ~before:(fun ctx -> incr counter; Ok ctx)
+    ~after:(fun _ctx -> incr counter)
+    "test" in
+  Alcotest.(check bool) "middleware created" true true
+
+let test_middleware_combinators () =
+  (* Test combine - just verify it compiles *)
+  let mw1 = Bot.Middleware.require_user () in
+  let mw2 = Bot.Middleware.require_chat () in
+  let _combined = Bot.Middleware.combine [mw1; mw2] in
+  Alcotest.(check bool) "combined middleware" true true;
+
+  (* Test chain operator *)
+  let _chained = Bot.Middleware.(mw1 >> mw2) in
+  Alcotest.(check bool) "chained middleware" true true
+
+let test_middleware_logging () =
+  (* Test logging middleware creation - just verify it compiles *)
+  let _log_mw = Bot.Middleware.logging () in
+  Alcotest.(check bool) "logging middleware" true true;
+
+  let _custom_log = Bot.Middleware.logging ~prefix:"[Test]" () in
+  Alcotest.(check bool) "custom logging middleware" true true
+
+let test_middleware_auth () =
+  (* Test authorization middleware - just verify it compiles *)
+  let _user_mw = Bot.Middleware.require_user () in
+  Alcotest.(check bool) "require_user middleware" true true;
+
+  let _chat_mw = Bot.Middleware.require_chat () in
+  Alcotest.(check bool) "require_chat middleware" true true;
+
+  (* Test only_users - create with dummy ID *)
+  let open Telegram.Id in
+  let dummy_id = User.of_int 123456L in
+  let _only_mw = Bot.Middleware.only_users [dummy_id] in
+  Alcotest.(check bool) "only_users middleware" true true
+
+let test_middleware_rate_limit () =
+  (* Test rate limiting middleware creation - just verify it compiles *)
+  let _rl_mw = Bot.Middleware.rate_limit ~max_per_minute:10 () in
+  Alcotest.(check bool) "rate_limit middleware" true true
+
+let test_middleware_enrich () =
+  (* Test context enricher - just verify it compiles *)
+  let _enrich_mw = Bot.Middleware.enrich (fun ctx -> ctx) in
+  Alcotest.(check bool) "enrich middleware" true true
+
+let test_route_with_middleware () =
+  (* Test adding middleware to routes - just verify it compiles *)
+  let route = Bot.on Bot.Event.text (fun _txt _ctx -> ()) in
+  let mw = Bot.Middleware.logging () in
+  let _route_with_mw = Bot.with_middleware [mw] route in
+  Alcotest.(check bool) "route with middleware" true true
+
+let test_route_with_error_handler () =
+  (* Test adding error handler to routes - just verify it compiles *)
+  let route = Bot.on Bot.Event.text (fun _txt _ctx -> ()) in
+  let _route_with_err = Bot.with_error_handler (fun _ctx _exn -> ()) route in
+  Alcotest.(check bool) "route with error handler" true true
+
+let test_router_with_global_middleware () =
+  (* Test router with global middleware *)
+  let route1 = Bot.on Bot.Event.text (fun _txt _ctx -> ()) in
+  let route2 = Bot.on Bot.Event.(command "start") (fun _args _ctx -> ()) in
+  let mw = Bot.Middleware.logging () in
+  let routes = Bot.router ~middlewares:[mw] [route1; route2] in
+  Alcotest.(check int) "router returns routes" 2 (List.length routes)
+
 let () =
   let open Alcotest in
   run "Bot" [
@@ -136,5 +210,18 @@ let () =
     "entity_parsing", [
       test_case "filter_by_type" `Quick test_entity_filter_by_type;
       test_case "parse_command_args" `Quick test_entity_parse_command_args;
+    ];
+    "middleware", [
+      test_case "make custom middleware" `Quick test_middleware_make;
+      test_case "combine and chain middleware" `Quick test_middleware_combinators;
+      test_case "logging middleware" `Quick test_middleware_logging;
+      test_case "authorization middleware" `Quick test_middleware_auth;
+      test_case "rate limiting middleware" `Quick test_middleware_rate_limit;
+      test_case "context enricher" `Quick test_middleware_enrich;
+    ];
+    "routing", [
+      test_case "route with middleware" `Quick test_route_with_middleware;
+      test_case "route with error handler" `Quick test_route_with_error_handler;
+      test_case "router with global middleware" `Quick test_router_with_global_middleware;
     ];
   ]

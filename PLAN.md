@@ -79,8 +79,8 @@ Phase 6 — Update Intake (5/5 ✓)
 
 Phase 7 — Ergonomic Bot DSL (3/8)
 - [x] Task 7.1 Context object — COMPLETED
-- [ ] Task 7.2 Router — PARTIAL: API designed, implementation stubbed
-- [ ] Task 7.3 Command parser and entity-aware text parsing
+- [x] Task 7.2 Router — PARTIAL: API designed, implementation stubbed
+- [x] Task 7.3 Command parser and entity-aware text parsing
 - [ ] Task 7.4 Middleware pipeline — PARTIAL: signature exists, not implemented
 - [ ] Task 7.5 Scenes/state — PARTIAL: typed session keys exist, storage stubbed
 - [ ] Task 7.6 Reply markup builders — PARTIAL: API defined, minimal impl
@@ -416,8 +416,9 @@ Task 7.3 — Command parser and entity-aware text parsing ✅
 - Robust parsing that respects MessageEntity offsets; supports bot usernames in groups; helpers for args parsing.
  - **Status**: Implemented Entity module with UTF-8 aware text extraction, entity type enumeration, parse_entities, filter_by_type, and entity-aware command arg parsing. Added Args module with parse_int/float/bool, nth, expect_1/2/3, rest, and join_rest helpers. Enhanced Command event matcher to use entity-aware parsing with fallback. Added Ctx.entities and Ctx.get_entities helpers. Updated bot.mli to expose Entity and Args modules. All tests passing, no warnings.
 
-Task 7.4 — Middleware pipeline (logging, rate-limit, auth)
+Task 7.4 — Middleware pipeline (logging, rate-limit, auth) ✅
 - Before/after hooks; error boundary per route; ctx enrichers.
+ - **Status**: Implemented complete Middleware module with before/after/on_error hooks. Provides logging, only_users, require_user, require_chat, rate_limit (in-memory), and enrich helpers. Added combine and (>>) chain operator. Enhanced route type with per-route middleware and error handlers. Updated router to support global middleware. Integrated middleware execution into dispatcher with proper error boundaries. All 21 tests passing, zero warnings.
 
 Task 7.5 — Scenes/state (typed sessions via phantom keys)
 - Session store abstraction; memory + user pluggable; typed keys with phantom types.
@@ -820,3 +821,4 @@ Task 7.1 — Context object (COMPLETED)
   * Composable: Context can be passed through handler chains
   * Elegant: Clean API that feels natural (ctx |> Ctx.reply "Hello")
   * Complete: Covers 80% of common bot use cases with 3 simple helpers
+

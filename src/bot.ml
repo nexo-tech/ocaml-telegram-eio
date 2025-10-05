@@ -347,6 +347,125 @@ module Event = struct
            | _ -> None)
 end
 
+(* Middleware system *)
+module Middleware = struct
+  type 's t = {
+    name : string; [@warning "-69"]
+    before : 's ctx -> ('s ctx, string) result;
+    after : 's ctx -> unit;
+    on_error : 's ctx -> exn -> unit;
+  }
+
+  (* Create middleware with all hooks *)
+  let make ?(before = fun ctx -> Ok ctx) ?(after = fun _ -> ()) ?(on_error = fun _ _ -> ()) name =
+    { name; before; after; on_error }
+
+  (* Common middleware constructors *)
+
+  (* Logging middleware *)
+  let logging ?(prefix = "[Bot]") () =
+    make ~before:(fun ctx ->
+      (match ctx.user with
+       | Some u ->
+           let username = match u.Telegram.Types.username with Some un -> "@" ^ un | None -> "?" in
+           Printf.eprintf "%s Update from %s\n%!" prefix username
+       | None -> Printf.eprintf "%s Update (no user)\n%!" prefix);
+      Ok ctx)
+    ~after:(fun _ctx ->
+      Printf.eprintf "%s Handler completed\n%!" prefix)
+    ~on_error:(fun _ctx exn ->
+      Printf.eprintf "%s Handler error: %s\n%!" prefix (Printexc.to_string exn))
+    "logging"
+
+  (* Authorization middleware - only allow specific user IDs *)
+  let only_users allowed_ids =
+    make ~before:(fun ctx ->
+      match ctx.user with
+      | Some u ->
+          if List.mem u.Telegram.Types.id allowed_ids then
+            Ok ctx
+          else
+            Error "Unauthorized user"
+      | None -> Error "No user in update")
+    "only_users"
+
+  (* Authorization middleware - require user to be present *)
+  let require_user () =
+    make ~before:(fun ctx ->
+      match ctx.user with
+      | Some _ -> Ok ctx
+      | None -> Error "User required")
+    "require_user"
+
+  (* Authorization middleware - require chat to be present *)
+  let require_chat () =
+    make ~before:(fun ctx ->
+      match ctx.chat with
+      | Some _ -> Ok ctx
+      | None -> Error "Chat required")
+    "require_chat"
+
+  (* Rate limiting middleware (simple in-memory) *)
+  let rate_limit ~max_per_minute () =
+    let module H = Hashtbl in
+    let requests = H.create 100 in
+    let cleanup_interval = 60.0 in
+    let last_cleanup = ref (Unix.gettimeofday ()) in
+
+    make ~before:(fun ctx ->
+      let now = Unix.gettimeofday () in
+
+      (* Periodic cleanup *)
+      if now -. !last_cleanup > cleanup_interval then (
+        H.clear requests;
+        last_cleanup := now
+      );
+
+      match ctx.user with
+      | Some u ->
+          let user_id = u.Telegram.Types.id in
+          let count = try H.find requests user_id with Not_found -> (ref 0, ref now) in
+          let (counter, first_req) = count in
+
+          (* Reset if window expired *)
+          if now -. !first_req > 60.0 then (
+            counter := 1;
+            first_req := now;
+            H.replace requests user_id (counter, first_req);
+            Ok ctx
+          ) else if !counter >= max_per_minute then
+            Error "Rate limit exceeded"
+          else (
+            incr counter;
+            H.replace requests user_id (counter, first_req);
+            Ok ctx
+          )
+      | None -> Ok ctx (* No user, no rate limit *))
+    "rate_limit"
+
+  (* Context enricher - add custom data *)
+  let enrich f =
+    make ~before:(fun ctx -> Ok (f ctx)) "enrich"
+
+  (* Combine multiple middleware *)
+  let combine middlewares =
+    make
+      ~before:(fun ctx ->
+        List.fold_left (fun acc mw ->
+          match acc with
+          | Error _ as e -> e
+          | Ok ctx -> mw.before ctx
+        ) (Ok ctx) middlewares)
+      ~after:(fun ctx ->
+        List.iter (fun mw -> mw.after ctx) (List.rev middlewares))
+      ~on_error:(fun ctx exn ->
+        List.iter (fun mw -> mw.on_error ctx exn) (List.rev middlewares))
+      "combined"
+
+  (* Chain operator for combining middleware *)
+  let ( >> ) m1 m2 = combine [m1; m2]
+end
+
 module Ctx = struct
   type +'s t = 's ctx
 
@@ -428,27 +547,69 @@ module Ctx = struct
 end
 
 type handler = Handler : 'a Event.t * ('a -> [ `Chat ] ctx -> unit) -> handler
-type route = handler
 
-let on ev h = Handler (ev, h)
+(* Route with optional middleware and error handler *)
+type route = {
+  handler : handler;
+  middleware : [ `Chat ] Middleware.t list;
+  on_error : ([ `Chat ] ctx -> exn -> unit) option;
+}
 
-let router ?middlewares:_ routes = routes
+(* Create a route from an event and handler *)
+let on ev h = {
+  handler = Handler (ev, h);
+  middleware = [];
+  on_error = None;
+}
+
+(* Add middleware to a route *)
+let with_middleware mws route = { route with middleware = mws }
+
+(* Add error handler to a route *)
+let with_error_handler err_h route = { route with on_error = Some err_h }
+
+(* Create router with optional global middleware *)
+let router ?(middlewares = []) routes =
+  (* Apply global middleware to all routes *)
+  List.map (fun route ->
+    { route with middleware = middlewares @ route.middleware }
+  ) routes
 
 (* Internal: try to match and execute routes against an update *)
 let dispatch_update client env routes update =
   let rec try_routes = function
     | [] -> () (* No route matched, silently ignore *)
-    | Handler (event, handler) :: rest ->
+    | route :: rest ->
+        let { handler = Handler (event, handler); middleware; on_error } = route in
         (match Event.match_event event update with
          | Some (value, ctx) ->
              (* Fill in client and env in the context *)
              let ctx = { ctx with client = client; env = env } in
-             (* Call the handler *)
-             (try
-                handler value ctx
-              with exn ->
-                (* Catch handler exceptions to prevent crashing *)
-                Printf.eprintf "Handler exception: %s\n%!" (Printexc.to_string exn))
+
+             (* Run middleware before hooks *)
+             let ctx_result = List.fold_left (fun acc mw ->
+               match acc with
+               | Error _ as e -> e
+               | Ok ctx -> mw.Middleware.before ctx
+             ) (Ok ctx) middleware in
+
+             (match ctx_result with
+              | Error err ->
+                  (* Middleware rejected the request *)
+                  Printf.eprintf "Middleware rejected: %s\n%!" err
+              | Ok enriched_ctx ->
+                  (* Call the handler with error boundary *)
+                  (try
+                     handler value enriched_ctx;
+                     (* Run middleware after hooks *)
+                     List.iter (fun mw -> mw.Middleware.after enriched_ctx) (List.rev middleware)
+                   with exn ->
+                     (* Run middleware error hooks *)
+                     List.iter (fun mw -> mw.Middleware.on_error enriched_ctx exn) (List.rev middleware);
+                     (* Call route-specific error handler if present *)
+                     (match on_error with
+                      | Some err_h -> err_h enriched_ctx exn
+                      | None -> Printf.eprintf "Handler exception: %s\n%!" (Printexc.to_string exn))))
          | None ->
              (* This route didn't match, try next *)
              try_routes rest)
