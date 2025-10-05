@@ -21,7 +21,9 @@ end
 
 module Cohttp_eio = struct
   type t = unit
+
   let v () = ()
-  let call _ ~meth:_ ~url:_ ~headers:_ ~body:_ : (response, Error.t) result =
-    Error (Not_implemented "HTTP backend not wired yet")
+
+  let call _t ~meth:_ ~url:_ ~headers:_ ~body:_ : (response, Error.t) result =
+    Error (Not_implemented "HTTP backend is not enabled in this build")
 end

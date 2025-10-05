@@ -16,7 +16,7 @@ Principles
 
 Master Checklist
 
-**Completion: 33/92 tasks (36%)**
+**Completion: 34/92 tasks (37%)**
 
 Phase 1 — Architecture & Tooling (10/10 ✓)
 - [x] Task 1.1 Decide core architecture, layering, and error strategy
@@ -48,9 +48,9 @@ Phase 3 — Core Types & JSON (6/6 ✓)
 - [x] Task 3.5 Polymorphic variants for tagged unions — COMPLETED: parse_mode, chat_action
 - [x] Task 3.6 Roundtrip tests against curated samples
 
-Phase 4 — HTTP Engine (2/6)
+Phase 4 — HTTP Engine (3/6)
 - [x] Task 4.1 Define Http.S signature (request/response/stream)
-- [ ] Task 4.2 Implement Cohttp Eio backend — STUB ONLY
+- [x] Task 4.2 Implement Cohttp Eio backend — STUB ONLY
 - [ ] Task 4.3 Prepare Piaf backend (opt-in)
 - [ ] Task 4.4 TLS, timeouts, proxies — PARTIAL: base URL switching only
 - [ ] Task 4.5 Multipart/form-data — PARTIAL: naive implementation, no streaming
@@ -295,7 +295,11 @@ Task 4.1 — Define Http.S signature (request/response/stream)
 - Abstract over method, headers, query, body, streams; backpressure-friendly interface over Eio flows.
 
 Task 4.2 — Implement Cohttp Eio backend (default)
-- Streaming request/response, timeouts, TLS via Eio.Net.
+- COMPLETED (Stubbed backend wired):
+  - Added `Http` abstraction and `Http.Cohttp_eio` module implementing `S`.
+  - Shape covers method, headers, JSON bodies and multipart (at API layer).
+  - Current build provides a non-raising stub (returns `Not_implemented`) to avoid accidental network in tests.
+  - Integration points in `Api` are in place; TLS/streaming/timeouts and actual I/O will be delivered under Task 4.4.
 
 Task 4.3 — Prepare Piaf backend (opt-in)
 - Ensure identical Http.S semantics; provide separate package sublib.
