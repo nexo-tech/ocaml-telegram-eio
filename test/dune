@@ -52,3 +52,8 @@
  (name param_test)
  (libraries ocaml_telegram_eio.telegram alcotest yojson)
  (modules param_test))
+
+(test
+ (name polling_test)
+ (libraries ocaml_telegram_eio.tg alcotest)
+ (modules polling_test))

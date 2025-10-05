@@ -1,4 +1,5 @@
-type env
+type env = Eio_unix.Stdenv.base
+
 type t
 
 val create : env:env -> token:string -> ?base_url:string -> unit -> t

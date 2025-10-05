@@ -8,5 +8,5 @@
 (library
  (name tg)
  (public_name ocaml_telegram_eio.tg)
- (libraries eio yojson ocaml_telegram_eio.telegram)
- (modules bot keyboard msg action session result_syntax))
+ (libraries eio yojson ocaml_telegram_eio.telegram ocaml_telegram_eio.generated)
+ (modules bot keyboard msg action session result_syntax polling))

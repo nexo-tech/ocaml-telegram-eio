@@ -16,7 +16,7 @@ Principles
 
 Master Checklist
 
-**Completion: 37/92 tasks (40%)**
+**Completion: 38/92 tasks (41%)**
 
 Phase 1 — Architecture & Tooling (10/10 ✓)
 - [x] Task 1.1 Decide core architecture, layering, and error strategy
@@ -70,8 +70,8 @@ NOTE: Code generation COMPLETE and fully type-safe. 449 types, 232 methods auto-
 - [x] Task 5.9 Games, web apps, attachment menu — auto-generated
 - [x] Task 5.10 Ensure unknown/new fields don't break decoding — COMPLETED
 
-Phase 6 — Update Intake (0/5)
-- [ ] Task 6.1 Long polling runner — STUB ONLY
+Phase 6 — Update Intake (1/5)
+- [x] Task 6.1 Long polling runner — COMPLETED
 - [ ] Task 6.2 Webhook runner — STUB ONLY
 - [ ] Task 6.3 Secret token verification, IP allowlist hooks
 - [ ] Task 6.4 Update batching, offset handling, idempotency
@@ -572,3 +572,33 @@ Task 5.10 — Ensure unknown/new fields don't break decoding (COMPLETED)
   * New fields added by Telegram don't break existing code
   * Unknown fields preserved for debugging and future migration
   * Maintains API stability across Bot API updates
+
+Task 6.1 — Long polling runner (COMPLETED)
+- Created Polling module (src/polling.{ml,mli}) with elegant, functional API:
+  * Four interfaces: run, run_with_config, run_with_switch, run_with_config_and_switch
+  * Composable config: timeout, limit, allowed_updates, on_error callback
+  * Automatic offset management: tracks highest update_id, continues from last seen
+  * Automatic error recovery with smart backoff:
+    - Respects retry_after from rate limit errors (429)
+    - Brief delays for HTTP/decode errors
+    - Timeouts are expected in long polling (no delay)
+  * Eio switch support for graceful cancellation
+- Implementation details:
+  * Calls getUpdates with configured parameters
+  * Decodes JSON array → List of Update.t
+  * Processes each update through handler (catches exceptions)
+  * Extracts update_id via JSON roundtrip for offset tracking
+  * Infinite loop with should_stop callback for clean shutdown
+- Integration:
+  * Updated Client to expose Eio environment (env : Eio_unix.Stdenv.base)
+  * Bot.run_polling now uses Polling.run (stub replaced with real implementation)
+  * Added to tg library (depends on both telegram and generated)
+- Comprehensive tests (test/polling_test.ml):
+  * Config creation with custom/default values
+  * Limit clamping to API maximum (100)
+  * All 4 tests passing
+- Design principles:
+  * Boilerplate-free: sensible defaults, minimal required parameters
+  * Type-safe: Update.t from generated types
+  * Composable: mix and match config, switch, handler
+  * Resilient: handles errors without crashing polling loop

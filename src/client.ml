@@ -1,4 +1,4 @@
-type env = unit
+type env = Eio_unix.Stdenv.base
 
 type t = {
   env : env;
