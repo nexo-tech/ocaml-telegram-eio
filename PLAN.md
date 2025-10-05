@@ -77,15 +77,14 @@ Phase 6 — Update Intake (5/5 ✓)
 - [x] Task 6.4 Update batching, offset handling, idempotency — COMPLETED
 - [x] Task 6.5 Graceful shutdown and draining — COMPLETED
 
-Phase 7 — Ergonomic Bot DSL (3/8)
+Phase 7 — Ergonomic Bot DSL (3/7)
 - [x] Task 7.1 Context object — COMPLETED
 - [x] Task 7.2 Router — PARTIAL: API designed, implementation stubbed
 - [x] Task 7.3 Command parser and entity-aware text parsing
 - [x] Task 7.4 Middleware pipeline — PARTIAL: signature exists, not implemented
 - [x] Task 7.5 Scenes/state — PARTIAL: typed session keys exist, storage stubbed
-- [ ] Task 7.6 Reply markup builders — PARTIAL: API defined, minimal impl
-- [ ] Task 7.7 Internationalization hooks (formatter abstraction)
-- [ ] Task 7.8 Error handling strategy (per-route, global)
+- [x] Task 7.6 Reply markup builders — PARTIAL: API defined, minimal impl
+- [ ] Task 7.7 Error handling strategy (per-route, global)
 
 Phase 8 — Files & Media (1/5)
 - [ ] Task 8.1 Download by file_id and via URLs
@@ -439,9 +438,6 @@ Task 7.6 — Reply markup builders (keyboards, inline, menus) ✅
    * Comprehensive test suite (19 tests) covering all keyboard types, layouts, and patterns
    * Zero warnings, fully documented in keyboard.mli
    * Boilerplate-free API aligned with API_DESIGN.md examples
-
-Task 7.7 — Internationalization hooks (formatter abstraction)
-- Allow pluggable message formatting function; locale on ctx inferred from user/language_code.
 
 Task 7.8 — Error handling strategy (per-route, global)
 - Structured errors; default handler sends friendly message in dev examples; library doesn’t auto-message.
