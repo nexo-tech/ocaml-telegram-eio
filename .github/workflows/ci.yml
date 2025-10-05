@@ -31,3 +31,7 @@ jobs:
       - name: Test
         run: |
           opam exec -- dune runtest
+      - name: Check generated code is up-to-date
+        run: |
+          opam exec -- ./scripts/regenerate.sh --check
+        if: runner.os == 'Linux'

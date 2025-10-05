@@ -7,3 +7,13 @@
  (name spec_norm)
  (libraries ocaml_telegram_eio.telegram alcotest)
  (modules spec_norm))
+
+(test
+ (name golden)
+ (libraries alcotest unix)
+ (modules golden))
+
+(executable
+ (name update_golden)
+ (libraries unix)
+ (modules update_golden))

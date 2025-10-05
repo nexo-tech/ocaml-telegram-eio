@@ -20,6 +20,29 @@ Artifacts:
 - `generated/gen_types.ml` and `generated/gen_types.mli`: record types with `[@@deriving yojson]`
 - `generated/gen_methods.ml`: method wrapper stubs (sendMessage implemented; others documented)
 
+## Testing
+
+- Run all tests: `dune runtest`
+- Run specific test suite: `dune exec test/golden.exe` (golden tests), `dune exec test/smoke.exe`, etc.
+
+### Golden Tests
+
+Golden tests ensure generated code stability. Baselines are stored in `test/golden/`.
+
+- **Update golden baselines** after intentional generator changes:
+  ```bash
+  dune exec test/update_golden.exe
+  ```
+
+- **CI automatically checks** that generated code matches golden baselines via `dune runtest`
+
+If golden tests fail, you'll see:
+```
+FAIL: Generated file differs from golden baseline for gen_types.ml
+To see differences: diff -u test/golden/gen_types.ml generated/gen_types.ml | head -50
+To update golden (if change is intentional): dune exec test/update_golden.exe
+```
+
 ## Development
 
 - Build: `dune build`
