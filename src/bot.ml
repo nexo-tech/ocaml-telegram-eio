@@ -24,12 +24,67 @@ end
 
 module Ctx = struct
   type +'s t = 's ctx
+
+  (* Basic accessors *)
   let client c = c.client
   let env c = c.env
   let chat (c : [ `Chat ] t) = match c.chat with Some id -> id | None -> failwith "no chat"
   let user c = c.user
   let message (c : [ `Chat ] t) = match c.message with Some m -> m | None -> failwith "no message"
-  let reply (_c : [ `Chat ] t) (_text : string) = Error (Not_implemented "reply")
+
+  (* Convenience helpers for sending messages *)
+  let reply (c : [ `Chat ] t) text =
+    let chat_id = chat c in
+    let msg = message c in
+    let params = [
+      ("chat_id", Param.string (Id.to_string chat_id));
+      ("text", Param.string text);
+      ("reply_parameters", Param.json (`Assoc [
+        ("message_id", `Int msg.message_id)
+      ]));
+    ] in
+    match Api.call_method (client c) ~method_name:"sendMessage" params with
+    | Ok json ->
+        (match Telegram_generated.Gen_types.Message.of_yojson json with
+         | Ok m -> Ok m
+         | Error err -> Error (Decode_error ("Failed to decode sent message: " ^ err)))
+    | Error err -> Error err
+
+  (* Alias for reply *)
+  let answer = reply
+
+  (* Send a message to the chat without replying *)
+  let send (c : [ `Chat ] t) text =
+    let chat_id = chat c in
+    let params = [
+      ("chat_id", Param.string (Id.to_string chat_id));
+      ("text", Param.string text);
+    ] in
+    match Api.call_method (client c) ~method_name:"sendMessage" params with
+    | Ok json ->
+        (match Telegram_generated.Gen_types.Message.of_yojson json with
+         | Ok m -> Ok m
+         | Error err -> Error (Decode_error ("Failed to decode sent message: " ^ err)))
+    | Error err -> Error err
+
+  (* Edit the current message (for callback queries) *)
+  let edit (c : [ `Chat ] t) text =
+    let chat_id = chat c in
+    let msg = message c in
+    let params = [
+      ("chat_id", Param.string (Id.to_string chat_id));
+      ("message_id", Param.int msg.message_id);
+      ("text", Param.string text);
+    ] in
+    match Api.call_method (client c) ~method_name:"editMessageText" params with
+    | Ok json ->
+        (match json with
+         | `Bool true -> Ok ()
+         | _ ->
+             (match Telegram_generated.Gen_types.Message.of_yojson json with
+              | Ok _ -> Ok ()
+              | Error err -> Error (Decode_error ("Failed to decode edited message: " ^ err))))
+    | Error err -> Error err
 end
 
 type handler = Handler : 'a Event.t * ('a -> unit) -> handler
