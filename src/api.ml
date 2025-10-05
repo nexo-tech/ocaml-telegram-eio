@@ -85,31 +85,7 @@ let call (type a) (client : Client.t) (req : a Request.t) : (a, Error.t) result 
       let headers, body =
         match body_kind with
         | `JSON -> [ "Content-Type", "application/json" ], Http.String (Yojson.Safe.to_string json)
-        | `Multipart parts ->
-            (* naive multipart builder *)
-            let boundary = "ocamltelegrameio" in
-            let b = Buffer.create 1024 in
-            let add_line s = Buffer.add_string b s; Buffer.add_string b "\r\n" in
-            List.iter (function
-              | (name, `String v) ->
-                  add_line ("--" ^ boundary);
-                  add_line (Printf.sprintf "Content-Disposition: form-data; name=\"%s\"" name);
-                  add_line ""; add_line v
-              | (name, `File (filename, content_type, path)) ->
-                  let ct = Option.value ~default:"application/octet-stream" content_type in
-                  add_line ("--" ^ boundary);
-                  add_line (Printf.sprintf "Content-Disposition: form-data; name=\"%s\"; filename=\"%s\"" name filename);
-                  add_line ("Content-Type: " ^ ct);
-                  add_line "";
-                  (* read file content *)
-                  let ic = Stdlib.open_in_bin path in
-                  let len = in_channel_length ic in
-                  let content = really_input_string ic len in
-                  close_in ic;
-                  add_line content
-            ) parts;
-            add_line ("--" ^ boundary ^ "--");
-            [ "Content-Type", ("multipart/form-data; boundary=" ^ boundary) ], Http.String (Buffer.contents b)
+        | `Multipart parts -> [], Http.Multipart parts
       in
       (match Http.Cohttp_eio.call http ~meth:`POST ~url ~headers ~body with
        | Error e -> Error e

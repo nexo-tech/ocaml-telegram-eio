@@ -51,32 +51,83 @@ module Cohttp_eio = struct
         | Empty -> (h, None)
         | String s -> (h, Some (Cohttp_eio.Body.of_string s))
         | Multipart parts ->
+            (* Streaming multipart builder as a Flow source *)
             let boundary = "ocamltelegrameio" in
-            let b = Buffer.create 1024 in
-            let add_line s = Buffer.add_string b s; Buffer.add_string b "\r\n" in
-            List.iter (fun (name, pv) ->
-              match pv with
-              | `String v ->
-                  add_line ("--" ^ boundary);
-                  add_line (Printf.sprintf "Content-Disposition: form-data; name=\"%s\"" name);
-                  add_line ""; add_line v
-              | `File (filename, content_type, path) ->
-                  let ct = Option.value ~default:"application/octet-stream" content_type in
-                  add_line ("--" ^ boundary);
-                  add_line (Printf.sprintf
-                              "Content-Disposition: form-data; name=\"%s\"; filename=\"%s\""
-                              name filename);
-                  add_line ("Content-Type: " ^ ct);
-                  add_line "";
-                  let ic = Stdlib.open_in_bin path in
-                  let len = in_channel_length ic in
-                  let content = really_input_string ic len in
-                  close_in ic;
-                  add_line content)
-              parts;
-            add_line ("--" ^ boundary ^ "--");
+            let module Multipart_flow = struct
+              type file_state = { path : string; ic : in_channel option }
+              type segment =
+                | S of string * int (* string with current offset *)
+                | F of file_state   (* file to stream *)
+              type t = { mutable segs : segment list }
+
+              let of_parts parts =
+                let segments = ref [] in
+                let crlf = "\r\n" in
+                let emit s = segments := S (s, 0) :: !segments in
+                let emit_header name filename content_type =
+                  emit ("--" ^ boundary ^ crlf);
+                  (match filename with
+                   | None -> emit (Printf.sprintf "Content-Disposition: form-data; name=\"%s\"%s" name crlf)
+                   | Some fn ->
+                       emit (Printf.sprintf "Content-Disposition: form-data; name=\"%s\"; filename=\"%s\"%s" name fn crlf));
+                  (match content_type with
+                   | None -> ()
+                   | Some ct -> emit ("Content-Type: " ^ ct ^ crlf));
+                  emit crlf
+                in
+                List.iter (fun (name, pv) ->
+                  match pv with
+                  | `String v ->
+                      emit_header name None None;
+                      emit v; emit crlf
+                  | `File (filename, content_type, path) ->
+                      emit_header name (Some filename) content_type;
+                      segments := F { path; ic = None } :: !segments;
+                      emit crlf
+                ) parts;
+                emit ("--" ^ boundary ^ "--" ^ crlf);
+                { segs = List.rev !segments }
+
+              let single_read t dst =
+                let open Cstruct in
+                if t.segs = [] then raise End_of_file;
+                let rec loop segs written =
+                  if written = length dst then (List.rev segs, written)
+                  else match segs with
+                  | [] -> (List.rev segs, written)
+                  | S (s, off) :: tl ->
+                      let rem = String.length s - off in
+                      if rem <= 0 then loop tl written
+                      else
+                        let to_copy = min rem (length dst - written) in
+                        blit_from_string s off dst written to_copy;
+                        let off' = off + to_copy in
+                        let segs' = if off' = String.length s then tl else S (s, off') :: tl in
+                        loop segs' (written + to_copy)
+                  | F st :: tl ->
+                      let ic = match st.ic with None -> open_in_bin st.path | Some ic -> ic in
+                      let buf_len = min 16384 (length dst - written) in
+                      let bytes = Bytes.create buf_len in
+                      let n = input ic bytes 0 buf_len in
+                      if n = 0 then begin
+                        close_in_noerr ic;
+                        loop tl written
+                      end else begin
+                        blit_from_bytes bytes 0 dst written n;
+                        let segs' = F { path = st.path; ic = Some ic } :: tl in
+                        loop segs' (written + n)
+                      end
+                in
+                let segs', n = loop t.segs 0 in
+                t.segs <- segs';
+                n
+
+              let read_methods = []
+            end in
+            let handler = Eio.Flow.Pi.source (module Multipart_flow) in
+            let body = Eio.Resource.T (Multipart_flow.of_parts parts, handler) in
             let h = Cohttp.Header.replace h "Content-Type" ("multipart/form-data; boundary=" ^ boundary) in
-            (h, Some (Cohttp_eio.Body.of_string (Buffer.contents b)))
+            (h, Some body)
       in
       let run_request () =
         Eio.Switch.run @@ fun sw ->

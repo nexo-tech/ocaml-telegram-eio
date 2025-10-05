@@ -48,12 +48,12 @@ Phase 3 — Core Types & JSON (6/6 ✓)
 - [x] Task 3.5 Polymorphic variants for tagged unions — COMPLETED: parse_mode, chat_action
 - [x] Task 3.6 Roundtrip tests against curated samples
 
-Phase 4 — HTTP Engine (4/6)
+Phase 4 — HTTP Engine (5/6)
 - [x] Task 4.1 Define Http.S signature (request/response/stream)
 - [x] Task 4.2 Implement Cohttp Eio backend — STUB ONLY
 - [ ] Task 4.3 Prepare Piaf backend (opt-in)
 - [x] Task 4.4 TLS, timeouts, proxies — COMPLETED
-- [ ] Task 4.5 Multipart/form-data — PARTIAL: naive implementation, no streaming
+- [x] Task 4.5 Multipart/form-data — COMPLETED: streaming uploads
 - [ ] Task 4.6 Response parsing, error mapping — PARTIAL: parsing done, no backoff hooks
 
 Phase 5 — Method Surface (Coverage) (9/10)
@@ -310,7 +310,11 @@ Task 4.4 — TLS, timeouts, proxies, base URL switching (local server)
   - Proxies/base URL: base URL switching already supported (local Bot API instance). Architecture is proxy-ready via custom connector (if needed).
 
 Task 4.5 — Multipart/form-data and streaming uploads
-- Multipart builder that can stream large files; support file_id, URL, and input file; file name and mime type helpers.
+- COMPLETED:
+  - Streaming multipart builder implemented in `Http.Cohttp_eio.call`: builds a custom Eio flow for multipart bodies, streams files from disk without buffering whole contents.
+  - Content-Type with boundary set automatically; chunked transfer is used when size is unknown.
+  - Supports `file_id` and `url` via JSON path; `Path` uploads use multipart with streaming.
+  - Ergonomic API: callers just supply `Http.Multipart parts`; no extra boilerplate at call sites.
 
 Task 4.6 — Response parsing, error mapping, backoff hooks
 - Decode {ok; result|description; error_code; parameters}; surface retry_after and migrate_to_chat_id.
