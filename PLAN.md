@@ -110,8 +110,8 @@ Phase 11 — Observability (0/3)
 - [ ] Task 11.2 metrics (Prometheus client) and exemplars
 - [ ] Task 11.3 tracing (OpenTelemetry) hooks
 
-Phase 12 — Testing & QA (1/5)
-- [ ] Task 12.1 Unit tests — PARTIAL: smoke.ml, spec_norm.ml only
+Phase 12 — Testing & QA (2/5)
+- [x] Task 12.1 Unit tests — comprehensive coverage for core modules
 - [ ] Task 12.2 Golden tests for generated types/methods
 - [ ] Task 12.3 Property tests (QCheck) for JSON roundtrips
 - [ ] Task 12.4 Integration tests with local Bot API server

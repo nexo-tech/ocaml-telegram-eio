@@ -107,3 +107,28 @@
  (name currency_test)
  (libraries ocaml_telegram_eio.telegram alcotest)
  (modules currency_test))
+
+(test
+ (name money_test)
+ (libraries ocaml_telegram_eio.telegram alcotest)
+ (modules money_test))
+
+(test
+ (name id_test)
+ (libraries ocaml_telegram_eio.telegram alcotest)
+ (modules id_test))
+
+(test
+ (name parse_mode_test)
+ (libraries ocaml_telegram_eio.telegram alcotest)
+ (modules parse_mode_test))
+
+(test
+ (name units_test)
+ (libraries ocaml_telegram_eio.telegram alcotest)
+ (modules units_test))
+
+(test
+ (name chat_action_test)
+ (libraries ocaml_telegram_eio.telegram alcotest)
+ (modules chat_action_test))
