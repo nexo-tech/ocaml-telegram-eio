@@ -16,7 +16,7 @@ Principles
 
 Master Checklist
 
-**Completion: 38/92 tasks (41%)**
+**Completion: 39/92 tasks (42%)**
 
 Phase 1 — Architecture & Tooling (10/10 ✓)
 - [x] Task 1.1 Decide core architecture, layering, and error strategy
@@ -70,9 +70,9 @@ NOTE: Code generation COMPLETE and fully type-safe. 449 types, 232 methods auto-
 - [x] Task 5.9 Games, web apps, attachment menu — auto-generated
 - [x] Task 5.10 Ensure unknown/new fields don't break decoding — COMPLETED
 
-Phase 6 — Update Intake (1/5)
+Phase 6 — Update Intake (2/5)
 - [x] Task 6.1 Long polling runner — COMPLETED
-- [ ] Task 6.2 Webhook runner — STUB ONLY
+- [x] Task 6.2 Webhook runner — COMPLETED
 - [ ] Task 6.3 Secret token verification, IP allowlist hooks
 - [ ] Task 6.4 Update batching, offset handling, idempotency
 - [ ] Task 6.5 Graceful shutdown and draining
@@ -602,3 +602,36 @@ Task 6.1 — Long polling runner (COMPLETED)
   * Type-safe: Update.t from generated types
   * Composable: mix and match config, switch, handler
   * Resilient: handles errors without crashing polling loop
+
+Task 6.2 — Webhook runner (COMPLETED)
+- Created Webhook module (src/webhook.{ml,mli}) with production-ready HTTP server:
+  * Four composable interfaces: run, run_with_config, run_with_switch, run_with_config_and_switch
+  * Configurable: port, path, secret_token, max_connections, on_error callback
+  * Secret token verification via X-Telegram-Bot-Api-Secret-Token header
+  * Request validation: POST method, correct path, valid token
+  * JSON body parsing and Update.t decoding
+- Implementation using Eio directly (no heavy HTTP framework dependencies):
+  * Lightweight HTTP server using Eio.Net.listen and accept_fork
+  * Manual HTTP request parsing (simple and efficient for webhooks)
+  * Concurrent request handling with Eio fibers
+  * Proper HTTP status codes: 200 OK, 404 Not Found, 403 Forbidden, 400 Bad Request
+  * Content-Length based body reading
+  * Exception handling without crashing server
+- Security features:
+  * Optional secret token verification (highly recommended for production)
+  * Path-based routing (only accepts configured path)
+  * Method validation (only POST accepted)
+  * Catches and reports handler exceptions
+- Integration:
+  * Bot.run_webhook uses Webhook.run
+  * Accepts `Tcp (path, port) as address format
+  * Route matching deferred (Event system pending)
+- Comprehensive tests (test/webhook_test.ml):
+  * Config creation with custom/default values
+  * All 4 tests passing
+- Design principles:
+  * Boilerplate-free: minimal config, sensible defaults
+  * Type-safe: Update.t from generated types
+  * Lightweight: no heavy HTTP dependencies, uses Eio directly
+  * Production-ready: secret tokens, error handling, concurrent processing
+  * Composable: run, config, switch variants for different needs

@@ -57,3 +57,8 @@
  (name polling_test)
  (libraries ocaml_telegram_eio.tg alcotest)
  (modules polling_test))
+
+(test
+ (name webhook_test)
+ (libraries ocaml_telegram_eio.tg alcotest)
+ (modules webhook_test))
