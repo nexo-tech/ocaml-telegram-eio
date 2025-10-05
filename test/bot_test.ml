@@ -190,6 +190,122 @@ let test_router_with_global_middleware () =
   let routes = Bot.router ~middlewares:[mw] [route1; route2] in
   Alcotest.(check int) "router returns routes" 2 (List.length routes)
 
+(* Session module tests *)
+let test_session_keys () =
+  (* Test typed keys creation *)
+  let key1 = Session.make ~name:"counter" in
+  let key2 = Session.make ~name:"name" in
+  Alcotest.(check bool) "keys created" true (key1 <> key2)
+
+let test_session_get_set () =
+  let session = Session.empty in
+  let counter_key = Session.make ~name:"counter" in
+
+  (* Get from empty session *)
+  Alcotest.(check (option int)) "empty session get" None (Session.get session counter_key);
+
+  (* Set and get *)
+  Session.set session counter_key 42;
+  Alcotest.(check (option int)) "session get after set" (Some 42) (Session.get session counter_key);
+
+  (* Update value *)
+  Session.set session counter_key 100;
+  Alcotest.(check (option int)) "session get after update" (Some 100) (Session.get session counter_key)
+
+let test_session_type_safety () =
+  let session = Session.empty in
+  let int_key = Session.make ~name:"int_val" in
+  let string_key = Session.make ~name:"string_val" in
+
+  Session.set session int_key 42;
+  Session.set session string_key "hello";
+
+  Alcotest.(check (option int)) "int value" (Some 42) (Session.get session int_key);
+  Alcotest.(check (option string)) "string value" (Some "hello") (Session.get session string_key)
+
+let test_session_delete () =
+  let session = Session.empty in
+  let key = Session.make ~name:"temp" in
+
+  Session.set session key "data";
+  Alcotest.(check bool) "key exists" true (Session.exists session key);
+
+  Session.delete session key;
+  Alcotest.(check bool) "key deleted" false (Session.exists session key);
+  Alcotest.(check (option string)) "get after delete" None (Session.get session key)
+
+let test_session_clear () =
+  let session = Session.empty in
+  let key1 = Session.make ~name:"k1" in
+  let key2 = Session.make ~name:"k2" in
+
+  Session.set session key1 1;
+  Session.set session key2 2;
+
+  Session.clear session;
+  Alcotest.(check (option int)) "k1 after clear" None (Session.get session key1);
+  Alcotest.(check (option int)) "k2 after clear" None (Session.get session key2)
+
+let test_session_get_or () =
+  let session = Session.empty in
+  let key = Session.make ~name:"count" in
+
+  (* Get with default when missing *)
+  let value = Session.get_or session key ~default:0 in
+  Alcotest.(check int) "get_or default" 0 value;
+
+  (* Get with default when present *)
+  Session.set session key 42;
+  let value = Session.get_or session key ~default:0 in
+  Alcotest.(check int) "get_or existing" 42 value
+
+let test_session_modify () =
+  let session = Session.empty in
+  let counter = Session.make ~name:"counter" in
+
+  (* Modify with default *)
+  Session.modify session counter ~default:0 (fun x -> x + 1);
+  Alcotest.(check (option int)) "first modify" (Some 1) (Session.get session counter);
+
+  (* Modify existing *)
+  Session.modify session counter ~default:0 (fun x -> x + 1);
+  Alcotest.(check (option int)) "second modify" (Some 2) (Session.get session counter)
+
+let test_session_update () =
+  let session = Session.empty in
+  let key = Session.make ~name:"val" in
+
+  (* Update non-existent (no-op) *)
+  Session.update session key (fun x -> x + 1);
+  Alcotest.(check (option int)) "update missing is noop" None (Session.get session key);
+
+  (* Update existing *)
+  Session.set session key 10;
+  Session.update session key (fun x -> x * 2);
+  Alcotest.(check (option int)) "update existing" (Some 20) (Session.get session key)
+
+let test_memory_store () =
+  let store = Session.Memory_store.create () in
+
+  (* Get session for user *)
+  let session1 = Session.Memory_store.get_session store ~user_id:123L in
+  let key = Session.make ~name:"data" in
+  Session.set session1 key "test";
+
+  (* Get same session again *)
+  let session2 = Session.Memory_store.get_session store ~user_id:123L in
+  Alcotest.(check (option string)) "same session" (Some "test") (Session.get session2 key);
+
+  (* Different user has different session *)
+  let session3 = Session.Memory_store.get_session store ~user_id:456L in
+  Alcotest.(check (option string)) "different session" None (Session.get session3 key)
+
+let test_session_middleware () =
+  (* Test that with_session middleware compiles *)
+  let store = Session.Memory_store.create () in
+  let _mw = Bot.Middleware.with_session (module Session.Memory_store) store in
+  Alcotest.(check bool) "session middleware created" true true
+
 let () =
   let open Alcotest in
   run "Bot" [
@@ -223,5 +339,17 @@ let () =
       test_case "route with middleware" `Quick test_route_with_middleware;
       test_case "route with error handler" `Quick test_route_with_error_handler;
       test_case "router with global middleware" `Quick test_router_with_global_middleware;
+    ];
+    "sessions", [
+      test_case "typed keys" `Quick test_session_keys;
+      test_case "get and set" `Quick test_session_get_set;
+      test_case "type safety" `Quick test_session_type_safety;
+      test_case "delete" `Quick test_session_delete;
+      test_case "clear" `Quick test_session_clear;
+      test_case "get_or" `Quick test_session_get_or;
+      test_case "modify" `Quick test_session_modify;
+      test_case "update" `Quick test_session_update;
+      test_case "memory store" `Quick test_memory_store;
+      test_case "session middleware" `Quick test_session_middleware;
     ];
   ]

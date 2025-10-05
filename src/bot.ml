@@ -8,6 +8,7 @@ type +'s ctx = {
   user : Telegram.Types.user option;
   msg : Telegram.Types.message option;
   full_message : Telegram_generated.Gen_types.Message.t option;
+  session : Session.t option;
 }
 
 (* Argument parsing helpers *)
@@ -206,6 +207,7 @@ module Event = struct
             user = None;
             msg = None;
             full_message = None;
+            session = None;
           } in
           Some (upd_param, ctx)
 
@@ -239,6 +241,7 @@ module Event = struct
                  user = user;
                  msg = Some message;
                  full_message = Some msg;
+                 session = None;
                } in
                Some (msg, ctx)
            | None -> None)
@@ -329,6 +332,7 @@ module Event = struct
                  user = None;
                  msg = None;
                  full_message = None;
+                 session = None;
                } in
                Some (iq, ctx)
            | None -> None)
@@ -447,6 +451,17 @@ module Middleware = struct
   let enrich f =
     make ~before:(fun ctx -> Ok (f ctx)) "enrich"
 
+  (* Session middleware - adds session to context *)
+  let with_session (type s) (module Store : Session.STORE with type store = s) store =
+    make ~before:(fun ctx ->
+      match ctx.user with
+      | Some u ->
+          let user_id = Int64.of_string (Telegram.Id.to_string u.Telegram.Types.id) in
+          let session = Store.get_session store ~user_id in
+          Ok { ctx with session = Some session }
+      | None -> Ok ctx (* No user, no session *)
+    ) "with_session"
+
   (* Combine multiple middleware *)
   let combine middlewares =
     make
@@ -544,6 +559,36 @@ module Ctx = struct
   (* Get entities of a specific type *)
   let get_entities (c : [ `Chat ] t) typ =
     Entity.filter_by_type typ (entities c)
+
+  (* Session access helpers *)
+  let session (c : _ t) =
+    match c.session with
+    | Some s -> s
+    | None -> failwith "Session not available. Did you forget to add session middleware?"
+
+  let session_opt (c : _ t) = c.session
+
+  (* Session operations (convenient wrappers) *)
+  let session_get (c : _ t) key =
+    Session.get (session c) key
+
+  let session_set (c : _ t) key value =
+    Session.set (session c) key value
+
+  let session_get_or (c : _ t) key ~default =
+    Session.get_or (session c) key ~default
+
+  let session_delete (c : _ t) key =
+    Session.delete (session c) key
+
+  let session_exists (c : _ t) key =
+    Session.exists (session c) key
+
+  let session_clear (c : _ t) =
+    Session.clear (session c)
+
+  let session_modify (c : _ t) key ~default f =
+    Session.modify (session c) key ~default f
 end
 
 type handler = Handler : 'a Event.t * ('a -> [ `Chat ] ctx -> unit) -> handler

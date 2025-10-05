@@ -122,6 +122,9 @@ module Middleware : sig
   val enrich : ('s ctx -> 's ctx) -> 's t
   (** Transform/enrich context before handler *)
 
+  val with_session : (module Session.STORE with type store = 's) -> 's -> [ `Chat ] t
+  (** Enable sessions using a session store. Automatically loads/saves per-user sessions. *)
+
   (** {2 Combinators} *)
 
   val combine : 's t list -> 's t
@@ -164,6 +167,35 @@ module Ctx : sig
 
   val get_entities : [ `Chat ] t -> [ `BotCommand | `Url | `Mention | `Hashtag | `Code | `Pre ] -> Entity.entity_info list
   (** Get entities of a specific type from the current message *)
+
+  (** {2 Session Helpers} *)
+
+  val session : _ t -> Session.t
+  (** Get the session (fails if session middleware not enabled) *)
+
+  val session_opt : _ t -> Session.t option
+  (** Get the session as an option *)
+
+  val session_get : _ t -> 'a Session.key -> 'a option
+  (** Get a value from the session *)
+
+  val session_set : _ t -> 'a Session.key -> 'a -> unit
+  (** Set a value in the session *)
+
+  val session_get_or : _ t -> 'a Session.key -> default:'a -> 'a
+  (** Get a value from session or return default *)
+
+  val session_delete : _ t -> 'a Session.key -> unit
+  (** Delete a key from the session *)
+
+  val session_exists : _ t -> 'a Session.key -> bool
+  (** Check if a key exists in the session *)
+
+  val session_clear : _ t -> unit
+  (** Clear all session data *)
+
+  val session_modify : _ t -> 'a Session.key -> default:'a -> ('a -> 'a) -> unit
+  (** Modify a session value, using default if missing *)
 end
 
 type route

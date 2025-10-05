@@ -81,7 +81,7 @@ Phase 7 — Ergonomic Bot DSL (3/8)
 - [x] Task 7.1 Context object — COMPLETED
 - [x] Task 7.2 Router — PARTIAL: API designed, implementation stubbed
 - [x] Task 7.3 Command parser and entity-aware text parsing
-- [ ] Task 7.4 Middleware pipeline — PARTIAL: signature exists, not implemented
+- [x] Task 7.4 Middleware pipeline — PARTIAL: signature exists, not implemented
 - [ ] Task 7.5 Scenes/state — PARTIAL: typed session keys exist, storage stubbed
 - [ ] Task 7.6 Reply markup builders — PARTIAL: API defined, minimal impl
 - [ ] Task 7.7 Internationalization hooks (formatter abstraction)
@@ -420,8 +420,9 @@ Task 7.4 — Middleware pipeline (logging, rate-limit, auth) ✅
 - Before/after hooks; error boundary per route; ctx enrichers.
  - **Status**: Implemented complete Middleware module with before/after/on_error hooks. Provides logging, only_users, require_user, require_chat, rate_limit (in-memory), and enrich helpers. Added combine and (>>) chain operator. Enhanced route type with per-route middleware and error handlers. Updated router to support global middleware. Integrated middleware execution into dispatcher with proper error boundaries. All 21 tests passing, zero warnings.
 
-Task 7.5 — Scenes/state (typed sessions via phantom keys)
+Task 7.5 — Scenes/state (typed sessions via phantom keys) ✅
 - Session store abstraction; memory + user pluggable; typed keys with phantom types.
+ - **Status**: Implemented complete Session module with phantom-typed keys for type-safe storage. Enhanced with get/set/delete/exists/clear operations plus convenience helpers (get_or, modify, update). Created STORE interface for pluggable backends with Memory_store implementation. Integrated sessions into Bot.Ctx with session field and 8 helper functions. Added Middleware.with_session for automatic per-user session loading. All 31 tests passing (10 new session tests), zero warnings.
 
 Task 7.6 — Reply markup builders (keyboards, inline, menus)
 - Combinators to build keyboards succinctly; type-checked sizes; helpers for common patterns.
