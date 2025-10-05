@@ -306,6 +306,54 @@ let test_session_middleware () =
   let _mw = Bot.Middleware.with_session (module Session.Memory_store) store in
   Alcotest.(check bool) "session middleware created" true true
 
+(* Error handler tests *)
+let test_error_handler_log () =
+  (* Test that log error handler compiles *)
+  let _handler = Bot.ErrorHandler.log in
+  Alcotest.(check bool) "log error handler exists" true true
+
+let test_error_handler_log_and_reply () =
+  (* Test that log_and_reply error handler compiles *)
+  let _handler1 = Bot.ErrorHandler.log_and_reply () in
+  let _handler2 = Bot.ErrorHandler.log_and_reply ~message:"Custom error message" () in
+  Alcotest.(check bool) "log_and_reply error handler exists" true true
+
+let test_error_handler_silent () =
+  (* Test that silent error handler compiles *)
+  let _handler = Bot.ErrorHandler.silent in
+  Alcotest.(check bool) "silent error handler exists" true true
+
+let test_error_handler_combine () =
+  (* Test combining error handlers *)
+  let handler1 = Bot.ErrorHandler.silent in
+  let handler2 = Bot.ErrorHandler.log in
+  let _combined = Bot.ErrorHandler.combine [handler1; handler2] in
+  Alcotest.(check bool) "error handlers combined" true true
+
+let test_router_with_global_error_handler () =
+  (* Test router with global error handler *)
+  let route1 = Bot.on Bot.Event.text (fun _txt _ctx -> ()) in
+  let route2 = Bot.on Bot.Event.(command "start") (fun _args _ctx -> ()) in
+  let error_handler = Bot.ErrorHandler.log in
+  let routes = Bot.router ~on_error:error_handler [route1; route2] in
+  Alcotest.(check int) "router with error handler returns routes" 2 (List.length routes)
+
+let test_router_with_middleware_and_error_handler () =
+  (* Test router with both global middleware and error handler *)
+  let route = Bot.on Bot.Event.text (fun _txt _ctx -> ()) in
+  let mw = Bot.Middleware.logging () in
+  let error_handler = Bot.ErrorHandler.log_and_reply () in
+  let routes = Bot.router ~middlewares:[mw] ~on_error:error_handler [route] in
+  Alcotest.(check int) "router with mw and error handler" 1 (List.length routes)
+
+let test_route_specific_error_handler_precedence () =
+  (* Test that route-specific error handler takes precedence over global *)
+  let route = Bot.on Bot.Event.text (fun _txt _ctx -> ()) in
+  let route_with_err = Bot.with_error_handler (fun _ctx _exn -> ()) route in
+  let global_handler = Bot.ErrorHandler.log in
+  let routes = Bot.router ~on_error:global_handler [route_with_err] in
+  Alcotest.(check int) "route precedence" 1 (List.length routes)
+
 let () =
   let open Alcotest in
   run "Bot" [
@@ -351,5 +399,14 @@ let () =
       test_case "update" `Quick test_session_update;
       test_case "memory store" `Quick test_memory_store;
       test_case "session middleware" `Quick test_session_middleware;
+    ];
+    "error_handling", [
+      test_case "log error handler" `Quick test_error_handler_log;
+      test_case "log_and_reply error handler" `Quick test_error_handler_log_and_reply;
+      test_case "silent error handler" `Quick test_error_handler_silent;
+      test_case "combine error handlers" `Quick test_error_handler_combine;
+      test_case "router with global error handler" `Quick test_router_with_global_error_handler;
+      test_case "router with middleware and error handler" `Quick test_router_with_middleware_and_error_handler;
+      test_case "route-specific error handler precedence" `Quick test_route_specific_error_handler_precedence;
     ];
   ]

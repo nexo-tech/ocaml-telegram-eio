@@ -209,8 +209,30 @@ val with_middleware : [ `Chat ] Middleware.t list -> route -> route
 val with_error_handler : ([ `Chat ] ctx -> exn -> unit) -> route -> route
 (** Add a custom error handler to a specific route *)
 
-val router : ?middlewares:[ `Chat ] Middleware.t list -> route list -> route list
-(** Create a router with optional global middleware applied to all routes *)
+val router :
+  ?middlewares:[ `Chat ] Middleware.t list ->
+  ?on_error:([ `Chat ] ctx -> exn -> unit) ->
+  route list -> route list
+(** Create a router with optional global middleware and error handler applied to all routes.
+    - [middlewares]: Global middleware applied to all routes
+    - [on_error]: Global error handler (overridden by route-specific handlers) *)
+
+(** {1 Error Handlers} *)
+
+module ErrorHandler : sig
+  val log : [ `Chat ] ctx -> exn -> unit
+  (** Log error to stderr with exception details *)
+
+  val log_and_reply : ?message:string -> unit -> [ `Chat ] ctx -> exn -> unit
+  (** Log error and send a reply to the user.
+      Default message: "Sorry, an error occurred while processing your request." *)
+
+  val silent : [ `Chat ] ctx -> exn -> unit
+  (** Silently ignore errors (no logging, no user feedback) *)
+
+  val combine : ([ `Chat ] ctx -> exn -> unit) list -> [ `Chat ] ctx -> exn -> unit
+  (** Combine multiple error handlers (all are called in sequence) *)
+end
 
 val run_polling : env:Telegram.Client.env -> client:Telegram.Client.t -> route list -> unit
 val run_webhook : env:Telegram.Client.env -> client:Telegram.Client.t -> secret_token:string -> addr:[ `Tcp of (string * int) ] -> route list -> unit

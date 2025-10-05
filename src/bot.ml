@@ -613,12 +613,43 @@ let with_middleware mws route = { route with middleware = mws }
 (* Add error handler to a route *)
 let with_error_handler err_h route = { route with on_error = Some err_h }
 
-(* Create router with optional global middleware *)
-let router ?(middlewares = []) routes =
-  (* Apply global middleware to all routes *)
+(* Create router with optional global middleware and error handler *)
+let router ?(middlewares = []) ?on_error routes =
+  (* Apply global middleware and error handler to all routes *)
   List.map (fun route ->
-    { route with middleware = middlewares @ route.middleware }
+    { route with
+      middleware = middlewares @ route.middleware;
+      on_error = (match route.on_error with
+        | Some _ as route_handler -> route_handler  (* Route-specific handler takes precedence *)
+        | None -> on_error)  (* Use global handler if no route-specific one *)
+    }
   ) routes
+
+(* Error handler utilities *)
+module ErrorHandler = struct
+  (* Log error to stderr *)
+  let log _ctx exn =
+    Printf.eprintf "[Bot Error] %s\n%s\n%!"
+      (Printexc.to_string exn)
+      (Printexc.get_backtrace ())
+
+  (* Log error and send reply to user *)
+  let log_and_reply ?(message = "Sorry, an error occurred while processing your request.") () ctx exn =
+    log ctx exn;
+    (* Try to send error message to user *)
+    (match Ctx.reply ctx message with
+     | Ok _ -> ()
+     | Error e ->
+         Format.eprintf "[Bot Error] Failed to send error message to user: %a\n%!"
+           Telegram.Error.pp e)
+
+  (* Silent error handler - do nothing *)
+  let silent _ctx _exn = ()
+
+  (* Combine multiple error handlers *)
+  let combine handlers ctx exn =
+    List.iter (fun h -> h ctx exn) handlers
+end
 
 (* Internal: try to match and execute routes against an update *)
 let dispatch_update client env routes update =
