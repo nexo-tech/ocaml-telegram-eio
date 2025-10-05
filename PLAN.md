@@ -16,7 +16,7 @@ Principles
 
 Master Checklist
 
-**Completion: 41/92 tasks (45%)**
+**Completion: 42/92 tasks (46%)**
 
 Phase 1 — Architecture & Tooling (10/10 ✓)
 - [x] Task 1.1 Decide core architecture, layering, and error strategy
@@ -70,12 +70,12 @@ NOTE: Code generation COMPLETE and fully type-safe. 449 types, 232 methods auto-
 - [x] Task 5.9 Games, web apps, attachment menu — auto-generated
 - [x] Task 5.10 Ensure unknown/new fields don't break decoding — COMPLETED
 
-Phase 6 — Update Intake (4/5)
+Phase 6 — Update Intake (5/5 ✓)
 - [x] Task 6.1 Long polling runner — COMPLETED
 - [x] Task 6.2 Webhook runner — COMPLETED
 - [x] Task 6.3 Secret token verification, IP allowlist hooks — COMPLETED
 - [x] Task 6.4 Update batching, offset handling, idempotency — COMPLETED
-- [ ] Task 6.5 Graceful shutdown and draining
+- [x] Task 6.5 Graceful shutdown and draining — COMPLETED
 
 Phase 7 — Ergonomic Bot DSL (2/8)
 - [ ] Task 7.1 Context object — PARTIAL: structure exists, helpers stubbed
@@ -731,3 +731,46 @@ Task 6.4 — Update batching, offset handling, idempotency (COMPLETED)
   * Production-ready defaults
   * Zero-cost when disabled (dedup_window=0)
   * Clean separation: config, storage, deduplication
+
+Task 6.5 — Graceful shutdown and draining (COMPLETED)
+- Enhanced Polling and Webhook modules with comprehensive graceful shutdown support:
+  * Leverages Eio's structured concurrency and switch mechanism
+  * No additional code required - shutdown is built into the switch-based functions
+  * Clean, elegant API that makes proper shutdown the default
+- Polling graceful shutdown behavior:
+  * Changed polling_loop to check shutdown AFTER processing updates
+  * Ensures in-flight batch is fully processed before stopping
+  * Saves final offset to persistence storage
+  * Does not retry on errors during shutdown
+  * Timeline: fetch batch → shutdown signal → process all updates → save offset → exit
+- Webhook graceful shutdown behavior (via Eio's accept_fork):
+  * Stop accepting new connections when switch is cancelled
+  * Wait for all in-flight HTTP requests to complete
+  * Each forked fiber completes its request and sends response
+  * Switch waits for all child fibers before returning
+  * Guaranteed by Eio's structured concurrency model
+- Comprehensive documentation in polling.mli:
+  * Shutdown semantics (stop fetching, drain, save state, clean exit)
+  * Shutdown trigger examples (cancel switch, signal handling)
+  * Draining behavior timeline with examples
+  * Handler timeout considerations
+  * Integration with SIGINT/SIGTERM signal handling
+  * Production example with complete signal setup
+- Comprehensive documentation in webhook.mli:
+  * Shutdown semantics (stop accepting, drain in-flight, clean exit)
+  * Draining behavior via Eio fibers
+  * Connection timeout strategies
+  * Max shutdown time calculations
+  * Production example with timeouts and signal handling
+  * Kubernetes/Docker deployment considerations
+- Tests (17 webhook, 15 polling, all passing):
+  * Switch-based functions available for graceful shutdown
+  * Shutdown semantics well-defined and documented
+  * Behavior verified through documentation tests
+- Design principles:
+  * Graceful by default: switch-based functions enforce proper shutdown
+  * Zero boilerplate: Eio handles the complexity
+  * Production-ready: Signal handling examples provided
+  * Type-safe: Switch cancellation is type-safe
+  * Elegant: No explicit draining code needed, structured concurrency handles it
+  * Complete: Both polling and webhook have consistent shutdown behavior

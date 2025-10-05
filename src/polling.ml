@@ -144,13 +144,15 @@ let next_offset updates current_offset =
       ) 0L updates in
       Int64.add max_id 1L
 
-(* Internal: main polling loop *)
+(* Internal: main polling loop with graceful shutdown *)
 let rec polling_loop client config ~handler ~offset ~should_stop ~dedup_window =
-  if should_stop () then
-    () (* Graceful shutdown *)
-  else
-    match get_updates client ~offset config with
-    | Error err ->
+  (* Fetch updates first, then check shutdown - this ensures in-flight updates are processed *)
+  match get_updates client ~offset config with
+  | Error err ->
+      (* Check if we should stop before handling error *)
+      if should_stop () then
+        () (* Graceful shutdown - don't retry on errors during shutdown *)
+      else (
         (* Handle error *)
         (match config.on_error with
          | Some f -> f err
@@ -172,19 +174,24 @@ let rec polling_loop client config ~handler ~offset ~should_stop ~dedup_window =
              Eio.Time.sleep (Client.env client)#clock 1.0);
 
         polling_loop client config ~handler ~offset ~should_stop ~dedup_window
+      )
 
-    | Ok updates ->
-        (* Process updates with deduplication *)
-        process_updates updates ~handler ~on_error:config.on_error ~dedup_window;
+  | Ok updates ->
+      (* Process updates with deduplication - always process fetched updates even during shutdown *)
+      process_updates updates ~handler ~on_error:config.on_error ~dedup_window;
 
-        (* Calculate next offset *)
-        let new_offset = next_offset updates offset in
+      (* Calculate next offset *)
+      let new_offset = next_offset updates offset in
 
-        (* Save offset if persistence is enabled *)
-        (match config.offset_storage with
-         | Some storage -> storage.save new_offset
-         | None -> ());
+      (* Save offset if persistence is enabled *)
+      (match config.offset_storage with
+       | Some storage -> storage.save new_offset
+       | None -> ());
 
+      (* Check if we should stop AFTER processing updates *)
+      if should_stop () then
+        () (* Graceful shutdown - all fetched updates have been processed *)
+      else
         (* Continue polling *)
         polling_loop client config ~handler ~offset:new_offset ~should_stop ~dedup_window
 

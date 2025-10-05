@@ -152,6 +152,147 @@
 
     Note: When using X-Forwarded-For, ensure your reverse proxy is configured to prevent
     header spoofing by clients. Only trust these headers from your trusted proxy.
+
+    {1 Graceful Shutdown}
+
+    {2 Shutdown Semantics}
+
+    The webhook server provides automatic graceful shutdown through Eio's switch mechanism:
+
+    1. {b Stop accepting}: No new connections accepted after shutdown signal
+    2. {b Drain in-flight}: All active requests complete before shutdown
+    3. {b Clean exit}: Return normally when all requests are finished
+
+    {2 Shutdown Trigger}
+
+    Cancel the Eio switch to trigger shutdown:
+
+    {[
+      Eio_main.run @@ fun env ->
+      Eio.Switch.run @@ fun sw ->
+
+      (* Handle signals *)
+      let shutdown _ =
+        Logs.info (fun m -> m "Shutdown signal received, draining connections...");
+        Eio.Switch.fail sw Exit
+      in
+      Sys.set_signal Sys.sigint (Sys.Signal_handle shutdown);
+      Sys.set_signal Sys.sigterm (Sys.Signal_handle shutdown);
+
+      (* Run webhook *)
+      try
+        Webhook.run_with_config_and_switch client config sw ~handler;
+        Logs.info (fun m -> m "Webhook server stopped")
+      with Exit ->
+        Logs.info (fun m -> m "Shutdown complete")
+    ]}
+
+    {2 Draining Behavior}
+
+    When shutdown is triggered:
+
+    {v
+    Timeline:
+    1. Shutdown signal received
+    2. Stop accepting new connections (listen socket closed)
+    3. Wait for all in-flight HTTP requests to complete
+    4. Each request processes its update and sends response
+    5. Return from run function
+    v}
+
+    Active connections are handled by Eio fibers attached to the switch:
+    - Each [accept_fork] creates a fiber for the connection
+    - Fibers continue running until request completes
+    - Switch waits for all child fibers before returning
+    - Clean shutdown guaranteed by Eio's structured concurrency
+
+    {2 Connection Timeout}
+
+    To prevent slow requests from blocking shutdown indefinitely:
+
+    {[
+      let handler update =
+        (* Wrap handler with timeout *)
+        Eio.Time.with_timeout clock 10.0
+          (fun () -> process_update update)
+          ~on_timeout:(fun () ->
+            Logs.warn (fun m -> m "Handler timeout during request")
+          )
+    ]}
+
+    Or configure a global request timeout in your reverse proxy (Nginx):
+    {v
+      proxy_read_timeout 30s;
+      proxy_send_timeout 30s;
+    v}
+
+    {2 Max Shutdown Time}
+
+    Worst-case shutdown time:
+    - max_connections × request_timeout
+    - Example: 100 connections × 10s = 1000s (16 minutes) worst case
+    - Typical: Most requests complete in <1s, shutdown in seconds
+
+    To reduce shutdown time:
+    1. Lower max_connections for faster draining
+    2. Add request timeouts in handler
+    3. Use reverse proxy timeouts
+    4. Implement handler cancellation on shutdown
+
+    {2 Non-graceful Functions}
+
+    [run] and [run_with_config] create their own switch:
+    - Less control over shutdown timing
+    - Process termination will kill in-flight requests
+    - Use switch-based variants for production
+
+    {2 Production Example}
+
+    Complete webhook server with graceful shutdown:
+
+    {[
+      let run_production client config handler =
+        Eio_main.run @@ fun env ->
+        Eio.Switch.run @@ fun sw ->
+
+        (* Signal handling *)
+        let shutdown _ =
+          Logs.info (fun m -> m "Shutdown requested, draining...");
+          Eio.Switch.fail sw Exit
+        in
+        Sys.set_signal Sys.sigint (Sys.Signal_handle shutdown);
+        Sys.set_signal Sys.sigterm (Sys.Signal_handle shutdown);
+
+        (* Timeout wrapper for handler *)
+        let handler_with_timeout update =
+          try
+            Eio.Time.with_timeout (env#clock) 10.0
+              (fun () -> handler update)
+              ~on_timeout:(fun () ->
+                Logs.warn (fun m -> m "Handler timeout for update %Ld"
+                  (get_update_id update))
+              )
+          with exn ->
+            Logs.err (fun m -> m "Handler error: %s" (Printexc.to_string exn))
+        in
+
+        (* Run server *)
+        try
+          Logs.info (fun m -> m "Starting webhook on port %d" config.port);
+          Webhook.run_with_config_and_switch client config sw
+            ~handler:handler_with_timeout;
+          Logs.info (fun m -> m "Webhook stopped gracefully")
+        with Exit ->
+          Logs.info (fun m -> m "Shutdown complete")
+    ]}
+
+    {2 Kubernetes/Docker}
+
+    For containerized deployments:
+    - Handle SIGTERM for graceful pod shutdown
+    - Set terminationGracePeriodSeconds appropriately
+    - Implement readiness/liveness probes
+    - Example terminationGracePeriodSeconds: 30-60s
 *)
 
 (** Request information passed to validation hooks. *)

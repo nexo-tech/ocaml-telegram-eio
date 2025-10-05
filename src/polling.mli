@@ -138,13 +138,24 @@ val run_with_config :
 (** Run long polling with Eio-based cancellation support.
 
     This variant allows graceful shutdown by cancelling the Eio switch.
-    The function returns when the switch is cancelled or an unrecoverable
-    error occurs.
+    The function returns when the switch is cancelled.
+
+    {b Graceful Shutdown Behavior}:
+    - Stops fetching new updates after the current batch
+    - Processes all updates from the current batch before stopping
+    - Saves the final offset (if offset_storage is configured)
+    - Does not retry on errors during shutdown
 
     {[
       Eio.Switch.run @@ fun sw ->
-      Polling.run_with_switch client sw ~handler;
-      (* Cancelling sw will stop the polling loop *)
+      Eio.Fiber.both
+        (fun () -> Polling.run_with_switch client sw ~handler)
+        (fun () ->
+          (* Wait for SIGINT or other shutdown signal *)
+          wait_for_shutdown ();
+          (* Cancel the switch - polling will drain current batch and stop *)
+          raise Exit
+        )
     ]}
 
     @param client The Telegram client
@@ -324,5 +335,100 @@ val run_with_config_and_switch :
 
       Eio.Switch.run @@ fun sw ->
       Polling.run_with_config_and_switch client config sw ~handler
+    ]}
+*)
+
+(** {1 Graceful Shutdown}
+
+    {2 Shutdown Semantics}
+
+    The polling loop provides graceful shutdown when using switch-based functions
+    ([run_with_switch] or [run_with_config_and_switch]):
+
+    1. {b Stop fetching}: No new getUpdates requests after shutdown signal
+    2. {b Drain in-flight}: Process all updates from the current batch
+    3. {b Save state}: Persist final offset (if offset_storage configured)
+    4. {b Clean exit}: Return normally without exceptions
+
+    {2 Shutdown Trigger}
+
+    Cancel the Eio switch to trigger shutdown:
+
+    {[
+      let handle_sigint sw =
+        Sys.set_signal Sys.sigint (Sys.Signal_handle (fun _ ->
+          Eio.Switch.fail sw Exit
+        ))
+      in
+
+      Eio_main.run @@ fun env ->
+      Eio.Switch.run @@ fun sw ->
+      handle_sigint sw;
+      Polling.run_with_switch client sw ~handler
+    ]}
+
+    {2 Draining Behavior}
+
+    When shutdown is triggered:
+
+    {v
+    Timeline:
+    1. getUpdates request completes -> returns batch of 50 updates
+    2. Shutdown signal received
+    3. Process all 50 updates through handler
+    4. Save offset 51 to storage
+    5. Return from polling function
+    6. No new getUpdates request
+    v}
+
+    This ensures:
+    - No updates are lost (all fetched updates are processed)
+    - Offset is consistent (points to next unprocessed update)
+    - Restart will continue from correct position
+
+    {2 Non-graceful Functions}
+
+    [run] and [run_with_config] do not support graceful shutdown:
+    - They run forever until process termination
+    - Use only for simple scripts or development
+    - Production bots should use switch-based variants
+
+    {2 Handler Timeout}
+
+    If your handler is slow, shutdown may take time:
+
+    {[
+      let handler update =
+        (* Process with timeout to ensure bounded shutdown time *)
+        Eio.Time.with_timeout clock 5.0
+          (fun () -> process_update update)
+          ~on_timeout:(fun () ->
+            Logs.warn (fun m -> m "Handler timeout during shutdown")
+          )
+    ]}
+
+    {2 Integration with Signal Handling}
+
+    Complete example with SIGINT/SIGTERM:
+
+    {[
+      let run_with_signals client config handler =
+        Eio_main.run @@ fun env ->
+        Eio.Switch.run @@ fun sw ->
+
+        (* Handle signals *)
+        let shutdown _ =
+          Logs.info (fun m -> m "Shutdown signal received, draining...");
+          Eio.Switch.fail sw Exit
+        in
+        Sys.set_signal Sys.sigint (Sys.Signal_handle shutdown);
+        Sys.set_signal Sys.sigterm (Sys.Signal_handle shutdown);
+
+        (* Run polling *)
+        try
+          Polling.run_with_config_and_switch client config sw ~handler;
+          Logs.info (fun m -> m "Polling stopped gracefully")
+        with Exit ->
+          Logs.info (fun m -> m "Shutdown complete")
     ]}
 *)
