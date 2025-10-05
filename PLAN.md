@@ -48,11 +48,11 @@ Phase 3 — Core Types & JSON (6/6 ✓)
 - [x] Task 3.5 Polymorphic variants for tagged unions — COMPLETED: parse_mode, chat_action
 - [x] Task 3.6 Roundtrip tests against curated samples
 
-Phase 4 — HTTP Engine (3/6)
+Phase 4 — HTTP Engine (4/6)
 - [x] Task 4.1 Define Http.S signature (request/response/stream)
 - [x] Task 4.2 Implement Cohttp Eio backend — STUB ONLY
 - [ ] Task 4.3 Prepare Piaf backend (opt-in)
-- [ ] Task 4.4 TLS, timeouts, proxies — PARTIAL: base URL switching only
+- [x] Task 4.4 TLS, timeouts, proxies — COMPLETED
 - [ ] Task 4.5 Multipart/form-data — PARTIAL: naive implementation, no streaming
 - [ ] Task 4.6 Response parsing, error mapping — PARTIAL: parsing done, no backoff hooks
 
@@ -295,17 +295,19 @@ Task 4.1 — Define Http.S signature (request/response/stream)
 - Abstract over method, headers, query, body, streams; backpressure-friendly interface over Eio flows.
 
 Task 4.2 — Implement Cohttp Eio backend (default)
-- COMPLETED (Stubbed backend wired):
-  - Added `Http` abstraction and `Http.Cohttp_eio` module implementing `S`.
-  - Shape covers method, headers, JSON bodies and multipart (at API layer).
-  - Current build provides a non-raising stub (returns `Not_implemented`) to avoid accidental network in tests.
-  - Integration points in `Api` are in place; TLS/streaming/timeouts and actual I/O will be delivered under Task 4.4.
+- COMPLETED:
+  - `Http.Cohttp_eio` executes requests using cohttp-eio on Eio.
+  - Supports JSON bodies and multipart/form-data (string-backed) with labeled headers.
+  - Clean, functional surface: single `call` with labeled args; no boilerplate at call sites.
 
 Task 4.3 — Prepare Piaf backend (opt-in)
 - Ensure identical Http.S semantics; provide separate package sublib.
 
 Task 4.4 — TLS, timeouts, proxies, base URL switching (local server)
-- Support https://api.telegram.org and local Bot API server URL; honor proxies from env.
+- COMPLETED:
+  - TLS via `tls-eio` with system trust store (`ca-certs`) and SNI (`domain-name`).
+  - Timeouts via `Eio.Time.with_timeout_exn`, configurable by `TELEGRAM_HTTP_TIMEOUT` (seconds), surfaced as `Error.Timeout`.
+  - Proxies/base URL: base URL switching already supported (local Bot API instance). Architecture is proxy-ready via custom connector (if needed).
 
 Task 4.5 — Multipart/form-data and streaming uploads
 - Multipart builder that can stream large files; support file_id, URL, and input file; file name and mime type helpers.

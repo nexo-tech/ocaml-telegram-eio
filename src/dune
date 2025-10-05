@@ -1,7 +1,7 @@
 (library
  (name telegram)
  (public_name ocaml_telegram_eio.telegram)
- (libraries eio yojson cohttp-eio cohttp uri cstruct)
+ (libraries eio eio_main tls-eio ca-certs mirage-crypto-rng-eio domain-name yojson cohttp-eio cohttp uri cstruct)
  (preprocess (pps ppx_deriving_yojson))
  (modules id types money units chat_action parse_mode json_compat error client request api http version spec_ast spec_norm))
 
