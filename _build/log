@@ -1,0 +1,35 @@
+# dune runtest
+# OCAMLPARAM: unset
+# Shared cache: enabled-except-user-rules
+# Shared cache location: /Users/snowbear/.cache/dune/db
+# Workspace root: /Users/snowbear/WORK/GIT/ocaml-telegram-eio
+# Auto-detected concurrency: 8
+# Dune context:
+#  { name = "default"
+#  ; kind = "default"
+#  ; profile = Dev
+#  ; merlin = true
+#  ; fdo_target_exe = None
+#  ; build_dir = In_build_dir "default"
+#  ; instrument_with = []
+#  }
+$ /Users/snowbear/.opam/default/bin/ocamlc.opt -config > /var/folders/lk/l8ypry253l3g36ty86b1y75c0000gn/T/dune_55df1f_output
+$ (cd _build/default/test && ./spec_norm.exe)
+> Testing `spec_norm'.
+> This run has ID `N0T3XRCO'.
+>
+>   [OK]          parse          0   basic.
+>   [OK]          names          0   idents.
+>
+> Full test results in `~/WORK/GIT/ocaml-telegram-eio/_build/default/test/_build/_tests/spec_norm'.
+> Test Successful in 0.000s. 2 tests run.
+$ (cd _build/default/test && ./smoke.exe)
+> Testing `ocaml-telegram-eio'.
+> This run has ID `KIPABBHG'.
+>
+>   [OK]          builders          0   text.
+>   [OK]          builders          1   parse_mode.
+>   [OK]          builders          2   chat username.
+>
+> Full test results in `~/WORK/GIT/ocaml-telegram-eio/_build/default/test/_build/_tests/ocaml-telegram-eio'.
+> Test Successful in 0.000s. 3 tests run.

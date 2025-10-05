@@ -1,0 +1,3 @@
+(executables
+ (names echo_polling send_photo)
+ (libraries ocaml_telegram_eio.telegram ocaml_telegram_eio.tg eio_main))

@@ -1,0 +1,124 @@
+lib: [
+  "_build/install/default/lib/ocaml_telegram_eio/META"
+  "_build/install/default/lib/ocaml_telegram_eio/dune-package"
+  "_build/install/default/lib/ocaml_telegram_eio/opam"
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/api.ml" {"telegram/api.ml"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/api.mli" {"telegram/api.mli"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/client.ml" {"telegram/client.ml"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/client.mli" {"telegram/client.mli"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/error.ml" {"telegram/error.ml"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/error.mli" {"telegram/error.mli"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/http.ml" {"telegram/http.ml"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/http.mli" {"telegram/http.mli"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/id.ml" {"telegram/id.ml"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/id.mli" {"telegram/id.mli"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/request.ml" {"telegram/request.ml"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/request.mli" {"telegram/request.mli"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/spec_ast.ml" {"telegram/spec_ast.ml"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/spec_ast.mli" {"telegram/spec_ast.mli"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/spec_norm.ml" {"telegram/spec_norm.ml"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/spec_norm.mli" {"telegram/spec_norm.mli"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram.a" {"telegram/telegram.a"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram.cma" {"telegram/telegram.cma"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram.cmi" {"telegram/telegram.cmi"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram.cmt" {"telegram/telegram.cmt"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram.cmx" {"telegram/telegram.cmx"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram.cmxa" {"telegram/telegram.cmxa"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram.ml" {"telegram/telegram.ml"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Api.cmi" {"telegram/telegram__Api.cmi"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Api.cmt" {"telegram/telegram__Api.cmt"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Api.cmti" {"telegram/telegram__Api.cmti"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Api.cmx" {"telegram/telegram__Api.cmx"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Client.cmi" {"telegram/telegram__Client.cmi"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Client.cmt" {"telegram/telegram__Client.cmt"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Client.cmti" {"telegram/telegram__Client.cmti"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Client.cmx" {"telegram/telegram__Client.cmx"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Error.cmi" {"telegram/telegram__Error.cmi"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Error.cmt" {"telegram/telegram__Error.cmt"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Error.cmti" {"telegram/telegram__Error.cmti"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Error.cmx" {"telegram/telegram__Error.cmx"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Http.cmi" {"telegram/telegram__Http.cmi"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Http.cmt" {"telegram/telegram__Http.cmt"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Http.cmti" {"telegram/telegram__Http.cmti"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Http.cmx" {"telegram/telegram__Http.cmx"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Id.cmi" {"telegram/telegram__Id.cmi"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Id.cmt" {"telegram/telegram__Id.cmt"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Id.cmti" {"telegram/telegram__Id.cmti"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Id.cmx" {"telegram/telegram__Id.cmx"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Request.cmi" {"telegram/telegram__Request.cmi"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Request.cmt" {"telegram/telegram__Request.cmt"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Request.cmti" {"telegram/telegram__Request.cmti"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Request.cmx" {"telegram/telegram__Request.cmx"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Spec_ast.cmi" {"telegram/telegram__Spec_ast.cmi"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Spec_ast.cmt" {"telegram/telegram__Spec_ast.cmt"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Spec_ast.cmti" {"telegram/telegram__Spec_ast.cmti"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Spec_ast.cmx" {"telegram/telegram__Spec_ast.cmx"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Spec_norm.cmi" {"telegram/telegram__Spec_norm.cmi"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Spec_norm.cmt" {"telegram/telegram__Spec_norm.cmt"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Spec_norm.cmti" {"telegram/telegram__Spec_norm.cmti"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Spec_norm.cmx" {"telegram/telegram__Spec_norm.cmx"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Types.cmi" {"telegram/telegram__Types.cmi"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Types.cmt" {"telegram/telegram__Types.cmt"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Types.cmti" {"telegram/telegram__Types.cmti"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Types.cmx" {"telegram/telegram__Types.cmx"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Version.cmi" {"telegram/telegram__Version.cmi"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Version.cmt" {"telegram/telegram__Version.cmt"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Version.cmti" {"telegram/telegram__Version.cmti"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram__Version.cmx" {"telegram/telegram__Version.cmx"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/types.ml" {"telegram/types.ml"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/types.mli" {"telegram/types.mli"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/version.ml" {"telegram/version.ml"}
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/version.mli" {"telegram/version.mli"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/action.ml" {"tg/action.ml"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/action.mli" {"tg/action.mli"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/bot.ml" {"tg/bot.ml"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/bot.mli" {"tg/bot.mli"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/keyboard.ml" {"tg/keyboard.ml"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/keyboard.mli" {"tg/keyboard.mli"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/msg.ml" {"tg/msg.ml"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/msg.mli" {"tg/msg.mli"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/result_syntax.ml" {"tg/result_syntax.ml"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/result_syntax.mli" {"tg/result_syntax.mli"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/session.ml" {"tg/session.ml"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/session.mli" {"tg/session.mli"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg.a" {"tg/tg.a"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg.cma" {"tg/tg.cma"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg.cmi" {"tg/tg.cmi"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg.cmt" {"tg/tg.cmt"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg.cmx" {"tg/tg.cmx"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg.cmxa" {"tg/tg.cmxa"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg.ml" {"tg/tg.ml"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Action.cmi" {"tg/tg__Action.cmi"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Action.cmt" {"tg/tg__Action.cmt"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Action.cmti" {"tg/tg__Action.cmti"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Action.cmx" {"tg/tg__Action.cmx"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Bot.cmi" {"tg/tg__Bot.cmi"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Bot.cmt" {"tg/tg__Bot.cmt"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Bot.cmti" {"tg/tg__Bot.cmti"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Bot.cmx" {"tg/tg__Bot.cmx"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Keyboard.cmi" {"tg/tg__Keyboard.cmi"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Keyboard.cmt" {"tg/tg__Keyboard.cmt"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Keyboard.cmti" {"tg/tg__Keyboard.cmti"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Keyboard.cmx" {"tg/tg__Keyboard.cmx"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Msg.cmi" {"tg/tg__Msg.cmi"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Msg.cmt" {"tg/tg__Msg.cmt"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Msg.cmti" {"tg/tg__Msg.cmti"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Msg.cmx" {"tg/tg__Msg.cmx"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Result_syntax.cmi" {"tg/tg__Result_syntax.cmi"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Result_syntax.cmt" {"tg/tg__Result_syntax.cmt"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Result_syntax.cmti" {"tg/tg__Result_syntax.cmti"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Result_syntax.cmx" {"tg/tg__Result_syntax.cmx"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Session.cmi" {"tg/tg__Session.cmi"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Session.cmt" {"tg/tg__Session.cmt"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Session.cmti" {"tg/tg__Session.cmti"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg__Session.cmx" {"tg/tg__Session.cmx"}
+]
+libexec: [
+  "_build/install/default/lib/ocaml_telegram_eio/telegram/telegram.cmxs" {"telegram/telegram.cmxs"}
+  "_build/install/default/lib/ocaml_telegram_eio/tg/tg.cmxs" {"tg/tg.cmxs"}
+]
+bin: [
+  "_build/install/default/bin/ocaml_telegram_eio.spec_methods"
+  "_build/install/default/bin/ocaml_telegram_eio.spec_scan"
+  "_build/install/default/bin/ocaml_telegram_eio.spec_types"
+]

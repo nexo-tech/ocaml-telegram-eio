@@ -1,0 +1,22 @@
+opam-version: "2.0"
+name: "ocaml_telegram_eio"
+version: "0.0.0"
+synopsis: "Telegram Bot API client for OCaml (Eio)"
+description: "Ergonomic, type-safe Telegram Bot API client and DSL using Eio."
+maintainer: "you@example.com"
+authors: ["Your Name"]
+license: "MIT"
+homepage: "https://example.com/"
+dev-repo: "git+file:."
+bug-reports: ""
+depends: [
+  "ocaml" {>= "5.2"}
+  "dune" {>= "3.7"}
+  "eio"
+  "yojson"
+  "ppx_deriving"
+  "ppx_deriving_yojson"
+]
+build: [
+  ["dune" "build" "-p" name "-j" jobs]
+]

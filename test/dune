@@ -1,0 +1,9 @@
+(test
+ (name smoke)
+ (libraries ocaml_telegram_eio.telegram ocaml_telegram_eio.tg alcotest yojson)
+ (modules smoke))
+
+(test
+ (name spec_norm)
+ (libraries ocaml_telegram_eio.telegram alcotest)
+ (modules spec_norm))

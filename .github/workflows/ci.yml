@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        ocaml-compiler: ["5.2.x"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up OCaml
+        uses: avsm/setup-ocaml@v2
+        with:
+          ocaml-compiler: ${{ matrix.ocaml-compiler }}
+          cache-prefix: v1
+      - name: Install dependencies
+        run: |
+          opam update
+          opam install . --deps-only -t -y
+      - name: Build
+        run: |
+          opam exec -- dune build
+      - name: Test
+        run: |
+          opam exec -- dune runtest
