@@ -16,7 +16,7 @@ Principles
 
 Master Checklist
 
-**Completion: 40/92 tasks (43%)**
+**Completion: 41/92 tasks (45%)**
 
 Phase 1 — Architecture & Tooling (10/10 ✓)
 - [x] Task 1.1 Decide core architecture, layering, and error strategy
@@ -70,11 +70,11 @@ NOTE: Code generation COMPLETE and fully type-safe. 449 types, 232 methods auto-
 - [x] Task 5.9 Games, web apps, attachment menu — auto-generated
 - [x] Task 5.10 Ensure unknown/new fields don't break decoding — COMPLETED
 
-Phase 6 — Update Intake (3/5)
+Phase 6 — Update Intake (4/5)
 - [x] Task 6.1 Long polling runner — COMPLETED
 - [x] Task 6.2 Webhook runner — COMPLETED
 - [x] Task 6.3 Secret token verification, IP allowlist hooks — COMPLETED
-- [ ] Task 6.4 Update batching, offset handling, idempotency
+- [x] Task 6.4 Update batching, offset handling, idempotency — COMPLETED
 - [ ] Task 6.5 Graceful shutdown and draining
 
 Phase 7 — Ergonomic Bot DSL (2/8)
@@ -680,3 +680,54 @@ Task 6.3 — Secret token verification, IP allowlist hooks (COMPLETED)
   * Type-safe: Strong types for request_info and validation_result
   * Production-ready: Nginx integration guides, header extraction
   * Efficient: CIDR matching with Int32 bitmasks
+
+Task 6.4 — Update batching, offset handling, idempotency (COMPLETED)
+- Enhanced Polling module with offset persistence and deduplication for production use:
+  * offset_storage type for persistence hooks (load/save)
+  * dedup_window config parameter for duplicate detection
+  * Automatic offset management with persistence
+- Offset persistence implementation:
+  * offset_storage with load/save callbacks
+  * Initial offset loaded from storage on startup (or 0 if none)
+  * Offset saved after each successful batch
+  * User provides storage backend (file, Redis, database, etc.)
+  * Enables graceful restarts without losing position
+- Deduplication (idempotency):
+  * Circular buffer sliding window for recently seen update_ids
+  * Configurable window size (dedup_window parameter)
+  * Default: 0 (disabled) for development
+  * Recommended: 100-1000 for production
+  * Memory efficient: ~8KB per 1000 updates
+  * Automatically skips duplicate updates
+- Internal Dedup_window module:
+  * Circular buffer using Int64 array
+  * create: Initialize window with size
+  * mem: O(n) check if update_id seen (n = window size)
+  * add: Add update_id, evict oldest if full
+  * Wraparound handling for continuous operation
+- Update processing with deduplication:
+  * Extract update_id from Update.t via JSON roundtrip
+  * Check dedup_window before processing
+  * Add to window after check
+  * Skip duplicates silently
+  * Handler exceptions caught and reported via on_error
+- Comprehensive documentation in polling.mli:
+  * At-least-once delivery semantics explained
+  * Why duplicates happen (network, crashes, retries)
+  * Deduplication strategy with examples
+  * Offset persistence patterns
+  * Exactly-once processing techniques
+  * Best practices for production bots
+  * Complete examples: simple bot, production bot with persistence
+- Comprehensive tests (13 tests, all passing):
+  * Config with offset_storage and dedup_window
+  * Offset storage save/load operations
+  * Dedup window: empty, basic, wraparound, duplicates
+  * Config with all features combined
+- Design principles:
+  * At-least-once delivery guarantee
+  * User-provided persistence for flexibility
+  * Efficient circular buffer deduplication
+  * Production-ready defaults
+  * Zero-cost when disabled (dedup_window=0)
+  * Clean separation: config, storage, deduplication
