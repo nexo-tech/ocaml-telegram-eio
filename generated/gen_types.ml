@@ -83,8 +83,7 @@ end = struct
           Ok { url = url; has_custom_certificate = has_custom_certificate; pending_update_count = pending_update_count; ip_address = ip_address; last_error_date = last_error_date; last_error_message = last_error_message; last_synchronization_error_date = last_synchronization_error_date; max_connections = max_connections; allowed_updates = allowed_updates; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and WebhookInfo : sig
@@ -144,8 +143,7 @@ end = struct
           Ok { url = url; has_custom_certificate = has_custom_certificate; pending_update_count = pending_update_count; ip_address = ip_address; last_error_date = last_error_date; last_error_message = last_error_message; last_synchronization_error_date = last_synchronization_error_date; max_connections = max_connections; allowed_updates = allowed_updates; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and User : sig
@@ -221,8 +219,7 @@ end = struct
           Ok { id = id; is_bot = is_bot; first_name = first_name; last_name = last_name; username = username; language_code = language_code; is_premium = is_premium; added_to_attachment_menu = added_to_attachment_menu; can_join_groups = can_join_groups; can_read_all_group_messages = can_read_all_group_messages; supports_inline_queries = supports_inline_queries; can_connect_to_business = can_connect_to_business; has_main_web_app = has_main_web_app; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and Chat : sig
@@ -278,8 +275,7 @@ end = struct
           Ok { id = id; type_ = type_; title = title; username = username; first_name = first_name; last_name = last_name; is_forum = is_forum; is_direct_messages = is_direct_messages; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and MessageId : sig
@@ -307,8 +303,7 @@ end = struct
           Ok { message_id = message_id; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and MessageOriginHiddenUser : sig
@@ -344,8 +339,7 @@ end = struct
           Ok { type_ = type_; date = date; sender_user_name = sender_user_name; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and PhotoSize : sig
@@ -389,8 +383,7 @@ end = struct
           Ok { file_id = file_id; file_unique_id = file_unique_id; width = width; height = height; file_size = file_size; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and Voice : sig
@@ -434,8 +427,7 @@ end = struct
           Ok { file_id = file_id; file_unique_id = file_unique_id; duration = duration; mime_type = mime_type; file_size = file_size; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and PaidMedia : sig
@@ -475,8 +467,7 @@ end = struct
           Ok { type_ = type_; width = width; height = height; duration = duration; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and PaidMediaPreview : sig
@@ -516,8 +507,7 @@ end = struct
           Ok { type_ = type_; width = width; height = height; duration = duration; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and Contact : sig
@@ -561,8 +551,7 @@ end = struct
           Ok { phone_number = phone_number; first_name = first_name; last_name = last_name; user_id = user_id; vcard = vcard; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and Dice : sig
@@ -594,8 +583,7 @@ end = struct
           Ok { emoji = emoji; value = value; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and Location : sig
@@ -643,8 +631,7 @@ end = struct
           Ok { latitude = latitude; longitude = longitude; horizontal_accuracy = horizontal_accuracy; live_period = live_period; heading = heading; proximity_alert_radius = proximity_alert_radius; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and WebAppData : sig
@@ -676,8 +663,7 @@ end = struct
           Ok { data = data; button_text = button_text; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and MessageAutoDeleteTimerChanged : sig
@@ -705,8 +691,7 @@ end = struct
           Ok { message_auto_delete_time = message_auto_delete_time; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatBoostAdded : sig
@@ -734,8 +719,7 @@ end = struct
           Ok { boost_count = boost_count; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BackgroundFill : sig
@@ -767,8 +751,7 @@ end = struct
           Ok { type_ = type_; color = color; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BackgroundFillSolid : sig
@@ -800,8 +783,7 @@ end = struct
           Ok { type_ = type_; color = color; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BackgroundFillGradient : sig
@@ -841,8 +823,7 @@ end = struct
           Ok { type_ = type_; top_color = top_color; bottom_color = bottom_color; rotation_angle = rotation_angle; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BackgroundFillFreeformGradient : sig
@@ -874,8 +855,7 @@ end = struct
           Ok { type_ = type_; colors = colors; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BackgroundTypeChatTheme : sig
@@ -907,8 +887,7 @@ end = struct
           Ok { type_ = type_; theme_name = theme_name; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ForumTopicCreated : sig
@@ -944,8 +923,7 @@ end = struct
           Ok { name = name; icon_color = icon_color; icon_custom_emoji_id = icon_custom_emoji_id; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ForumTopicClosed : sig
@@ -977,8 +955,7 @@ end = struct
           Ok { name = name; icon_custom_emoji_id = icon_custom_emoji_id; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ForumTopicEdited : sig
@@ -1010,8 +987,7 @@ end = struct
           Ok { name = name; icon_custom_emoji_id = icon_custom_emoji_id; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and WriteAccessAllowed : sig
@@ -1047,8 +1023,7 @@ end = struct
           Ok { from_request = from_request; web_app_name = web_app_name; from_attachment_menu = from_attachment_menu; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and VideoChatScheduled : sig
@@ -1076,8 +1051,7 @@ end = struct
           Ok { start_date = start_date; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and VideoChatStarted : sig
@@ -1105,8 +1079,7 @@ end = struct
           Ok { duration = duration; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and VideoChatEnded : sig
@@ -1134,8 +1107,7 @@ end = struct
           Ok { duration = duration; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and PaidMessagePriceChanged : sig
@@ -1163,8 +1135,7 @@ end = struct
           Ok { paid_message_star_count = paid_message_star_count; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and DirectMessagePriceChanged : sig
@@ -1196,8 +1167,7 @@ end = struct
           Ok { are_direct_messages_enabled = are_direct_messages_enabled; direct_message_star_count = direct_message_star_count; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and GiveawayCreated : sig
@@ -1225,8 +1195,7 @@ end = struct
           Ok { prize_star_count = prize_star_count; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and LinkPreviewOptions : sig
@@ -1270,8 +1239,7 @@ end = struct
           Ok { is_disabled = is_disabled; url = url; prefer_small_media = prefer_small_media; prefer_large_media = prefer_large_media; show_above_text = show_above_text; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and SuggestedPostPrice : sig
@@ -1303,8 +1271,7 @@ end = struct
           Ok { currency = currency; amount = amount; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and File : sig
@@ -1344,8 +1311,7 @@ end = struct
           Ok { file_id = file_id; file_unique_id = file_unique_id; file_size = file_size; file_path = file_path; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and WebAppInfo : sig
@@ -1373,8 +1339,7 @@ end = struct
           Ok { url = url; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and KeyboardButtonRequestUsers : sig
@@ -1426,8 +1391,7 @@ end = struct
           Ok { request_id = request_id; user_is_bot = user_is_bot; user_is_premium = user_is_premium; max_quantity = max_quantity; request_name = request_name; request_username = request_username; request_photo = request_photo; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and KeyboardButtonPollType : sig
@@ -1455,8 +1419,7 @@ end = struct
           Ok { type_ = type_; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ReplyKeyboardRemove : sig
@@ -1488,8 +1451,7 @@ end = struct
           Ok { remove_keyboard = remove_keyboard; selective = selective; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and LoginUrl : sig
@@ -1529,8 +1491,7 @@ end = struct
           Ok { url = url; forward_text = forward_text; bot_username = bot_username; request_write_access = request_write_access; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and SwitchInlineQueryChosenChat : sig
@@ -1574,8 +1535,7 @@ end = struct
           Ok { query = query; allow_user_chats = allow_user_chats; allow_bot_chats = allow_bot_chats; allow_group_chats = allow_group_chats; allow_channel_chats = allow_channel_chats; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and CopyTextButton : sig
@@ -1603,8 +1563,7 @@ end = struct
           Ok { text = text; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ForceReply : sig
@@ -1640,8 +1599,7 @@ end = struct
           Ok { force_reply = force_reply; input_field_placeholder = input_field_placeholder; selective = selective; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatPhoto : sig
@@ -1681,8 +1639,7 @@ end = struct
           Ok { small_file_id = small_file_id; small_file_unique_id = small_file_unique_id; big_file_id = big_file_id; big_file_unique_id = big_file_unique_id; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatAdministratorRights : sig
@@ -1770,8 +1727,7 @@ end = struct
           Ok { is_anonymous = is_anonymous; can_manage_chat = can_manage_chat; can_delete_messages = can_delete_messages; can_manage_video_chats = can_manage_video_chats; can_restrict_members = can_restrict_members; can_promote_members = can_promote_members; can_change_info = can_change_info; can_invite_users = can_invite_users; can_post_stories = can_post_stories; can_edit_stories = can_edit_stories; can_delete_stories = can_delete_stories; can_post_messages = can_post_messages; can_edit_messages = can_edit_messages; can_pin_messages = can_pin_messages; can_manage_topics = can_manage_topics; can_manage_direct_messages = can_manage_direct_messages; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatPermissions : sig
@@ -1851,8 +1807,7 @@ end = struct
           Ok { can_send_messages = can_send_messages; can_send_audios = can_send_audios; can_send_documents = can_send_documents; can_send_photos = can_send_photos; can_send_videos = can_send_videos; can_send_video_notes = can_send_video_notes; can_send_voice_notes = can_send_voice_notes; can_send_polls = can_send_polls; can_send_other_messages = can_send_other_messages; can_add_web_page_previews = can_add_web_page_previews; can_change_info = can_change_info; can_invite_users = can_invite_users; can_pin_messages = can_pin_messages; can_manage_topics = can_manage_topics; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and Birthdate : sig
@@ -1888,8 +1843,7 @@ end = struct
           Ok { day = day; month = month; year = year; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BusinessOpeningHoursInterval : sig
@@ -1921,8 +1875,7 @@ end = struct
           Ok { opening_minute = opening_minute; closing_minute = closing_minute; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and StoryAreaPosition : sig
@@ -1970,8 +1923,7 @@ end = struct
           Ok { x_percentage = x_percentage; y_percentage = y_percentage; width_percentage = width_percentage; height_percentage = height_percentage; rotation_angle = rotation_angle; corner_radius_percentage = corner_radius_percentage; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and LocationAddress : sig
@@ -2011,8 +1963,7 @@ end = struct
           Ok { country_code = country_code; state = state; city = city; street = street; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and StoryAreaTypeLink : sig
@@ -2044,8 +1995,7 @@ end = struct
           Ok { type_ = type_; url = url; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and StoryAreaTypeWeather : sig
@@ -2085,8 +2035,7 @@ end = struct
           Ok { type_ = type_; temperature = temperature; emoji = emoji; background_color = background_color; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and StoryAreaTypeUniqueGift : sig
@@ -2118,8 +2067,7 @@ end = struct
           Ok { type_ = type_; name = name; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ReactionType : sig
@@ -2151,8 +2099,7 @@ end = struct
           Ok { type_ = type_; emoji = emoji; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ReactionTypeEmoji : sig
@@ -2184,8 +2131,7 @@ end = struct
           Ok { type_ = type_; emoji = emoji; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ReactionTypeCustomEmoji : sig
@@ -2217,8 +2163,7 @@ end = struct
           Ok { type_ = type_; custom_emoji_id = custom_emoji_id; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ReactionTypePaid : sig
@@ -2246,8 +2191,7 @@ end = struct
           Ok { type_ = type_; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ForumTopic : sig
@@ -2287,8 +2231,7 @@ end = struct
           Ok { message_thread_id = message_thread_id; name = name; icon_color = icon_color; icon_custom_emoji_id = icon_custom_emoji_id; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and UniqueGiftBackdropColors : sig
@@ -2328,8 +2271,7 @@ end = struct
           Ok { center_color = center_color; edge_color = edge_color; symbol_color = symbol_color; text_color = text_color; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and AcceptedGiftTypes : sig
@@ -2369,8 +2311,7 @@ end = struct
           Ok { unlimited_gifts = unlimited_gifts; limited_gifts = limited_gifts; unique_gifts = unique_gifts; premium_subscription = premium_subscription; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and StarAmount : sig
@@ -2402,8 +2343,7 @@ end = struct
           Ok { amount = amount; nanostar_amount = nanostar_amount; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BotCommand : sig
@@ -2435,8 +2375,7 @@ end = struct
           Ok { command = command; description = description; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BotCommandScope : sig
@@ -2464,8 +2403,7 @@ end = struct
           Ok { type_ = type_; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and DeterminingListOfCommands : sig
@@ -2493,8 +2431,7 @@ end = struct
           Ok { type_ = type_; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BotCommandScopeDefault : sig
@@ -2522,8 +2459,7 @@ end = struct
           Ok { type_ = type_; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BotCommandScopeAllPrivateChats : sig
@@ -2551,8 +2487,7 @@ end = struct
           Ok { type_ = type_; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BotCommandScopeAllGroupChats : sig
@@ -2580,8 +2515,7 @@ end = struct
           Ok { type_ = type_; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BotCommandScopeAllChatAdministrators : sig
@@ -2609,8 +2543,7 @@ end = struct
           Ok { type_ = type_; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BotCommandScopeChat : sig
@@ -2642,8 +2575,7 @@ end = struct
           Ok { type_ = type_; chat_id = chat_id; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BotCommandScopeChatAdministrators : sig
@@ -2675,8 +2607,7 @@ end = struct
           Ok { type_ = type_; chat_id = chat_id; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BotCommandScopeChatMember : sig
@@ -2712,8 +2643,7 @@ end = struct
           Ok { type_ = type_; chat_id = chat_id; user_id = user_id; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BotName : sig
@@ -2741,8 +2671,7 @@ end = struct
           Ok { name = name; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BotDescription : sig
@@ -2770,8 +2699,7 @@ end = struct
           Ok { description = description; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BotShortDescription : sig
@@ -2799,8 +2727,7 @@ end = struct
           Ok { short_description = short_description; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and MenuButton : sig
@@ -2828,8 +2755,7 @@ end = struct
           Ok { type_ = type_; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and MenuButtonCommands : sig
@@ -2857,8 +2783,7 @@ end = struct
           Ok { type_ = type_; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and MenuButtonDefault : sig
@@ -2886,8 +2811,7 @@ end = struct
           Ok { type_ = type_; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BusinessBotRights : sig
@@ -2967,8 +2891,7 @@ end = struct
           Ok { can_reply = can_reply; can_read_messages = can_read_messages; can_delete_sent_messages = can_delete_sent_messages; can_delete_all_messages = can_delete_all_messages; can_edit_name = can_edit_name; can_edit_bio = can_edit_bio; can_edit_profile_photo = can_edit_profile_photo; can_edit_username = can_edit_username; can_change_gift_settings = can_change_gift_settings; can_view_gifts_and_stars = can_view_gifts_and_stars; can_convert_gifts_to_stars = can_convert_gifts_to_stars; can_transfer_and_upgrade_gifts = can_transfer_and_upgrade_gifts; can_transfer_stars = can_transfer_stars; can_manage_stories = can_manage_stories; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ResponseParameters : sig
@@ -3000,8 +2923,7 @@ end = struct
           Ok { migrate_to_chat_id = migrate_to_chat_id; retry_after = retry_after; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputFile : sig
@@ -3033,8 +2955,7 @@ end = struct
           Ok { type_ = type_; media = media; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputPaidMedia : sig
@@ -3066,8 +2987,7 @@ end = struct
           Ok { type_ = type_; media = media; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputPaidMediaPhoto : sig
@@ -3099,8 +3019,7 @@ end = struct
           Ok { type_ = type_; media = media; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputPaidMediaVideo : sig
@@ -3160,8 +3079,7 @@ end = struct
           Ok { type_ = type_; media = media; thumbnail = thumbnail; cover = cover; start_timestamp = start_timestamp; width = width; height = height; duration = duration; supports_streaming = supports_streaming; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputProfilePhoto : sig
@@ -3193,8 +3111,7 @@ end = struct
           Ok { type_ = type_; photo = photo; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputProfilePhotoStatic : sig
@@ -3226,8 +3143,7 @@ end = struct
           Ok { type_ = type_; photo = photo; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputProfilePhotoAnimated : sig
@@ -3263,8 +3179,7 @@ end = struct
           Ok { type_ = type_; animation = animation; main_frame_timestamp = main_frame_timestamp; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputStoryContent : sig
@@ -3296,8 +3211,7 @@ end = struct
           Ok { type_ = type_; photo = photo; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputStoryContentPhoto : sig
@@ -3329,8 +3243,7 @@ end = struct
           Ok { type_ = type_; photo = photo; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputStoryContentVideo : sig
@@ -3374,8 +3287,7 @@ end = struct
           Ok { type_ = type_; video = video; duration = duration; cover_frame_timestamp = cover_frame_timestamp; is_animation = is_animation; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and SendingFiles : sig
@@ -4585,8 +4497,7 @@ end = struct
           Ok { point = point; x_shift = x_shift; y_shift = y_shift; scale = scale; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and SendSticker : sig
@@ -4787,8 +4698,7 @@ end = struct
           Ok { latitude = latitude; longitude = longitude; horizontal_accuracy = horizontal_accuracy; live_period = live_period; heading = heading; proximity_alert_radius = proximity_alert_radius; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputVenueMessageContent : sig
@@ -4844,8 +4754,7 @@ end = struct
           Ok { latitude = latitude; longitude = longitude; title = title; address = address; foursquare_id = foursquare_id; foursquare_type = foursquare_type; google_place_id = google_place_id; google_place_type = google_place_type; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputContactMessageContent : sig
@@ -4885,8 +4794,7 @@ end = struct
           Ok { phone_number = phone_number; first_name = first_name; last_name = last_name; vcard = vcard; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and AnswerWebAppQuery : sig
@@ -4923,8 +4831,7 @@ end = struct
           Ok { inline_message_id = inline_message_id; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and SavePreparedInlineMessage : sig
@@ -4965,8 +4872,7 @@ end = struct
           Ok { id = id; expiration_date = expiration_date; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and SendInvoice : sig
@@ -5070,8 +4976,7 @@ end = struct
           Ok { label = label; amount = amount; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and Invoice : sig
@@ -5115,8 +5020,7 @@ end = struct
           Ok { title = title; description = description; start_parameter = start_parameter; currency = currency; total_amount = total_amount; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ShippingAddress : sig
@@ -5164,8 +5068,7 @@ end = struct
           Ok { country_code = country_code; state = state; city = city; street_line1 = street_line1; street_line2 = street_line2; post_code = post_code; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and RefundedPayment : sig
@@ -5209,8 +5112,7 @@ end = struct
           Ok { currency = currency; total_amount = total_amount; invoice_payload = invoice_payload; telegram_payment_charge_id = telegram_payment_charge_id; provider_payment_charge_id = provider_payment_charge_id; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and RevenueWithdrawalState : sig
@@ -5238,8 +5140,7 @@ end = struct
           Ok { type_ = type_; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and RevenueWithdrawalStatePending : sig
@@ -5267,8 +5168,7 @@ end = struct
           Ok { type_ = type_; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and RevenueWithdrawalStateSucceeded : sig
@@ -5304,8 +5204,7 @@ end = struct
           Ok { type_ = type_; date = date; url = url; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and RevenueWithdrawalStateFailed : sig
@@ -5333,8 +5232,7 @@ end = struct
           Ok { type_ = type_; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and TransactionPartnerTelegramAds : sig
@@ -5362,8 +5260,7 @@ end = struct
           Ok { type_ = type_; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and TransactionPartnerTelegramApi : sig
@@ -5395,8 +5292,7 @@ end = struct
           Ok { type_ = type_; request_count = request_count; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and TransactionPartnerOther : sig
@@ -5424,8 +5320,7 @@ end = struct
           Ok { type_ = type_; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and PassportFile : sig
@@ -5465,8 +5360,7 @@ end = struct
           Ok { file_id = file_id; file_unique_id = file_unique_id; file_size = file_size; file_date = file_date; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and EncryptedCredentials : sig
@@ -5502,8 +5396,7 @@ end = struct
           Ok { data = data; hash = hash; secret = secret; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and SetPassportDataErrors : sig
@@ -5556,8 +5449,7 @@ end = struct
           Ok { source = source; type_ = type_; field_name = field_name; data_hash = data_hash; message = message; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and PassportElementErrorDataField : sig
@@ -5601,8 +5493,7 @@ end = struct
           Ok { source = source; type_ = type_; field_name = field_name; data_hash = data_hash; message = message; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and PassportElementErrorFrontSide : sig
@@ -5642,8 +5533,7 @@ end = struct
           Ok { source = source; type_ = type_; file_hash = file_hash; message = message; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and PassportElementErrorReverseSide : sig
@@ -5683,8 +5573,7 @@ end = struct
           Ok { source = source; type_ = type_; file_hash = file_hash; message = message; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and PassportElementErrorSelfie : sig
@@ -5724,8 +5613,7 @@ end = struct
           Ok { source = source; type_ = type_; file_hash = file_hash; message = message; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and PassportElementErrorFile : sig
@@ -5765,8 +5653,7 @@ end = struct
           Ok { source = source; type_ = type_; file_hash = file_hash; message = message; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and PassportElementErrorFiles : sig
@@ -5806,8 +5693,7 @@ end = struct
           Ok { source = source; type_ = type_; file_hashes = file_hashes; message = message; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and PassportElementErrorTranslationFile : sig
@@ -5847,8 +5733,7 @@ end = struct
           Ok { source = source; type_ = type_; file_hash = file_hash; message = message; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and PassportElementErrorTranslationFiles : sig
@@ -5888,8 +5773,7 @@ end = struct
           Ok { source = source; type_ = type_; file_hashes = file_hashes; message = message; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and PassportElementErrorUnspecified : sig
@@ -5929,8 +5813,7 @@ end = struct
           Ok { source = source; type_ = type_; element_hash = element_hash; message = message; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and SendGame : sig
@@ -6002,8 +5885,7 @@ end = struct
           Ok { chat = chat; message_id = message_id; date = date; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and MaybeInaccessibleMessage : sig
@@ -6055,8 +5937,7 @@ end = struct
           Ok { type_ = type_; offset = offset; length = length; url = url; user = user; language = language; custom_emoji_id = custom_emoji_id; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and MessageEntity : sig
@@ -6108,8 +5989,7 @@ end = struct
           Ok { type_ = type_; offset = offset; length = length; url = url; user = user; language = language; custom_emoji_id = custom_emoji_id; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and MessageOrigin : sig
@@ -6145,8 +6025,7 @@ end = struct
           Ok { type_ = type_; date = date; sender_user = sender_user; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and MessageOriginUser : sig
@@ -6182,8 +6061,7 @@ end = struct
           Ok { type_ = type_; date = date; sender_user = sender_user; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and MessageOriginChat : sig
@@ -6223,8 +6101,7 @@ end = struct
           Ok { type_ = type_; date = date; sender_chat = sender_chat; author_signature = author_signature; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and MessageOriginChannel : sig
@@ -6268,8 +6145,7 @@ end = struct
           Ok { type_ = type_; date = date; chat = chat; message_id = message_id; author_signature = author_signature; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and Animation : sig
@@ -6329,8 +6205,7 @@ end = struct
           Ok { file_id = file_id; file_unique_id = file_unique_id; width = width; height = height; duration = duration; thumbnail = thumbnail; file_name = file_name; mime_type = mime_type; file_size = file_size; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and Audio : sig
@@ -6390,8 +6265,7 @@ end = struct
           Ok { file_id = file_id; file_unique_id = file_unique_id; duration = duration; performer = performer; title = title; file_name = file_name; mime_type = mime_type; file_size = file_size; thumbnail = thumbnail; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and Document : sig
@@ -6439,8 +6313,7 @@ end = struct
           Ok { file_id = file_id; file_unique_id = file_unique_id; thumbnail = thumbnail; file_name = file_name; mime_type = mime_type; file_size = file_size; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and Story : sig
@@ -6472,8 +6345,7 @@ end = struct
           Ok { chat = chat; id = id; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and Video : sig
@@ -6541,8 +6413,7 @@ end = struct
           Ok { file_id = file_id; file_unique_id = file_unique_id; width = width; height = height; duration = duration; thumbnail = thumbnail; cover = cover; start_timestamp = start_timestamp; file_name = file_name; mime_type = mime_type; file_size = file_size; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and VideoNote : sig
@@ -6590,8 +6461,7 @@ end = struct
           Ok { file_id = file_id; file_unique_id = file_unique_id; length = length; duration = duration; thumbnail = thumbnail; file_size = file_size; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and PaidMediaInfo : sig
@@ -6623,8 +6493,7 @@ end = struct
           Ok { star_count = star_count; paid_media = paid_media; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and PaidMediaPhoto : sig
@@ -6656,8 +6525,7 @@ end = struct
           Ok { type_ = type_; photo = photo; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and PollAnswer : sig
@@ -6697,8 +6565,7 @@ end = struct
           Ok { poll_id = poll_id; voter_chat = voter_chat; user = user; option_ids = option_ids; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and Venue : sig
@@ -6750,8 +6617,7 @@ end = struct
           Ok { location = location; title = title; address = address; foursquare_id = foursquare_id; foursquare_type = foursquare_type; google_place_id = google_place_id; google_place_type = google_place_type; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ProximityAlertTriggered : sig
@@ -6787,8 +6653,7 @@ end = struct
           Ok { traveler = traveler; watcher = watcher; distance = distance; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BackgroundType : sig
@@ -6824,8 +6689,7 @@ end = struct
           Ok { type_ = type_; fill = fill; dark_theme_dimming = dark_theme_dimming; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BackgroundTypeFill : sig
@@ -6861,8 +6725,7 @@ end = struct
           Ok { type_ = type_; fill = fill; dark_theme_dimming = dark_theme_dimming; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ForumTopicReopened : sig
@@ -6906,8 +6769,7 @@ end = struct
           Ok { user_id = user_id; first_name = first_name; last_name = last_name; username = username; photo = photo; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and GeneralForumTopicHidden : sig
@@ -6951,8 +6813,7 @@ end = struct
           Ok { user_id = user_id; first_name = first_name; last_name = last_name; username = username; photo = photo; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and GeneralForumTopicUnhidden : sig
@@ -6996,8 +6857,7 @@ end = struct
           Ok { user_id = user_id; first_name = first_name; last_name = last_name; username = username; photo = photo; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and SharedUser : sig
@@ -7041,8 +6901,7 @@ end = struct
           Ok { user_id = user_id; first_name = first_name; last_name = last_name; username = username; photo = photo; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatShared : sig
@@ -7086,8 +6945,7 @@ end = struct
           Ok { request_id = request_id; chat_id = chat_id; title = title; username = username; photo = photo; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and VideoChatParticipantsInvited : sig
@@ -7115,8 +6973,7 @@ end = struct
           Ok { users = users; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and Giveaway : sig
@@ -7176,8 +7033,7 @@ end = struct
           Ok { chats = chats; winners_selection_date = winners_selection_date; winner_count = winner_count; only_new_members = only_new_members; has_public_winners = has_public_winners; prize_description = prize_description; country_codes = country_codes; prize_star_count = prize_star_count; premium_subscription_month_count = premium_subscription_month_count; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and GiveawayWinners : sig
@@ -7249,8 +7105,7 @@ end = struct
           Ok { chat = chat; giveaway_message_id = giveaway_message_id; winners_selection_date = winners_selection_date; winner_count = winner_count; winners = winners; additional_chat_count = additional_chat_count; prize_star_count = prize_star_count; premium_subscription_month_count = premium_subscription_month_count; unclaimed_prize_count = unclaimed_prize_count; only_new_members = only_new_members; was_refunded = was_refunded; prize_description = prize_description; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and SuggestedPostInfo : sig
@@ -7286,8 +7141,7 @@ end = struct
           Ok { state = state; price = price; send_date = send_date; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and SuggestedPostParameters : sig
@@ -7319,8 +7173,7 @@ end = struct
           Ok { price = price; send_date = send_date; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and DirectMessagesTopic : sig
@@ -7352,8 +7205,7 @@ end = struct
           Ok { topic_id = topic_id; user = user; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and UserProfilePhotos : sig
@@ -7385,8 +7237,7 @@ end = struct
           Ok { total_count = total_count; photos = photos; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and KeyboardButtonRequestChat : sig
@@ -7454,8 +7305,7 @@ end = struct
           Ok { request_id = request_id; chat_is_channel = chat_is_channel; chat_is_forum = chat_is_forum; chat_has_username = chat_has_username; chat_is_created = chat_is_created; user_administrator_rights = user_administrator_rights; bot_administrator_rights = bot_administrator_rights; bot_is_member = bot_is_member; request_title = request_title; request_username = request_username; request_photo = request_photo; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineKeyboardButton : sig
@@ -7523,8 +7373,7 @@ end = struct
           Ok { text = text; url = url; callback_data = callback_data; web_app = web_app; login_url = login_url; switch_inline_query = switch_inline_query; switch_inline_query_current_chat = switch_inline_query_current_chat; switch_inline_query_chosen_chat = switch_inline_query_chosen_chat; copy_text = copy_text; callback_game = callback_game; pay = pay; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatInviteLink : sig
@@ -7592,8 +7441,7 @@ end = struct
           Ok { invite_link = invite_link; creator = creator; creates_join_request = creates_join_request; is_primary = is_primary; is_revoked = is_revoked; name = name; expire_date = expire_date; member_limit = member_limit; pending_join_request_count = pending_join_request_count; subscription_period = subscription_period; subscription_price = subscription_price; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatMember : sig
@@ -7633,8 +7481,7 @@ end = struct
           Ok { status = status; user = user; is_anonymous = is_anonymous; custom_title = custom_title; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatMemberOwner : sig
@@ -7674,8 +7521,7 @@ end = struct
           Ok { status = status; user = user; is_anonymous = is_anonymous; custom_title = custom_title; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatMemberAdministrator : sig
@@ -7779,8 +7625,7 @@ end = struct
           Ok { status = status; user = user; can_be_edited = can_be_edited; is_anonymous = is_anonymous; can_manage_chat = can_manage_chat; can_delete_messages = can_delete_messages; can_manage_video_chats = can_manage_video_chats; can_restrict_members = can_restrict_members; can_promote_members = can_promote_members; can_change_info = can_change_info; can_invite_users = can_invite_users; can_post_stories = can_post_stories; can_edit_stories = can_edit_stories; can_delete_stories = can_delete_stories; can_post_messages = can_post_messages; can_edit_messages = can_edit_messages; can_pin_messages = can_pin_messages; can_manage_topics = can_manage_topics; can_manage_direct_messages = can_manage_direct_messages; custom_title = custom_title; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatMemberMember : sig
@@ -7816,8 +7661,7 @@ end = struct
           Ok { status = status; user = user; until_date = until_date; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatMemberRestricted : sig
@@ -7913,8 +7757,7 @@ end = struct
           Ok { status = status; user = user; is_member = is_member; can_send_messages = can_send_messages; can_send_audios = can_send_audios; can_send_documents = can_send_documents; can_send_photos = can_send_photos; can_send_videos = can_send_videos; can_send_video_notes = can_send_video_notes; can_send_voice_notes = can_send_voice_notes; can_send_polls = can_send_polls; can_send_other_messages = can_send_other_messages; can_add_web_page_previews = can_add_web_page_previews; can_change_info = can_change_info; can_invite_users = can_invite_users; can_pin_messages = can_pin_messages; can_manage_topics = can_manage_topics; until_date = until_date; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatMemberLeft : sig
@@ -7946,8 +7789,7 @@ end = struct
           Ok { status = status; user = user; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatMemberBanned : sig
@@ -7983,8 +7825,7 @@ end = struct
           Ok { status = status; user = user; until_date = until_date; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BusinessLocation : sig
@@ -8016,8 +7857,7 @@ end = struct
           Ok { address = address; location = location; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BusinessOpeningHours : sig
@@ -8049,8 +7889,7 @@ end = struct
           Ok { time_zone_name = time_zone_name; opening_hours = opening_hours; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and StoryAreaType : sig
@@ -8090,8 +7929,7 @@ end = struct
           Ok { type_ = type_; latitude = latitude; longitude = longitude; address = address; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and StoryAreaTypeLocation : sig
@@ -8131,8 +7969,7 @@ end = struct
           Ok { type_ = type_; latitude = latitude; longitude = longitude; address = address; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and StoryAreaTypeSuggestedReaction : sig
@@ -8172,8 +8009,7 @@ end = struct
           Ok { type_ = type_; reaction_type = reaction_type; is_dark = is_dark; is_flipped = is_flipped; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatLocation : sig
@@ -8205,8 +8041,7 @@ end = struct
           Ok { location = location; address = address; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ReactionCount : sig
@@ -8238,8 +8073,7 @@ end = struct
           Ok { type_ = type_; total_count = total_count; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and MessageReactionUpdated : sig
@@ -8291,8 +8125,7 @@ end = struct
           Ok { chat = chat; message_id = message_id; user = user; actor_chat = actor_chat; date = date; old_reaction = old_reaction; new_reaction = new_reaction; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and UniqueGiftBackdrop : sig
@@ -8328,8 +8161,7 @@ end = struct
           Ok { name = name; colors = colors; rarity_per_mille = rarity_per_mille; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and MenuButtonWebApp : sig
@@ -8365,8 +8197,7 @@ end = struct
           Ok { type_ = type_; text = text; web_app = web_app; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatBoostSource : sig
@@ -8398,8 +8229,7 @@ end = struct
           Ok { source = source; user = user; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatBoostSourcePremium : sig
@@ -8431,8 +8261,7 @@ end = struct
           Ok { source = source; user = user; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatBoostSourceGiftCode : sig
@@ -8464,8 +8293,7 @@ end = struct
           Ok { source = source; user = user; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatBoostSourceGiveaway : sig
@@ -8509,8 +8337,7 @@ end = struct
           Ok { source = source; giveaway_message_id = giveaway_message_id; user = user; prize_star_count = prize_star_count; is_unclaimed = is_unclaimed; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BusinessConnection : sig
@@ -8558,8 +8385,7 @@ end = struct
           Ok { id = id; user = user; user_chat_id = user_chat_id; date = date; rights = rights; is_enabled = is_enabled; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BusinessMessagesDeleted : sig
@@ -8595,8 +8421,7 @@ end = struct
           Ok { business_connection_id = business_connection_id; chat = chat; message_ids = message_ids; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and Sticker : sig
@@ -8680,8 +8505,7 @@ end = struct
           Ok { file_id = file_id; file_unique_id = file_unique_id; type_ = type_; width = width; height = height; is_animated = is_animated; is_video = is_video; thumbnail = thumbnail; emoji = emoji; set_name = set_name; premium_animation = premium_animation; mask_position = mask_position; custom_emoji_id = custom_emoji_id; needs_repainting = needs_repainting; file_size = file_size; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputSticker : sig
@@ -8725,8 +8549,7 @@ end = struct
           Ok { sticker = sticker; format = format; emoji_list = emoji_list; mask_position = mask_position; keywords = keywords; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineQuery : sig
@@ -8774,8 +8597,7 @@ end = struct
           Ok { id = id; from = from; query = query; offset = offset; chat_type = chat_type; location = location; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultsButton : sig
@@ -8811,8 +8633,7 @@ end = struct
           Ok { text = text; web_app = web_app; start_parameter = start_parameter; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputInvoiceMessageContent : sig
@@ -8916,8 +8737,7 @@ end = struct
           Ok { title = title; description = description; payload = payload; provider_token = provider_token; currency = currency; prices = prices; max_tip_amount = max_tip_amount; suggested_tip_amounts = suggested_tip_amounts; provider_data = provider_data; photo_url = photo_url; photo_size = photo_size; photo_width = photo_width; photo_height = photo_height; need_name = need_name; need_phone_number = need_phone_number; need_email = need_email; need_shipping_address = need_shipping_address; send_phone_number_to_provider = send_phone_number_to_provider; send_email_to_provider = send_email_to_provider; is_flexible = is_flexible; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChosenInlineResult : sig
@@ -8961,8 +8781,7 @@ end = struct
           Ok { result_id = result_id; from = from; location = location; inline_message_id = inline_message_id; query = query; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and OrderInfo : sig
@@ -9002,8 +8821,7 @@ end = struct
           Ok { name = name; phone_number = phone_number; email = email; shipping_address = shipping_address; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ShippingOption : sig
@@ -9039,8 +8857,7 @@ end = struct
           Ok { id = id; title = title; prices = prices; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ShippingQuery : sig
@@ -9080,8 +8897,7 @@ end = struct
           Ok { id = id; from = from; invoice_payload = invoice_payload; shipping_address = shipping_address; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and PaidMediaPurchased : sig
@@ -9113,8 +8929,7 @@ end = struct
           Ok { from = from; paid_media_payload = paid_media_payload; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and AffiliateInfo : sig
@@ -9158,8 +8973,7 @@ end = struct
           Ok { affiliate_user = affiliate_user; affiliate_chat = affiliate_chat; commission_per_mille = commission_per_mille; amount = amount; nanostar_amount = nanostar_amount; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and TransactionPartnerAffiliateProgram : sig
@@ -9195,8 +9009,7 @@ end = struct
           Ok { type_ = type_; sponsor_user = sponsor_user; commission_per_mille = commission_per_mille; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and TransactionPartnerFragment : sig
@@ -9228,8 +9041,7 @@ end = struct
           Ok { type_ = type_; withdrawal_state = withdrawal_state; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and EncryptedPassportElement : sig
@@ -9293,8 +9105,7 @@ end = struct
           Ok { type_ = type_; data = data; phone_number = phone_number; email = email; files = files; front_side = front_side; reverse_side = reverse_side; selfie = selfie; translation = translation; hash = hash; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and GameHighScore : sig
@@ -9330,8 +9141,7 @@ end = struct
           Ok { position = position; user = user; score = score; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and TextQuote : sig
@@ -9371,8 +9181,7 @@ end = struct
           Ok { text = text; entities = entities; position = position; is_manual = is_manual; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ReplyParameters : sig
@@ -9428,8 +9237,7 @@ end = struct
           Ok { message_id = message_id; chat_id = chat_id; allow_sending_without_reply = allow_sending_without_reply; quote = quote; quote_parse_mode = quote_parse_mode; quote_entities = quote_entities; quote_position = quote_position; checklist_task_id = checklist_task_id; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and PaidMediaVideo : sig
@@ -9461,8 +9269,7 @@ end = struct
           Ok { type_ = type_; video = video; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and PollOption : sig
@@ -9498,8 +9305,7 @@ end = struct
           Ok { text = text; text_entities = text_entities; voter_count = voter_count; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputPollOption : sig
@@ -9535,8 +9341,7 @@ end = struct
           Ok { text = text; text_parse_mode = text_parse_mode; text_entities = text_entities; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChecklistTask : sig
@@ -9580,8 +9385,7 @@ end = struct
           Ok { id = id; text = text; text_entities = text_entities; completed_by_user = completed_by_user; completion_date = completion_date; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputChecklistTask : sig
@@ -9621,8 +9425,7 @@ end = struct
           Ok { id = id; text = text; parse_mode = parse_mode; text_entities = text_entities; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BackgroundTypeWallpaper : sig
@@ -9666,8 +9469,7 @@ end = struct
           Ok { type_ = type_; document = document; dark_theme_dimming = dark_theme_dimming; is_blurred = is_blurred; is_moving = is_moving; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BackgroundTypePattern : sig
@@ -9715,8 +9517,7 @@ end = struct
           Ok { type_ = type_; document = document; fill = fill; intensity = intensity; is_inverted = is_inverted; is_moving = is_moving; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatBackground : sig
@@ -9744,8 +9545,7 @@ end = struct
           Ok { type_ = type_; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and UsersShared : sig
@@ -9777,8 +9577,7 @@ end = struct
           Ok { request_id = request_id; users = users; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and KeyboardButton : sig
@@ -9830,8 +9629,7 @@ end = struct
           Ok { text = text; request_users = request_users; request_chat = request_chat; request_contact = request_contact; request_location = request_location; request_poll = request_poll; web_app = web_app; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineKeyboardMarkup : sig
@@ -9859,8 +9657,7 @@ end = struct
           Ok { inline_keyboard = inline_keyboard; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and CallbackQuery : sig
@@ -9912,8 +9709,7 @@ end = struct
           Ok { id = id; from = from; message = message; inline_message_id = inline_message_id; chat_instance = chat_instance; data = data; game_short_name = game_short_name; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatMemberUpdated : sig
@@ -9969,8 +9765,7 @@ end = struct
           Ok { chat = chat; from = from; date = date; old_chat_member = old_chat_member; new_chat_member = new_chat_member; invite_link = invite_link; via_join_request = via_join_request; via_chat_folder_invite_link = via_chat_folder_invite_link; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatJoinRequest : sig
@@ -10018,8 +9813,7 @@ end = struct
           Ok { chat = chat; from = from; user_chat_id = user_chat_id; date = date; bio = bio; invite_link = invite_link; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and BusinessIntro : sig
@@ -10055,8 +9849,7 @@ end = struct
           Ok { title = title; message = message; sticker = sticker; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and StoryArea : sig
@@ -10088,8 +9881,7 @@ end = struct
           Ok { position = position; type_ = type_; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and MessageReactionCountUpdated : sig
@@ -10129,8 +9921,7 @@ end = struct
           Ok { chat = chat; message_id = message_id; date = date; reactions = reactions; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and Gift : sig
@@ -10182,8 +9973,7 @@ end = struct
           Ok { id = id; sticker = sticker; star_count = star_count; upgrade_star_count = upgrade_star_count; total_count = total_count; remaining_count = remaining_count; publisher_chat = publisher_chat; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and UniqueGiftModel : sig
@@ -10219,8 +10009,7 @@ end = struct
           Ok { name = name; sticker = sticker; rarity_per_mille = rarity_per_mille; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and UniqueGiftSymbol : sig
@@ -10256,8 +10045,7 @@ end = struct
           Ok { name = name; sticker = sticker; rarity_per_mille = rarity_per_mille; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatBoost : sig
@@ -10297,8 +10085,7 @@ end = struct
           Ok { boost_id = boost_id; add_date = add_date; expiration_date = expiration_date; source = source; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatBoostRemoved : sig
@@ -10338,8 +10125,7 @@ end = struct
           Ok { chat = chat; boost_id = boost_id; remove_date = remove_date; source = source; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputMedia : sig
@@ -10391,8 +10177,7 @@ end = struct
           Ok { type_ = type_; media = media; caption = caption; parse_mode = parse_mode; caption_entities = caption_entities; show_caption_above_media = show_caption_above_media; has_spoiler = has_spoiler; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputMediaPhoto : sig
@@ -10444,8 +10229,7 @@ end = struct
           Ok { type_ = type_; media = media; caption = caption; parse_mode = parse_mode; caption_entities = caption_entities; show_caption_above_media = show_caption_above_media; has_spoiler = has_spoiler; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputMediaVideo : sig
@@ -10525,8 +10309,7 @@ end = struct
           Ok { type_ = type_; media = media; thumbnail = thumbnail; cover = cover; start_timestamp = start_timestamp; caption = caption; parse_mode = parse_mode; caption_entities = caption_entities; show_caption_above_media = show_caption_above_media; width = width; height = height; duration = duration; supports_streaming = supports_streaming; has_spoiler = has_spoiler; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputMediaAnimation : sig
@@ -10594,8 +10377,7 @@ end = struct
           Ok { type_ = type_; media = media; thumbnail = thumbnail; caption = caption; parse_mode = parse_mode; caption_entities = caption_entities; show_caption_above_media = show_caption_above_media; width = width; height = height; duration = duration; has_spoiler = has_spoiler; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputMediaAudio : sig
@@ -10655,8 +10437,7 @@ end = struct
           Ok { type_ = type_; media = media; thumbnail = thumbnail; caption = caption; parse_mode = parse_mode; caption_entities = caption_entities; duration = duration; performer = performer; title = title; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputMediaDocument : sig
@@ -10708,8 +10489,7 @@ end = struct
           Ok { type_ = type_; media = media; thumbnail = thumbnail; caption = caption; parse_mode = parse_mode; caption_entities = caption_entities; disable_content_type_detection = disable_content_type_detection; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and StickerSet : sig
@@ -10753,8 +10533,7 @@ end = struct
           Ok { name = name; title = title; sticker_type = sticker_type; stickers = stickers; thumbnail = thumbnail; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputMessageContent : sig
@@ -10794,8 +10573,7 @@ end = struct
           Ok { message_text = message_text; parse_mode = parse_mode; entities = entities; link_preview_options = link_preview_options; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputTextMessageContent : sig
@@ -10835,8 +10613,7 @@ end = struct
           Ok { message_text = message_text; parse_mode = parse_mode; entities = entities; link_preview_options = link_preview_options; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and SuccessfulPayment : sig
@@ -10900,8 +10677,7 @@ end = struct
           Ok { currency = currency; total_amount = total_amount; invoice_payload = invoice_payload; subscription_expiration_date = subscription_expiration_date; is_recurring = is_recurring; is_first_recurring = is_first_recurring; shipping_option_id = shipping_option_id; order_info = order_info; telegram_payment_charge_id = telegram_payment_charge_id; provider_payment_charge_id = provider_payment_charge_id; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and PreCheckoutQuery : sig
@@ -10953,8 +10729,7 @@ end = struct
           Ok { id = id; from = from; currency = currency; total_amount = total_amount; invoice_payload = invoice_payload; shipping_option_id = shipping_option_id; order_info = order_info; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and PassportData : sig
@@ -10986,8 +10761,7 @@ end = struct
           Ok { data = data; credentials = credentials; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and Game : sig
@@ -11035,8 +10809,7 @@ end = struct
           Ok { title = title; description = description; photo = photo; text = text; text_entities = text_entities; animation = animation; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and Poll : sig
@@ -11116,8 +10889,7 @@ end = struct
           Ok { id = id; question = question; question_entities = question_entities; options = options; total_voter_count = total_voter_count; is_closed = is_closed; is_anonymous = is_anonymous; type_ = type_; allows_multiple_answers = allows_multiple_answers; correct_option_id = correct_option_id; explanation = explanation; explanation_entities = explanation_entities; open_period = open_period; close_date = close_date; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and Checklist : sig
@@ -11161,8 +10933,7 @@ end = struct
           Ok { title = title; title_entities = title_entities; tasks = tasks; others_can_add_tasks = others_can_add_tasks; others_can_mark_tasks_as_done = others_can_mark_tasks_as_done; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InputChecklist : sig
@@ -11210,8 +10981,7 @@ end = struct
           Ok { title = title; parse_mode = parse_mode; title_entities = title_entities; tasks = tasks; others_can_add_tasks = others_can_add_tasks; others_can_mark_tasks_as_done = others_can_mark_tasks_as_done; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ReplyKeyboardMarkup : sig
@@ -11259,8 +11029,7 @@ end = struct
           Ok { keyboard = keyboard; is_persistent = is_persistent; resize_keyboard = resize_keyboard; one_time_keyboard = one_time_keyboard; input_field_placeholder = input_field_placeholder; selective = selective; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and Gifts : sig
@@ -11288,8 +11057,7 @@ end = struct
           Ok { gifts = gifts; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and UniqueGift : sig
@@ -11341,8 +11109,7 @@ end = struct
           Ok { base_name = base_name; name = name; number = number; model = model; symbol = symbol; backdrop = backdrop; publisher_chat = publisher_chat; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and GiftInfo : sig
@@ -11398,8 +11165,7 @@ end = struct
           Ok { gift = gift; owned_gift_id = owned_gift_id; convert_star_count = convert_star_count; prepaid_upgrade_star_count = prepaid_upgrade_star_count; can_be_upgraded = can_be_upgraded; text = text; entities = entities; is_private = is_private; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and OwnedGift : sig
@@ -11475,8 +11241,7 @@ end = struct
           Ok { type_ = type_; gift = gift; owned_gift_id = owned_gift_id; sender_user = sender_user; send_date = send_date; text = text; entities = entities; is_private = is_private; is_saved = is_saved; can_be_upgraded = can_be_upgraded; was_refunded = was_refunded; convert_star_count = convert_star_count; prepaid_upgrade_star_count = prepaid_upgrade_star_count; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and OwnedGiftRegular : sig
@@ -11552,8 +11317,7 @@ end = struct
           Ok { type_ = type_; gift = gift; owned_gift_id = owned_gift_id; sender_user = sender_user; send_date = send_date; text = text; entities = entities; is_private = is_private; is_saved = is_saved; can_be_upgraded = can_be_upgraded; was_refunded = was_refunded; convert_star_count = convert_star_count; prepaid_upgrade_star_count = prepaid_upgrade_star_count; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatBoostUpdated : sig
@@ -11585,8 +11349,7 @@ end = struct
           Ok { chat = chat; boost = boost; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and UserChatBoosts : sig
@@ -11614,8 +11377,7 @@ end = struct
           Ok { boosts = boosts; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResult : sig
@@ -11679,8 +11441,7 @@ end = struct
           Ok { type_ = type_; id = id; title = title; input_message_content = input_message_content; reply_markup = reply_markup; url = url; description = description; thumbnail_url = thumbnail_url; thumbnail_width = thumbnail_width; thumbnail_height = thumbnail_height; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultArticle : sig
@@ -11744,8 +11505,7 @@ end = struct
           Ok { type_ = type_; id = id; title = title; input_message_content = input_message_content; reply_markup = reply_markup; url = url; description = description; thumbnail_url = thumbnail_url; thumbnail_width = thumbnail_width; thumbnail_height = thumbnail_height; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultPhoto : sig
@@ -11825,8 +11585,7 @@ end = struct
           Ok { type_ = type_; id = id; photo_url = photo_url; thumbnail_url = thumbnail_url; photo_width = photo_width; photo_height = photo_height; title = title; description = description; caption = caption; parse_mode = parse_mode; caption_entities = caption_entities; show_caption_above_media = show_caption_above_media; reply_markup = reply_markup; input_message_content = input_message_content; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultGif : sig
@@ -11910,8 +11669,7 @@ end = struct
           Ok { type_ = type_; id = id; gif_url = gif_url; gif_width = gif_width; gif_height = gif_height; gif_duration = gif_duration; thumbnail_url = thumbnail_url; thumbnail_mime_type = thumbnail_mime_type; title = title; caption = caption; parse_mode = parse_mode; caption_entities = caption_entities; show_caption_above_media = show_caption_above_media; reply_markup = reply_markup; input_message_content = input_message_content; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultMpeg4Gif : sig
@@ -11995,8 +11753,7 @@ end = struct
           Ok { type_ = type_; id = id; mpeg4_url = mpeg4_url; mpeg4_width = mpeg4_width; mpeg4_height = mpeg4_height; mpeg4_duration = mpeg4_duration; thumbnail_url = thumbnail_url; thumbnail_mime_type = thumbnail_mime_type; title = title; caption = caption; parse_mode = parse_mode; caption_entities = caption_entities; show_caption_above_media = show_caption_above_media; reply_markup = reply_markup; input_message_content = input_message_content; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultVideo : sig
@@ -12084,8 +11841,7 @@ end = struct
           Ok { type_ = type_; id = id; video_url = video_url; mime_type = mime_type; thumbnail_url = thumbnail_url; title = title; caption = caption; parse_mode = parse_mode; caption_entities = caption_entities; show_caption_above_media = show_caption_above_media; video_width = video_width; video_height = video_height; video_duration = video_duration; description = description; reply_markup = reply_markup; input_message_content = input_message_content; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultAudio : sig
@@ -12153,8 +11909,7 @@ end = struct
           Ok { type_ = type_; id = id; audio_url = audio_url; title = title; caption = caption; parse_mode = parse_mode; caption_entities = caption_entities; performer = performer; audio_duration = audio_duration; reply_markup = reply_markup; input_message_content = input_message_content; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultVoice : sig
@@ -12218,8 +11973,7 @@ end = struct
           Ok { type_ = type_; id = id; voice_url = voice_url; title = title; caption = caption; parse_mode = parse_mode; caption_entities = caption_entities; voice_duration = voice_duration; reply_markup = reply_markup; input_message_content = input_message_content; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultDocument : sig
@@ -12299,8 +12053,7 @@ end = struct
           Ok { type_ = type_; id = id; title = title; caption = caption; parse_mode = parse_mode; caption_entities = caption_entities; document_url = document_url; mime_type = mime_type; description = description; reply_markup = reply_markup; input_message_content = input_message_content; thumbnail_url = thumbnail_url; thumbnail_width = thumbnail_width; thumbnail_height = thumbnail_height; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultLocation : sig
@@ -12380,8 +12133,7 @@ end = struct
           Ok { type_ = type_; id = id; latitude = latitude; longitude = longitude; title = title; horizontal_accuracy = horizontal_accuracy; live_period = live_period; heading = heading; proximity_alert_radius = proximity_alert_radius; reply_markup = reply_markup; input_message_content = input_message_content; thumbnail_url = thumbnail_url; thumbnail_width = thumbnail_width; thumbnail_height = thumbnail_height; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultVenue : sig
@@ -12465,8 +12217,7 @@ end = struct
           Ok { type_ = type_; id = id; latitude = latitude; longitude = longitude; title = title; address = address; foursquare_id = foursquare_id; foursquare_type = foursquare_type; google_place_id = google_place_id; google_place_type = google_place_type; reply_markup = reply_markup; input_message_content = input_message_content; thumbnail_url = thumbnail_url; thumbnail_width = thumbnail_width; thumbnail_height = thumbnail_height; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultContact : sig
@@ -12534,8 +12285,7 @@ end = struct
           Ok { type_ = type_; id = id; phone_number = phone_number; first_name = first_name; last_name = last_name; vcard = vcard; reply_markup = reply_markup; input_message_content = input_message_content; thumbnail_url = thumbnail_url; thumbnail_width = thumbnail_width; thumbnail_height = thumbnail_height; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultGame : sig
@@ -12575,8 +12325,7 @@ end = struct
           Ok { type_ = type_; id = id; game_short_name = game_short_name; reply_markup = reply_markup; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultCachedPhoto : sig
@@ -12644,8 +12393,7 @@ end = struct
           Ok { type_ = type_; id = id; photo_file_id = photo_file_id; title = title; description = description; caption = caption; parse_mode = parse_mode; caption_entities = caption_entities; show_caption_above_media = show_caption_above_media; reply_markup = reply_markup; input_message_content = input_message_content; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultCachedGif : sig
@@ -12709,8 +12457,7 @@ end = struct
           Ok { type_ = type_; id = id; gif_file_id = gif_file_id; title = title; caption = caption; parse_mode = parse_mode; caption_entities = caption_entities; show_caption_above_media = show_caption_above_media; reply_markup = reply_markup; input_message_content = input_message_content; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultCachedMpeg4Gif : sig
@@ -12774,8 +12521,7 @@ end = struct
           Ok { type_ = type_; id = id; mpeg4_file_id = mpeg4_file_id; title = title; caption = caption; parse_mode = parse_mode; caption_entities = caption_entities; show_caption_above_media = show_caption_above_media; reply_markup = reply_markup; input_message_content = input_message_content; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultCachedSticker : sig
@@ -12819,8 +12565,7 @@ end = struct
           Ok { type_ = type_; id = id; sticker_file_id = sticker_file_id; reply_markup = reply_markup; input_message_content = input_message_content; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultCachedDocument : sig
@@ -12884,8 +12629,7 @@ end = struct
           Ok { type_ = type_; id = id; title = title; document_file_id = document_file_id; description = description; caption = caption; parse_mode = parse_mode; caption_entities = caption_entities; reply_markup = reply_markup; input_message_content = input_message_content; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultCachedVideo : sig
@@ -12953,8 +12697,7 @@ end = struct
           Ok { type_ = type_; id = id; video_file_id = video_file_id; title = title; description = description; caption = caption; parse_mode = parse_mode; caption_entities = caption_entities; show_caption_above_media = show_caption_above_media; reply_markup = reply_markup; input_message_content = input_message_content; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultCachedVoice : sig
@@ -13014,8 +12757,7 @@ end = struct
           Ok { type_ = type_; id = id; voice_file_id = voice_file_id; title = title; caption = caption; parse_mode = parse_mode; caption_entities = caption_entities; reply_markup = reply_markup; input_message_content = input_message_content; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultCachedAudio : sig
@@ -13071,8 +12813,7 @@ end = struct
           Ok { type_ = type_; id = id; audio_file_id = audio_file_id; caption = caption; parse_mode = parse_mode; caption_entities = caption_entities; reply_markup = reply_markup; input_message_content = input_message_content; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and TransactionPartner : sig
@@ -13136,8 +12877,7 @@ end = struct
           Ok { type_ = type_; transaction_type = transaction_type; user = user; affiliate = affiliate; invoice_payload = invoice_payload; subscription_period = subscription_period; paid_media = paid_media; paid_media_payload = paid_media_payload; gift = gift; premium_subscription_duration = premium_subscription_duration; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and TransactionPartnerUser : sig
@@ -13201,8 +12941,7 @@ end = struct
           Ok { type_ = type_; transaction_type = transaction_type; user = user; affiliate = affiliate; invoice_payload = invoice_payload; subscription_period = subscription_period; paid_media = paid_media; paid_media_payload = paid_media_payload; gift = gift; premium_subscription_duration = premium_subscription_duration; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and TransactionPartnerChat : sig
@@ -13238,8 +12977,7 @@ end = struct
           Ok { type_ = type_; chat = chat; gift = gift; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ExternalReplyInfo : sig
@@ -13363,8 +13101,7 @@ end = struct
           Ok { origin = origin; chat = chat; message_id = message_id; link_preview_options = link_preview_options; animation = animation; audio = audio; document = document; paid_media = paid_media; photo = photo; sticker = sticker; story = story; video = video; video_note = video_note; voice = voice; has_media_spoiler = has_media_spoiler; checklist = checklist; contact = contact; dice = dice; game = game; giveaway = giveaway; giveaway_winners = giveaway_winners; invoice = invoice; location = location; poll = poll; venue = venue; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and UniqueGiftInfo : sig
@@ -13412,8 +13149,7 @@ end = struct
           Ok { gift = gift; origin = origin; last_resale_star_count = last_resale_star_count; owned_gift_id = owned_gift_id; transfer_star_count = transfer_star_count; next_transfer_date = next_transfer_date; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and OwnedGiftUnique : sig
@@ -13473,8 +13209,7 @@ end = struct
           Ok { type_ = type_; gift = gift; owned_gift_id = owned_gift_id; sender_user = sender_user; send_date = send_date; is_saved = is_saved; can_be_transferred = can_be_transferred; transfer_star_count = transfer_star_count; next_transfer_date = next_transfer_date; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and OwnedGifts : sig
@@ -13510,8 +13245,7 @@ end = struct
           Ok { total_count = total_count; gifts = gifts; next_offset = next_offset; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and StarTransaction : sig
@@ -13559,8 +13293,7 @@ end = struct
           Ok { id = id; amount = amount; nanostar_amount = nanostar_amount; date = date; source = source; receiver = receiver; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and StarTransactions : sig
@@ -13588,8 +13321,7 @@ end = struct
           Ok { transactions = transactions; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and August152025 : sig
@@ -13709,8 +13441,7 @@ end = struct
           Ok { update_id = update_id; message = message; edited_message = edited_message; channel_post = channel_post; edited_channel_post = edited_channel_post; business_connection = business_connection; business_message = business_message; edited_business_message = edited_business_message; deleted_business_messages = deleted_business_messages; message_reaction = message_reaction; message_reaction_count = message_reaction_count; inline_query = inline_query; chosen_inline_result = chosen_inline_result; callback_query = callback_query; shipping_query = shipping_query; pre_checkout_query = pre_checkout_query; purchased_paid_media = purchased_paid_media; poll = poll; poll_answer = poll_answer; my_chat_member = my_chat_member; chat_member = chat_member; chat_join_request = chat_join_request; chat_boost = chat_boost; removed_chat_boost = removed_chat_boost; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and July32025 : sig
@@ -13830,8 +13561,7 @@ end = struct
           Ok { update_id = update_id; message = message; edited_message = edited_message; channel_post = channel_post; edited_channel_post = edited_channel_post; business_connection = business_connection; business_message = business_message; edited_business_message = edited_business_message; deleted_business_messages = deleted_business_messages; message_reaction = message_reaction; message_reaction_count = message_reaction_count; inline_query = inline_query; chosen_inline_result = chosen_inline_result; callback_query = callback_query; shipping_query = shipping_query; pre_checkout_query = pre_checkout_query; purchased_paid_media = purchased_paid_media; poll = poll; poll_answer = poll_answer; my_chat_member = my_chat_member; chat_member = chat_member; chat_join_request = chat_join_request; chat_boost = chat_boost; removed_chat_boost = removed_chat_boost; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and April112025 : sig
@@ -13951,8 +13681,7 @@ end = struct
           Ok { update_id = update_id; message = message; edited_message = edited_message; channel_post = channel_post; edited_channel_post = edited_channel_post; business_connection = business_connection; business_message = business_message; edited_business_message = edited_business_message; deleted_business_messages = deleted_business_messages; message_reaction = message_reaction; message_reaction_count = message_reaction_count; inline_query = inline_query; chosen_inline_result = chosen_inline_result; callback_query = callback_query; shipping_query = shipping_query; pre_checkout_query = pre_checkout_query; purchased_paid_media = purchased_paid_media; poll = poll; poll_answer = poll_answer; my_chat_member = my_chat_member; chat_member = chat_member; chat_join_request = chat_join_request; chat_boost = chat_boost; removed_chat_boost = removed_chat_boost; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and MakingRequestsWhenGettingUpdates : sig
@@ -14072,8 +13801,7 @@ end = struct
           Ok { update_id = update_id; message = message; edited_message = edited_message; channel_post = channel_post; edited_channel_post = edited_channel_post; business_connection = business_connection; business_message = business_message; edited_business_message = edited_business_message; deleted_business_messages = deleted_business_messages; message_reaction = message_reaction; message_reaction_count = message_reaction_count; inline_query = inline_query; chosen_inline_result = chosen_inline_result; callback_query = callback_query; shipping_query = shipping_query; pre_checkout_query = pre_checkout_query; purchased_paid_media = purchased_paid_media; poll = poll; poll_answer = poll_answer; my_chat_member = my_chat_member; chat_member = chat_member; chat_join_request = chat_join_request; chat_boost = chat_boost; removed_chat_boost = removed_chat_boost; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and DoINeedALocalBotAPIServer : sig
@@ -14193,8 +13921,7 @@ end = struct
           Ok { update_id = update_id; message = message; edited_message = edited_message; channel_post = channel_post; edited_channel_post = edited_channel_post; business_connection = business_connection; business_message = business_message; edited_business_message = edited_business_message; deleted_business_messages = deleted_business_messages; message_reaction = message_reaction; message_reaction_count = message_reaction_count; inline_query = inline_query; chosen_inline_result = chosen_inline_result; callback_query = callback_query; shipping_query = shipping_query; pre_checkout_query = pre_checkout_query; purchased_paid_media = purchased_paid_media; poll = poll; poll_answer = poll_answer; my_chat_member = my_chat_member; chat_member = chat_member; chat_join_request = chat_join_request; chat_boost = chat_boost; removed_chat_boost = removed_chat_boost; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and Update : sig
@@ -14314,8 +14041,7 @@ end = struct
           Ok { update_id = update_id; message = message; edited_message = edited_message; channel_post = channel_post; edited_channel_post = edited_channel_post; business_connection = business_connection; business_message = business_message; edited_business_message = edited_business_message; deleted_business_messages = deleted_business_messages; message_reaction = message_reaction; message_reaction_count = message_reaction_count; inline_query = inline_query; chosen_inline_result = chosen_inline_result; callback_query = callback_query; shipping_query = shipping_query; pre_checkout_query = pre_checkout_query; purchased_paid_media = purchased_paid_media; poll = poll; poll_answer = poll_answer; my_chat_member = my_chat_member; chat_member = chat_member; chat_join_request = chat_join_request; chat_boost = chat_boost; removed_chat_boost = removed_chat_boost; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChatFullInfo : sig
@@ -14527,8 +14253,7 @@ end = struct
           Ok { id = id; type_ = type_; title = title; username = username; first_name = first_name; last_name = last_name; is_forum = is_forum; is_direct_messages = is_direct_messages; accent_color_id = accent_color_id; max_reaction_count = max_reaction_count; photo = photo; active_usernames = active_usernames; birthdate = birthdate; business_intro = business_intro; business_location = business_location; business_opening_hours = business_opening_hours; personal_chat = personal_chat; parent_chat = parent_chat; available_reactions = available_reactions; background_custom_emoji_id = background_custom_emoji_id; profile_accent_color_id = profile_accent_color_id; profile_background_custom_emoji_id = profile_background_custom_emoji_id; emoji_status_custom_emoji_id = emoji_status_custom_emoji_id; emoji_status_expiration_date = emoji_status_expiration_date; bio = bio; has_private_forwards = has_private_forwards; has_restricted_voice_and_video_messages = has_restricted_voice_and_video_messages; join_to_send_messages = join_to_send_messages; join_by_request = join_by_request; description = description; invite_link = invite_link; pinned_message = pinned_message; permissions = permissions; accepted_gift_types = accepted_gift_types; can_send_paid_media = can_send_paid_media; slow_mode_delay = slow_mode_delay; unrestrict_boost_count = unrestrict_boost_count; message_auto_delete_time = message_auto_delete_time; has_aggressive_anti_spam_enabled = has_aggressive_anti_spam_enabled; has_hidden_members = has_hidden_members; has_protected_content = has_protected_content; has_visible_history = has_visible_history; sticker_set_name = sticker_set_name; can_set_sticker_set = can_set_sticker_set; custom_emoji_sticker_set_name = custom_emoji_sticker_set_name; linked_chat_id = linked_chat_id; location = location; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and Message : sig
@@ -14960,8 +14685,7 @@ end = struct
           Ok { message_id = message_id; message_thread_id = message_thread_id; direct_messages_topic = direct_messages_topic; from = from; sender_chat = sender_chat; sender_boost_count = sender_boost_count; sender_business_bot = sender_business_bot; date = date; business_connection_id = business_connection_id; chat = chat; forward_origin = forward_origin; is_topic_message = is_topic_message; is_automatic_forward = is_automatic_forward; reply_to_message = reply_to_message; external_reply = external_reply; quote = quote; reply_to_story = reply_to_story; reply_to_checklist_task_id = reply_to_checklist_task_id; via_bot = via_bot; edit_date = edit_date; has_protected_content = has_protected_content; is_from_offline = is_from_offline; is_paid_post = is_paid_post; media_group_id = media_group_id; author_signature = author_signature; paid_star_count = paid_star_count; text = text; entities = entities; link_preview_options = link_preview_options; suggested_post_info = suggested_post_info; effect_id = effect_id; animation = animation; audio = audio; document = document; paid_media = paid_media; photo = photo; sticker = sticker; story = story; video = video; video_note = video_note; voice = voice; caption = caption; caption_entities = caption_entities; show_caption_above_media = show_caption_above_media; has_media_spoiler = has_media_spoiler; checklist = checklist; contact = contact; dice = dice; game = game; poll = poll; venue = venue; location = location; new_chat_members = new_chat_members; left_chat_member = left_chat_member; new_chat_title = new_chat_title; new_chat_photo = new_chat_photo; delete_chat_photo = delete_chat_photo; group_chat_created = group_chat_created; supergroup_chat_created = supergroup_chat_created; channel_chat_created = channel_chat_created; message_auto_delete_timer_changed = message_auto_delete_timer_changed; migrate_to_chat_id = migrate_to_chat_id; migrate_from_chat_id = migrate_from_chat_id; pinned_message = pinned_message; invoice = invoice; successful_payment = successful_payment; refunded_payment = refunded_payment; users_shared = users_shared; chat_shared = chat_shared; gift = gift; unique_gift = unique_gift; connected_website = connected_website; write_access_allowed = write_access_allowed; passport_data = passport_data; proximity_alert_triggered = proximity_alert_triggered; boost_added = boost_added; chat_background_set = chat_background_set; checklist_tasks_done = checklist_tasks_done; checklist_tasks_added = checklist_tasks_added; direct_message_price_changed = direct_message_price_changed; forum_topic_created = forum_topic_created; forum_topic_edited = forum_topic_edited; forum_topic_closed = forum_topic_closed; forum_topic_reopened = forum_topic_reopened; general_forum_topic_hidden = general_forum_topic_hidden; general_forum_topic_unhidden = general_forum_topic_unhidden; giveaway_created = giveaway_created; giveaway = giveaway; giveaway_winners = giveaway_winners; giveaway_completed = giveaway_completed; paid_message_price_changed = paid_message_price_changed; suggested_post_approved = suggested_post_approved; suggested_post_approval_failed = suggested_post_approval_failed; suggested_post_declined = suggested_post_declined; suggested_post_paid = suggested_post_paid; suggested_post_refunded = suggested_post_refunded; video_chat_scheduled = video_chat_scheduled; video_chat_started = video_chat_started; video_chat_ended = video_chat_ended; video_chat_participants_invited = video_chat_participants_invited; web_app_data = web_app_data; reply_markup = reply_markup; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChecklistTasksDone : sig
@@ -14997,8 +14721,7 @@ end = struct
           Ok { checklist_message = checklist_message; marked_as_done_task_ids = marked_as_done_task_ids; marked_as_not_done_task_ids = marked_as_not_done_task_ids; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and ChecklistTasksAdded : sig
@@ -15030,8 +14753,7 @@ end = struct
           Ok { checklist_message = checklist_message; tasks = tasks; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and SuggestedPostApproved : sig
@@ -15067,8 +14789,7 @@ end = struct
           Ok { suggested_post_message = suggested_post_message; price = price; send_date = send_date; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and SuggestedPostApprovalFailed : sig
@@ -15100,8 +14821,7 @@ end = struct
           Ok { suggested_post_message = suggested_post_message; price = price; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and SuggestedPostDeclined : sig
@@ -15133,8 +14853,7 @@ end = struct
           Ok { suggested_post_message = suggested_post_message; comment = comment; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and SuggestedPostPaid : sig
@@ -15174,8 +14893,7 @@ end = struct
           Ok { suggested_post_message = suggested_post_message; currency = currency; amount = amount; star_amount = star_amount; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and SuggestedPostRefunded : sig
@@ -15207,8 +14925,7 @@ end = struct
           Ok { suggested_post_message = suggested_post_message; reason = reason; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end
 and GiveawayCompleted : sig
@@ -15248,7 +14965,6 @@ end = struct
           Ok { winner_count = winner_count; unclaimed_prize_count = unclaimed_prize_count; giveaway_message = giveaway_message; is_star_giveaway = is_star_giveaway; unknown_fields }
         with
         | Not_found -> Error "Missing required field"
-        | Type_error (msg, _) -> Error msg
-        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)
+        | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object"
 end

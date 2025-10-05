@@ -16,7 +16,7 @@ Principles
 
 Master Checklist
 
-**Completion: 32/92 tasks (35%)**
+**Completion: 33/92 tasks (36%)**
 
 Phase 1 — Architecture & Tooling (10/10 ✓)
 - [x] Task 1.1 Decide core architecture, layering, and error strategy
@@ -46,7 +46,7 @@ Phase 3 — Core Types & JSON (6/6 ✓)
 - [x] Task 3.3 Phantom-typed IDs and safe conversions
 - [x] Task 3.4 Time/units (Duration, File_size with pretty-printing)
 - [x] Task 3.5 Polymorphic variants for tagged unions — COMPLETED: parse_mode, chat_action
-- [ ] Task 3.6 Roundtrip tests against curated samples
+- [x] Task 3.6 Roundtrip tests against curated samples
 
 Phase 4 — HTTP Engine (2/6)
 - [x] Task 4.1 Define Http.S signature (request/response/stream)
@@ -280,6 +280,13 @@ Task 3.5 — Polymorphic variants for tagged unions where ergonomic
   - Parse mode as polymorphic variant with codecs: module `Telegram.Parse_mode` provides [`Markdown | `MarkdownV2 | `HTML], `to_string`/`of_string`, `to_yojson`/`of_yojson`, and `pp`. `Telegram.Types.parse_mode` aliases `Parse_mode.t` for ergonomic use across the API and builders.
   - Chat action as polymorphic variant with codecs: module `Telegram.Chat_action` already implements the full set with conversions and JSON.
   - Message builders expose content kinds as variants in `Tg.Msg` (e.g., `Text | `Photo of ...`) to simplify matching and composition.
+
+Task 3.6 — Roundtrip tests against curated samples
+- COMPLETED:
+  - Added curated JSON samples and roundtrip tests for core generated types (User, Chat) ensuring decode → encode → decode stability and field preservation for representative, real-world snippets from documentation.
+  - New test suite: `test/samples.ml` with Alcotest cases; compiled against `ocaml_telegram_eio.generated`.
+  - Fixed generator to remove redundant exception cases in `of_yojson` (eliminated unused `Yojson.Safe.Util.Type_error` case when `Util` is opened) to keep builds warning-free under `-warn-error`.
+  - Regenerated code and refreshed golden baselines via `test/update_golden.exe`.
 
 Task 3.6 — Roundtrip tests against curated samples
 - Build a sample corpus of real-world JSON snippets from docs and bots; ensure decode/encode stability (modulo ordering).

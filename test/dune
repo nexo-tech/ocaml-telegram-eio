@@ -27,3 +27,8 @@
  (name json_compat)
  (libraries ocaml_telegram_eio.telegram alcotest yojson)
  (modules json_compat))
+
+(test
+ (name samples)
+ (libraries ocaml_telegram_eio.generated alcotest yojson)
+ (modules samples))

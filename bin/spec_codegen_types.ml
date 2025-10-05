@@ -231,8 +231,7 @@ let gen_ml defs =
       Buffer.add_string b "; unknown_fields }\n";
       Buffer.add_string b "        with\n";
       Buffer.add_string b "        | Not_found -> Error \"Missing required field\"\n";
-      Buffer.add_string b "        | Type_error (msg, _) -> Error msg\n";
-      Buffer.add_string b "        | Yojson.Safe.Util.Type_error (msg, _) -> Error msg)\n";
+      Buffer.add_string b "        | Type_error (msg, _) -> Error msg)\n";
       Buffer.add_string b "    | _ -> Error \"Expected JSON object\"\n"
     );
 
