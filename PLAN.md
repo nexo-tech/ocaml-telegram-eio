@@ -86,9 +86,9 @@ Phase 7 — Ergonomic Bot DSL (4/7)
 - [x] Task 7.6 Reply markup builders — PARTIAL: API defined, minimal impl
 - [x] Task 7.7 Error handling strategy (per-route, global) — COMPLETED
 
-Phase 8 — Files & Media (2/5)
+Phase 8 — Files & Media (3/5)
 - [x] Task 8.1 Download by file_id and via URLs — COMPLETED
-- [ ] Task 8.2 Uploads — PARTIAL: basic multipart, no streaming
+- [x] Task 8.2 Uploads — COMPLETED
 - [ ] Task 8.3 Temp storage policy and backpressure
 - [ ] Task 8.4 Media groups and captions entities
 - [ ] Task 8.5 Large files and chunking strategy
@@ -473,8 +473,29 @@ Task 8.1 — Download by file_id and via URLs ✅
    * Zero warnings, fully type-safe, boilerplate-free API
    * Module added to Tg library (ocaml_telegram_eio.tg)
 
-Task 8.2 — Uploads: multipart builder and streaming
+Task 8.2 — Uploads: multipart builder and streaming ✅
 - Stream from Eio.Flow.source; avoid buffering whole file; progress callbacks.
+ - **Status**: Enhanced multipart streaming with progress tracking and Upload helper module:
+   * **Http module enhancements**:
+     - Added `progress_callback` type for upload progress tracking
+     - Added `Multipart_progress` body variant with callback support
+     - Streaming multipart implementation using Eio.Flow.source (already existed)
+     - Files streamed incrementally (16KB chunks), no full buffering
+     - Progress tracking with bytes_sent and total_bytes calculation
+     - Automatic file size detection via Unix.stat for accurate progress
+   * **Upload helper module** with elegant functional API:
+     - `progress` record type with bytes_sent, total_bytes, percent fields
+     - `progress_callback`: Convert high-level progress function to Http callback
+     - `file_part ~name ~filename ~content_type ~path ()`: Create file upload parts
+     - `string_part ~name ~value`: Create string form fields
+     - `with_progress ?on_progress parts`: Create multipart body with optional progress
+   * **Progress features**:
+     - Percentage calculation (0.0 to 100.0) when total size known
+     - Graceful handling of unknown total size (percent = None)
+     - Real-time callbacks during upload streaming
+   * 7 comprehensive tests covering parts creation, progress callbacks, type safety
+   * Zero warnings, fully type-safe, boilerplate-free API
+   * Module added to Tg library (ocaml_telegram_eio.tg)
 
 Task 8.3 — Temp storage policy and backpressure
 - Configurable temp dir, size limits, cancellation when slow consumer.

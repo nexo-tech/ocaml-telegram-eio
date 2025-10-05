@@ -9,4 +9,4 @@
  (name tg)
  (public_name ocaml_telegram_eio.tg)
  (libraries eio yojson ocaml_telegram_eio.telegram ocaml_telegram_eio.generated)
- (modules bot keyboard msg action session download result_syntax polling webhook))
+ (modules bot keyboard msg action session download upload result_syntax polling webhook))

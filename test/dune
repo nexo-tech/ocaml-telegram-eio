@@ -77,3 +77,8 @@
  (name download_test)
  (libraries ocaml_telegram_eio.tg eio_main alcotest)
  (modules download_test))
+
+(test
+ (name upload_test)
+ (libraries ocaml_telegram_eio.tg ocaml_telegram_eio.telegram alcotest)
+ (modules upload_test))

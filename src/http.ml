@@ -7,10 +7,13 @@ type part_value =
   [ `String of string
   | `File of string * string option * string ]
 
+type progress_callback = bytes_sent:int64 -> total_bytes:int64 option -> unit
+
 type body =
   | Empty
   | String of string
   | Multipart of (string * part_value) list
+  | Multipart_progress of (string * part_value) list * progress_callback
 
 type response = { status : int; headers : header list; body : string }
 
@@ -50,20 +53,30 @@ module Cohttp_eio = struct
         match body with
         | Empty -> (h, None)
         | String s -> (h, Some (Cohttp_eio.Body.of_string s))
-        | Multipart parts ->
+        | Multipart parts | Multipart_progress (parts, _) ->
             (* Streaming multipart builder as a Flow source *)
+            let progress_cb = match body with Multipart_progress (_, cb) -> Some cb | _ -> None in
             let boundary = "ocamltelegrameio" in
             let module Multipart_flow = struct
               type file_state = { path : string; ic : in_channel option }
               type segment =
                 | S of string * int (* string with current offset *)
                 | F of file_state   (* file to stream *)
-              type t = { mutable segs : segment list }
+              type t = {
+                mutable segs : segment list;
+                mutable bytes_sent : int64;
+                total_bytes : int64 option;
+                progress_cb : progress_callback option;
+              }
 
               let of_parts parts =
                 let segments = ref [] in
+                let total_size = ref 0L in
                 let crlf = "\r\n" in
-                let emit s = segments := S (s, 0) :: !segments in
+                let emit s =
+                  total_size := Int64.add !total_size (Int64.of_int (String.length s));
+                  segments := S (s, 0) :: !segments
+                in
                 let emit_header name filename content_type =
                   emit ("--" ^ boundary ^ crlf);
                   (match filename with
@@ -82,11 +95,21 @@ module Cohttp_eio = struct
                       emit v; emit crlf
                   | `File (filename, content_type, path) ->
                       emit_header name (Some filename) content_type;
+                      (* Add file size to total if possible *)
+                      (try
+                        let st = Unix.stat path in
+                        total_size := Int64.add !total_size (Int64.of_int st.Unix.st_size)
+                      with _ -> ());
                       segments := F { path; ic = None } :: !segments;
                       emit crlf
                 ) parts;
                 emit ("--" ^ boundary ^ "--" ^ crlf);
-                { segs = List.rev !segments }
+                {
+                  segs = List.rev !segments;
+                  bytes_sent = 0L;
+                  total_bytes = (if !total_size > 0L then Some !total_size else None);
+                  progress_cb;
+                }
 
               let single_read t dst =
                 let open Cstruct in
@@ -120,6 +143,11 @@ module Cohttp_eio = struct
                 in
                 let segs', n = loop t.segs 0 in
                 t.segs <- segs';
+                (* Update progress *)
+                t.bytes_sent <- Int64.add t.bytes_sent (Int64.of_int n);
+                (match t.progress_cb with
+                 | Some cb -> cb ~bytes_sent:t.bytes_sent ~total_bytes:t.total_bytes
+                 | None -> ());
                 n
 
               let read_methods = []
