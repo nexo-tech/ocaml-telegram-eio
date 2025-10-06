@@ -26,7 +26,6 @@ let copy_file src dst =
 let () =
   let files = [
     "gen_types.ml";
-    "gen_types.mli";
     "gen_methods.ml";
   ] in
 

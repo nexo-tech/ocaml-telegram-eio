@@ -63,7 +63,6 @@ let () =
   run "Golden tests" [
     "generated_types", [
       test_case "gen_types.ml matches golden" `Quick (test_file_matches "gen_types.ml");
-      test_case "gen_types.mli matches golden" `Quick (test_file_matches "gen_types.mli");
     ];
     "generated_methods", [
       test_case "gen_methods.ml matches golden" `Quick (test_file_matches "gen_methods.ml");

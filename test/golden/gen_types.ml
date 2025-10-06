@@ -1,6 +1,6 @@
 (* Generated from reference/api.html *)
 module rec GetUpdates : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9,7 +9,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetWebhook : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -18,7 +18,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and DeleteWebhook : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -27,7 +27,18 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetWebhookInfo : sig
-  type t
+  type t = {
+    url : string;
+    has_custom_certificate : bool;
+    pending_update_count : int64;
+    ip_address : string option;
+    last_error_date : int64 option;
+    last_error_message : string option;
+    last_synchronization_error_date : int64 option;
+    max_connections : int64 option;
+    allowed_updates : string list option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -87,7 +98,18 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and WebhookInfo : sig
-  type t
+  type t = {
+    url : string;
+    has_custom_certificate : bool;
+    pending_update_count : int64;
+    ip_address : string option;
+    last_error_date : int64 option;
+    last_error_message : string option;
+    last_synchronization_error_date : int64 option;
+    max_connections : int64 option;
+    allowed_updates : string list option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -147,7 +169,22 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and User : sig
-  type t
+  type t = {
+    id : int64;
+    is_bot : bool;
+    first_name : string;
+    last_name : string option;
+    username : string option;
+    language_code : string option;
+    is_premium : bool option;
+    added_to_attachment_menu : bool option;
+    can_join_groups : bool option;
+    can_read_all_group_messages : bool option;
+    supports_inline_queries : bool option;
+    can_connect_to_business : bool option;
+    has_main_web_app : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -223,7 +260,17 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and Chat : sig
-  type t
+  type t = {
+    id : int64;
+    type_ : string;
+    title : string option;
+    username : string option;
+    first_name : string option;
+    last_name : string option;
+    is_forum : bool option;
+    is_direct_messages : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -279,7 +326,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and MessageId : sig
-  type t
+  type t = {
+    message_id : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -307,7 +357,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and MessageOriginHiddenUser : sig
-  type t
+  type t = {
+    type_ : string;
+    date : int64;
+    sender_user_name : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -343,7 +398,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and PhotoSize : sig
-  type t
+  type t = {
+    file_id : string;
+    file_unique_id : string;
+    width : int64;
+    height : int64;
+    file_size : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -387,7 +449,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and Voice : sig
-  type t
+  type t = {
+    file_id : string;
+    file_unique_id : string;
+    duration : int64;
+    mime_type : string option;
+    file_size : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -431,7 +500,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and PaidMedia : sig
-  type t
+  type t = {
+    type_ : string;
+    width : int64 option;
+    height : int64 option;
+    duration : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -471,7 +546,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and PaidMediaPreview : sig
-  type t
+  type t = {
+    type_ : string;
+    width : int64 option;
+    height : int64 option;
+    duration : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -511,7 +592,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and Contact : sig
-  type t
+  type t = {
+    phone_number : string;
+    first_name : string;
+    last_name : string option;
+    user_id : int64 option;
+    vcard : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -555,7 +643,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and Dice : sig
-  type t
+  type t = {
+    emoji : string;
+    value : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -587,7 +679,15 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and Location : sig
-  type t
+  type t = {
+    latitude : float;
+    longitude : float;
+    horizontal_accuracy : float option;
+    live_period : int64 option;
+    heading : int64 option;
+    proximity_alert_radius : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -635,7 +735,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and WebAppData : sig
-  type t
+  type t = {
+    data : string;
+    button_text : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -667,7 +771,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and MessageAutoDeleteTimerChanged : sig
-  type t
+  type t = {
+    message_auto_delete_time : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -695,7 +802,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatBoostAdded : sig
-  type t
+  type t = {
+    boost_count : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -723,7 +833,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BackgroundFill : sig
-  type t
+  type t = {
+    type_ : string;
+    color : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -755,7 +869,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BackgroundFillSolid : sig
-  type t
+  type t = {
+    type_ : string;
+    color : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -787,7 +905,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BackgroundFillGradient : sig
-  type t
+  type t = {
+    type_ : string;
+    top_color : int64;
+    bottom_color : int64;
+    rotation_angle : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -827,7 +951,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BackgroundFillFreeformGradient : sig
-  type t
+  type t = {
+    type_ : string;
+    colors : int64 list;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -859,7 +987,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BackgroundTypeChatTheme : sig
-  type t
+  type t = {
+    type_ : string;
+    theme_name : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -891,7 +1023,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ForumTopicCreated : sig
-  type t
+  type t = {
+    name : string;
+    icon_color : int64;
+    icon_custom_emoji_id : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -927,7 +1064,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ForumTopicClosed : sig
-  type t
+  type t = {
+    name : string option;
+    icon_custom_emoji_id : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -959,7 +1100,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ForumTopicEdited : sig
-  type t
+  type t = {
+    name : string option;
+    icon_custom_emoji_id : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -991,7 +1136,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and WriteAccessAllowed : sig
-  type t
+  type t = {
+    from_request : bool option;
+    web_app_name : string option;
+    from_attachment_menu : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1027,7 +1177,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and VideoChatScheduled : sig
-  type t
+  type t = {
+    start_date : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1055,7 +1208,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and VideoChatStarted : sig
-  type t
+  type t = {
+    duration : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1083,7 +1239,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and VideoChatEnded : sig
-  type t
+  type t = {
+    duration : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1111,7 +1270,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and PaidMessagePriceChanged : sig
-  type t
+  type t = {
+    paid_message_star_count : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1139,7 +1301,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and DirectMessagePriceChanged : sig
-  type t
+  type t = {
+    are_direct_messages_enabled : bool;
+    direct_message_star_count : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1171,7 +1337,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and GiveawayCreated : sig
-  type t
+  type t = {
+    prize_star_count : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1199,7 +1368,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and LinkPreviewOptions : sig
-  type t
+  type t = {
+    is_disabled : bool option;
+    url : string option;
+    prefer_small_media : bool option;
+    prefer_large_media : bool option;
+    show_above_text : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1243,7 +1419,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and SuggestedPostPrice : sig
-  type t
+  type t = {
+    currency : string;
+    amount : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1275,7 +1455,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and File : sig
-  type t
+  type t = {
+    file_id : string;
+    file_unique_id : string;
+    file_size : int64 option;
+    file_path : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1315,7 +1501,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and WebAppInfo : sig
-  type t
+  type t = {
+    url : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1343,7 +1532,16 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and KeyboardButtonRequestUsers : sig
-  type t
+  type t = {
+    request_id : int64;
+    user_is_bot : bool option;
+    user_is_premium : bool option;
+    max_quantity : int64 option;
+    request_name : bool option;
+    request_username : bool option;
+    request_photo : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1395,7 +1593,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and KeyboardButtonPollType : sig
-  type t
+  type t = {
+    type_ : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1423,7 +1624,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ReplyKeyboardRemove : sig
-  type t
+  type t = {
+    remove_keyboard : bool;
+    selective : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1455,7 +1660,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and LoginUrl : sig
-  type t
+  type t = {
+    url : string;
+    forward_text : string option;
+    bot_username : string option;
+    request_write_access : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1495,7 +1706,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and SwitchInlineQueryChosenChat : sig
-  type t
+  type t = {
+    query : string option;
+    allow_user_chats : bool option;
+    allow_bot_chats : bool option;
+    allow_group_chats : bool option;
+    allow_channel_chats : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1539,7 +1757,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and CopyTextButton : sig
-  type t
+  type t = {
+    text : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1567,7 +1788,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ForceReply : sig
-  type t
+  type t = {
+    force_reply : bool;
+    input_field_placeholder : string option;
+    selective : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1603,7 +1829,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatPhoto : sig
-  type t
+  type t = {
+    small_file_id : string;
+    small_file_unique_id : string;
+    big_file_id : string;
+    big_file_unique_id : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1643,7 +1875,25 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatAdministratorRights : sig
-  type t
+  type t = {
+    is_anonymous : bool;
+    can_manage_chat : bool;
+    can_delete_messages : bool;
+    can_manage_video_chats : bool;
+    can_restrict_members : bool;
+    can_promote_members : bool;
+    can_change_info : bool;
+    can_invite_users : bool;
+    can_post_stories : bool;
+    can_edit_stories : bool;
+    can_delete_stories : bool;
+    can_post_messages : bool option;
+    can_edit_messages : bool option;
+    can_pin_messages : bool option;
+    can_manage_topics : bool option;
+    can_manage_direct_messages : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1731,7 +1981,23 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatPermissions : sig
-  type t
+  type t = {
+    can_send_messages : bool option;
+    can_send_audios : bool option;
+    can_send_documents : bool option;
+    can_send_photos : bool option;
+    can_send_videos : bool option;
+    can_send_video_notes : bool option;
+    can_send_voice_notes : bool option;
+    can_send_polls : bool option;
+    can_send_other_messages : bool option;
+    can_add_web_page_previews : bool option;
+    can_change_info : bool option;
+    can_invite_users : bool option;
+    can_pin_messages : bool option;
+    can_manage_topics : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1811,7 +2077,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and Birthdate : sig
-  type t
+  type t = {
+    day : int64;
+    month : int64;
+    year : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1847,7 +2118,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BusinessOpeningHoursInterval : sig
-  type t
+  type t = {
+    opening_minute : int64;
+    closing_minute : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1879,7 +2154,15 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and StoryAreaPosition : sig
-  type t
+  type t = {
+    x_percentage : float;
+    y_percentage : float;
+    width_percentage : float;
+    height_percentage : float;
+    rotation_angle : float;
+    corner_radius_percentage : float;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1927,7 +2210,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and LocationAddress : sig
-  type t
+  type t = {
+    country_code : string;
+    state : string option;
+    city : string option;
+    street : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1967,7 +2256,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and StoryAreaTypeLink : sig
-  type t
+  type t = {
+    type_ : string;
+    url : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -1999,7 +2292,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and StoryAreaTypeWeather : sig
-  type t
+  type t = {
+    type_ : string;
+    temperature : float;
+    emoji : string;
+    background_color : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2039,7 +2338,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and StoryAreaTypeUniqueGift : sig
-  type t
+  type t = {
+    type_ : string;
+    name : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2071,7 +2374,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ReactionType : sig
-  type t
+  type t = {
+    type_ : string;
+    emoji : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2103,7 +2410,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ReactionTypeEmoji : sig
-  type t
+  type t = {
+    type_ : string;
+    emoji : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2135,7 +2446,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ReactionTypeCustomEmoji : sig
-  type t
+  type t = {
+    type_ : string;
+    custom_emoji_id : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2167,7 +2482,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ReactionTypePaid : sig
-  type t
+  type t = {
+    type_ : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2195,7 +2513,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ForumTopic : sig
-  type t
+  type t = {
+    message_thread_id : int64;
+    name : string;
+    icon_color : int64;
+    icon_custom_emoji_id : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2235,7 +2559,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and UniqueGiftBackdropColors : sig
-  type t
+  type t = {
+    center_color : int64;
+    edge_color : int64;
+    symbol_color : int64;
+    text_color : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2275,7 +2605,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and AcceptedGiftTypes : sig
-  type t
+  type t = {
+    unlimited_gifts : bool;
+    limited_gifts : bool;
+    unique_gifts : bool;
+    premium_subscription : bool;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2315,7 +2651,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and StarAmount : sig
-  type t
+  type t = {
+    amount : int64;
+    nanostar_amount : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2347,7 +2687,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BotCommand : sig
-  type t
+  type t = {
+    command : string;
+    description : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2379,7 +2723,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BotCommandScope : sig
-  type t
+  type t = {
+    type_ : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2407,7 +2754,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and DeterminingListOfCommands : sig
-  type t
+  type t = {
+    type_ : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2435,7 +2785,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BotCommandScopeDefault : sig
-  type t
+  type t = {
+    type_ : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2463,7 +2816,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BotCommandScopeAllPrivateChats : sig
-  type t
+  type t = {
+    type_ : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2491,7 +2847,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BotCommandScopeAllGroupChats : sig
-  type t
+  type t = {
+    type_ : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2519,7 +2878,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BotCommandScopeAllChatAdministrators : sig
-  type t
+  type t = {
+    type_ : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2547,7 +2909,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BotCommandScopeChat : sig
-  type t
+  type t = {
+    type_ : string;
+    chat_id : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2579,7 +2945,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BotCommandScopeChatAdministrators : sig
-  type t
+  type t = {
+    type_ : string;
+    chat_id : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2611,7 +2981,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BotCommandScopeChatMember : sig
-  type t
+  type t = {
+    type_ : string;
+    chat_id : string;
+    user_id : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2647,7 +3022,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BotName : sig
-  type t
+  type t = {
+    name : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2675,7 +3053,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BotDescription : sig
-  type t
+  type t = {
+    description : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2703,7 +3084,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BotShortDescription : sig
-  type t
+  type t = {
+    short_description : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2731,7 +3115,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and MenuButton : sig
-  type t
+  type t = {
+    type_ : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2759,7 +3146,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and MenuButtonCommands : sig
-  type t
+  type t = {
+    type_ : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2787,7 +3177,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and MenuButtonDefault : sig
-  type t
+  type t = {
+    type_ : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2815,7 +3208,23 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BusinessBotRights : sig
-  type t
+  type t = {
+    can_reply : bool option;
+    can_read_messages : bool option;
+    can_delete_sent_messages : bool option;
+    can_delete_all_messages : bool option;
+    can_edit_name : bool option;
+    can_edit_bio : bool option;
+    can_edit_profile_photo : bool option;
+    can_edit_username : bool option;
+    can_change_gift_settings : bool option;
+    can_view_gifts_and_stars : bool option;
+    can_convert_gifts_to_stars : bool option;
+    can_transfer_and_upgrade_gifts : bool option;
+    can_transfer_stars : bool option;
+    can_manage_stories : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2895,7 +3304,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ResponseParameters : sig
-  type t
+  type t = {
+    migrate_to_chat_id : int64 option;
+    retry_after : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2927,7 +3340,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputFile : sig
-  type t
+  type t = {
+    type_ : string;
+    media : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2959,7 +3376,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputPaidMedia : sig
-  type t
+  type t = {
+    type_ : string;
+    media : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -2991,7 +3412,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputPaidMediaPhoto : sig
-  type t
+  type t = {
+    type_ : string;
+    media : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3023,7 +3448,18 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputPaidMediaVideo : sig
-  type t
+  type t = {
+    type_ : string;
+    media : string;
+    thumbnail : string option;
+    cover : string option;
+    start_timestamp : int64 option;
+    width : int64 option;
+    height : int64 option;
+    duration : int64 option;
+    supports_streaming : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3083,7 +3519,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputProfilePhoto : sig
-  type t
+  type t = {
+    type_ : string;
+    photo : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3115,7 +3555,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputProfilePhotoStatic : sig
-  type t
+  type t = {
+    type_ : string;
+    photo : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3147,7 +3591,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputProfilePhotoAnimated : sig
-  type t
+  type t = {
+    type_ : string;
+    animation : string;
+    main_frame_timestamp : float option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3183,7 +3632,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputStoryContent : sig
-  type t
+  type t = {
+    type_ : string;
+    photo : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3215,7 +3668,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputStoryContentPhoto : sig
-  type t
+  type t = {
+    type_ : string;
+    photo : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3247,7 +3704,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputStoryContentVideo : sig
-  type t
+  type t = {
+    type_ : string;
+    video : string;
+    duration : float option;
+    cover_frame_timestamp : float option;
+    is_animation : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3291,7 +3755,7 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and SendingFiles : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3300,7 +3764,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and AccentColors : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3309,7 +3773,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and ProfileAccentColors : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3318,7 +3782,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and InlineModeObjects : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3327,7 +3791,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetMe : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3336,7 +3800,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and LogOut : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3345,7 +3809,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and Close : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3354,7 +3818,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SendMessage : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3363,7 +3827,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and FormattingOptions : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3372,7 +3836,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and PaidBroadcasts : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3381,7 +3845,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and ForwardMessage : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3390,7 +3854,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and ForwardMessages : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3399,7 +3863,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and CopyMessage : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3408,7 +3872,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and CopyMessages : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3417,7 +3881,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SendPhoto : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3426,7 +3890,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SendAudio : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3435,7 +3899,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SendDocument : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3444,7 +3908,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SendVideo : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3453,7 +3917,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SendAnimation : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3462,7 +3926,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SendVoice : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3471,7 +3935,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SendVideoNote : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3480,7 +3944,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SendPaidMedia : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3489,7 +3953,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SendMediaGroup : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3498,7 +3962,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SendLocation : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3507,7 +3971,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SendVenue : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3516,7 +3980,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SendContact : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3525,7 +3989,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SendPoll : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3534,7 +3998,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SendChecklist : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3543,7 +4007,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SendDice : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3552,7 +4016,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SendChatAction : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3561,7 +4025,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetMessageReaction : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3570,7 +4034,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetUserProfilePhotos : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3579,7 +4043,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetUserEmojiStatus : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3588,7 +4052,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetFile : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3597,7 +4061,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and BanChatMember : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3606,7 +4070,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and UnbanChatMember : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3615,7 +4079,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and RestrictChatMember : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3624,7 +4088,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and PromoteChatMember : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3633,7 +4097,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetChatAdministratorCustomTitle : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3642,7 +4106,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and BanChatSenderChat : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3651,7 +4115,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and UnbanChatSenderChat : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3660,7 +4124,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetChatPermissions : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3669,7 +4133,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and ExportChatInviteLink : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3678,7 +4142,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and CreateChatInviteLink : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3687,7 +4151,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and EditChatInviteLink : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3696,7 +4160,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and CreateChatSubscriptionInviteLink : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3705,7 +4169,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and EditChatSubscriptionInviteLink : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3714,7 +4178,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and RevokeChatInviteLink : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3723,7 +4187,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and ApproveChatJoinRequest : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3732,7 +4196,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and DeclineChatJoinRequest : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3741,7 +4205,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetChatPhoto : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3750,7 +4214,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and DeleteChatPhoto : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3759,7 +4223,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetChatTitle : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3768,7 +4232,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetChatDescription : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3777,7 +4241,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and PinChatMessage : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3786,7 +4250,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and UnpinChatMessage : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3795,7 +4259,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and UnpinAllChatMessages : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3804,7 +4268,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and LeaveChat : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3813,7 +4277,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetChat : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3822,7 +4286,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetChatAdministrators : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3831,7 +4295,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetChatMemberCount : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3840,7 +4304,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetChatMember : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3849,7 +4313,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetChatStickerSet : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3858,7 +4322,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and DeleteChatStickerSet : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3867,7 +4331,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetForumTopicIconStickers : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3876,7 +4340,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and CreateForumTopic : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3885,7 +4349,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and EditForumTopic : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3894,7 +4358,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and CloseForumTopic : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3903,7 +4367,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and ReopenForumTopic : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3912,7 +4376,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and DeleteForumTopic : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3921,7 +4385,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and UnpinAllForumTopicMessages : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3930,7 +4394,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and EditGeneralForumTopic : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3939,7 +4403,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and CloseGeneralForumTopic : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3948,7 +4412,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and ReopenGeneralForumTopic : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3957,7 +4421,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and HideGeneralForumTopic : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3966,7 +4430,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and UnhideGeneralForumTopic : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3975,7 +4439,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and UnpinAllGeneralForumTopicMessages : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3984,7 +4448,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and AnswerCallbackQuery : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -3993,7 +4457,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetUserChatBoosts : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4002,7 +4466,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetBusinessConnection : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4011,7 +4475,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetMyCommands : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4020,7 +4484,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and DeleteMyCommands : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4029,7 +4493,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetMyCommands : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4038,7 +4502,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetMyName : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4047,7 +4511,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetMyName : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4056,7 +4520,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetMyDescription : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4065,7 +4529,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetMyDescription : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4074,7 +4538,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetMyShortDescription : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4083,7 +4547,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetMyShortDescription : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4092,7 +4556,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetChatMenuButton : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4101,7 +4565,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetChatMenuButton : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4110,7 +4574,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetMyDefaultAdministratorRights : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4119,7 +4583,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetMyDefaultAdministratorRights : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4128,7 +4592,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetAvailableGifts : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4137,7 +4601,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SendGift : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4146,7 +4610,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GiftPremiumSubscription : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4155,7 +4619,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and VerifyUser : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4164,7 +4628,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and VerifyChat : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4173,7 +4637,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and RemoveUserVerification : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4182,7 +4646,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and RemoveChatVerification : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4191,7 +4655,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and ReadBusinessMessage : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4200,7 +4664,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and DeleteBusinessMessages : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4209,7 +4673,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetBusinessAccountName : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4218,7 +4682,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetBusinessAccountUsername : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4227,7 +4691,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetBusinessAccountBio : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4236,7 +4700,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetBusinessAccountProfilePhoto : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4245,7 +4709,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and RemoveBusinessAccountProfilePhoto : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4254,7 +4718,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetBusinessAccountGiftSettings : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4263,7 +4727,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetBusinessAccountStarBalance : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4272,7 +4736,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and TransferBusinessAccountStars : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4281,7 +4745,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetBusinessAccountGifts : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4290,7 +4754,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and ConvertGiftToStars : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4299,7 +4763,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and UpgradeGift : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4308,7 +4772,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and TransferGift : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4317,7 +4781,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and PostStory : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4326,7 +4790,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and EditStory : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4335,7 +4799,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and DeleteStory : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4344,7 +4808,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and InlineModeMethods : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4353,7 +4817,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and EditMessageText : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4362,7 +4826,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and EditMessageCaption : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4371,7 +4835,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and EditMessageMedia : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4380,7 +4844,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and EditMessageLiveLocation : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4389,7 +4853,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and StopMessageLiveLocation : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4398,7 +4862,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and EditMessageChecklist : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4407,7 +4871,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and EditMessageReplyMarkup : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4416,7 +4880,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and StopPoll : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4425,7 +4889,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and ApproveSuggestedPost : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4434,7 +4898,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and DeclineSuggestedPost : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4443,7 +4907,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and DeleteMessage : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4452,7 +4916,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and DeleteMessages : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4461,7 +4925,13 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and MaskPosition : sig
-  type t
+  type t = {
+    point : string;
+    x_shift : float;
+    y_shift : float;
+    scale : float;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4501,7 +4971,7 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and SendSticker : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4510,7 +4980,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetStickerSet : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4519,7 +4989,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetCustomEmojiStickers : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4528,7 +4998,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and UploadStickerFile : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4537,7 +5007,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and CreateNewStickerSet : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4546,7 +5016,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and AddStickerToSet : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4555,7 +5025,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetStickerPositionInSet : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4564,7 +5034,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and DeleteStickerFromSet : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4573,7 +5043,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and ReplaceStickerInSet : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4582,7 +5052,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetStickerEmojiList : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4591,7 +5061,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetStickerKeywords : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4600,7 +5070,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetStickerMaskPosition : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4609,7 +5079,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetStickerSetTitle : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4618,7 +5088,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetStickerSetThumbnail : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4627,7 +5097,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetCustomEmojiStickerSetThumbnail : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4636,7 +5106,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and DeleteStickerSet : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4645,7 +5115,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and AnswerInlineQuery : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4654,7 +5124,15 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and InputLocationMessageContent : sig
-  type t
+  type t = {
+    latitude : float;
+    longitude : float;
+    horizontal_accuracy : float option;
+    live_period : int64 option;
+    heading : int64 option;
+    proximity_alert_radius : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4702,7 +5180,17 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputVenueMessageContent : sig
-  type t
+  type t = {
+    latitude : float;
+    longitude : float;
+    title : string;
+    address : string;
+    foursquare_id : string option;
+    foursquare_type : string option;
+    google_place_id : string option;
+    google_place_type : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4758,7 +5246,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputContactMessageContent : sig
-  type t
+  type t = {
+    phone_number : string;
+    first_name : string;
+    last_name : string option;
+    vcard : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4798,7 +5292,7 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and AnswerWebAppQuery : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4807,7 +5301,10 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SentWebAppMessage : sig
-  type t
+  type t = {
+    inline_message_id : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4835,7 +5332,7 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and SavePreparedInlineMessage : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4844,7 +5341,11 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and PreparedInlineMessage : sig
-  type t
+  type t = {
+    id : string;
+    expiration_date : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4876,7 +5377,7 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and SendInvoice : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4885,7 +5386,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and CreateInvoiceLink : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4894,7 +5395,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and AnswerShippingQuery : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4903,7 +5404,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and AnswerPreCheckoutQuery : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4912,7 +5413,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetMyStarBalance : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4921,7 +5422,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetStarTransactions : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4930,7 +5431,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and RefundStarPayment : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4939,7 +5440,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and EditUserStarSubscription : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4948,7 +5449,11 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and LabeledPrice : sig
-  type t
+  type t = {
+    label : string;
+    amount : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -4980,7 +5485,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and Invoice : sig
-  type t
+  type t = {
+    title : string;
+    description : string;
+    start_parameter : string;
+    currency : string;
+    total_amount : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5024,7 +5536,15 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ShippingAddress : sig
-  type t
+  type t = {
+    country_code : string;
+    state : string;
+    city : string;
+    street_line1 : string;
+    street_line2 : string;
+    post_code : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5072,7 +5592,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and RefundedPayment : sig
-  type t
+  type t = {
+    currency : string;
+    total_amount : int64;
+    invoice_payload : string;
+    telegram_payment_charge_id : string;
+    provider_payment_charge_id : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5116,7 +5643,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and RevenueWithdrawalState : sig
-  type t
+  type t = {
+    type_ : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5144,7 +5674,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and RevenueWithdrawalStatePending : sig
-  type t
+  type t = {
+    type_ : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5172,7 +5705,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and RevenueWithdrawalStateSucceeded : sig
-  type t
+  type t = {
+    type_ : string;
+    date : int64;
+    url : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5208,7 +5746,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and RevenueWithdrawalStateFailed : sig
-  type t
+  type t = {
+    type_ : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5236,7 +5777,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and TransactionPartnerTelegramAds : sig
-  type t
+  type t = {
+    type_ : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5264,7 +5808,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and TransactionPartnerTelegramApi : sig
-  type t
+  type t = {
+    type_ : string;
+    request_count : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5296,7 +5844,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and TransactionPartnerOther : sig
-  type t
+  type t = {
+    type_ : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5324,7 +5875,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and PassportFile : sig
-  type t
+  type t = {
+    file_id : string;
+    file_unique_id : string;
+    file_size : int64;
+    file_date : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5364,7 +5921,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and EncryptedCredentials : sig
-  type t
+  type t = {
+    data : string;
+    hash : string;
+    secret : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5400,7 +5962,7 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and SetPassportDataErrors : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5409,7 +5971,14 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and PassportElementError : sig
-  type t
+  type t = {
+    source : string;
+    type_ : string;
+    field_name : string;
+    data_hash : string;
+    message : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5453,7 +6022,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and PassportElementErrorDataField : sig
-  type t
+  type t = {
+    source : string;
+    type_ : string;
+    field_name : string;
+    data_hash : string;
+    message : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5497,7 +6073,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and PassportElementErrorFrontSide : sig
-  type t
+  type t = {
+    source : string;
+    type_ : string;
+    file_hash : string;
+    message : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5537,7 +6119,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and PassportElementErrorReverseSide : sig
-  type t
+  type t = {
+    source : string;
+    type_ : string;
+    file_hash : string;
+    message : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5577,7 +6165,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and PassportElementErrorSelfie : sig
-  type t
+  type t = {
+    source : string;
+    type_ : string;
+    file_hash : string;
+    message : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5617,7 +6211,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and PassportElementErrorFile : sig
-  type t
+  type t = {
+    source : string;
+    type_ : string;
+    file_hash : string;
+    message : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5657,7 +6257,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and PassportElementErrorFiles : sig
-  type t
+  type t = {
+    source : string;
+    type_ : string;
+    file_hashes : string list;
+    message : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5697,7 +6303,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and PassportElementErrorTranslationFile : sig
-  type t
+  type t = {
+    source : string;
+    type_ : string;
+    file_hash : string;
+    message : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5737,7 +6349,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and PassportElementErrorTranslationFiles : sig
-  type t
+  type t = {
+    source : string;
+    type_ : string;
+    file_hashes : string list;
+    message : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5777,7 +6395,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and PassportElementErrorUnspecified : sig
-  type t
+  type t = {
+    source : string;
+    type_ : string;
+    element_hash : string;
+    message : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5817,7 +6441,7 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and SendGame : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5826,7 +6450,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and CallbackGame : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5835,7 +6459,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and SetGameScore : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5844,7 +6468,7 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetGameHighScores : sig
-  type t
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5853,7 +6477,12 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and InaccessibleMessage : sig
-  type t
+  type t = {
+    chat : Chat.t;
+    message_id : int64;
+    date : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5889,7 +6518,16 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and MaybeInaccessibleMessage : sig
-  type t
+  type t = {
+    type_ : string;
+    offset : int64;
+    length : int64;
+    url : string option;
+    user : User.t option;
+    language : string option;
+    custom_emoji_id : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5941,7 +6579,16 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and MessageEntity : sig
-  type t
+  type t = {
+    type_ : string;
+    offset : int64;
+    length : int64;
+    url : string option;
+    user : User.t option;
+    language : string option;
+    custom_emoji_id : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -5993,7 +6640,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and MessageOrigin : sig
-  type t
+  type t = {
+    type_ : string;
+    date : int64;
+    sender_user : User.t;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -6029,7 +6681,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and MessageOriginUser : sig
-  type t
+  type t = {
+    type_ : string;
+    date : int64;
+    sender_user : User.t;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -6065,7 +6722,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and MessageOriginChat : sig
-  type t
+  type t = {
+    type_ : string;
+    date : int64;
+    sender_chat : Chat.t;
+    author_signature : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -6105,7 +6768,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and MessageOriginChannel : sig
-  type t
+  type t = {
+    type_ : string;
+    date : int64;
+    chat : Chat.t;
+    message_id : int64;
+    author_signature : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -6149,7 +6819,18 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and Animation : sig
-  type t
+  type t = {
+    file_id : string;
+    file_unique_id : string;
+    width : int64;
+    height : int64;
+    duration : int64;
+    thumbnail : PhotoSize.t option;
+    file_name : string option;
+    mime_type : string option;
+    file_size : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -6209,7 +6890,18 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and Audio : sig
-  type t
+  type t = {
+    file_id : string;
+    file_unique_id : string;
+    duration : int64;
+    performer : string option;
+    title : string option;
+    file_name : string option;
+    mime_type : string option;
+    file_size : int64 option;
+    thumbnail : PhotoSize.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -6269,7 +6961,15 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and Document : sig
-  type t
+  type t = {
+    file_id : string;
+    file_unique_id : string;
+    thumbnail : PhotoSize.t option;
+    file_name : string option;
+    mime_type : string option;
+    file_size : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -6317,7 +7017,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and Story : sig
-  type t
+  type t = {
+    chat : Chat.t;
+    id : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -6349,7 +7053,20 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and Video : sig
-  type t
+  type t = {
+    file_id : string;
+    file_unique_id : string;
+    width : int64;
+    height : int64;
+    duration : int64;
+    thumbnail : PhotoSize.t option;
+    cover : PhotoSize.t list option;
+    start_timestamp : int64 option;
+    file_name : string option;
+    mime_type : string option;
+    file_size : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -6417,7 +7134,15 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and VideoNote : sig
-  type t
+  type t = {
+    file_id : string;
+    file_unique_id : string;
+    length : int64;
+    duration : int64;
+    thumbnail : PhotoSize.t option;
+    file_size : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -6465,7 +7190,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and PaidMediaInfo : sig
-  type t
+  type t = {
+    star_count : int64;
+    paid_media : PaidMedia.t list;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -6497,7 +7226,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and PaidMediaPhoto : sig
-  type t
+  type t = {
+    type_ : string;
+    photo : PhotoSize.t list;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -6529,7 +7262,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and PollAnswer : sig
-  type t
+  type t = {
+    poll_id : string;
+    voter_chat : Chat.t option;
+    user : User.t option;
+    option_ids : int64 list;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -6569,7 +7308,16 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and Venue : sig
-  type t
+  type t = {
+    location : Location.t;
+    title : string;
+    address : string;
+    foursquare_id : string option;
+    foursquare_type : string option;
+    google_place_id : string option;
+    google_place_type : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -6621,7 +7369,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ProximityAlertTriggered : sig
-  type t
+  type t = {
+    traveler : User.t;
+    watcher : User.t;
+    distance : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -6657,7 +7410,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BackgroundType : sig
-  type t
+  type t = {
+    type_ : string;
+    fill : BackgroundFill.t;
+    dark_theme_dimming : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -6693,7 +7451,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BackgroundTypeFill : sig
-  type t
+  type t = {
+    type_ : string;
+    fill : BackgroundFill.t;
+    dark_theme_dimming : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -6729,7 +7492,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ForumTopicReopened : sig
-  type t
+  type t = {
+    user_id : int64;
+    first_name : string option;
+    last_name : string option;
+    username : string option;
+    photo : PhotoSize.t list option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -6773,7 +7543,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and GeneralForumTopicHidden : sig
-  type t
+  type t = {
+    user_id : int64;
+    first_name : string option;
+    last_name : string option;
+    username : string option;
+    photo : PhotoSize.t list option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -6817,7 +7594,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and GeneralForumTopicUnhidden : sig
-  type t
+  type t = {
+    user_id : int64;
+    first_name : string option;
+    last_name : string option;
+    username : string option;
+    photo : PhotoSize.t list option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -6861,7 +7645,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and SharedUser : sig
-  type t
+  type t = {
+    user_id : int64;
+    first_name : string option;
+    last_name : string option;
+    username : string option;
+    photo : PhotoSize.t list option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -6905,7 +7696,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatShared : sig
-  type t
+  type t = {
+    request_id : int64;
+    chat_id : int64;
+    title : string option;
+    username : string option;
+    photo : PhotoSize.t list option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -6949,7 +7747,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and VideoChatParticipantsInvited : sig
-  type t
+  type t = {
+    users : User.t list;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -6977,7 +7778,18 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and Giveaway : sig
-  type t
+  type t = {
+    chats : Chat.t list;
+    winners_selection_date : int64;
+    winner_count : int64;
+    only_new_members : bool option;
+    has_public_winners : bool option;
+    prize_description : string option;
+    country_codes : string list option;
+    prize_star_count : int64 option;
+    premium_subscription_month_count : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -7037,7 +7849,21 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and GiveawayWinners : sig
-  type t
+  type t = {
+    chat : Chat.t;
+    giveaway_message_id : int64;
+    winners_selection_date : int64;
+    winner_count : int64;
+    winners : User.t list;
+    additional_chat_count : int64 option;
+    prize_star_count : int64 option;
+    premium_subscription_month_count : int64 option;
+    unclaimed_prize_count : int64 option;
+    only_new_members : bool option;
+    was_refunded : bool option;
+    prize_description : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -7109,7 +7935,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and SuggestedPostInfo : sig
-  type t
+  type t = {
+    state : string;
+    price : SuggestedPostPrice.t option;
+    send_date : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -7145,7 +7976,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and SuggestedPostParameters : sig
-  type t
+  type t = {
+    price : SuggestedPostPrice.t option;
+    send_date : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -7177,7 +8012,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and DirectMessagesTopic : sig
-  type t
+  type t = {
+    topic_id : int64;
+    user : User.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -7209,7 +8048,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and UserProfilePhotos : sig
-  type t
+  type t = {
+    total_count : int64;
+    photos : PhotoSize.t list list;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -7241,7 +8084,20 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and KeyboardButtonRequestChat : sig
-  type t
+  type t = {
+    request_id : int64;
+    chat_is_channel : bool;
+    chat_is_forum : bool option;
+    chat_has_username : bool option;
+    chat_is_created : bool option;
+    user_administrator_rights : ChatAdministratorRights.t option;
+    bot_administrator_rights : ChatAdministratorRights.t option;
+    bot_is_member : bool option;
+    request_title : bool option;
+    request_username : bool option;
+    request_photo : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -7309,7 +8165,20 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineKeyboardButton : sig
-  type t
+  type t = {
+    text : string;
+    url : string option;
+    callback_data : string option;
+    web_app : WebAppInfo.t option;
+    login_url : LoginUrl.t option;
+    switch_inline_query : string option;
+    switch_inline_query_current_chat : string option;
+    switch_inline_query_chosen_chat : SwitchInlineQueryChosenChat.t option;
+    copy_text : CopyTextButton.t option;
+    callback_game : CallbackGame.t option;
+    pay : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -7377,7 +8246,20 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatInviteLink : sig
-  type t
+  type t = {
+    invite_link : string;
+    creator : User.t;
+    creates_join_request : bool;
+    is_primary : bool;
+    is_revoked : bool;
+    name : string option;
+    expire_date : int64 option;
+    member_limit : int64 option;
+    pending_join_request_count : int64 option;
+    subscription_period : int64 option;
+    subscription_price : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -7445,7 +8327,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatMember : sig
-  type t
+  type t = {
+    status : string;
+    user : User.t;
+    is_anonymous : bool;
+    custom_title : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -7485,7 +8373,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatMemberOwner : sig
-  type t
+  type t = {
+    status : string;
+    user : User.t;
+    is_anonymous : bool;
+    custom_title : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -7525,7 +8419,29 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatMemberAdministrator : sig
-  type t
+  type t = {
+    status : string;
+    user : User.t;
+    can_be_edited : bool;
+    is_anonymous : bool;
+    can_manage_chat : bool;
+    can_delete_messages : bool;
+    can_manage_video_chats : bool;
+    can_restrict_members : bool;
+    can_promote_members : bool;
+    can_change_info : bool;
+    can_invite_users : bool;
+    can_post_stories : bool;
+    can_edit_stories : bool;
+    can_delete_stories : bool;
+    can_post_messages : bool option;
+    can_edit_messages : bool option;
+    can_pin_messages : bool option;
+    can_manage_topics : bool option;
+    can_manage_direct_messages : bool option;
+    custom_title : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -7629,7 +8545,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatMemberMember : sig
-  type t
+  type t = {
+    status : string;
+    user : User.t;
+    until_date : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -7665,7 +8586,27 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatMemberRestricted : sig
-  type t
+  type t = {
+    status : string;
+    user : User.t;
+    is_member : bool;
+    can_send_messages : bool;
+    can_send_audios : bool;
+    can_send_documents : bool;
+    can_send_photos : bool;
+    can_send_videos : bool;
+    can_send_video_notes : bool;
+    can_send_voice_notes : bool;
+    can_send_polls : bool;
+    can_send_other_messages : bool;
+    can_add_web_page_previews : bool;
+    can_change_info : bool;
+    can_invite_users : bool;
+    can_pin_messages : bool;
+    can_manage_topics : bool;
+    until_date : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -7761,7 +8702,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatMemberLeft : sig
-  type t
+  type t = {
+    status : string;
+    user : User.t;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -7793,7 +8738,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatMemberBanned : sig
-  type t
+  type t = {
+    status : string;
+    user : User.t;
+    until_date : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -7829,7 +8779,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BusinessLocation : sig
-  type t
+  type t = {
+    address : string;
+    location : Location.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -7861,7 +8815,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BusinessOpeningHours : sig
-  type t
+  type t = {
+    time_zone_name : string;
+    opening_hours : BusinessOpeningHoursInterval.t list;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -7893,7 +8851,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and StoryAreaType : sig
-  type t
+  type t = {
+    type_ : string;
+    latitude : float;
+    longitude : float;
+    address : LocationAddress.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -7933,7 +8897,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and StoryAreaTypeLocation : sig
-  type t
+  type t = {
+    type_ : string;
+    latitude : float;
+    longitude : float;
+    address : LocationAddress.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -7973,7 +8943,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and StoryAreaTypeSuggestedReaction : sig
-  type t
+  type t = {
+    type_ : string;
+    reaction_type : ReactionType.t;
+    is_dark : bool option;
+    is_flipped : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -8013,7 +8989,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatLocation : sig
-  type t
+  type t = {
+    location : Location.t;
+    address : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -8045,7 +9025,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ReactionCount : sig
-  type t
+  type t = {
+    type_ : ReactionType.t;
+    total_count : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -8077,7 +9061,16 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and MessageReactionUpdated : sig
-  type t
+  type t = {
+    chat : Chat.t;
+    message_id : int64;
+    user : User.t option;
+    actor_chat : Chat.t option;
+    date : int64;
+    old_reaction : ReactionType.t list;
+    new_reaction : ReactionType.t list;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -8129,7 +9122,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and UniqueGiftBackdrop : sig
-  type t
+  type t = {
+    name : string;
+    colors : UniqueGiftBackdropColors.t;
+    rarity_per_mille : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -8165,7 +9163,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and MenuButtonWebApp : sig
-  type t
+  type t = {
+    type_ : string;
+    text : string;
+    web_app : WebAppInfo.t;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -8201,7 +9204,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatBoostSource : sig
-  type t
+  type t = {
+    source : string;
+    user : User.t;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -8233,7 +9240,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatBoostSourcePremium : sig
-  type t
+  type t = {
+    source : string;
+    user : User.t;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -8265,7 +9276,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatBoostSourceGiftCode : sig
-  type t
+  type t = {
+    source : string;
+    user : User.t;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -8297,7 +9312,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatBoostSourceGiveaway : sig
-  type t
+  type t = {
+    source : string;
+    giveaway_message_id : int64;
+    user : User.t option;
+    prize_star_count : int64 option;
+    is_unclaimed : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -8341,7 +9363,15 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BusinessConnection : sig
-  type t
+  type t = {
+    id : string;
+    user : User.t;
+    user_chat_id : int64;
+    date : int64;
+    rights : BusinessBotRights.t option;
+    is_enabled : bool;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -8389,7 +9419,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BusinessMessagesDeleted : sig
-  type t
+  type t = {
+    business_connection_id : string;
+    chat : Chat.t;
+    message_ids : int64 list;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -8425,7 +9460,24 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and Sticker : sig
-  type t
+  type t = {
+    file_id : string;
+    file_unique_id : string;
+    type_ : string;
+    width : int64;
+    height : int64;
+    is_animated : bool;
+    is_video : bool;
+    thumbnail : PhotoSize.t option;
+    emoji : string option;
+    set_name : string option;
+    premium_animation : File.t option;
+    mask_position : MaskPosition.t option;
+    custom_emoji_id : string option;
+    needs_repainting : bool option;
+    file_size : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -8509,7 +9561,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputSticker : sig
-  type t
+  type t = {
+    sticker : string;
+    format : string;
+    emoji_list : string list;
+    mask_position : MaskPosition.t option;
+    keywords : string list option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -8553,7 +9612,15 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineQuery : sig
-  type t
+  type t = {
+    id : string;
+    from : User.t;
+    query : string;
+    offset : string;
+    chat_type : string option;
+    location : Location.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -8601,7 +9668,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultsButton : sig
-  type t
+  type t = {
+    text : string;
+    web_app : WebAppInfo.t option;
+    start_parameter : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -8637,7 +9709,29 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputInvoiceMessageContent : sig
-  type t
+  type t = {
+    title : string;
+    description : string;
+    payload : string;
+    provider_token : string option;
+    currency : string;
+    prices : LabeledPrice.t list;
+    max_tip_amount : int64 option;
+    suggested_tip_amounts : int64 list option;
+    provider_data : string option;
+    photo_url : string option;
+    photo_size : int64 option;
+    photo_width : int64 option;
+    photo_height : int64 option;
+    need_name : bool option;
+    need_phone_number : bool option;
+    need_email : bool option;
+    need_shipping_address : bool option;
+    send_phone_number_to_provider : bool option;
+    send_email_to_provider : bool option;
+    is_flexible : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -8741,7 +9835,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChosenInlineResult : sig
-  type t
+  type t = {
+    result_id : string;
+    from : User.t;
+    location : Location.t option;
+    inline_message_id : string option;
+    query : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -8785,7 +9886,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and OrderInfo : sig
-  type t
+  type t = {
+    name : string option;
+    phone_number : string option;
+    email : string option;
+    shipping_address : ShippingAddress.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -8825,7 +9932,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ShippingOption : sig
-  type t
+  type t = {
+    id : string;
+    title : string;
+    prices : LabeledPrice.t list;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -8861,7 +9973,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ShippingQuery : sig
-  type t
+  type t = {
+    id : string;
+    from : User.t;
+    invoice_payload : string;
+    shipping_address : ShippingAddress.t;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -8901,7 +10019,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and PaidMediaPurchased : sig
-  type t
+  type t = {
+    from : User.t;
+    paid_media_payload : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -8933,7 +10055,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and AffiliateInfo : sig
-  type t
+  type t = {
+    affiliate_user : User.t option;
+    affiliate_chat : Chat.t option;
+    commission_per_mille : int64;
+    amount : int64;
+    nanostar_amount : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -8977,7 +10106,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and TransactionPartnerAffiliateProgram : sig
-  type t
+  type t = {
+    type_ : string;
+    sponsor_user : User.t option;
+    commission_per_mille : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9013,7 +10147,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and TransactionPartnerFragment : sig
-  type t
+  type t = {
+    type_ : string;
+    withdrawal_state : RevenueWithdrawalState.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9045,7 +10183,19 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and EncryptedPassportElement : sig
-  type t
+  type t = {
+    type_ : string;
+    data : string option;
+    phone_number : string option;
+    email : string option;
+    files : PassportFile.t list option;
+    front_side : PassportFile.t option;
+    reverse_side : PassportFile.t option;
+    selfie : PassportFile.t option;
+    translation : PassportFile.t list option;
+    hash : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9109,7 +10259,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and GameHighScore : sig
-  type t
+  type t = {
+    position : int64;
+    user : User.t;
+    score : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9145,7 +10300,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and TextQuote : sig
-  type t
+  type t = {
+    text : string;
+    entities : MessageEntity.t list option;
+    position : int64;
+    is_manual : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9185,7 +10346,17 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ReplyParameters : sig
-  type t
+  type t = {
+    message_id : int64;
+    chat_id : string option;
+    allow_sending_without_reply : bool option;
+    quote : string option;
+    quote_parse_mode : string option;
+    quote_entities : MessageEntity.t list option;
+    quote_position : int64 option;
+    checklist_task_id : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9241,7 +10412,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and PaidMediaVideo : sig
-  type t
+  type t = {
+    type_ : string;
+    video : Video.t;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9273,7 +10448,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and PollOption : sig
-  type t
+  type t = {
+    text : string;
+    text_entities : MessageEntity.t list option;
+    voter_count : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9309,7 +10489,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputPollOption : sig
-  type t
+  type t = {
+    text : string;
+    text_parse_mode : string option;
+    text_entities : MessageEntity.t list option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9345,7 +10530,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChecklistTask : sig
-  type t
+  type t = {
+    id : int64;
+    text : string;
+    text_entities : MessageEntity.t list option;
+    completed_by_user : User.t option;
+    completion_date : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9389,7 +10581,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputChecklistTask : sig
-  type t
+  type t = {
+    id : int64;
+    text : string;
+    parse_mode : string option;
+    text_entities : MessageEntity.t list option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9429,7 +10627,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BackgroundTypeWallpaper : sig
-  type t
+  type t = {
+    type_ : string;
+    document : Document.t;
+    dark_theme_dimming : int64;
+    is_blurred : bool option;
+    is_moving : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9473,7 +10678,15 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BackgroundTypePattern : sig
-  type t
+  type t = {
+    type_ : string;
+    document : Document.t;
+    fill : BackgroundFill.t;
+    intensity : int64;
+    is_inverted : bool option;
+    is_moving : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9521,7 +10734,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatBackground : sig
-  type t
+  type t = {
+    type_ : BackgroundType.t;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9549,7 +10765,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and UsersShared : sig
-  type t
+  type t = {
+    request_id : int64;
+    users : SharedUser.t list;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9581,7 +10801,16 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and KeyboardButton : sig
-  type t
+  type t = {
+    text : string;
+    request_users : KeyboardButtonRequestUsers.t option;
+    request_chat : KeyboardButtonRequestChat.t option;
+    request_contact : bool option;
+    request_location : bool option;
+    request_poll : KeyboardButtonPollType.t option;
+    web_app : WebAppInfo.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9633,7 +10862,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineKeyboardMarkup : sig
-  type t
+  type t = {
+    inline_keyboard : InlineKeyboardButton.t list list;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9661,7 +10893,16 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and CallbackQuery : sig
-  type t
+  type t = {
+    id : string;
+    from : User.t;
+    message : MaybeInaccessibleMessage.t option;
+    inline_message_id : string option;
+    chat_instance : string;
+    data : string option;
+    game_short_name : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9713,7 +10954,17 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatMemberUpdated : sig
-  type t
+  type t = {
+    chat : Chat.t;
+    from : User.t;
+    date : int64;
+    old_chat_member : ChatMember.t;
+    new_chat_member : ChatMember.t;
+    invite_link : ChatInviteLink.t option;
+    via_join_request : bool option;
+    via_chat_folder_invite_link : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9769,7 +11020,15 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatJoinRequest : sig
-  type t
+  type t = {
+    chat : Chat.t;
+    from : User.t;
+    user_chat_id : int64;
+    date : int64;
+    bio : string option;
+    invite_link : ChatInviteLink.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9817,7 +11076,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and BusinessIntro : sig
-  type t
+  type t = {
+    title : string option;
+    message : string option;
+    sticker : Sticker.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9853,7 +11117,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and StoryArea : sig
-  type t
+  type t = {
+    position : StoryAreaPosition.t;
+    type_ : StoryAreaType.t;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9885,7 +11153,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and MessageReactionCountUpdated : sig
-  type t
+  type t = {
+    chat : Chat.t;
+    message_id : int64;
+    date : int64;
+    reactions : ReactionCount.t list;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9925,7 +11199,16 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and Gift : sig
-  type t
+  type t = {
+    id : string;
+    sticker : Sticker.t;
+    star_count : int64;
+    upgrade_star_count : int64 option;
+    total_count : int64 option;
+    remaining_count : int64 option;
+    publisher_chat : Chat.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -9977,7 +11260,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and UniqueGiftModel : sig
-  type t
+  type t = {
+    name : string;
+    sticker : Sticker.t;
+    rarity_per_mille : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -10013,7 +11301,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and UniqueGiftSymbol : sig
-  type t
+  type t = {
+    name : string;
+    sticker : Sticker.t;
+    rarity_per_mille : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -10049,7 +11342,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatBoost : sig
-  type t
+  type t = {
+    boost_id : string;
+    add_date : int64;
+    expiration_date : int64;
+    source : ChatBoostSource.t;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -10089,7 +11388,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatBoostRemoved : sig
-  type t
+  type t = {
+    chat : Chat.t;
+    boost_id : string;
+    remove_date : int64;
+    source : ChatBoostSource.t;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -10129,7 +11434,16 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputMedia : sig
-  type t
+  type t = {
+    type_ : string;
+    media : string;
+    caption : string option;
+    parse_mode : string option;
+    caption_entities : MessageEntity.t list option;
+    show_caption_above_media : bool option;
+    has_spoiler : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -10181,7 +11495,16 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputMediaPhoto : sig
-  type t
+  type t = {
+    type_ : string;
+    media : string;
+    caption : string option;
+    parse_mode : string option;
+    caption_entities : MessageEntity.t list option;
+    show_caption_above_media : bool option;
+    has_spoiler : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -10233,7 +11556,23 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputMediaVideo : sig
-  type t
+  type t = {
+    type_ : string;
+    media : string;
+    thumbnail : string option;
+    cover : string option;
+    start_timestamp : int64 option;
+    caption : string option;
+    parse_mode : string option;
+    caption_entities : MessageEntity.t list option;
+    show_caption_above_media : bool option;
+    width : int64 option;
+    height : int64 option;
+    duration : int64 option;
+    supports_streaming : bool option;
+    has_spoiler : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -10313,7 +11652,20 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputMediaAnimation : sig
-  type t
+  type t = {
+    type_ : string;
+    media : string;
+    thumbnail : string option;
+    caption : string option;
+    parse_mode : string option;
+    caption_entities : MessageEntity.t list option;
+    show_caption_above_media : bool option;
+    width : int64 option;
+    height : int64 option;
+    duration : int64 option;
+    has_spoiler : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -10381,7 +11733,18 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputMediaAudio : sig
-  type t
+  type t = {
+    type_ : string;
+    media : string;
+    thumbnail : string option;
+    caption : string option;
+    parse_mode : string option;
+    caption_entities : MessageEntity.t list option;
+    duration : int64 option;
+    performer : string option;
+    title : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -10441,7 +11804,16 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputMediaDocument : sig
-  type t
+  type t = {
+    type_ : string;
+    media : string;
+    thumbnail : string option;
+    caption : string option;
+    parse_mode : string option;
+    caption_entities : MessageEntity.t list option;
+    disable_content_type_detection : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -10493,7 +11865,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and StickerSet : sig
-  type t
+  type t = {
+    name : string;
+    title : string;
+    sticker_type : string;
+    stickers : Sticker.t list;
+    thumbnail : PhotoSize.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -10537,7 +11916,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputMessageContent : sig
-  type t
+  type t = {
+    message_text : string;
+    parse_mode : string option;
+    entities : MessageEntity.t list option;
+    link_preview_options : LinkPreviewOptions.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -10577,7 +11962,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputTextMessageContent : sig
-  type t
+  type t = {
+    message_text : string;
+    parse_mode : string option;
+    entities : MessageEntity.t list option;
+    link_preview_options : LinkPreviewOptions.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -10617,7 +12008,19 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and SuccessfulPayment : sig
-  type t
+  type t = {
+    currency : string;
+    total_amount : int64;
+    invoice_payload : string;
+    subscription_expiration_date : int64 option;
+    is_recurring : bool option;
+    is_first_recurring : bool option;
+    shipping_option_id : string option;
+    order_info : OrderInfo.t option;
+    telegram_payment_charge_id : string;
+    provider_payment_charge_id : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -10681,7 +12084,16 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and PreCheckoutQuery : sig
-  type t
+  type t = {
+    id : string;
+    from : User.t;
+    currency : string;
+    total_amount : int64;
+    invoice_payload : string;
+    shipping_option_id : string option;
+    order_info : OrderInfo.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -10733,7 +12145,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and PassportData : sig
-  type t
+  type t = {
+    data : EncryptedPassportElement.t list;
+    credentials : EncryptedCredentials.t;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -10765,7 +12181,15 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and Game : sig
-  type t
+  type t = {
+    title : string;
+    description : string;
+    photo : PhotoSize.t list;
+    text : string option;
+    text_entities : MessageEntity.t list option;
+    animation : Animation.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -10813,7 +12237,23 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and Poll : sig
-  type t
+  type t = {
+    id : string;
+    question : string;
+    question_entities : MessageEntity.t list option;
+    options : PollOption.t list;
+    total_voter_count : int64;
+    is_closed : bool;
+    is_anonymous : bool;
+    type_ : string;
+    allows_multiple_answers : bool;
+    correct_option_id : int64 option;
+    explanation : string option;
+    explanation_entities : MessageEntity.t list option;
+    open_period : int64 option;
+    close_date : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -10893,7 +12333,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and Checklist : sig
-  type t
+  type t = {
+    title : string;
+    title_entities : MessageEntity.t list option;
+    tasks : ChecklistTask.t list;
+    others_can_add_tasks : bool option;
+    others_can_mark_tasks_as_done : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -10937,7 +12384,15 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InputChecklist : sig
-  type t
+  type t = {
+    title : string;
+    parse_mode : string option;
+    title_entities : MessageEntity.t list option;
+    tasks : InputChecklistTask.t list;
+    others_can_add_tasks : bool option;
+    others_can_mark_tasks_as_done : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -10985,7 +12440,15 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ReplyKeyboardMarkup : sig
-  type t
+  type t = {
+    keyboard : KeyboardButton.t list list;
+    is_persistent : bool option;
+    resize_keyboard : bool option;
+    one_time_keyboard : bool option;
+    input_field_placeholder : string option;
+    selective : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -11033,7 +12496,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and Gifts : sig
-  type t
+  type t = {
+    gifts : Gift.t list;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -11061,7 +12527,16 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and UniqueGift : sig
-  type t
+  type t = {
+    base_name : string;
+    name : string;
+    number : int64;
+    model : UniqueGiftModel.t;
+    symbol : UniqueGiftSymbol.t;
+    backdrop : UniqueGiftBackdrop.t;
+    publisher_chat : Chat.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -11113,7 +12588,17 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and GiftInfo : sig
-  type t
+  type t = {
+    gift : Gift.t;
+    owned_gift_id : string option;
+    convert_star_count : int64 option;
+    prepaid_upgrade_star_count : int64 option;
+    can_be_upgraded : bool option;
+    text : string option;
+    entities : MessageEntity.t list option;
+    is_private : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -11169,7 +12654,22 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and OwnedGift : sig
-  type t
+  type t = {
+    type_ : string;
+    gift : Gift.t;
+    owned_gift_id : string option;
+    sender_user : User.t option;
+    send_date : int64;
+    text : string option;
+    entities : MessageEntity.t list option;
+    is_private : bool option;
+    is_saved : bool option;
+    can_be_upgraded : bool option;
+    was_refunded : bool option;
+    convert_star_count : int64 option;
+    prepaid_upgrade_star_count : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -11245,7 +12745,22 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and OwnedGiftRegular : sig
-  type t
+  type t = {
+    type_ : string;
+    gift : Gift.t;
+    owned_gift_id : string option;
+    sender_user : User.t option;
+    send_date : int64;
+    text : string option;
+    entities : MessageEntity.t list option;
+    is_private : bool option;
+    is_saved : bool option;
+    can_be_upgraded : bool option;
+    was_refunded : bool option;
+    convert_star_count : int64 option;
+    prepaid_upgrade_star_count : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -11321,7 +12836,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatBoostUpdated : sig
-  type t
+  type t = {
+    chat : Chat.t;
+    boost : ChatBoost.t;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -11353,7 +12872,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and UserChatBoosts : sig
-  type t
+  type t = {
+    boosts : ChatBoost.t list;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -11381,7 +12903,19 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResult : sig
-  type t
+  type t = {
+    type_ : string;
+    id : string;
+    title : string;
+    input_message_content : InputMessageContent.t;
+    reply_markup : InlineKeyboardMarkup.t option;
+    url : string option;
+    description : string option;
+    thumbnail_url : string option;
+    thumbnail_width : int64 option;
+    thumbnail_height : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -11445,7 +12979,19 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultArticle : sig
-  type t
+  type t = {
+    type_ : string;
+    id : string;
+    title : string;
+    input_message_content : InputMessageContent.t;
+    reply_markup : InlineKeyboardMarkup.t option;
+    url : string option;
+    description : string option;
+    thumbnail_url : string option;
+    thumbnail_width : int64 option;
+    thumbnail_height : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -11509,7 +13055,23 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultPhoto : sig
-  type t
+  type t = {
+    type_ : string;
+    id : string;
+    photo_url : string;
+    thumbnail_url : string;
+    photo_width : int64 option;
+    photo_height : int64 option;
+    title : string option;
+    description : string option;
+    caption : string option;
+    parse_mode : string option;
+    caption_entities : MessageEntity.t list option;
+    show_caption_above_media : bool option;
+    reply_markup : InlineKeyboardMarkup.t option;
+    input_message_content : InputMessageContent.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -11589,7 +13151,24 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultGif : sig
-  type t
+  type t = {
+    type_ : string;
+    id : string;
+    gif_url : string;
+    gif_width : int64 option;
+    gif_height : int64 option;
+    gif_duration : int64 option;
+    thumbnail_url : string;
+    thumbnail_mime_type : string option;
+    title : string option;
+    caption : string option;
+    parse_mode : string option;
+    caption_entities : MessageEntity.t list option;
+    show_caption_above_media : bool option;
+    reply_markup : InlineKeyboardMarkup.t option;
+    input_message_content : InputMessageContent.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -11673,7 +13252,24 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultMpeg4Gif : sig
-  type t
+  type t = {
+    type_ : string;
+    id : string;
+    mpeg4_url : string;
+    mpeg4_width : int64 option;
+    mpeg4_height : int64 option;
+    mpeg4_duration : int64 option;
+    thumbnail_url : string;
+    thumbnail_mime_type : string option;
+    title : string option;
+    caption : string option;
+    parse_mode : string option;
+    caption_entities : MessageEntity.t list option;
+    show_caption_above_media : bool option;
+    reply_markup : InlineKeyboardMarkup.t option;
+    input_message_content : InputMessageContent.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -11757,7 +13353,25 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultVideo : sig
-  type t
+  type t = {
+    type_ : string;
+    id : string;
+    video_url : string;
+    mime_type : string;
+    thumbnail_url : string;
+    title : string;
+    caption : string option;
+    parse_mode : string option;
+    caption_entities : MessageEntity.t list option;
+    show_caption_above_media : bool option;
+    video_width : int64 option;
+    video_height : int64 option;
+    video_duration : int64 option;
+    description : string option;
+    reply_markup : InlineKeyboardMarkup.t option;
+    input_message_content : InputMessageContent.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -11845,7 +13459,20 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultAudio : sig
-  type t
+  type t = {
+    type_ : string;
+    id : string;
+    audio_url : string;
+    title : string;
+    caption : string option;
+    parse_mode : string option;
+    caption_entities : MessageEntity.t list option;
+    performer : string option;
+    audio_duration : int64 option;
+    reply_markup : InlineKeyboardMarkup.t option;
+    input_message_content : InputMessageContent.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -11913,7 +13540,19 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultVoice : sig
-  type t
+  type t = {
+    type_ : string;
+    id : string;
+    voice_url : string;
+    title : string;
+    caption : string option;
+    parse_mode : string option;
+    caption_entities : MessageEntity.t list option;
+    voice_duration : int64 option;
+    reply_markup : InlineKeyboardMarkup.t option;
+    input_message_content : InputMessageContent.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -11977,7 +13616,23 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultDocument : sig
-  type t
+  type t = {
+    type_ : string;
+    id : string;
+    title : string;
+    caption : string option;
+    parse_mode : string option;
+    caption_entities : MessageEntity.t list option;
+    document_url : string;
+    mime_type : string;
+    description : string option;
+    reply_markup : InlineKeyboardMarkup.t option;
+    input_message_content : InputMessageContent.t option;
+    thumbnail_url : string option;
+    thumbnail_width : int64 option;
+    thumbnail_height : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -12057,7 +13712,23 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultLocation : sig
-  type t
+  type t = {
+    type_ : string;
+    id : string;
+    latitude : float;
+    longitude : float;
+    title : string;
+    horizontal_accuracy : float option;
+    live_period : int64 option;
+    heading : int64 option;
+    proximity_alert_radius : int64 option;
+    reply_markup : InlineKeyboardMarkup.t option;
+    input_message_content : InputMessageContent.t option;
+    thumbnail_url : string option;
+    thumbnail_width : int64 option;
+    thumbnail_height : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -12137,7 +13808,24 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultVenue : sig
-  type t
+  type t = {
+    type_ : string;
+    id : string;
+    latitude : float;
+    longitude : float;
+    title : string;
+    address : string;
+    foursquare_id : string option;
+    foursquare_type : string option;
+    google_place_id : string option;
+    google_place_type : string option;
+    reply_markup : InlineKeyboardMarkup.t option;
+    input_message_content : InputMessageContent.t option;
+    thumbnail_url : string option;
+    thumbnail_width : int64 option;
+    thumbnail_height : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -12221,7 +13909,20 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultContact : sig
-  type t
+  type t = {
+    type_ : string;
+    id : string;
+    phone_number : string;
+    first_name : string;
+    last_name : string option;
+    vcard : string option;
+    reply_markup : InlineKeyboardMarkup.t option;
+    input_message_content : InputMessageContent.t option;
+    thumbnail_url : string option;
+    thumbnail_width : int64 option;
+    thumbnail_height : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -12289,7 +13990,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultGame : sig
-  type t
+  type t = {
+    type_ : string;
+    id : string;
+    game_short_name : string;
+    reply_markup : InlineKeyboardMarkup.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -12329,7 +14036,20 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultCachedPhoto : sig
-  type t
+  type t = {
+    type_ : string;
+    id : string;
+    photo_file_id : string;
+    title : string option;
+    description : string option;
+    caption : string option;
+    parse_mode : string option;
+    caption_entities : MessageEntity.t list option;
+    show_caption_above_media : bool option;
+    reply_markup : InlineKeyboardMarkup.t option;
+    input_message_content : InputMessageContent.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -12397,7 +14117,19 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultCachedGif : sig
-  type t
+  type t = {
+    type_ : string;
+    id : string;
+    gif_file_id : string;
+    title : string option;
+    caption : string option;
+    parse_mode : string option;
+    caption_entities : MessageEntity.t list option;
+    show_caption_above_media : bool option;
+    reply_markup : InlineKeyboardMarkup.t option;
+    input_message_content : InputMessageContent.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -12461,7 +14193,19 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultCachedMpeg4Gif : sig
-  type t
+  type t = {
+    type_ : string;
+    id : string;
+    mpeg4_file_id : string;
+    title : string option;
+    caption : string option;
+    parse_mode : string option;
+    caption_entities : MessageEntity.t list option;
+    show_caption_above_media : bool option;
+    reply_markup : InlineKeyboardMarkup.t option;
+    input_message_content : InputMessageContent.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -12525,7 +14269,14 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultCachedSticker : sig
-  type t
+  type t = {
+    type_ : string;
+    id : string;
+    sticker_file_id : string;
+    reply_markup : InlineKeyboardMarkup.t option;
+    input_message_content : InputMessageContent.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -12569,7 +14320,19 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultCachedDocument : sig
-  type t
+  type t = {
+    type_ : string;
+    id : string;
+    title : string;
+    document_file_id : string;
+    description : string option;
+    caption : string option;
+    parse_mode : string option;
+    caption_entities : MessageEntity.t list option;
+    reply_markup : InlineKeyboardMarkup.t option;
+    input_message_content : InputMessageContent.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -12633,7 +14396,20 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultCachedVideo : sig
-  type t
+  type t = {
+    type_ : string;
+    id : string;
+    video_file_id : string;
+    title : string;
+    description : string option;
+    caption : string option;
+    parse_mode : string option;
+    caption_entities : MessageEntity.t list option;
+    show_caption_above_media : bool option;
+    reply_markup : InlineKeyboardMarkup.t option;
+    input_message_content : InputMessageContent.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -12701,7 +14477,18 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultCachedVoice : sig
-  type t
+  type t = {
+    type_ : string;
+    id : string;
+    voice_file_id : string;
+    title : string;
+    caption : string option;
+    parse_mode : string option;
+    caption_entities : MessageEntity.t list option;
+    reply_markup : InlineKeyboardMarkup.t option;
+    input_message_content : InputMessageContent.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -12761,7 +14548,17 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and InlineQueryResultCachedAudio : sig
-  type t
+  type t = {
+    type_ : string;
+    id : string;
+    audio_file_id : string;
+    caption : string option;
+    parse_mode : string option;
+    caption_entities : MessageEntity.t list option;
+    reply_markup : InlineKeyboardMarkup.t option;
+    input_message_content : InputMessageContent.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -12817,7 +14614,19 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and TransactionPartner : sig
-  type t
+  type t = {
+    type_ : string;
+    transaction_type : string;
+    user : User.t;
+    affiliate : AffiliateInfo.t option;
+    invoice_payload : string option;
+    subscription_period : int64 option;
+    paid_media : PaidMedia.t list option;
+    paid_media_payload : string option;
+    gift : Gift.t option;
+    premium_subscription_duration : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -12881,7 +14690,19 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and TransactionPartnerUser : sig
-  type t
+  type t = {
+    type_ : string;
+    transaction_type : string;
+    user : User.t;
+    affiliate : AffiliateInfo.t option;
+    invoice_payload : string option;
+    subscription_period : int64 option;
+    paid_media : PaidMedia.t list option;
+    paid_media_payload : string option;
+    gift : Gift.t option;
+    premium_subscription_duration : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -12945,7 +14766,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and TransactionPartnerChat : sig
-  type t
+  type t = {
+    type_ : string;
+    chat : Chat.t;
+    gift : Gift.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -12981,7 +14807,34 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ExternalReplyInfo : sig
-  type t
+  type t = {
+    origin : MessageOrigin.t;
+    chat : Chat.t option;
+    message_id : int64 option;
+    link_preview_options : LinkPreviewOptions.t option;
+    animation : Animation.t option;
+    audio : Audio.t option;
+    document : Document.t option;
+    paid_media : PaidMediaInfo.t option;
+    photo : PhotoSize.t list option;
+    sticker : Sticker.t option;
+    story : Story.t option;
+    video : Video.t option;
+    video_note : VideoNote.t option;
+    voice : Voice.t option;
+    has_media_spoiler : bool option;
+    checklist : Checklist.t option;
+    contact : Contact.t option;
+    dice : Dice.t option;
+    game : Game.t option;
+    giveaway : Giveaway.t option;
+    giveaway_winners : GiveawayWinners.t option;
+    invoice : Invoice.t option;
+    location : Location.t option;
+    poll : Poll.t option;
+    venue : Venue.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -13105,7 +14958,15 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and UniqueGiftInfo : sig
-  type t
+  type t = {
+    gift : UniqueGift.t;
+    origin : string;
+    last_resale_star_count : int64 option;
+    owned_gift_id : string option;
+    transfer_star_count : int64 option;
+    next_transfer_date : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -13153,7 +15014,18 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and OwnedGiftUnique : sig
-  type t
+  type t = {
+    type_ : string;
+    gift : UniqueGift.t;
+    owned_gift_id : string option;
+    sender_user : User.t option;
+    send_date : int64;
+    is_saved : bool option;
+    can_be_transferred : bool option;
+    transfer_star_count : int64 option;
+    next_transfer_date : int64 option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -13213,7 +15085,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and OwnedGifts : sig
-  type t
+  type t = {
+    total_count : int64;
+    gifts : OwnedGift.t list;
+    next_offset : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -13249,7 +15126,15 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and StarTransaction : sig
-  type t
+  type t = {
+    id : string;
+    amount : int64;
+    nanostar_amount : int64 option;
+    date : int64;
+    source : TransactionPartner.t option;
+    receiver : TransactionPartner.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -13297,7 +15182,10 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and StarTransactions : sig
-  type t
+  type t = {
+    transactions : StarTransaction.t list;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -13325,7 +15213,33 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and August152025 : sig
-  type t
+  type t = {
+    update_id : int64;
+    message : Message.t option;
+    edited_message : Message.t option;
+    channel_post : Message.t option;
+    edited_channel_post : Message.t option;
+    business_connection : BusinessConnection.t option;
+    business_message : Message.t option;
+    edited_business_message : Message.t option;
+    deleted_business_messages : BusinessMessagesDeleted.t option;
+    message_reaction : MessageReactionUpdated.t option;
+    message_reaction_count : MessageReactionCountUpdated.t option;
+    inline_query : InlineQuery.t option;
+    chosen_inline_result : ChosenInlineResult.t option;
+    callback_query : CallbackQuery.t option;
+    shipping_query : ShippingQuery.t option;
+    pre_checkout_query : PreCheckoutQuery.t option;
+    purchased_paid_media : PaidMediaPurchased.t option;
+    poll : Poll.t option;
+    poll_answer : PollAnswer.t option;
+    my_chat_member : ChatMemberUpdated.t option;
+    chat_member : ChatMemberUpdated.t option;
+    chat_join_request : ChatJoinRequest.t option;
+    chat_boost : ChatBoostUpdated.t option;
+    removed_chat_boost : ChatBoostRemoved.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -13445,7 +15359,33 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and July32025 : sig
-  type t
+  type t = {
+    update_id : int64;
+    message : Message.t option;
+    edited_message : Message.t option;
+    channel_post : Message.t option;
+    edited_channel_post : Message.t option;
+    business_connection : BusinessConnection.t option;
+    business_message : Message.t option;
+    edited_business_message : Message.t option;
+    deleted_business_messages : BusinessMessagesDeleted.t option;
+    message_reaction : MessageReactionUpdated.t option;
+    message_reaction_count : MessageReactionCountUpdated.t option;
+    inline_query : InlineQuery.t option;
+    chosen_inline_result : ChosenInlineResult.t option;
+    callback_query : CallbackQuery.t option;
+    shipping_query : ShippingQuery.t option;
+    pre_checkout_query : PreCheckoutQuery.t option;
+    purchased_paid_media : PaidMediaPurchased.t option;
+    poll : Poll.t option;
+    poll_answer : PollAnswer.t option;
+    my_chat_member : ChatMemberUpdated.t option;
+    chat_member : ChatMemberUpdated.t option;
+    chat_join_request : ChatJoinRequest.t option;
+    chat_boost : ChatBoostUpdated.t option;
+    removed_chat_boost : ChatBoostRemoved.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -13565,7 +15505,33 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and April112025 : sig
-  type t
+  type t = {
+    update_id : int64;
+    message : Message.t option;
+    edited_message : Message.t option;
+    channel_post : Message.t option;
+    edited_channel_post : Message.t option;
+    business_connection : BusinessConnection.t option;
+    business_message : Message.t option;
+    edited_business_message : Message.t option;
+    deleted_business_messages : BusinessMessagesDeleted.t option;
+    message_reaction : MessageReactionUpdated.t option;
+    message_reaction_count : MessageReactionCountUpdated.t option;
+    inline_query : InlineQuery.t option;
+    chosen_inline_result : ChosenInlineResult.t option;
+    callback_query : CallbackQuery.t option;
+    shipping_query : ShippingQuery.t option;
+    pre_checkout_query : PreCheckoutQuery.t option;
+    purchased_paid_media : PaidMediaPurchased.t option;
+    poll : Poll.t option;
+    poll_answer : PollAnswer.t option;
+    my_chat_member : ChatMemberUpdated.t option;
+    chat_member : ChatMemberUpdated.t option;
+    chat_join_request : ChatJoinRequest.t option;
+    chat_boost : ChatBoostUpdated.t option;
+    removed_chat_boost : ChatBoostRemoved.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -13685,7 +15651,33 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and MakingRequestsWhenGettingUpdates : sig
-  type t
+  type t = {
+    update_id : int64;
+    message : Message.t option;
+    edited_message : Message.t option;
+    channel_post : Message.t option;
+    edited_channel_post : Message.t option;
+    business_connection : BusinessConnection.t option;
+    business_message : Message.t option;
+    edited_business_message : Message.t option;
+    deleted_business_messages : BusinessMessagesDeleted.t option;
+    message_reaction : MessageReactionUpdated.t option;
+    message_reaction_count : MessageReactionCountUpdated.t option;
+    inline_query : InlineQuery.t option;
+    chosen_inline_result : ChosenInlineResult.t option;
+    callback_query : CallbackQuery.t option;
+    shipping_query : ShippingQuery.t option;
+    pre_checkout_query : PreCheckoutQuery.t option;
+    purchased_paid_media : PaidMediaPurchased.t option;
+    poll : Poll.t option;
+    poll_answer : PollAnswer.t option;
+    my_chat_member : ChatMemberUpdated.t option;
+    chat_member : ChatMemberUpdated.t option;
+    chat_join_request : ChatJoinRequest.t option;
+    chat_boost : ChatBoostUpdated.t option;
+    removed_chat_boost : ChatBoostRemoved.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -13805,7 +15797,33 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and DoINeedALocalBotAPIServer : sig
-  type t
+  type t = {
+    update_id : int64;
+    message : Message.t option;
+    edited_message : Message.t option;
+    channel_post : Message.t option;
+    edited_channel_post : Message.t option;
+    business_connection : BusinessConnection.t option;
+    business_message : Message.t option;
+    edited_business_message : Message.t option;
+    deleted_business_messages : BusinessMessagesDeleted.t option;
+    message_reaction : MessageReactionUpdated.t option;
+    message_reaction_count : MessageReactionCountUpdated.t option;
+    inline_query : InlineQuery.t option;
+    chosen_inline_result : ChosenInlineResult.t option;
+    callback_query : CallbackQuery.t option;
+    shipping_query : ShippingQuery.t option;
+    pre_checkout_query : PreCheckoutQuery.t option;
+    purchased_paid_media : PaidMediaPurchased.t option;
+    poll : Poll.t option;
+    poll_answer : PollAnswer.t option;
+    my_chat_member : ChatMemberUpdated.t option;
+    chat_member : ChatMemberUpdated.t option;
+    chat_join_request : ChatJoinRequest.t option;
+    chat_boost : ChatBoostUpdated.t option;
+    removed_chat_boost : ChatBoostRemoved.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -13925,7 +15943,33 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and Update : sig
-  type t
+  type t = {
+    update_id : int64;
+    message : Message.t option;
+    edited_message : Message.t option;
+    channel_post : Message.t option;
+    edited_channel_post : Message.t option;
+    business_connection : BusinessConnection.t option;
+    business_message : Message.t option;
+    edited_business_message : Message.t option;
+    deleted_business_messages : BusinessMessagesDeleted.t option;
+    message_reaction : MessageReactionUpdated.t option;
+    message_reaction_count : MessageReactionCountUpdated.t option;
+    inline_query : InlineQuery.t option;
+    chosen_inline_result : ChosenInlineResult.t option;
+    callback_query : CallbackQuery.t option;
+    shipping_query : ShippingQuery.t option;
+    pre_checkout_query : PreCheckoutQuery.t option;
+    purchased_paid_media : PaidMediaPurchased.t option;
+    poll : Poll.t option;
+    poll_answer : PollAnswer.t option;
+    my_chat_member : ChatMemberUpdated.t option;
+    chat_member : ChatMemberUpdated.t option;
+    chat_join_request : ChatJoinRequest.t option;
+    chat_boost : ChatBoostUpdated.t option;
+    removed_chat_boost : ChatBoostRemoved.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -14045,7 +16089,56 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChatFullInfo : sig
-  type t
+  type t = {
+    id : int64;
+    type_ : string;
+    title : string option;
+    username : string option;
+    first_name : string option;
+    last_name : string option;
+    is_forum : bool option;
+    is_direct_messages : bool option;
+    accent_color_id : int64;
+    max_reaction_count : int64;
+    photo : ChatPhoto.t option;
+    active_usernames : string list option;
+    birthdate : Birthdate.t option;
+    business_intro : BusinessIntro.t option;
+    business_location : BusinessLocation.t option;
+    business_opening_hours : BusinessOpeningHours.t option;
+    personal_chat : Chat.t option;
+    parent_chat : Chat.t option;
+    available_reactions : ReactionType.t list option;
+    background_custom_emoji_id : string option;
+    profile_accent_color_id : int64 option;
+    profile_background_custom_emoji_id : string option;
+    emoji_status_custom_emoji_id : string option;
+    emoji_status_expiration_date : int64 option;
+    bio : string option;
+    has_private_forwards : bool option;
+    has_restricted_voice_and_video_messages : bool option;
+    join_to_send_messages : bool option;
+    join_by_request : bool option;
+    description : string option;
+    invite_link : string option;
+    pinned_message : Message.t option;
+    permissions : ChatPermissions.t option;
+    accepted_gift_types : AcceptedGiftTypes.t;
+    can_send_paid_media : bool option;
+    slow_mode_delay : int64 option;
+    unrestrict_boost_count : int64 option;
+    message_auto_delete_time : int64 option;
+    has_aggressive_anti_spam_enabled : bool option;
+    has_hidden_members : bool option;
+    has_protected_content : bool option;
+    has_visible_history : bool option;
+    sticker_set_name : string option;
+    can_set_sticker_set : bool option;
+    custom_emoji_sticker_set_name : string option;
+    linked_chat_id : int64 option;
+    location : ChatLocation.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -14257,7 +16350,111 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and Message : sig
-  type t
+  type t = {
+    message_id : int64;
+    message_thread_id : int64 option;
+    direct_messages_topic : DirectMessagesTopic.t option;
+    from : User.t option;
+    sender_chat : Chat.t option;
+    sender_boost_count : int64 option;
+    sender_business_bot : User.t option;
+    date : int64;
+    business_connection_id : string option;
+    chat : Chat.t;
+    forward_origin : MessageOrigin.t option;
+    is_topic_message : bool option;
+    is_automatic_forward : bool option;
+    reply_to_message : t option;
+    external_reply : ExternalReplyInfo.t option;
+    quote : TextQuote.t option;
+    reply_to_story : Story.t option;
+    reply_to_checklist_task_id : int64 option;
+    via_bot : User.t option;
+    edit_date : int64 option;
+    has_protected_content : bool option;
+    is_from_offline : bool option;
+    is_paid_post : bool option;
+    media_group_id : string option;
+    author_signature : string option;
+    paid_star_count : int64 option;
+    text : string option;
+    entities : MessageEntity.t list option;
+    link_preview_options : LinkPreviewOptions.t option;
+    suggested_post_info : SuggestedPostInfo.t option;
+    effect_id : string option;
+    animation : Animation.t option;
+    audio : Audio.t option;
+    document : Document.t option;
+    paid_media : PaidMediaInfo.t option;
+    photo : PhotoSize.t list option;
+    sticker : Sticker.t option;
+    story : Story.t option;
+    video : Video.t option;
+    video_note : VideoNote.t option;
+    voice : Voice.t option;
+    caption : string option;
+    caption_entities : MessageEntity.t list option;
+    show_caption_above_media : bool option;
+    has_media_spoiler : bool option;
+    checklist : Checklist.t option;
+    contact : Contact.t option;
+    dice : Dice.t option;
+    game : Game.t option;
+    poll : Poll.t option;
+    venue : Venue.t option;
+    location : Location.t option;
+    new_chat_members : User.t list option;
+    left_chat_member : User.t option;
+    new_chat_title : string option;
+    new_chat_photo : PhotoSize.t list option;
+    delete_chat_photo : bool option;
+    group_chat_created : bool option;
+    supergroup_chat_created : bool option;
+    channel_chat_created : bool option;
+    message_auto_delete_timer_changed : MessageAutoDeleteTimerChanged.t option;
+    migrate_to_chat_id : int64 option;
+    migrate_from_chat_id : int64 option;
+    pinned_message : MaybeInaccessibleMessage.t option;
+    invoice : Invoice.t option;
+    successful_payment : SuccessfulPayment.t option;
+    refunded_payment : RefundedPayment.t option;
+    users_shared : UsersShared.t option;
+    chat_shared : ChatShared.t option;
+    gift : GiftInfo.t option;
+    unique_gift : UniqueGiftInfo.t option;
+    connected_website : string option;
+    write_access_allowed : WriteAccessAllowed.t option;
+    passport_data : PassportData.t option;
+    proximity_alert_triggered : ProximityAlertTriggered.t option;
+    boost_added : ChatBoostAdded.t option;
+    chat_background_set : ChatBackground.t option;
+    checklist_tasks_done : ChecklistTasksDone.t option;
+    checklist_tasks_added : ChecklistTasksAdded.t option;
+    direct_message_price_changed : DirectMessagePriceChanged.t option;
+    forum_topic_created : ForumTopicCreated.t option;
+    forum_topic_edited : ForumTopicEdited.t option;
+    forum_topic_closed : ForumTopicClosed.t option;
+    forum_topic_reopened : ForumTopicReopened.t option;
+    general_forum_topic_hidden : GeneralForumTopicHidden.t option;
+    general_forum_topic_unhidden : GeneralForumTopicUnhidden.t option;
+    giveaway_created : GiveawayCreated.t option;
+    giveaway : Giveaway.t option;
+    giveaway_winners : GiveawayWinners.t option;
+    giveaway_completed : GiveawayCompleted.t option;
+    paid_message_price_changed : PaidMessagePriceChanged.t option;
+    suggested_post_approved : SuggestedPostApproved.t option;
+    suggested_post_approval_failed : SuggestedPostApprovalFailed.t option;
+    suggested_post_declined : SuggestedPostDeclined.t option;
+    suggested_post_paid : SuggestedPostPaid.t option;
+    suggested_post_refunded : SuggestedPostRefunded.t option;
+    video_chat_scheduled : VideoChatScheduled.t option;
+    video_chat_started : VideoChatStarted.t option;
+    video_chat_ended : VideoChatEnded.t option;
+    video_chat_participants_invited : VideoChatParticipantsInvited.t option;
+    web_app_data : WebAppData.t option;
+    reply_markup : InlineKeyboardMarkup.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -14689,7 +16886,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChecklistTasksDone : sig
-  type t
+  type t = {
+    checklist_message : Message.t option;
+    marked_as_done_task_ids : int64 list option;
+    marked_as_not_done_task_ids : int64 list option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -14725,7 +16927,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and ChecklistTasksAdded : sig
-  type t
+  type t = {
+    checklist_message : Message.t option;
+    tasks : ChecklistTask.t list;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -14757,7 +16963,12 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and SuggestedPostApproved : sig
-  type t
+  type t = {
+    suggested_post_message : Message.t option;
+    price : SuggestedPostPrice.t option;
+    send_date : int64;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -14793,7 +17004,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and SuggestedPostApprovalFailed : sig
-  type t
+  type t = {
+    suggested_post_message : Message.t option;
+    price : SuggestedPostPrice.t;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -14825,7 +17040,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and SuggestedPostDeclined : sig
-  type t
+  type t = {
+    suggested_post_message : Message.t option;
+    comment : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -14857,7 +17076,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and SuggestedPostPaid : sig
-  type t
+  type t = {
+    suggested_post_message : Message.t option;
+    currency : string;
+    amount : int64 option;
+    star_amount : StarAmount.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -14897,7 +17122,11 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and SuggestedPostRefunded : sig
-  type t
+  type t = {
+    suggested_post_message : Message.t option;
+    reason : string;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
@@ -14929,7 +17158,13 @@ end = struct
     | _ -> Error "Expected JSON object"
 end
 and GiveawayCompleted : sig
-  type t
+  type t = {
+    winner_count : int64;
+    unclaimed_prize_count : int64 option;
+    giveaway_message : Message.t option;
+    is_star_giveaway : bool option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
