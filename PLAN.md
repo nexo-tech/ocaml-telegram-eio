@@ -16,7 +16,7 @@ Principles
 
 Master Checklist
 
-**Completion: 44/92 tasks (48%)**
+**Completion: 45/92 tasks (49%)**
 
 Phase 1 — Architecture & Tooling (10/10 ✓)
 - [x] Task 1.1 Decide core architecture, layering, and error strategy
@@ -117,10 +117,10 @@ Phase 12 — Testing & QA (5/5) ✓ COMPLETE
 - [x] Task 12.4 Integration tests with local Bot API server
 - [x] Task 12.5 Concurrency tests under Eio switches
 
-Phase 13 — Docs & Examples (3/4)
+Phase 13 — Docs & Examples (4/4) ✓ COMPLETE
 - [x] Task 13.1 API docs via odoc, hosted
 - [x] Task 13.2 Examples — COMPLETED: echo_bot, command_bot, keyboard_bot, file_bot with full polling support
-- [ ] Task 13.3 Migration guide and FAQ
+- [x] Task 13.3 Migration guide and FAQ — COMPLETED: comprehensive migration guide (Lwt/Async/Haskell) and FAQ with troubleshooting
 - [x] Task 13.4 Reference to spec sync and regeneration (CONTRIBUTING.md)
 
 Phase 14 — Packaging & Release (0/3)

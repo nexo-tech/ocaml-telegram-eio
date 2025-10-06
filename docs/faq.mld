@@ -1,0 +1,587 @@
+{0 Frequently Asked Questions (FAQ)}
+
+{1 General}
+
+### What is ocaml-telegram-eio?
+
+`ocaml-telegram-eio` is a production-grade Telegram Bot API client library for OCaml 5.x using Eio for direct-style concurrency. It provides:
+
+- **Type-safe API**: Phantom-typed IDs, generated types from official Bot API spec
+- **Direct-style concurrency**: Uses Eio effects instead of monadic I/O (Lwt/Async)
+- **Full Bot API coverage**: 449 types, 232 methods auto-generated from spec
+- **Forward compatibility**: Preserves unknown fields for new Bot API features
+- **Production features**: Streaming file uploads, proper error handling, structured concurrency
+
+### Why use Eio instead of Lwt or Async?
+
+Eio offers several advantages:
+
+1. **Direct-style code**: Write concurrent code that looks sequential - no `let%lwt`, `>>=`, or callback hell
+2. **Structured concurrency**: Resources are automatically cleaned up, preventing leaks
+3. **Better performance**: No monadic overhead, more efficient runtime
+4. **Natural backpressure**: Automatic flow control without manual stream management
+5. **OCaml 5.x effects**: Uses modern OCaml features for cleaner concurrency
+
+Example comparison:
+```ocaml
+(* Lwt - monadic *)
+let%lwt msg1 = send_message ~chat_id ~text:"Hello" in
+let%lwt msg2 = send_message ~chat_id ~text:"World" in
+Lwt.return (msg1, msg2)
+
+(* Eio - direct style *)
+let msg1 = send_message client ~chat_id ~text:"Hello" in
+let msg2 = send_message client ~chat_id ~text:"World" in
+(msg1, msg2)
+```
+
+### What OCaml version do I need?
+
+**OCaml 5.1 or later** is required because:
+- Eio requires OCaml 5.x for effects support
+- The library uses modern OCaml features
+
+### Is this library ready for production?
+
+Yes, with caveats:
+
+- ✅ **Core functionality complete**: All Bot API methods and types
+- ✅ **Type-safe**: Comprehensive type checking and error handling
+- ✅ **Well-tested**: Unit, integration, property, and golden tests
+- ⚠️ **High-level DSL partial**: Router and Bot DSL are designed but not fully implemented
+- ⚠️ **Some features pending**: Rate limiting, retry policies, observability hooks
+
+For production use:
+- Use generated methods (`Telegram_generated.Gen_methods`) - fully functional
+- Implement your own retry/rate-limit logic as needed
+- The library is stable for core bot operations
+
+---
+
+## Installation and Setup
+
+### How do I install ocaml-telegram-eio?
+
+Currently the library is under development. To use it:
+
+```bash
+# Clone the repository
+git clone https://github.com/username/ocaml-telegram-eio.git
+cd ocaml-telegram-eio
+
+# Install dependencies
+opam install --deps-only .
+
+# Build
+dune build
+
+# Run examples
+export TELEGRAM_BOT_TOKEN="your_token_here"
+dune exec examples/echo_bot.exe
+```
+
+### Where do I get a bot token?
+
+1. Talk to [@BotFather](https://t.me/BotFather) on Telegram
+2. Send `/newbot` and follow the instructions
+3. Copy the token BotFather gives you
+4. Set it as environment variable: `export TELEGRAM_BOT_TOKEN="your_token"`
+
+**Security warning**: Never commit your token to version control!
+
+### What are the dependencies?
+
+Core dependencies:
+- `eio` (>= 0.12) - Effects-based I/O
+- `eio_main` - Main event loop
+- `cohttp-eio` - HTTP client
+- `yojson` - JSON parsing
+- `tls-eio` - HTTPS support
+- `ca-certs` - Certificate verification
+
+Development dependencies:
+- `alcotest` - Testing framework
+- `qcheck` - Property-based testing
+- `odoc` - Documentation generation
+
+---
+
+## Usage
+
+### How do I create a simple bot?
+
+```ocaml
+let () =
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+
+  Eio_main.run @@ fun env ->
+  let client = Telegram.Client.create ~env ~token () in
+
+  let handler update =
+    let open Telegram_generated.Gen_types in
+    match update.Update.message with
+    | Some msg ->
+        let chat_id = Telegram.Id.Chat.of_int msg.Message.chat.Chat.id in
+        let text = Option.value msg.Message.text ~default:"" in
+        if text <> "" then
+          ignore (Gen_methods.send_message client ~chat_id ~text:("Echo: " ^ text) ())
+    | None -> ()
+  in
+
+  Tg.Polling.run client ~handler
+```
+
+See `examples/` directory for more complete examples.
+
+### How do I handle commands?
+
+Parse commands from message text:
+
+```ocaml
+let handle_update update =
+  let open Telegram_generated.Gen_types in
+  match update.Update.message with
+  | Some msg when String.starts_with ~prefix:"/" (Option.value msg.Message.text ~default:"") ->
+      let chat_id = Telegram.Id.Chat.of_int msg.Message.chat.Chat.id in
+      let text = Option.value msg.Message.text ~default:"" in
+
+      (* Parse command *)
+      let parts = String.split_on_char ' ' text in
+      let cmd = List.hd parts in
+      let args = List.tl parts in
+
+      (match cmd with
+       | "/start" ->
+           Gen_methods.send_message client ~chat_id ~text:"Welcome!" ()
+       | "/help" ->
+           Gen_methods.send_message client ~chat_id ~text:"Commands: /start, /help" ()
+       | _ ->
+           Gen_methods.send_message client ~chat_id ~text:"Unknown command" ())
+  | _ -> Ok ()
+```
+
+### How do I send photos or files?
+
+```ocaml
+(* Send from local file path - streaming upload *)
+Gen_methods.send_photo client ~chat_id ~photo:"path/to/photo.jpg" ~caption:"My photo" ()
+
+(* Send from URL *)
+Gen_methods.send_photo client ~chat_id ~photo:"https://example.com/photo.jpg" ()
+
+(* Send by file_id (already on Telegram servers) *)
+Gen_methods.send_photo client ~chat_id ~photo:"AgACAgIAAxkBAAI..." ()
+
+(* Send document *)
+Gen_methods.send_document client ~chat_id ~document:"document.pdf" ~caption:"Here's the doc" ()
+```
+
+### How do I create keyboards?
+
+```ocaml
+(* Reply keyboard - persistent buttons *)
+let keyboard = Keyboard.reply [
+  ["Button 1"; "Button 2"];
+  ["Button 3"];
+] in
+let reply_markup = Yojson.Safe.to_string keyboard in
+Gen_methods.send_message client ~chat_id ~text:"Choose:" ~reply_markup ()
+
+(* Inline keyboard - buttons with callbacks *)
+let buttons = [
+  [Keyboard.callback ~text:"Option A" ~data:"opt_a"];
+  [Keyboard.callback ~text:"Option B" ~data:"opt_b"];
+] in
+let reply_markup = Keyboard.inline buttons in
+Gen_methods.send_message client ~chat_id ~text:"Pick one:" ~reply_markup ()
+```
+
+### How do I handle callback queries?
+
+```ocaml
+let handle_update update =
+  let open Telegram_generated.Gen_types in
+  match update.Update.callback_query with
+  | Some callback ->
+      let data = Option.value callback.CallbackQuery.data ~default:"" in
+
+      (* Process callback data *)
+      (match data with
+       | "opt_a" -> handle_option_a ()
+       | "opt_b" -> handle_option_b ()
+       | _ -> ());
+
+      (* Always answer callback queries *)
+      Gen_methods.answer_callback_query client
+        ~callback_query_id:callback.CallbackQuery.id
+        ~text:"Received!" ()
+  | None -> Ok ()
+```
+
+### How do I handle errors?
+
+Use pattern matching on Result:
+
+```ocaml
+match Gen_methods.send_message client ~chat_id ~text () with
+| Ok message ->
+    Printf.printf "Sent message ID: %d\n" message.Message.message_id;
+    Ok ()
+| Error err ->
+    Printf.eprintf "Error: %a\n" Telegram.Error.pp err;
+    Error err
+```
+
+Or use Result syntax for composition:
+
+```ocaml
+let open Telegram.Result_syntax in
+let* msg1 = Gen_methods.send_message client ~chat_id ~text:"First" () in
+let* msg2 = Gen_methods.send_message client ~chat_id ~text:"Second" () in
+Ok (msg1, msg2)
+```
+
+### How do I implement retry logic?
+
+```ocaml
+let rec send_with_retry ~max_retries client ~chat_id ~text =
+  match Gen_methods.send_message client ~chat_id ~text () with
+  | Ok msg -> Ok msg
+  | Error err when max_retries > 0 && Telegram.Error.is_retryable err ->
+      (* Wait before retry *)
+      (match Telegram.Error.retry_after err with
+       | Some seconds -> Eio.Time.sleep clock (float_of_int seconds)
+       | None -> Eio.Time.sleep clock 1.0);
+      send_with_retry ~max_retries:(max_retries - 1) client ~chat_id ~text
+  | Error err -> Error err
+```
+
+---
+
+## Architecture
+
+### What's the difference between Telegram.* and Tg.*?
+
+**Telegram.*** - Low-level, generated API:
+- `Telegram.Client` - HTTP client and core plumbing
+- `Telegram.Id` - Phantom-typed identifiers
+- `Telegram.Error` - Error types and utilities
+- `Telegram_generated.Gen_types` - All Bot API types (auto-generated)
+- `Telegram_generated.Gen_methods` - All Bot API methods (auto-generated)
+
+**Tg.*** - High-level, ergonomic DSL:
+- `Tg.Polling` - Long polling runner
+- `Tg.Keyboard` - Keyboard builders
+- `Tg.Msg` - Message builders (when fully implemented)
+- `Tg.Bot` - Router and context (when fully implemented)
+
+**When to use which:**
+- Start with `Telegram_generated.Gen_methods` - fully functional, type-safe
+- Use `Tg.*` for helpers like `Polling`, `Keyboard`
+- High-level Bot DSL is partially implemented - use generated methods for now
+
+### Why are types auto-generated?
+
+**Reasons:**
+1. **Always up-to-date**: Regenerate from Bot API spec when Telegram updates
+2. **Consistency**: All types follow same patterns
+3. **Completeness**: All 449 types, 232 methods covered
+4. **Forward compatibility**: Unknown field preservation built-in
+5. **Correctness**: Less room for manual errors
+
+**How to regenerate:**
+```bash
+./scripts/regenerate.sh
+```
+
+### What are phantom types and why use them?
+
+Phantom types are type parameters that don't appear at runtime but provide compile-time safety:
+
+```ocaml
+type +'k t  (* 'k is phantom - not used in implementation *)
+
+module Chat : sig
+  type k
+  val of_int : int64 -> k Id.t
+end
+
+module User : sig
+  type k
+  val of_int : int64 -> k Id.t
+end
+```
+
+**Benefits:**
+- Can't pass `User.t` where `Chat.t` is expected
+- Self-documenting code
+- Zero runtime overhead
+- Type errors caught at compile time
+
+---
+
+## Troubleshooting
+
+### My bot isn't receiving updates
+
+**Check:**
+1. Is long polling running? Call `Tg.Polling.run client ~handler`
+2. Is your token correct? Test with `getMe`:
+   ```ocaml
+   match Gen_methods.get_me client () with
+   | Ok me -> Printf.printf "Bot: @%s\n" (Option.value me.User.username ~default:"")
+   | Error e -> Printf.eprintf "Error: %a\n" Telegram.Error.pp e
+   ```
+3. Is webhook interfering? Disable webhooks:
+   ```ocaml
+   Gen_methods.delete_webhook client ()
+   ```
+
+### I get "Conflict: terminated by other getUpdates request"
+
+**Problem**: Multiple polling instances running for same bot.
+
+**Solutions:**
+1. Stop other bot instances
+2. Use `delete_webhook` if webhook was configured
+3. Ensure only one polling loop per bot token
+
+### File uploads fail with "Request Entity Too Large"
+
+**Problem**: File exceeds Telegram limits.
+
+**Limits:**
+- Photos: 10 MB
+- Other files: 50 MB via Bot API
+- To send larger files: use `send_document` and file URLs
+
+**Solution:**
+```ocaml
+(* Check file size first *)
+let size = (Unix.stat path).st_size in
+if size > 50_000_000 then
+  Error "File too large"
+else
+  Gen_methods.send_document client ~chat_id ~document:path ()
+```
+
+### I get type errors with message.chat.id
+
+**Problem**: Generated types have `int64` but methods need `Id.Chat.t`.
+
+**Solution**: Convert IDs:
+```ocaml
+let chat_id_raw = msg.Message.chat.Chat.id in  (* int64 *)
+let chat_id = Telegram.Id.Chat.of_int chat_id_raw in  (* Id.Chat.t *)
+Gen_methods.send_message client ~chat_id ~text ()
+```
+
+### Error: "Unbound module Telegram_generated"
+
+**Problem**: Generated code not built.
+
+**Solution:**
+```bash
+# Regenerate and build
+./scripts/regenerate.sh
+dune build
+```
+
+### How do I enable debug logging?
+
+Currently the library doesn't have built-in logging (Task 11.1 pending).
+
+**Workaround**: Add your own logging:
+```ocaml
+let handle_update update =
+  Printf.eprintf "[DEBUG] Received update: %d\n" update.Update.update_id;
+  flush stderr;
+  (* Handle update *)
+```
+
+### My keyboard buttons don't show up
+
+**For reply keyboards:**
+- Make sure to send `reply_markup` parameter
+- Convert keyboard to JSON string: `Yojson.Safe.to_string (Keyboard.reply ...)`
+
+**For inline keyboards:**
+- Use `Keyboard.inline` with callback buttons
+- Inline keyboards must have at least one button
+
+**Example:**
+```ocaml
+let keyboard = Keyboard.reply [["Button"]] in
+let reply_markup = Yojson.Safe.to_string keyboard in
+Gen_methods.send_message client ~chat_id ~text:"Test" ~reply_markup ()
+```
+
+---
+
+## Advanced Topics
+
+### Can I use webhooks instead of polling?
+
+Yes, webhook support is implemented (`Tg.Webhook`):
+
+```ocaml
+let handler _request update =
+  (* Process update *)
+  handle_update update;
+  (* Return response *)
+  Cohttp.Response.make ~status:`OK ()
+
+let () =
+  Eio_main.run @@ fun env ->
+  let client = Telegram.Client.create ~env ~token () in
+
+  (* Configure webhook *)
+  let webhook_url = "https://example.com/webhook" in
+  let* () = Gen_methods.set_webhook client ~url:webhook_url () in
+
+  (* Start webhook server *)
+  Tg.Webhook.run ~port:8443 ~handler client
+```
+
+### How do I handle rate limits?
+
+Currently not built-in (Task 10.1 pending).
+
+**Implement yourself:**
+```ocaml
+let rate_limiter = ref 0.0
+
+let send_with_rate_limit client ~chat_id ~text =
+  let now = Unix.gettimeofday () in
+  let delay = max 0.0 (!rate_limiter -. now) in
+
+  if delay > 0.0 then
+    Eio.Time.sleep clock delay;
+
+  rate_limiter := Unix.gettimeofday () +. 0.05;  (* 20 msg/sec *)
+  Gen_methods.send_message client ~chat_id ~text ()
+```
+
+### Can I send messages concurrently?
+
+Yes, use Eio fibers:
+
+```ocaml
+let send_to_multiple_chats client chats text =
+  Eio.Fiber.all (List.map (fun chat_id ->
+    fun () -> Gen_methods.send_message client ~chat_id ~text ()
+  ) chats)
+```
+
+**Note**: Respect Telegram rate limits when sending to many chats.
+
+### How do I parse entities (mentions, links, etc.)?
+
+Message entities are in `message.entities`:
+
+```ocaml
+let extract_mentions msg =
+  match msg.Message.entities with
+  | Some entities ->
+      List.filter_map (fun entity ->
+        match entity.MessageEntity.type_ with
+        | "mention" ->
+            let text = Option.value msg.Message.text ~default:"" in
+            let offset = Int64.to_int entity.MessageEntity.offset in
+            let length = Int64.to_int entity.MessageEntity.length in
+            Some (String.sub text offset length)
+        | _ -> None
+      ) entities
+  | None -> []
+```
+
+### How do I implement conversation state?
+
+Store state externally (database, in-memory map):
+
+```ocaml
+let user_states : (int64, string) Hashtbl.t = Hashtbl.create 100
+
+let handle_message msg =
+  let user_id = msg.Message.from.User.id in
+  let state = Hashtbl.find_opt user_states user_id in
+
+  match state with
+  | Some "awaiting_name" ->
+      let name = Option.value msg.Message.text ~default:"" in
+      Hashtbl.replace user_states user_id "awaiting_age";
+      send_message client ~chat_id ~text:("Hi " ^ name ^ "! How old are you?") ()
+  | Some "awaiting_age" ->
+      Hashtbl.remove user_states user_id;
+      send_message client ~chat_id ~text:"Thanks!" ()
+  | None ->
+      Hashtbl.add user_states user_id "awaiting_name";
+      send_message client ~chat_id ~text:"What's your name?" ()
+```
+
+**Note**: Session support (Tg.Session) is designed but not fully implemented.
+
+### How do I test my bot?
+
+**Unit testing**:
+```ocaml
+let test_command_parsing () =
+  let cmd, args = parse_command "/start arg1 arg2" in
+  Alcotest.(check string) "command" "/start" cmd;
+  Alcotest.(check (list string)) "args" ["arg1"; "arg2"] args
+
+let () =
+  Alcotest.run "bot" [
+    "parsing", [
+      Alcotest.test_case "commands" `Quick test_command_parsing;
+    ];
+  ]
+```
+
+**Integration testing**:
+See `test/integration_test.ml` for examples using local Bot API server.
+
+---
+
+## Contributing
+
+### How can I contribute?
+
+1. **Report bugs**: Open issues on GitHub
+2. **Submit PRs**: See [CONTRIBUTING.md](../CONTRIBUTING.md)
+3. **Documentation**: Improve docs, add examples
+4. **Testing**: Add tests, report edge cases
+
+### How do I regenerate types after Bot API updates?
+
+```bash
+# Download latest Bot API reference
+curl -o reference/api.html https://core.telegram.org/bots/api
+
+# Regenerate types and methods
+./scripts/regenerate.sh
+
+# Run tests
+dune runtest
+
+# Check no regressions
+dune build @all
+```
+
+### Where should I add new features?
+
+**Follow the layering:**
+- Core types/JSON: `src/types.ml`, `src/json_compat.ml`
+- HTTP/client: `src/client.ml`, `src/http.ml`
+- Generated: Don't edit directly - modify code generator in `bin/`
+- High-level DSL: `src/bot.ml`, `src/msg.ml`, `src/keyboard.ml`
+- Examples: `examples/`
+
+---
+
+## See Also
+
+- [Migration Guide](MIGRATION.md) - Migrating from other libraries or Lwt/Async
+- [API Design](../API_DESIGN.md) - Detailed design rationale
+- [Contributing](../CONTRIBUTING.md) - Development workflow
+- [Examples](../examples/) - Working code examples

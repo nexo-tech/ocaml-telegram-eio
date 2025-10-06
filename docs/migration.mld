@@ -1,0 +1,515 @@
+{0 Migration Guide}
+
+This guide helps you migrate to [ocaml_telegram_eio] from other Telegram bot libraries or from traditional callback-based OCaml code to Eio's direct-style concurrency.
+
+## Table of Contents
+
+- [Migration from telegram-bot-simple (Haskell-inspired)](#migration-from-telegram-bot-simple)
+- [Migration from Lwt/Async to Eio](#migration-from-lwtasync-to-eio)
+- [Migration from synchronous OCaml code](#migration-from-synchronous-ocaml-code)
+- [Migrating from raw Telegram Bot API calls](#migrating-from-raw-telegram-bot-api-calls)
+- [Key differences and design decisions](#key-differences-and-design-decisions)
+
+---
+
+## Migration from telegram-bot-simple
+
+If you're coming from Haskell's `telegram-bot-simple` or similar declarative bot frameworks, you'll find familiar patterns in `ocaml-telegram-eio`.
+
+### Basic bot structure
+
+**Before (conceptual Haskell-like):**
+```haskell
+bot :: BotApp Model Action
+bot = BotApp
+  { botInitialModel = ()
+  , botAction = updateToAction
+  , botHandler = handleAction
+  , botJobs = []
+  }
+```
+
+**After (ocaml-telegram-eio):**
+```ocaml
+let () =
+  Eio_main.run @@ fun env ->
+  let client = Telegram.Client.create ~env ~token () in
+  let handler update =
+    (* Handle updates *)
+    match update.Update.message with
+    | Some msg -> handle_message client msg
+    | None -> ()
+  in
+  Tg.Polling.run client ~handler
+```
+
+### Command handling
+
+**Before:**
+```haskell
+handleAction :: Action -> Model -> Eff Action Model
+handleAction action model = case action of
+  Help -> model <# do
+    reply "Available commands: /start, /help"
+  Start -> ...
+```
+
+**After:**
+```ocaml
+let handle_update update =
+  let open Telegram_generated.Gen_types in
+  match update.Update.message with
+  | Some msg ->
+      let chat_id = Telegram.Id.Chat.of_int msg.Message.chat.Chat.id in
+      let text = Option.value msg.Message.text ~default:"" in
+
+      (match parse_command text with
+       | Some "/start" ->
+           let* _ = Gen_methods.send_message client ~chat_id ~text:"Welcome!" () in
+           Ok ()
+       | Some "/help" ->
+           let* _ = Gen_methods.send_message client ~chat_id ~text:"Available commands..." () in
+           Ok ()
+       | _ -> Ok ())
+  | None -> Ok ()
+```
+
+### Keyboard creation
+
+**Before:**
+```haskell
+replyKeyboardMarkup [["Button 1", "Button 2"], ["Button 3"]]
+```
+
+**After:**
+```ocaml
+let keyboard = Keyboard.reply [
+  ["Button 1"; "Button 2"];
+  ["Button 3"];
+] in
+let reply_markup = Yojson.Safe.to_string keyboard in
+Gen_methods.send_message client ~chat_id ~text:"Choose:" ~reply_markup ()
+```
+
+### Inline keyboards with callbacks
+
+**Before:**
+```haskell
+inlineKeyboardMarkup [[callbackButton "Click me" "callback_data"]]
+```
+
+**After:**
+```ocaml
+let buttons = [
+  [Keyboard.callback ~text:"Click me" ~data:"callback_data"];
+] in
+let reply_markup = Keyboard.inline buttons in
+Gen_methods.send_message client ~chat_id ~text:"Click:" ~reply_markup ()
+```
+
+---
+
+## Migration from Lwt/Async to Eio
+
+### Concurrent operations
+
+**Before (Lwt):**
+```ocaml
+let%lwt result1 = fetch_data1 () in
+let%lwt result2 = fetch_data2 () in
+Lwt.return (result1 + result2)
+
+(* Or parallel: *)
+let%lwt result1, result2 = Lwt.both (fetch_data1 ()) (fetch_data2 ()) in
+Lwt.return (result1 + result2)
+```
+
+**After (Eio):**
+```ocaml
+(* Sequential *)
+let result1 = fetch_data1 () in
+let result2 = fetch_data2 () in
+result1 + result2
+
+(* Parallel with fibers *)
+Eio.Fiber.both
+  (fun () -> fetch_data1 ())
+  (fun () -> fetch_data2 ())
+|> fun (result1, result2) -> result1 + result2
+```
+
+### Error handling
+
+**Before (Lwt):**
+```ocaml
+Lwt.catch
+  (fun () -> send_message ~chat_id ~text)
+  (function
+   | Api_error msg -> handle_error msg
+   | exn -> Lwt.fail exn)
+```
+
+**After (Eio with Result):**
+```ocaml
+match Gen_methods.send_message client ~chat_id ~text () with
+| Ok message -> (* success *)
+| Error err ->
+    match err with
+    | Telegram.Error.Api_error { error_code; description; _ } ->
+        (* Handle specific error *)
+    | _ -> (* Handle other errors *)
+```
+
+### Streaming and backpressure
+
+**Before (Lwt_stream):**
+```ocaml
+let stream = Lwt_stream.from (fun () ->
+  match%lwt get_update () with
+  | Some update -> Lwt.return (Some update)
+  | None -> Lwt.return None
+) in
+Lwt_stream.iter_s process_update stream
+```
+
+**After (Eio):**
+```ocaml
+(* Eio handles backpressure naturally with structured concurrency *)
+Tg.Polling.run client ~handler:(fun update ->
+  (* Process update - backpressure is automatic *)
+  process_update update
+)
+```
+
+### Timeouts
+
+**Before (Lwt):**
+```ocaml
+Lwt.pick [
+  send_message ~chat_id ~text;
+  Lwt_unix.sleep 5.0 >>= fun () -> Lwt.fail Timeout
+]
+```
+
+**After (Eio):**
+```ocaml
+(* Set timeout when creating client *)
+let client = Telegram.Client.create ~env ~token
+  ~http_timeout:(Some 5.0) () in
+
+(* Or use Eio's timeout primitives *)
+Eio.Time.with_timeout clock 5.0
+  (fun () -> Gen_methods.send_message client ~chat_id ~text ())
+```
+
+---
+
+## Migration from synchronous OCaml code
+
+### Basic I/O
+
+**Before (blocking):**
+```ocaml
+let content = In_channel.read_all "file.txt" in
+let response = Http_client.post ~body:content url in
+print_endline response
+```
+
+**After (Eio):**
+```ocaml
+Eio_main.run @@ fun env ->
+  let fs = Eio.Stdenv.fs env in
+  let content = Eio.Path.(load (fs / "file.txt")) in
+
+  let client = Telegram.Client.create ~env ~token () in
+  match Gen_methods.send_document client ~chat_id ~document:content () with
+  | Ok _ -> Eio.traceln "Sent!"
+  | Error e -> Eio.traceln "Error: %a" Telegram.Error.pp e
+```
+
+### File uploads
+
+**Before:**
+```ocaml
+let ch = open_in_bin "photo.jpg" in
+let data = really_input_string ch (in_channel_length ch) in
+close_in ch;
+send_photo ~chat_id ~photo:data
+```
+
+**After:**
+```ocaml
+(* Direct path - streaming upload *)
+Gen_methods.send_photo client ~chat_id ~photo:"photo.jpg" ()
+
+(* Or with explicit file handling *)
+Eio.Path.with_open_in (fs / "photo.jpg") @@ fun file ->
+  Gen_methods.send_photo client ~chat_id ~photo:"photo.jpg" ()
+```
+
+---
+
+## Migrating from raw Telegram Bot API calls
+
+### From HTTP requests to typed methods
+
+**Before (raw HTTP/JSON):**
+```ocaml
+let json = `Assoc [
+  ("chat_id", `Int 123456789);
+  ("text", `String "Hello");
+  ("parse_mode", `String "Markdown");
+] in
+let response = post_json "https://api.telegram.org/bot{token}/sendMessage" json in
+match response with
+| `Assoc [("ok", `Bool true); ("result", result)] -> parse_message result
+| `Assoc [("ok", `Bool false); ("description", `String err)] -> handle_error err
+| _ -> failwith "Unexpected response"
+```
+
+**After (typed):**
+```ocaml
+match Gen_methods.send_message client ~chat_id ~text:"Hello" ~parse_mode:"Markdown" () with
+| Ok (message : Telegram_generated.Gen_types.Message.t) ->
+    (* Work with typed message *)
+    Printf.printf "Message ID: %d\n" message.message_id
+| Error err ->
+    Printf.eprintf "Error: %a\n" Telegram.Error.pp err
+```
+
+### ID handling
+
+**Before (raw int64 or strings):**
+```ocaml
+let chat_id = 123456789L in
+let user_id = 987654321L in
+(* Easy to mix up or pass wrong ID type *)
+```
+
+**After (phantom types):**
+```ocaml
+let chat_id = Telegram.Id.Chat.of_int 123456789L in
+let user_id = Telegram.Id.User.of_int 987654321L in
+(* Type system prevents mixing up different ID types *)
+
+(* Also supports usernames *)
+let channel = Telegram.Id.Chat.of_string "@mychannel" in
+```
+
+### Error handling
+
+**Before:**
+```ocaml
+match error_code with
+| 429 ->
+    let retry_after = get_field "retry_after" json in
+    sleep retry_after; retry ()
+| 400 -> handle_bad_request ()
+| _ -> failwith "Unknown error"
+```
+
+**After:**
+```ocaml
+match Gen_methods.send_message client ~chat_id ~text () with
+| Ok msg -> Ok msg
+| Error err ->
+    if Telegram.Error.is_retryable err then
+      match Telegram.Error.retry_after err with
+      | Some seconds ->
+          Eio.Time.sleep clock (float_of_int seconds);
+          Gen_methods.send_message client ~chat_id ~text ()
+      | None -> Error err
+    else Error err
+```
+
+---
+
+## Key differences and design decisions
+
+### 1. Result types instead of exceptions
+
+**Design choice:** The library uses `('a, Error.t) result` for all API calls instead of raising exceptions.
+
+**Rationale:**
+- Explicit error handling at the call site
+- Composable with `Result` syntax (`let*` bindings)
+- Works naturally with Eio's structured concurrency
+
+**Usage:**
+```ocaml
+(* Use pattern matching *)
+match Gen_methods.send_message client ~chat_id ~text () with
+| Ok msg -> process_message msg
+| Error e -> handle_error e
+
+(* Or use Result syntax for composition *)
+let open Telegram.Result_syntax in
+let* msg = Gen_methods.send_message client ~chat_id ~text:"Hello" () in
+let* reply = Gen_methods.send_message client ~chat_id ~text:"World" () in
+Ok (msg, reply)
+```
+
+### 2. Direct-style concurrency (Eio)
+
+**Design choice:** Use Eio's effects-based direct-style I/O instead of monadic I/O (Lwt/Async).
+
+**Rationale:**
+- Code looks like synchronous code but is fully concurrent
+- Structured concurrency prevents resource leaks
+- Better performance (no monadic overhead)
+- Natural backpressure handling
+
+**Migration tip:** Remove `let%lwt`, `Lwt.return`, `>>=` and use direct function calls.
+
+### 3. Phantom-typed IDs
+
+**Design choice:** Use phantom types for different ID kinds (Chat, User, Message, etc.).
+
+**Rationale:**
+- Prevents accidentally passing wrong ID type
+- Self-documenting code
+- Zero runtime overhead
+
+**Migration:** Wrap raw IDs with appropriate constructors:
+```ocaml
+(* Before *)
+send_message 123456789L "text"
+
+(* After *)
+send_message (Telegram.Id.Chat.of_int 123456789L) "text"
+```
+
+### 4. Generated types with unknown field preservation
+
+**Design choice:** Auto-generate types from Telegram Bot API spec, preserve unknown fields.
+
+**Rationale:**
+- Always up-to-date with Bot API
+- Forward compatibility (new fields don't break decoding)
+- Consistent naming and structure
+
+**Migration:** Update your type usage to match generated types. Fields use `snake_case`:
+```ocaml
+(* Access generated types *)
+let open Telegram_generated.Gen_types in
+msg.Message.chat.Chat.id
+msg.Message.text
+```
+
+### 5. Layered API design
+
+**Design choice:** Three layers - Generated methods, Core client, High-level DSL (Tg).
+
+**Rationale:**
+- Flexibility: use low-level for full control, high-level for ergonomics
+- Testability: inject different layers
+- Extensibility: add custom helpers without modifying core
+
+**Usage:**
+```ocaml
+(* Low-level: generated methods *)
+Telegram_generated.Gen_methods.send_message client ~chat_id ~text ()
+
+(* High-level: DSL (when fully implemented) *)
+Tg.Msg.text "Hello" |> Tg.Msg.to_ chat_id |> Tg.Bot.send ctx
+```
+
+### 6. Streaming file uploads
+
+**Design choice:** Stream large files using Eio flows instead of loading into memory.
+
+**Rationale:**
+- Constant memory usage regardless of file size
+- Better performance for large media
+- Natural with Eio's resource management
+
+**Migration:**
+```ocaml
+(* Before: load entire file *)
+let data = read_file "large_video.mp4" in
+send_video ~chat_id ~video:data
+
+(* After: stream from path *)
+Gen_methods.send_video client ~chat_id ~video:"large_video.mp4" ()
+```
+
+---
+
+## Common patterns
+
+### Polling loop with graceful shutdown
+
+```ocaml
+let () =
+  Eio_main.run @@ fun env ->
+  let client = Telegram.Client.create ~env ~token () in
+
+  (* Polling runs until interrupted *)
+  Tg.Polling.run client ~handler:(fun update ->
+    match update.Update.message with
+    | Some msg -> handle_message client msg
+    | None -> ()
+  )
+```
+
+### Concurrent message processing
+
+```ocaml
+let handle_update update =
+  Eio.Fiber.both
+    (fun () -> process_message update)
+    (fun () -> log_update update)
+  |> ignore
+```
+
+### Retry with exponential backoff
+
+```ocaml
+let rec send_with_retry ~retries client ~chat_id ~text =
+  match Gen_methods.send_message client ~chat_id ~text () with
+  | Ok msg -> Ok msg
+  | Error err when retries > 0 && Telegram.Error.is_retryable err ->
+      let backoff = 2.0 ** float_of_int (5 - retries) in
+      Eio.Time.sleep clock backoff;
+      send_with_retry ~retries:(retries - 1) client ~chat_id ~text
+  | Error err -> Error err
+```
+
+### Type-safe callback data
+
+```ocaml
+(* Define your callback actions *)
+type callback_action =
+  | LikePost of int
+  | SharePost of int
+  | DeletePost of int
+[@@deriving yojson]
+
+(* Handle callback queries *)
+match update.Update.callback_query with
+| Some callback ->
+    let data = Option.value callback.CallbackQuery.data ~default:"" in
+    (match callback_action_of_yojson (Yojson.Safe.from_string data) with
+     | Ok (LikePost post_id) -> handle_like post_id
+     | Ok (SharePost post_id) -> handle_share post_id
+     | Ok (DeletePost post_id) -> handle_delete post_id
+     | Error _ -> (* handle invalid callback data *))
+| None -> ()
+```
+
+---
+
+## Getting help
+
+- **Documentation**: See `docs/` directory and run `dune build @doc`
+- **Examples**: Check `examples/` for working code
+- **Issues**: Report bugs or ask questions on GitHub
+- **API Reference**: Generated docs at `_build/default/_doc/_html/`
+
+---
+
+## See also
+
+- [FAQ](FAQ.md) - Frequently asked questions
+- [API_DESIGN.md](../API_DESIGN.md) - Detailed API design rationale
+- [CONTRIBUTING.md](../CONTRIBUTING.md) - Development workflow and spec regeneration

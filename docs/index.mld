@@ -143,6 +143,8 @@ See the {e examples/} directory for complete, runnable examples:
 {1 Further Reading}
 
 - {{:https://core.telegram.org/bots/api}Telegram Bot API Documentation}
+- {{!page-migration}Migration Guide} - Migrating from other libraries or Lwt/Async to Eio
+- {{!page-faq}FAQ} - Frequently asked questions and troubleshooting
 - See [API_DESIGN.md] for library design philosophy
 - See [CONTRIBUTING.md] for development guide
 
