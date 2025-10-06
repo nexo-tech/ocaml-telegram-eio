@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This is the first alpha release of ocaml-telegram-eio, a production-grade Telegram Bot API
 client library for OCaml 5.x built on Eio for structured concurrency.
 
+**Bot API Version:** 9.2 (October 2025)
+
 #### Core Infrastructure (Phase 1)
 - Layered architecture: Core types, HTTP abstraction, Low-level API, High-level DSL
 - Result-based error handling (no exceptions by default)

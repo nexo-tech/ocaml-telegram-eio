@@ -64,6 +64,7 @@ dune exec examples/echo_bot.exe
 - **[Examples](examples/)** - Working bot examples
 - **[CHANGELOG](CHANGELOG.md)** - Version history and release notes
 - **[VERSIONING](VERSIONING.md)** - Semantic versioning policy
+- **[COMPATIBILITY](COMPATIBILITY.md)** - Bot API compatibility and update policy
 
 ## Architecture
 
@@ -129,8 +130,8 @@ dune build @doc
 ### Regenerate Types from Bot API Spec
 
 ```bash
-# Download latest spec
-curl -o reference/api.html https://core.telegram.org/bots/api
+# Download latest specification from Telegram
+./scripts/bootstrap.sh
 
 # Regenerate types and methods
 ./scripts/regenerate.sh
