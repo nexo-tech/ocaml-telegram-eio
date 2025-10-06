@@ -1,4 +1,39 @@
-(** Execute a typed request. *)
+(** Type-safe Telegram Bot API methods.
+
+    This module provides functions for calling all Telegram Bot API methods.
+    It includes both low-level primitives ([call], [call_method]) and
+    high-level, auto-generated type-safe wrappers for each API method.
+
+    The API methods are generated from the official Telegram Bot API specification
+    and provide compile-time type safety for all parameters and return types.
+
+    {2 Making API Calls}
+
+    {[
+      (* Type-safe method call *)
+      let req = Api.send_message ~chat_id ~text:"Hello!" () in
+      match Api.call client req with
+      | Ok message -> (* Message.t *)
+      | Error err -> (* Error.t *)
+
+      (* With result syntax *)
+      let open Result_syntax in
+      let* message = Api.call client (Api.send_message ~chat_id ~text ()) in
+      let* photo = Api.call client (Api.send_photo ~chat_id ~photo ()) in
+      Ok ()
+    ]}
+
+    @see <https://core.telegram.org/bots/api> Official API documentation
+*)
+
+(** [call client request] executes a typed API request.
+
+    This is the primary way to make API calls. Each API method returns a
+    [Request.t] value that can be executed with [call].
+
+    Returns [Ok result] on success, or [Error err] if the request fails.
+    Use {!Error.is_retryable} to determine if an error can be retried.
+*)
 val call : Client.t -> 'a Request.t -> ('a, Error.t) result
 
 (** Call a method with JSON parameters (legacy, for simple requests). *)

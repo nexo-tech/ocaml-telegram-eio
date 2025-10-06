@@ -1,5 +1,60 @@
-(* Public signatures referencing Telegram modules explicitly to avoid unused opens *)
+(** High-level bot DSL with type-safe routing and session management.
 
+    This module provides an elegant, functional API for building Telegram bots
+    with minimal boilerplate. It includes event routing, command parsing,
+    entity extraction, and type-safe session management.
+
+    {2 Quick Example}
+
+    {[
+      open Bot
+
+      let bot client =
+        Bot.make client
+        |> Bot.command "start" (fun ctx _args ->
+            ctx#reply "Welcome! Use /help for commands"
+          )
+        |> Bot.command "echo" (fun ctx args ->
+            let text = Args.join_rest args 0 in
+            ctx#reply text
+          )
+        |> Bot.on Event.text (fun ctx text ->
+            ctx#reply ("You said: " ^ text)
+          )
+    ]}
+
+    {2 Event Routing}
+
+    Route updates to handlers based on event patterns:
+
+    {[
+      bot
+      |> on Event.message (fun ctx msg -> ...)
+      |> on Event.text (fun ctx text -> ...)
+      |> on (Event.command "help") (fun ctx args -> ...)
+      |> on Event.callback (fun ctx data -> ...)
+      |> on Event.inline_query (fun ctx query -> ...)
+    ]}
+
+    {2 Session Management}
+
+    Type-safe sessions with phantom types:
+
+    {[
+      type state = { count : int }
+
+      let counter_key = Session.key "counter"
+
+      let handler ctx =
+        let* state = ctx#get counter_key |> Result.value ~default:{ count = 0 } in
+        let new_state = { count = state.count + 1 } in
+        let* () = ctx#set counter_key new_state in
+        ctx#reply (Printf.sprintf "Count: %d" new_state.count)
+    ]}
+*)
+
+(** Bot context with session state of type ['s].
+    Provides methods for sending messages, accessing the update, and managing sessions. *)
 type +'s ctx
 
 module Event : sig

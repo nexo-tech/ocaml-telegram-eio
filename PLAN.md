@@ -118,7 +118,7 @@ Phase 12 — Testing & QA (5/5) ✓ COMPLETE
 - [x] Task 12.5 Concurrency tests under Eio switches
 
 Phase 13 — Docs & Examples (2/4)
-- [ ] Task 13.1 API docs via odoc, hosted
+- [x] Task 13.1 API docs via odoc, hosted
 - [ ] Task 13.2 Examples — PARTIAL: echo_polling.ml, send_photo.ml (stubs)
 - [ ] Task 13.3 Migration guide and FAQ
 - [x] Task 13.4 Reference to spec sync and regeneration (CONTRIBUTING.md)

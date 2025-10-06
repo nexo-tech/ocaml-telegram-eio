@@ -68,8 +68,10 @@ val make :
     Only retries on errors where Error.is_retryable returns true.
 
     Example:
-      Retry.with_config config @@ fun () ->
-        Api.call client request
+      {[
+        Retry.with_config config @@ fun () ->
+          Api.call client request
+      ]}
 *)
 val with_config : config -> (unit -> ('a, Error.t) result) -> ('a, Error.t) result
 
