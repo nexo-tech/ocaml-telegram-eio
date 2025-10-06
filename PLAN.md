@@ -16,7 +16,7 @@ Principles
 
 Master Checklist
 
-**Completion: 45/92 tasks (49%)**
+**Completion: 46/92 tasks (50%)**
 
 Phase 1 — Architecture & Tooling (10/10 ✓)
 - [x] Task 1.1 Decide core architecture, layering, and error strategy
@@ -123,8 +123,8 @@ Phase 13 — Docs & Examples (4/4) ✓ COMPLETE
 - [x] Task 13.3 Migration guide and FAQ — COMPLETED: comprehensive migration guide (Lwt/Async/Haskell) and FAQ with troubleshooting
 - [x] Task 13.4 Reference to spec sync and regeneration (CONTRIBUTING.md)
 
-Phase 14 — Packaging & Release (0/3)
-- [ ] Task 14.1 opam packaging — PARTIAL: basic opam file only
+Phase 14 — Packaging & Release (1/3)
+- [x] Task 14.1 opam packaging — COMPLETED: comprehensive opam file with all dependencies, metadata, LICENSE, and README
 - [ ] Task 14.2 Semantic versioning and changelog
 - [ ] Task 14.3 Compatibility policy with Bot API versions
 

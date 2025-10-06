@@ -1,13 +1,63 @@
 (lang dune 3.7)
 (name ocaml_telegram_eio)
-(generate_opam_files false)
+(version 0.1.0)
+(generate_opam_files true)
+
+(source (github yourusername/ocaml-telegram-eio))
+(license MIT)
+(authors "Oleg Pustovit <oleg@nexo.sh>")
+(maintainers "Oleg Pustovit <oleg@nexo.sh>")
 
 (package
  (name ocaml_telegram_eio)
- (synopsis "Telegram Bot API client for OCaml (Eio)")
- (description "Ergonomic, type-safe Telegram Bot API client and DSL using Eio.")
+ (synopsis "Type-safe Telegram Bot API client for OCaml using Eio")
+ (description "\
+ocaml-telegram-eio is a production-grade Telegram Bot API client library for OCaml 5.x
+built on Eio for structured concurrency.
+
+Features:
+- Fully type-safe API with phantom-typed identifiers
+- Complete Bot API coverage: 449 types, 232 methods (auto-generated from spec)
+- Direct-style concurrency using Eio effects (no monads, no callbacks)
+- Forward-compatible: preserves unknown fields for new Bot API features
+- Streaming file uploads and downloads for efficient memory usage
+- Long polling and webhook support
+- Comprehensive error handling with Result types
+- Property-based and integration tested
+
+The library provides both low-level generated methods (Telegram_generated.Gen_methods)
+and high-level ergonomic helpers (Tg.Polling, Tg.Keyboard, etc.) for building bots.")
  (depends
-  (ocaml (>= 5.2))
-  eio
-  yojson
- ))
+  ;; Core dependencies
+  (ocaml (>= 5.1.0))
+  (dune (>= 3.7))
+
+  ;; Runtime dependencies
+  (eio (>= 0.12))
+  (eio_main (>= 0.12))
+  (yojson (>= 2.0.0))
+  (ppx_deriving (>= 5.0))
+  (ppx_deriving_yojson (>= 3.7.0))
+
+  ;; HTTP and networking
+  (cohttp (>= 5.0))
+  (cohttp-eio (>= 5.0))
+  (tls-eio (>= 0.17.0))
+  (ca-certs (>= 0.2.0))
+  (mirage-crypto-rng-eio (>= 0.11.0))
+  (uri (>= 4.0))
+  (domain-name (>= 0.4.0))
+  (cstruct (>= 6.0))
+
+  ;; Code generation and parsing
+  (re (>= 1.10.0))
+
+  ;; Test dependencies
+  (alcotest :with-test)
+  (qcheck :with-test)
+  (qcheck-alcotest :with-test)
+
+  ;; Documentation
+  (odoc :with-doc))
+ (tags
+  ("telegram" "bot" "api" "eio" "effects" "async" "concurrency")))
