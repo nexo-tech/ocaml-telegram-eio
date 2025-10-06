@@ -1,7 +1,5 @@
-# HTML specification files
-# Currently tracked in git for initial setup
-# Future: May move to download-only via bootstrap.sh
-# *.html
+# HTML specification files downloaded by bootstrap.sh
+*.html
 
-# Keep version cache metadata from bootstrap
+# Version cache metadata from bootstrap
 .version_cache
