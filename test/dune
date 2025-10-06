@@ -132,3 +132,8 @@
  (name chat_action_test)
  (libraries ocaml_telegram_eio.telegram alcotest)
  (modules chat_action_test))
+
+(test
+ (name property_test)
+ (libraries ocaml_telegram_eio.telegram qcheck qcheck-alcotest alcotest)
+ (modules property_test))
