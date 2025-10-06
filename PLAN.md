@@ -110,12 +110,12 @@ Phase 11 — Observability (0/3)
 - [ ] Task 11.2 metrics (Prometheus client) and exemplars
 - [ ] Task 11.3 tracing (OpenTelemetry) hooks
 
-Phase 12 — Testing & QA (5/5)
+Phase 12 — Testing & QA (5/5) ✓ COMPLETE
 - [x] Task 12.1 Unit tests — comprehensive coverage for core modules
 - [x] Task 12.2 Golden tests for generated types/methods
 - [x] Task 12.3 Property tests (QCheck) for JSON roundtrips
 - [x] Task 12.4 Integration tests with local Bot API server
-- [ ] Task 12.5 Concurrency tests under Eio switches
+- [x] Task 12.5 Concurrency tests under Eio switches
 
 Phase 13 — Docs & Examples (2/4)
 - [ ] Task 13.1 API docs via odoc, hosted

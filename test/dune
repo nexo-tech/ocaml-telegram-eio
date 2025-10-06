@@ -142,3 +142,8 @@
  (name integration_test)
  (libraries ocaml_telegram_eio.telegram alcotest unix)
  (modules integration_test))
+
+(test
+ (name concurrency_test)
+ (libraries eio_main alcotest)
+ (modules concurrency_test))
