@@ -1,3 +1,4 @@
 (executables
- (names echo_polling send_photo)
- (libraries ocaml_telegram_eio.telegram ocaml_telegram_eio.tg eio_main))
+ (names echo_bot command_bot keyboard_bot file_bot)
+ (libraries ocaml_telegram_eio.telegram ocaml_telegram_eio.tg ocaml_telegram_eio.generated eio_main)
+ (promote (until-clean)))
