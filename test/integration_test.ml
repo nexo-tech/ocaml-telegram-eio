@@ -24,11 +24,22 @@ let should_run_integration_tests () =
 (* Check if mock server is available *)
 let is_server_available () =
   try
-    (* Simple HTTP check - in a real implementation, you'd use cohttp-eio *)
-    let ic = Unix.open_process_in "curl -s -o /dev/null -w '%{http_code}' http://localhost:9001/health 2>/dev/null" in
-    let response = input_line ic in
-    let _ = Unix.close_process_in ic in
-    response = "200"
+    (* Simple TCP connection check *)
+    let sock = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
+    Unix.set_nonblock sock;
+    let addr = Unix.ADDR_INET (Unix.inet_addr_of_string "127.0.0.1", 9001) in
+    try
+      Unix.connect sock addr;
+      Unix.close sock;
+      true
+    with
+    | Unix.Unix_error (Unix.EINPROGRESS, _, _) ->
+        (* Connection in progress - server is there *)
+        Unix.close sock;
+        true
+    | _ ->
+        Unix.close sock;
+        false
   with
   | _ -> false
 
