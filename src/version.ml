@@ -1,3 +1,3 @@
-let library_version = "0.0.0"
+let library_version = "0.1.0"
 let bot_api_reference = Some "reference/api.html"
-let homepage = "https://example.com/"
+let homepage = "https://github.com/yourusername/ocaml-telegram-eio"

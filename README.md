@@ -62,6 +62,8 @@ dune exec examples/echo_bot.exe
 - **[Migration Guide](docs/MIGRATION.md)** - Migrating from Lwt/Async or other libraries
 - **[FAQ](docs/FAQ.md)** - Frequently asked questions
 - **[Examples](examples/)** - Working bot examples
+- **[CHANGELOG](CHANGELOG.md)** - Version history and release notes
+- **[VERSIONING](VERSIONING.md)** - Semantic versioning policy
 
 ## Architecture
 
