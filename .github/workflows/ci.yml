@@ -31,7 +31,7 @@ jobs:
           dune-cache: true
 
       - name: Pin package
-        run: opam pin add neo4j_eio . --no-action --yes
+        run: opam pin add ocaml_telegram_eio . --no-action --yes
 
       - name: Install dependencies
         run: opam install . --deps-only --with-doc --yes
@@ -58,3 +58,4 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
