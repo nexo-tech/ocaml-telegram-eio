@@ -1,0 +1,24 @@
+# Docker Compose configuration for integration testing with mock Telegram Bot API server
+# Uses telegram-test-api - a simple mock server for testing telegram bots
+#
+# Usage:
+#   docker compose -f docker-compose.test.yml up -d
+#   dune exec test/integration_test.exe
+#   docker compose -f docker-compose.test.yml down
+
+version: '3.8'
+
+services:
+  telegram-test-api:
+    image: ghcr.io/jehy/telegram-test-api:latest
+    container_name: telegram-test-api
+    ports:
+      - "9001:9001"  # Telegram Bot API endpoint
+    environment:
+      - PORT=9001
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9001/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s

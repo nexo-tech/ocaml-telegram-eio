@@ -137,3 +137,8 @@
  (name property_test)
  (libraries ocaml_telegram_eio.telegram qcheck qcheck-alcotest alcotest)
  (modules property_test))
+
+(test
+ (name integration_test)
+ (libraries ocaml_telegram_eio.telegram alcotest unix)
+ (modules integration_test))
