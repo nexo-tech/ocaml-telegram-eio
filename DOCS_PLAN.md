@@ -10,7 +10,7 @@
 
 ## Progress Tracker
 
-**Overall Completion: 5/30 tasks (17%)**
+**Overall Completion: 6/30 tasks (20%)**
 
 **Phase 1 — Getting Started Guide: COMPLETE (5/5 tasks) ✓**
 
@@ -77,11 +77,15 @@ Foundation documentation for developers new to the library.
 
 Deep dive into the library's elegant functional API.
 
-- [ ] Task 2.1: Message handling API
-  - Message types and variants
-  - Pattern matching on messages
-  - Message composition
-  - Rich text formatting (Markdown, HTML)
+- [x] Task 2.1: Message handling API — COMPLETED: docs/message_handling.mld
+  - Message types and variants (text, photo, document, location, etc.) ✓
+  - Pattern matching on messages (basic, combining conditions, guard functions) ✓
+  - Message composition (builders, templates, progressive enhancement) ✓
+  - Rich text formatting (HTML tags, Markdown, escaping) ✓
+  - Sending messages (simple, with options, replies) ✓
+  - Message operations (editing, deleting, pinning, forwarding) ✓
+  - Advanced patterns (message queue, conversation history, reactions) ✓
+  - Best practices (escaping, long messages, preserving format) ✓
 
 - [ ] Task 2.2: Command DSL
   - Command definition syntax

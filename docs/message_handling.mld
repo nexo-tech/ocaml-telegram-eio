@@ -1,0 +1,843 @@
+{0 Message Handling API}
+
+This guide covers everything about working with Telegram messages: understanding message types, pattern matching, sending messages, formatting text, editing messages, and advanced composition patterns.
+
+{1 Understanding Message Types}
+
+{2 The Message Type}
+
+A [Message.t] contains all information about a Telegram message:
+
+{[
+type message = {
+  message_id : int64;                      (* Unique identifier *)
+  from : User.t option;                    (* Sender *)
+  date : int64;                            (* Unix timestamp *)
+  chat : Chat.t;                           (* Chat where sent *)
+
+  (* Content (only one will be present) *)
+  text : string option;                    (* Text message *)
+  photo : PhotoSize.t list option;         (* Photo *)
+  document : Document.t option;            (* Document *)
+  video : Video.t option;                  (* Video *)
+  voice : Voice.t option;                  (* Voice message *)
+  audio : Audio.t option;                  (* Audio file *)
+  sticker : Sticker.t option;              (* Sticker *)
+  location : Location.t option;            (* Location *)
+  contact : Contact.t option;              (* Contact *)
+  poll : Poll.t option;                    (* Poll *)
+
+  (* Metadata *)
+  caption : string option;                 (* Media caption *)
+  entities : MessageEntity.t list option;  (* Text entities *)
+  reply_to_message : message option;       (* Replied message *)
+  forward_from : User.t option;            (* Original sender *)
+  edit_date : int64 option;                (* Last edit time *)
+
+  (* ... and many more fields *)
+}
+]}
+
+{2 Message Content Types}
+
+{3 Text Messages}
+
+Plain text or formatted text:
+
+{[
+let handle_text_message msg =
+  match msg.text with
+  | Some text ->
+      Eio.traceln "Text: %s" text;
+
+      (* Check for entities (mentions, URLs, etc.) *)
+      (match msg.entities with
+       | Some entities ->
+           List.iter (fun entity ->
+             match entity.type_ with
+             | "mention" -> Eio.traceln "Has mention"
+             | "url" -> Eio.traceln "Has URL"
+             | "bot_command" -> Eio.traceln "Is command"
+             | _ -> ()
+           ) entities
+       | None -> ());
+
+      Ok ()
+  | None ->
+      Ok ()  (* Not a text message *)
+]}
+
+{3 Photo Messages}
+
+Photos come as array of sizes:
+
+{[
+let handle_photo_message msg =
+  match msg.photo with
+  | Some photos ->
+      (* Photos sorted by size, get largest *)
+      let largest = List.hd (List.rev photos) in
+
+      Eio.traceln "Photo: %dx%d, file_id=%s"
+        largest.width
+        largest.height
+        largest.file_id;
+
+      (* Get caption if present *)
+      let caption = Option.value msg.caption ~default:"<no caption>" in
+      Eio.traceln "Caption: %s" caption;
+
+      Ok ()
+  | None ->
+      Ok ()
+]}
+
+{3 Document Messages}
+
+Files, PDFs, archives, etc:
+
+{[
+let handle_document_message msg =
+  match msg.document with
+  | Some doc ->
+      let filename = Option.value doc.file_name ~default:"<unknown>" in
+      let size = Option.value doc.file_size ~default:0L in
+      let mime = Option.value doc.mime_type ~default:"application/octet-stream" in
+
+      Eio.traceln "Document: %s (%Ld bytes, %s)" filename size mime;
+
+      (* Check if it's a specific type *)
+      if String.ends_with ~suffix:".pdf" filename then
+        Eio.traceln "PDF document";
+
+      Ok ()
+  | None ->
+      Ok ()
+]}
+
+{3 Location Messages}
+
+GPS coordinates:
+
+{[
+let handle_location_message msg =
+  match msg.location with
+  | Some loc ->
+      Eio.traceln "Location: %.6f, %.6f" loc.latitude loc.longitude;
+
+      (* Check if it's a live location *)
+      (match msg.live_period with
+       | Some period ->
+           Eio.traceln "Live location for %d seconds" period
+       | None -> ());
+
+      Ok ()
+  | None ->
+      Ok ()
+]}
+
+{1 Pattern Matching Messages}
+
+{2 Basic Pattern Matching}
+
+Match on specific content types:
+
+{[
+let handle_message msg =
+  match msg with
+  (* Text message *)
+  | { text = Some text; _ } ->
+      Eio.traceln "Text: %s" text;
+      Ok ()
+
+  (* Photo *)
+  | { photo = Some photos; _ } ->
+      Eio.traceln "Photo with %d sizes" (List.length photos);
+      Ok ()
+
+  (* Document *)
+  | { document = Some doc; _ } ->
+      Eio.traceln "Document: %s"
+        (Option.value doc.file_name ~default:"unknown");
+      Ok ()
+
+  (* Location *)
+  | { location = Some loc; _ } ->
+      Eio.traceln "Location: %.2f, %.2f" loc.latitude loc.longitude;
+      Ok ()
+
+  (* Unknown or unsupported *)
+  | _ ->
+      Eio.traceln "Other message type";
+      Ok ()
+]}
+
+{2 Combining Conditions}
+
+Match multiple fields:
+
+{[
+let handle_message msg =
+  match msg with
+  (* Command from specific user *)
+  | { text = Some text; from = Some user; _ }
+    when String.starts_with ~prefix:"/" text &&
+         user.id = 12345678L ->
+      Eio.traceln "Admin command: %s" text;
+      Ok ()
+
+  (* Photo with caption *)
+  | { photo = Some _; caption = Some caption; _ } ->
+      Eio.traceln "Photo with caption: %s" caption;
+      Ok ()
+
+  (* Forwarded message *)
+  | { forward_from = Some original_sender; _ } ->
+      Eio.traceln "Forwarded from: %s" original_sender.first_name;
+      Ok ()
+
+  (* Reply to bot's message *)
+  | { reply_to_message = Some replied; _ }
+    when Option.bind replied.from (fun u -> u.is_bot) = Some true ->
+      Eio.traceln "Reply to bot";
+      Ok ()
+
+  | _ ->
+      Ok ()
+]}
+
+{2 Guard Functions}
+
+Extract matching logic:
+
+{[
+let is_admin user_id =
+  List.mem user_id [12345678L; 87654321L]
+
+let is_command text =
+  String.starts_with ~prefix:"/" text
+
+let is_media msg =
+  msg.photo <> None ||
+  msg.video <> None ||
+  msg.document <> None
+
+let handle_message msg =
+  match msg with
+  | { text = Some text; from = Some user; _ }
+    when is_admin user.id && is_command text ->
+      handle_admin_command text
+
+  | msg when is_media msg ->
+      handle_media msg
+
+  | { text = Some text; _ } ->
+      handle_regular_text text
+
+  | _ ->
+      Ok ()
+]}
+
+{1 Sending Messages}
+
+{2 Simple Text Message}
+
+{[
+let send_hello client chat_id =
+  let* response = Telegram_generated.Gen_methods.send_message
+    client
+    ~chat_id:(Telegram.Id.Chat.of_int64 chat_id)
+    ~text:"Hello, world!"
+    () in
+
+  match response with
+  | Ok msg ->
+      Eio.traceln "Sent message %Ld" msg.message_id;
+      Ok msg
+  | Error err ->
+      Eio.traceln "Failed to send: %a" Telegram.Error.pp err;
+      Error err
+]}
+
+{2 With Optional Parameters}
+
+{[
+let send_message client chat_id text
+    ?(parse_mode=None)
+    ?(disable_preview=false)
+    ?(reply_to=None)
+    () =
+
+  Telegram_generated.Gen_methods.send_message
+    client
+    ~chat_id:(Telegram.Id.Chat.of_int64 chat_id)
+    ~text
+    ?parse_mode
+    ~disable_web_page_preview:disable_preview
+    ?reply_to_message_id:reply_to
+    ()
+]}
+
+{2 Reply to a Message}
+
+{[
+let reply_to_message client msg text =
+  let chat_id = Telegram.Id.Chat.of_int msg.chat.id in
+
+  Telegram_generated.Gen_methods.send_message
+    client
+    ~chat_id
+    ~text
+    ~reply_to_message_id:msg.message_id
+    ()
+]}
+
+{1 Text Formatting}
+
+{2 HTML Formatting}
+
+{3 Basic Tags}
+
+{[
+let send_formatted client chat_id =
+  let text =
+    "<b>Bold text</b>\n\
+     <i>Italic text</i>\n\
+     <u>Underlined text</u>\n\
+     <s>Strikethrough text</s>\n\
+     <code>inline code</code>\n\
+     <pre>preformatted\n\
+     multiple lines</pre>"
+  in
+
+  Telegram_generated.Gen_methods.send_message
+    client
+    ~chat_id:(Telegram.Id.Chat.of_int64 chat_id)
+    ~text
+    ~parse_mode:`HTML
+    ()
+]}
+
+{3 Links}
+
+{[
+(* Inline link *)
+let text = "<a href=\"https://example.com\">Click here</a>"
+
+(* Link with custom text *)
+let text = "Visit <a href=\"https://example.com\">our website</a>"
+
+(* User mention *)
+let text = "<a href=\"tg://user?id=123456789\">@username</a>"
+]}
+
+{3 Code Blocks with Language}
+
+{[
+let text =
+  "Here's some OCaml code:\n\
+   <pre><code class=\"language-ocaml\">\n\
+   let rec factorial n =\n\
+     if n <= 1 then 1\n\
+     else n * factorial (n - 1)\n\
+   </code></pre>"
+]}
+
+{3 Escaping HTML}
+
+{[
+let escape_html text =
+  text
+  |> String.replace ~sub:"&" ~by:"&amp;"
+  |> String.replace ~sub:"<" ~by:"&lt;"
+  |> String.replace ~sub:">" ~by:"&gt;"
+  |> String.replace ~sub:"\"" ~by:"&quot;"
+
+let send_user_text client chat_id user_input =
+  (* Escape user input to prevent HTML injection *)
+  let safe_text = escape_html user_input in
+  let formatted = Printf.sprintf "You said: <code>%s</code>" safe_text in
+
+  Telegram_generated.Gen_methods.send_message
+    client
+    ~chat_id:(Telegram.Id.Chat.of_int64 chat_id)
+    ~text:formatted
+    ~parse_mode:`HTML
+    ()
+]}
+
+{2 Markdown Formatting}
+
+{3 MarkdownV2 (Recommended)}
+
+{[
+let send_markdown client chat_id =
+  let text =
+    "*Bold text*\n\
+     _Italic text_\n\
+     __Underlined text__\n\
+     ~Strikethrough text~\n\
+     `inline code`\n\
+     ```ocaml\n\
+     let x = 42\n\
+     ```\n\
+     [Inline link](https://example.com)"
+  in
+
+  Telegram_generated.Gen_methods.send_message
+    client
+    ~chat_id:(Telegram.Id.Chat.of_int64 chat_id)
+    ~text
+    ~parse_mode:`MarkdownV2
+    ()
+]}
+
+{3 Escaping Special Characters}
+
+In MarkdownV2, these characters must be escaped: [_ * [ ] ( ) ~ ` > # + - = | { } . !]
+
+{[
+let escape_markdown text =
+  let special_chars = ['_'; '*'; '['; ']'; '('; ')'; '~'; '`';
+                       '>'; '#'; '+'; '-'; '='; '|'; '{'; '}'; '.'; '!'] in
+
+  String.fold_left (fun acc c ->
+    if List.mem c special_chars then
+      acc ^ "\\" ^ String.make 1 c
+    else
+      acc ^ String.make 1 c
+  ) "" text
+
+let send_safe_markdown client chat_id user_input =
+  let escaped = escape_markdown user_input in
+  let text = Printf.sprintf "You said: `%s`" escaped in
+
+  Telegram_generated.Gen_methods.send_message
+    client
+    ~chat_id:(Telegram.Id.Chat.of_int64 chat_id)
+    ~text
+    ~parse_mode:`MarkdownV2
+    ()
+]}
+
+{2 Formatting Helper Functions}
+
+{[
+(* HTML helpers *)
+let bold text = Printf.sprintf "<b>%s</b>" (escape_html text)
+let italic text = Printf.sprintf "<i>%s</i>" (escape_html text)
+let code text = Printf.sprintf "<code>%s</code>" (escape_html text)
+let pre text = Printf.sprintf "<pre>%s</pre>" (escape_html text)
+let link url text = Printf.sprintf "<a href=\"%s\">%s</a>" url (escape_html text)
+
+(* Usage *)
+let message =
+  bold "Important: " ^
+  "Please " ^ italic "carefully" ^ " read the " ^
+  link "https://docs.example.com" "documentation"
+]}
+
+{1 Message Composition}
+
+{2 Building Complex Messages}
+
+{[
+type message_builder = {
+  text : string;
+  parse_mode : [`HTML | `Markdown | `MarkdownV2] option;
+  disable_preview : bool;
+  disable_notification : bool;
+  reply_to : int64 option;
+}
+
+let make_message text = {
+  text;
+  parse_mode = None;
+  disable_preview = false;
+  disable_notification = false;
+  reply_to = None;
+}
+
+let with_html msg = { msg with parse_mode = Some `HTML }
+let with_markdown msg = { msg with parse_mode = Some `MarkdownV2 }
+let no_preview msg = { msg with disable_preview = true }
+let silent msg = { msg with disable_notification = true }
+let reply_to id msg = { msg with reply_to = Some id }
+
+let send msg client chat_id =
+  Telegram_generated.Gen_methods.send_message
+    client
+    ~chat_id:(Telegram.Id.Chat.of_int64 chat_id)
+    ~text:msg.text
+    ?parse_mode:msg.parse_mode
+    ~disable_web_page_preview:msg.disable_preview
+    ~disable_notification:msg.disable_notification
+    ?reply_to_message_id:msg.reply_to
+    ()
+
+(* Usage *)
+let () =
+  make_message "Check this link: https://example.com"
+  |> with_html
+  |> no_preview
+  |> silent
+  |> send client chat_id
+]}
+
+{2 Message Templates}
+
+{[
+module Templates = struct
+  let welcome username =
+    Printf.sprintf
+      "👋 Welcome, %s!\n\n\
+       I'm here to help. Use /help to see available commands."
+      (escape_html username)
+
+  let error message =
+    Printf.sprintf "❌ Error: %s" (escape_html message)
+
+  let success message =
+    Printf.sprintf "✅ Success: %s" (escape_html message)
+
+  let loading message =
+    Printf.sprintf "⏳ %s..." (escape_html message)
+
+  let command_list commands =
+    let command_lines = commands |> List.map (fun (cmd, desc) ->
+      Printf.sprintf "/%s - %s" cmd (escape_html desc)
+    ) in
+    String.concat "\n" command_lines
+end
+
+(* Usage *)
+let send_welcome client chat_id username =
+  let text = Templates.welcome username in
+  Telegram_generated.Gen_methods.send_message
+    client
+    ~chat_id:(Telegram.Id.Chat.of_int64 chat_id)
+    ~text
+    ~parse_mode:`HTML
+    ()
+]}
+
+{2 Progressive Enhancement}
+
+Send a message, then enhance it:
+
+{[
+let send_with_progress client chat_id task =
+  (* 1. Send initial message *)
+  let* initial = Telegram_generated.Gen_methods.send_message
+    client
+    ~chat_id:(Telegram.Id.Chat.of_int64 chat_id)
+    ~text:"⏳ Processing..."
+    () in
+
+  match initial with
+  | Ok msg ->
+      (* 2. Do work *)
+      let result = task () in
+
+      (* 3. Update message with result *)
+      let new_text = match result with
+        | Ok data -> "✅ Done: " ^ data
+        | Error err -> "❌ Failed: " ^ err
+      in
+
+      Telegram_generated.Gen_methods.edit_message_text
+        client
+        ~chat_id:(Telegram.Id.Chat.of_int64 chat_id)
+        ~message_id:msg.message_id
+        ~text:new_text
+        ()
+
+  | Error err ->
+      Error err
+]}
+
+{1 Message Operations}
+
+{2 Editing Messages}
+
+{[
+let edit_message client chat_id message_id new_text =
+  Telegram_generated.Gen_methods.edit_message_text
+    client
+    ~chat_id:(Telegram.Id.Chat.of_int64 chat_id)
+    ~message_id
+    ~text:new_text
+    ()
+
+(* With formatting *)
+let edit_with_formatting client chat_id message_id new_text =
+  Telegram_generated.Gen_methods.edit_message_text
+    client
+    ~chat_id:(Telegram.Id.Chat.of_int64 chat_id)
+    ~message_id
+    ~text:new_text
+    ~parse_mode:`HTML
+    ()
+]}
+
+{2 Deleting Messages}
+
+{[
+let delete_message client chat_id message_id =
+  Telegram_generated.Gen_methods.delete_message
+    client
+    ~chat_id:(Telegram.Id.Chat.of_int64 chat_id)
+    ~message_id
+    ()
+
+(* Delete after delay *)
+let delete_after_delay env client chat_id message_id seconds =
+  Eio.Fiber.fork ~sw (fun () ->
+    Eio.Time.sleep env#clock (float_of_int seconds);
+    match delete_message client chat_id message_id with
+    | Ok _ -> Eio.traceln "Deleted message %Ld" message_id
+    | Error err -> Eio.traceln "Failed to delete: %a" Telegram.Error.pp err
+  )
+]}
+
+{2 Pinning Messages}
+
+{[
+let pin_message client chat_id message_id =
+  Telegram_generated.Gen_methods.pin_chat_message
+    client
+    ~chat_id:(Telegram.Id.Chat.of_int64 chat_id)
+    ~message_id
+    ~disable_notification:false
+    ()
+
+let unpin_message client chat_id message_id =
+  Telegram_generated.Gen_methods.unpin_chat_message
+    client
+    ~chat_id:(Telegram.Id.Chat.of_int64 chat_id)
+    ~message_id
+    ()
+]}
+
+{2 Forwarding Messages}
+
+{[
+let forward_message client from_chat_id to_chat_id message_id =
+  Telegram_generated.Gen_methods.forward_message
+    client
+    ~chat_id:(Telegram.Id.Chat.of_int64 to_chat_id)
+    ~from_chat_id:(Telegram.Id.Chat.of_int64 from_chat_id)
+    ~message_id
+    ()
+
+(* Copy message (without forward attribution) *)
+let copy_message client from_chat_id to_chat_id message_id =
+  Telegram_generated.Gen_methods.copy_message
+    client
+    ~chat_id:(Telegram.Id.Chat.of_int64 to_chat_id)
+    ~from_chat_id:(Telegram.Id.Chat.of_int64 from_chat_id)
+    ~message_id
+    ()
+]}
+
+{1 Advanced Patterns}
+
+{2 Message Queue}
+
+Rate-limited message sending:
+
+{[
+type message_queue = {
+  messages : (int64 * string) Queue.t;
+  rate_limit : float;  (* seconds between messages *)
+  mutable last_send : float;
+}
+
+let create_queue ?(rate_limit=0.1) () = {
+  messages = Queue.create ();
+  rate_limit;
+  last_send = 0.0;
+}
+
+let enqueue queue chat_id text =
+  Queue.push (chat_id, text) queue.messages
+
+let process_queue env client queue =
+  Eio.Fiber.fork ~sw (fun () ->
+    while true do
+      match Queue.take_opt queue.messages with
+      | Some (chat_id, text) ->
+          (* Rate limiting *)
+          let now = Unix.time () in
+          let wait = queue.rate_limit -. (now -. queue.last_send) in
+          if wait > 0.0 then
+            Eio.Time.sleep env#clock wait;
+
+          (* Send message *)
+          (match Telegram_generated.Gen_methods.send_message
+            client
+            ~chat_id:(Telegram.Id.Chat.of_int64 chat_id)
+            ~text
+            () with
+           | Ok _ -> queue.last_send <- Unix.time ()
+           | Error err -> Eio.traceln "Send error: %a" Telegram.Error.pp err);
+
+      | None ->
+          Eio.Time.sleep env#clock 0.1  (* Wait for messages *)
+    done
+  )
+]}
+
+{2 Message History}
+
+Track conversation history:
+
+{[
+type conversation = {
+  chat_id : int64;
+  messages : message list ref;
+  max_history : int;
+}
+
+let create_conversation chat_id ?(max_history=100) () = {
+  chat_id;
+  messages = ref [];
+  max_history;
+}
+
+let add_message conv msg =
+  conv.messages := msg :: !(conv.messages);
+
+  (* Trim to max_history *)
+  if List.length !(conv.messages) > conv.max_history then
+    conv.messages := List.take conv.max_history !(conv.messages)
+
+let get_recent conv n =
+  List.take (min n (List.length !(conv.messages))) !(conv.messages)
+
+let find_text conv pattern =
+  !(conv.messages)
+  |> List.filter (fun msg ->
+    match msg.text with
+    | Some text -> String.contains text pattern
+    | None -> false
+  )
+]}
+
+{2 Message Reactions Handling}
+
+{[
+let handle_message_update update =
+  match update with
+  (* New message *)
+  | { message = Some msg; _ } ->
+      Eio.traceln "New message: %Ld" msg.message_id;
+      Ok ()
+
+  (* Edited message *)
+  | { edited_message = Some msg; _ } ->
+      Eio.traceln "Message %Ld was edited" msg.message_id;
+      (match msg.edit_date with
+       | Some timestamp ->
+           Eio.traceln "Edited at: %Ld" timestamp
+       | None -> ());
+      Ok ()
+
+  (* Message reaction (if enabled) *)
+  | { message_reaction = Some reaction; _ } ->
+      Eio.traceln "Reaction on message %Ld" reaction.message_id;
+      Ok ()
+
+  | _ ->
+      Ok ()
+]}
+
+{1 Best Practices}
+
+{2 Always Escape User Input}
+
+{[
+(* ❌ Dangerous - HTML injection *)
+let bad_example client chat_id user_input =
+  let text = Printf.sprintf "You said: %s" user_input in
+  send_html client chat_id text
+
+(* ✅ Safe - escaped *)
+let good_example client chat_id user_input =
+  let safe = escape_html user_input in
+  let text = Printf.sprintf "You said: <code>%s</code>" safe in
+  send_html client chat_id text
+]}
+
+{2 Handle Long Messages}
+
+{[
+let send_long_text client chat_id text =
+  let max_length = 4096 in
+
+  if String.length text <= max_length then
+    (* Send normally *)
+    Telegram_generated.Gen_methods.send_message
+      client ~chat_id:(Telegram.Id.Chat.of_int64 chat_id) ~text ()
+  else
+    (* Split into chunks *)
+    let rec send_chunks offset =
+      if offset >= String.length text then
+        Ok ()
+      else
+        let chunk_len = min max_length (String.length text - offset) in
+        let chunk = String.sub text offset chunk_len in
+
+        let* _ = Telegram_generated.Gen_methods.send_message
+          client ~chat_id:(Telegram.Id.Chat.of_int64 chat_id) ~text:chunk () in
+
+        send_chunks (offset + chunk_len)
+    in
+    send_chunks 0
+]}
+
+{2 Preserve Formatting Across Operations}
+
+{[
+let edit_preserving_format client chat_id message_id new_text original_msg =
+  (* Detect original format *)
+  let parse_mode = match original_msg.entities with
+    | Some entities when List.exists (fun e -> e.type_ = "bold" || e.type_ = "italic") entities ->
+        Some `HTML
+    | _ -> None
+  in
+
+  Telegram_generated.Gen_methods.edit_message_text
+    client
+    ~chat_id:(Telegram.Id.Chat.of_int64 chat_id)
+    ~message_id
+    ~text:new_text
+    ?parse_mode
+    ()
+]}
+
+{1 Next Steps}
+
+- {{!page-quick_start}Quick Start Tutorial} - Practice with examples
+- {{!Telegram_generated.Gen_methods}API Methods} - Full method reference
+- {{!Telegram_generated.Gen_types}Types} - All message types
+- {{!Telegram.Parse_mode}Parse Mode} - Formatting utilities
+- {{!Tg.Keyboard}Keyboards} - Add interactive buttons to messages
+
+{1 Common Issues}
+
+{2 "Can't parse entities"}
+
+Ensure proper escaping:
+{[
+(* Use escape_html for HTML mode *)
+(* Use escape_markdown for Markdown mode *)
+]}
+
+{2 "Message is too long"}
+
+Split messages over 4096 characters.
+
+{2 "Message can't be edited"}
+
+Messages can only be edited within 48 hours of sending.
