@@ -10,7 +10,7 @@
 
 ## Progress Tracker
 
-**Overall Completion: 0/30 tasks (0%)**
+**Overall Completion: 1/30 tasks (3%)**
 
 ---
 
@@ -18,11 +18,15 @@
 
 Foundation documentation for developers new to the library.
 
-- [ ] Task 1.1: Installation and setup guide
-  - opam installation
-  - Project setup with dune
-  - First "Hello World" bot
-  - Environment variables and bot tokens
+- [x] Task 1.1: Installation and setup guide — COMPLETED: docs/getting_started.mld
+  - opam installation ✓
+  - Project setup with dune ✓
+  - First "Hello World" bot ✓
+  - Environment variables and bot tokens ✓
+  - Development workflow ✓
+  - Testing strategies ✓
+  - Troubleshooting guide ✓
+  - Security best practices ✓
 
 - [ ] Task 1.2: Core concepts overview
   - Bot lifecycle and initialization

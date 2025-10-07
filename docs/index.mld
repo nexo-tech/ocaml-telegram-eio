@@ -14,11 +14,9 @@ An ergonomic, type-safe Telegram Bot API client library for OCaml 5, built on Ei
 
 {1 Getting Started}
 
-{2 Installation}
+New to the library? Start here:
 
-{[
-opam install ocaml_telegram_eio
-]}
+{{!page-getting_started}Getting Started Guide} - Complete installation and setup tutorial with your first bot
 
 {2 Quick Example}
 
@@ -140,13 +138,20 @@ See the {e examples/} directory for complete, runnable examples:
 - [file_bot.ml]: File uploads and downloads
 - [payment_bot.ml]: Telegram Payments integration
 
-{1 Further Reading}
+{1 Documentation}
 
-- {{:https://core.telegram.org/bots/api}Telegram Bot API Documentation}
+{2 Guides}
+
+- {{!page-getting_started}Getting Started} - Installation, setup, and your first bot
 - {{!page-migration}Migration Guide} - Migrating from other libraries or Lwt/Async to Eio
 - {{!page-faq}FAQ} - Frequently asked questions and troubleshooting
+
+{2 Further Reading}
+
+- {{:https://core.telegram.org/bots/api}Telegram Bot API Documentation}
 - See [API_DESIGN.md] for library design philosophy
 - See [CONTRIBUTING.md] for development guide
+- See [COMPATIBILITY.md] for Bot API version compatibility
 
 {1 License}
 

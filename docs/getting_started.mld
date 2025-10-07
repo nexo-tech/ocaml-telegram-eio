@@ -1,0 +1,619 @@
+{0 Getting Started with OCaml Telegram Bot API}
+
+{1 Installation and Setup}
+
+This guide will walk you through installing [ocaml_telegram_eio] and building your first Telegram bot. You'll learn how to set up your development environment, create a simple bot, and understand the core concepts of the library's elegant functional API.
+
+{2 Prerequisites}
+
+Before you begin, ensure you have:
+
+- {b OCaml 5.0+}: The library requires OCaml 5 for effect handlers and Eio support
+- {b opam 2.0+}: OCaml package manager
+- {b A Telegram Bot Token}: Obtain from {{:https://t.me/BotFather}BotFather}
+
+{2 Installing OCaml 5}
+
+If you don't have OCaml 5 installed:
+
+{[
+# Install OCaml 5.2 (or later)
+opam switch create 5.2.0
+eval $(opam env)
+
+# Verify version
+ocaml --version  # Should show 5.2.0 or higher
+]}
+
+{2 Installing the Library}
+
+Install [ocaml_telegram_eio] via opam:
+
+{[
+opam install ocaml_telegram_eio
+]}
+
+This will install the library and all its dependencies, including:
+- [eio] - Effect-based direct-style IO
+- [cohttp-eio] - HTTP client built on Eio
+- [yojson] - JSON parsing and generation
+- [tls-eio] - TLS support for HTTPS
+
+{2 Creating Your Bot Token}
+
+{3 Step 1: Talk to BotFather}
+
+Open Telegram and search for {{:https://t.me/BotFather}BotFather}, then:
+
+{v
+1. Send /newbot
+2. Choose a display name (e.g., "My First Bot")
+3. Choose a username ending in "bot" (e.g., "my_first_ocaml_bot")
+4. BotFather will reply with your bot token
+v}
+
+Your token looks like: [123456789:ABCdefGHIjklMNOpqrsTUVwxyz]
+
+{3 Step 2: Store Your Token Securely}
+
+{b Never commit tokens to version control!} Store it as an environment variable:
+
+{[
+# Add to your ~/.bashrc or ~/.zshrc
+export TELEGRAM_BOT_TOKEN="your-token-here"
+
+# Or create a .env file (add to .gitignore!)
+echo "TELEGRAM_BOT_TOKEN=your-token-here" > .env
+
+# Load it in your shell
+export $(cat .env | xargs)
+]}
+
+{2 Project Setup}
+
+Create a new OCaml project:
+
+{[
+# Create project directory
+mkdir my_telegram_bot
+cd my_telegram_bot
+
+# Initialize dune project
+cat > dune-project << 'EOF'
+(lang dune 3.0)
+(name my_telegram_bot)
+EOF
+
+# Create executable configuration
+mkdir bin
+cat > bin/dune << 'EOF'
+(executable
+ (name main)
+ (libraries eio_main ocaml_telegram_eio.telegram ocaml_telegram_eio.tg))
+EOF
+]}
+
+{1 Your First Bot: Hello World}
+
+Let's build a simple bot that responds to the [/start] command.
+
+{2 The Complete Code}
+
+Create [bin/main.ml]:
+
+{[
+open Eio.Std
+open Telegram  (* Core types and API *)
+open Tg        (* High-level bot DSL *)
+
+let () =
+  (* Start the Eio event loop *)
+  Eio_main.run @@ fun env ->
+
+  (* Get bot token from environment *)
+  let token =
+    try Sys.getenv "TELEGRAM_BOT_TOKEN"
+    with Not_found ->
+      failwith "TELEGRAM_BOT_TOKEN environment variable not set"
+  in
+
+  (* Create HTTP client for Telegram API *)
+  let client = Client.create ~env ~token in
+
+  (* Define how to handle incoming updates *)
+  let handle_update update =
+    (* Pattern match on update type *)
+    match update with
+    | { Bot.Update.message = Some msg; _ } ->
+        (* Extract chat ID and message text *)
+        let chat_id = msg.Message.chat.Chat.id in
+        let text = Option.value msg.Message.text ~default:"" in
+
+        (* Respond to /start command *)
+        if text = "/start" then
+          let reply = "👋 Hello! I'm your first OCaml Telegram bot!" in
+          let request = Api.send_message ~chat_id ~text:reply () in
+
+          (* Make API call *)
+          let* _response = Api.call client request in
+          Ok ()
+        else
+          Ok ()  (* Ignore other messages *)
+
+    | _ -> Ok ()  (* Ignore non-message updates *)
+  in
+
+  (* Start long polling (blocking call) *)
+  traceln "🤖 Bot started! Send /start to interact...";
+  Polling.run client handle_update
+]}
+
+{2 Understanding the Code}
+
+Let's break down the key concepts:
+
+{3 Eio Event Loop}
+
+{[
+Eio_main.run @@ fun env ->
+]}
+
+- [Eio_main.run] starts the Eio runtime
+- [env] provides system resources (network, filesystem, etc.)
+- All your async code runs within this context
+
+{3 Client Creation}
+
+{[
+let client = Client.create ~env ~token in
+]}
+
+- Creates an HTTP client for Telegram API
+- [~env] provides network access from Eio
+- [~token] authenticates your bot
+
+{3 Update Handler}
+
+{[
+let handle_update update =
+  match update with
+  | { Bot.Update.message = Some msg; _ } -> ...
+]}
+
+- Pattern matching on update structure
+- Updates can be messages, callbacks, inline queries, etc.
+- We extract the message if present
+
+{3 API Calls}
+
+{[
+let request = Api.send_message ~chat_id ~text:reply () in
+let* _response = Api.call client request in
+]}
+
+- [Api.send_message] creates a type-safe request builder
+- [Api.call] executes the request with automatic error handling
+- [let*] is Result syntax for handling errors elegantly
+
+{3 Long Polling}
+
+{[
+Polling.run client handle_update
+]}
+
+- Continuously polls Telegram for new updates
+- Handles offset management automatically
+- Calls [handle_update] for each update
+
+{2 Running Your Bot}
+
+Build and run:
+
+{[
+# Build the project
+dune build
+
+# Run your bot
+dune exec bin/main.exe
+]}
+
+You should see:
+{v
+🤖 Bot started! Send /start to interact...
+v}
+
+Now open Telegram, find your bot, and send [/start]. The bot will reply with a greeting!
+
+{2 Adding More Features}
+
+Let's enhance the bot to echo all messages:
+
+{[
+let handle_update update =
+  match update with
+  | { Bot.Update.message = Some msg; _ } ->
+      let chat_id = msg.Message.chat.Chat.id in
+      let text = Option.value msg.Message.text ~default:"" in
+
+      (* Handle different commands *)
+      let reply = match text with
+        | "/start" -> "👋 Hello! Send me any message and I'll echo it back."
+        | "/help" -> "Just send me text and I'll echo it!"
+        | _ -> Printf.sprintf "You said: %s" text
+      in
+
+      let request = Api.send_message ~chat_id ~text:reply () in
+      let* _response = Api.call client request in
+      Ok ()
+
+  | _ -> Ok ()
+]}
+
+{1 Core Concepts}
+
+{2 The Bot Lifecycle}
+
+Every bot follows this pattern:
+
+{v
+1. Initialize Eio runtime
+2. Create HTTP client with token
+3. Define update handler(s)
+4. Start polling or webhook server
+5. Handle incoming updates
+6. Make API calls to respond
+v}
+
+{2 Update Processing Model}
+
+Updates are the core data structure:
+
+{[
+type update = {
+  update_id : int;                    (* Unique update ID *)
+  message : Message.t option;         (* New incoming message *)
+  edited_message : Message.t option;  (* Edited message *)
+  callback_query : CallbackQuery.t option;  (* Button click *)
+  (* ... and many more update types *)
+}
+]}
+
+Pattern match to handle different update types:
+
+{[
+match update with
+| { message = Some msg; _ } -> handle_message msg
+| { callback_query = Some cb; _ } -> handle_callback cb
+| { inline_query = Some iq; _ } -> handle_inline iq
+| _ -> Ok ()  (* Ignore unknown updates *)
+]}
+
+{2 Error Handling Philosophy}
+
+The library uses [Result.t] for error handling:
+
+{[
+type ('a, 'e) result = Ok of 'a | Error of 'e
+
+(* API calls return Result *)
+let* response = Api.call client request in
+(* response : (Message.t, Error.t) result *)
+]}
+
+Use [let*] syntax for elegant error propagation:
+
+{[
+let handle_update update =
+  match update with
+  | { message = Some msg; _ } ->
+      (* If any step fails, the whole function returns Error *)
+      let* user_info = Api.call client (Api.get_me ()) in
+      let* sent_msg = Api.call client (Api.send_message ...) in
+      let* edited = Api.call client (Api.edit_message ...) in
+      Ok ()
+  | _ -> Ok ()
+]}
+
+Errors are categorized as retryable or permanent:
+
+{[
+match Api.call client request with
+| Ok result -> (* Success! *)
+| Error err when Error.is_retryable err ->
+    (* Network issue, rate limit - safe to retry *)
+| Error err ->
+    (* Invalid parameters, forbidden - don't retry *)
+]}
+
+{2 Eio Concurrency Primitives}
+
+Handle multiple updates concurrently using Eio fibers:
+
+{[
+Eio.Switch.run @@ fun sw ->
+  (* Process updates concurrently *)
+  List.iter (fun update ->
+    Eio.Fiber.fork ~sw (fun () ->
+      handle_update update
+    )
+  ) updates
+
+  (* Switch waits for all fibers to complete *)
+]}
+
+All fibers in a switch are cleaned up automatically, even on errors.
+
+{1 Environment Variables}
+
+{2 Required Variables}
+
+- [TELEGRAM_BOT_TOKEN]: Your bot authentication token
+
+{2 Optional Variables}
+
+- [TELEGRAM_API_BASE]: Override API base URL (default: [https://api.telegram.org])
+- [RUST_LOG] or [OCAML_LOG]: Enable debug logging
+
+{2 Loading Environment Variables}
+
+{3 From Shell}
+
+{[
+export TELEGRAM_BOT_TOKEN="your-token"
+dune exec bin/main.exe
+]}
+
+{3 From .env File}
+
+{[
+# Install dotenv support
+opam install dotenv
+
+(* In your code *)
+Dotenv.export () ;; (* Load .env file *)
+let token = Sys.getenv "TELEGRAM_BOT_TOKEN"
+]}
+
+{3 From Config File}
+
+{[
+(* config.ml *)
+type config = {
+  token : string;
+  api_base : string;
+}
+
+let load_config () =
+  (* Read from JSON, TOML, etc. *)
+  Yojson.Safe.from_file "config.json"
+  |> Yojson.Safe.Util.to_assoc
+  |> ...
+]}
+
+{1 Development Workflow}
+
+{2 Project Structure}
+
+Recommended file organization:
+
+{v
+my_telegram_bot/
+├── bin/
+│   ├── dune
+│   └── main.ml          # Entry point
+├── lib/
+│   ├── dune
+│   ├── handlers.ml      # Update handlers
+│   ├── commands.ml      # Command definitions
+│   └── keyboards.ml     # Keyboard builders
+├── test/
+│   ├── dune
+│   └── test_handlers.ml # Unit tests
+├── dune-project
+├── .env                 # Secrets (gitignored!)
+├── .gitignore
+└── README.md
+v}
+
+{2 Running Locally}
+
+{[
+# Build and run
+dune exec bin/main.exe
+
+# Watch mode (rebuild on changes)
+dune build --watch
+
+# Run with verbose output
+RUST_LOG=debug dune exec bin/main.exe
+]}
+
+{2 Debugging Techniques}
+
+{3 Enable Debug Logging}
+
+{[
+(* Add to your main.ml *)
+let () =
+  Eio_main.run @@ fun env ->
+  Eio.traceln "Starting bot with token: %s"
+    (String.sub token 0 10 ^ "...");
+
+  let handle_update update =
+    Eio.traceln "Received update: %d" update.Bot.Update.update_id;
+    (* ... *)
+  in
+  (* ... *)
+]}
+
+{3 Print API Responses}
+
+{[
+let* response = Api.call client request in
+Eio.traceln "Response: %s"
+  (Yojson.Safe.to_string (Response.to_yojson response));
+Ok response
+]}
+
+{3 Handle Errors Explicitly}
+
+{[
+match Api.call client request with
+| Ok result ->
+    Eio.traceln "✓ Success";
+    Ok result
+| Error err ->
+    Eio.traceln "✗ Error: %s" (Error.to_string err);
+    Error err
+]}
+
+{2 Testing Strategies}
+
+{3 Unit Testing Handlers}
+
+{[
+(* test/test_handlers.ml *)
+open Telegram
+
+let test_start_command () =
+  let msg = {
+    Message.message_id = 1;
+    chat = { Chat.id = 12345L; type_ = "private"; (* ... *) };
+    text = Some "/start";
+    (* ... *)
+  } in
+
+  let update = { Bot.Update.update_id = 1; message = Some msg; (* ... *) } in
+
+  match Handlers.handle_update update with
+  | Ok () -> Printf.printf "✓ /start handled correctly\n"
+  | Error _ -> failwith "Handler should succeed"
+]}
+
+{3 Integration Testing}
+
+Create a test bot and verify real API calls:
+
+{[
+(* Use a separate test bot token *)
+let test_bot_token = Sys.getenv "TEST_BOT_TOKEN"
+
+let test_send_message () =
+  Eio_main.run @@ fun env ->
+  let client = Client.create ~env ~token:test_bot_token in
+  let chat_id = Int64.of_string (Sys.getenv "TEST_CHAT_ID") in
+
+  let request = Api.send_message ~chat_id ~text:"Test message" () in
+  match Api.call client request with
+  | Ok msg ->
+      assert (msg.Message.text = Some "Test message");
+      Printf.printf "✓ Integration test passed\n"
+  | Error err ->
+      failwith (Error.to_string err)
+]}
+
+{1 Next Steps}
+
+Now that you have a working bot, explore:
+
+- {!page-api_fundamentals} - Deep dive into the API
+- {!page-patterns} - Advanced bot patterns
+- {!page-cookbook} - Real-world bot recipes
+- {{!Tg.Bot}Bot module} - High-level bot DSL
+- {{!Tg.Keyboard}Keyboard module} - Interactive keyboards
+- {{!Telegram.Api}Api module} - All available API methods
+
+{2 Example Bots}
+
+Study complete examples in the repository:
+
+- [examples/echo_bot.ml] - Simple message echo
+- [examples/command_bot.ml] - Command handling with help system
+- [examples/keyboard_bot.ml] - Interactive menus and buttons
+- [examples/file_bot.ml] - File uploads and downloads
+
+{1 Troubleshooting}
+
+{2 Common Issues}
+
+{3 "TELEGRAM_BOT_TOKEN not set"}
+
+{b Solution}: Export the environment variable:
+{[
+export TELEGRAM_BOT_TOKEN="your-token-here"
+]}
+
+{3 "Name error: Unbound module Eio"}
+
+{b Solution}: Add [eio_main] to your dune file:
+{[
+(executable
+ (libraries eio_main ocaml_telegram_eio.telegram ocaml_telegram_eio.tg))
+]}
+
+{3 "SSL/TLS errors"}
+
+{b Solution}: Install CA certificates:
+{[
+opam install ca-certs ca-certs-nss
+]}
+
+{3 "Bot doesn't respond"}
+
+{b Check}:
+- Token is correct
+- Bot is not blocked by user
+- Polling is running (no errors in console)
+- Handler is matching the update correctly
+
+Add debug output:
+{[
+Eio.traceln "Update received: %d" update.update_id;
+]}
+
+{2 Getting Help}
+
+- {{:https://github.com/yourusername/ocaml-telegram-eio/issues}GitHub Issues}
+- {{:https://core.telegram.org/bots/api}Telegram Bot API Docs}
+- {{!page-faq}FAQ Page}
+
+{1 Security Best Practices}
+
+{2 Token Management}
+
+{b Never}:
+- Commit tokens to git
+- Share tokens publicly
+- Use production tokens in tests
+
+{b Always}:
+- Use environment variables
+- Add [.env] to [.gitignore]
+- Rotate tokens if compromised
+
+{2 Input Validation}
+
+Always validate user input:
+
+{[
+let handle_command text =
+  match text with
+  | txt when String.length txt > 4096 ->
+      Error "Message too long"
+  | txt when txt = "" ->
+      Error "Empty message"
+  | txt ->
+      Ok txt
+]}
+
+{2 Rate Limiting}
+
+Respect Telegram's rate limits:
+
+{[
+(* The library handles rate limits automatically with retry logic *)
+let* response = Api.call client request in
+(* Will retry with exponential backoff on 429 Too Many Requests *)
+]}
+
+See {{!Telegram.Limits}Limits module} for rate limit documentation.
