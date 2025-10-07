@@ -146,6 +146,7 @@ See the {e examples/} directory for complete, runnable examples:
 - {{!page-core_concepts}Core Concepts} - Bot lifecycle, update handling, Eio concurrency, and error handling
 - {{!page-quick_start}Quick Start Tutorial} - Hands-on tutorials: echo bot, commands, keyboards, media, and state
 - {{!page-project_structure}Project Structure} - Organizing code, separation of concerns, module design, and dune configuration
+- {{!page-development_workflow}Development Workflow} - Running locally, debugging, logging, monitoring, and testing
 - {{!page-migration}Migration Guide} - Migrating from other libraries or Lwt/Async to Eio
 - {{!page-faq}FAQ} - Frequently asked questions and troubleshooting
 

@@ -1,0 +1,866 @@
+{0 Development Workflow}
+
+This guide covers the daily workflow of developing Telegram bots: running locally, debugging issues, logging events, monitoring performance, and testing thoroughly.
+
+{1 Running Bots Locally}
+
+{2 Quick Start}
+
+{[
+# Build the project
+dune build
+
+# Run your bot
+export TELEGRAM_BOT_TOKEN="your_token_here"
+dune exec bin/main.exe
+]}
+
+{2 Development Mode}
+
+{3 Watch Mode}
+
+Automatically rebuild on file changes:
+
+{[
+# Terminal 1: Watch and rebuild
+dune build --watch
+
+# Terminal 2: Run bot (restart manually after rebuild)
+while true; do
+  dune exec bin/main.exe || sleep 1
+done
+]}
+
+{3 With Auto-Restart}
+
+Use [entr] for automatic restart:
+
+{[
+# Install entr
+brew install entr  # macOS
+apt install entr   # Linux
+
+# Auto-rebuild and restart on changes
+find . -name "*.ml" | entr -r dune exec bin/main.exe
+]}
+
+{3 Development Server}
+
+Create a development script [scripts/dev.sh]:
+
+{[
+#!/bin/bash
+set -e
+
+echo "🔧 Development Mode"
+echo "=================="
+
+# Load environment
+export $(cat .env.dev | xargs)
+
+# Build
+echo "Building..."
+dune build
+
+# Run with color output
+OCAML_COLOR=always dune exec bin/main.exe
+]}
+
+Make it executable:
+{[
+chmod +x scripts/dev.sh
+./scripts/dev.sh
+]}
+
+{2 Multiple Bots}
+
+Run different bots for different environments:
+
+{[
+# Development bot
+export TELEGRAM_BOT_TOKEN="dev_bot_token"
+dune exec bin/main.exe
+
+# Test bot
+export TELEGRAM_BOT_TOKEN="test_bot_token"
+dune exec bin/main.exe
+
+# Production bot (separate machine)
+export TELEGRAM_BOT_TOKEN="prod_bot_token"
+dune exec bin/main.exe
+]}
+
+{2 Environment Files}
+
+[.env.dev]:
+{[
+TELEGRAM_BOT_TOKEN=123456:ABC-DEF-dev-token
+DATABASE_URL=sqlite://dev.db
+LOG_LEVEL=debug
+API_BASE=https://api.telegram.org
+]}
+
+[.env.test]:
+{[
+TELEGRAM_BOT_TOKEN=123456:ABC-DEF-test-token
+DATABASE_URL=sqlite://test.db
+LOG_LEVEL=info
+API_BASE=https://api.telegram.org
+]}
+
+Load in code:
+{[
+(* Simple dotenv loader *)
+let load_dotenv path =
+  let ic = open_in path in
+  try
+    while true do
+      let line = input_line ic in
+      if not (String.starts_with ~prefix:"#" line) then
+        match String.split_on_char '=' line with
+        | [key; value] ->
+            Unix.putenv (String.trim key) (String.trim value)
+        | _ -> ()
+    done
+  with End_of_file -> close_in ic
+
+let () =
+  load_dotenv ".env.dev";
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  (* ... *)
+]}
+
+{1 Debugging Techniques}
+
+{2 Basic Logging}
+
+{3 Using Eio.traceln}
+
+Simple, built-in logging:
+
+{[
+let handle_update update =
+  Eio.traceln "📨 Update %Ld received" update.update_id;
+
+  match update with
+  | { message = Some msg; _ } ->
+      Eio.traceln "  From: %s"
+        (Option.value msg.from.first_name ~default:"unknown");
+      Eio.traceln "  Text: %s"
+        (Option.value msg.text ~default:"<no text>");
+
+      (* Process message *)
+      let result = handle_message msg in
+
+      Eio.traceln "  Result: %s"
+        (match result with Ok _ -> "✓" | Error _ -> "✗");
+
+      result
+
+  | _ ->
+      Eio.traceln "  Non-message update";
+      Ok ()
+]}
+
+{3 Structured Logging}
+
+Better format for production:
+
+{[
+let log level fmt =
+  Printf.ksprintf (fun msg ->
+    let timestamp = Unix.time () |> Unix.gmtime in
+    Printf.printf "[%04d-%02d-%02d %02d:%02d:%02d] [%s] %s\n%!"
+      (1900 + timestamp.tm_year)
+      (timestamp.tm_mon + 1)
+      timestamp.tm_mday
+      timestamp.tm_hour
+      timestamp.tm_min
+      timestamp.tm_sec
+      level
+      msg
+  ) fmt
+
+let () =
+  log "INFO" "Bot started";
+  log "DEBUG" "Processing update %Ld" update_id;
+  log "ERROR" "Failed to send message: %s" error_msg;
+]}
+
+{3 JSON Logging}
+
+For log aggregation:
+
+{[
+let log_json level event data =
+  let json = `Assoc [
+    "timestamp", `Float (Unix.time ());
+    "level", `String level;
+    "event", `String event;
+    "data", data;
+  ] in
+  Yojson.Safe.to_channel stdout json;
+  print_newline ()
+
+let () =
+  log_json "info" "bot_started" (`Assoc [
+    "version", `String "0.1.0";
+  ]);
+
+  log_json "debug" "update_received" (`Assoc [
+    "update_id", `Int update_id;
+    "type", `String "message";
+  ]);
+]}
+
+{2 Debugging Update Processing}
+
+{3 Print Full Update}
+
+{[
+let debug_update update =
+  (* Convert to JSON *)
+  let json = Telegram_generated.Gen_types.Update.to_yojson update in
+
+  (* Pretty print *)
+  Eio.traceln "@[<v>Update:@,%a@]"
+    Yojson.Safe.pp json;
+
+  (* Or save to file *)
+  let filename = Printf.sprintf "update_%Ld.json" update.update_id in
+  Yojson.Safe.to_file filename json
+]}
+
+{3 Conditional Debugging}
+
+{[
+let debug = ref false
+
+let () =
+  if Sys.getenv_opt "DEBUG" = Some "true" then
+    debug := true
+
+let handle_update update =
+  if !debug then
+    Eio.traceln "Update: %a"
+      Yojson.Safe.pp (Update.to_yojson update);
+
+  (* Process normally *)
+  ...
+]}
+
+{2 Interactive Debugging}
+
+{3 REPL Testing}
+
+Test functions in utop:
+
+{[
+# Start utop with your library
+dune utop lib
+
+# Test functions interactively
+open Weather_bot_lib;;
+let config = Config.load_env ();;
+let location = Types.City "London";;
+
+(* Test without running full bot *)
+Eio_main.run @@ fun env ->
+  match Api.fetch_weather env config location with
+  | Ok weather ->
+      print_endline (Api.format_weather weather)
+  | Error err ->
+      print_endline ("Error: " ^ err)
+]}
+
+{3 Breakpoints with Assert}
+
+{[
+let handle_command ctx args =
+  Eio.traceln "Command args: %d" (List.length args);
+
+  (* Checkpoint *)
+  if List.length args = 0 then (
+    Eio.traceln "⚠️  Empty args, stopping here";
+    assert false  (* Breaks execution *)
+  );
+
+  (* Continue *)
+  ...
+]}
+
+{2 Error Investigation}
+
+{3 Catch and Log All Errors}
+
+{[
+let safe_handle_update update =
+  try
+    match handle_update update with
+    | Ok () -> Ok ()
+    | Error err ->
+        Eio.traceln "❌ Handler error: %a" Telegram.Error.pp err;
+        Error err
+  with
+  | exn ->
+      Eio.traceln "💥 Exception: %s" (Printexc.to_string exn);
+      Eio.traceln "Backtrace:\n%s" (Printexc.get_backtrace ());
+      Error (Telegram.Error.Decode_error (Printexc.to_string exn))
+]}
+
+{3 API Request/Response Logging}
+
+{[
+let debug_api_call method_name request response =
+  Eio.traceln "@[<v>API Call: %s@," method_name;
+  Eio.traceln "Request:@,%a@," Yojson.Safe.pp (request_to_json request);
+  match response with
+  | Ok result ->
+      Eio.traceln "Response: OK@,%a@]" Yojson.Safe.pp (result_to_json result)
+  | Error err ->
+      Eio.traceln "Response: ERROR@,%a@]" Telegram.Error.pp err
+]}
+
+{2 Performance Debugging}
+
+{3 Measure Update Processing Time}
+
+{[
+let timed_handle_update update =
+  let start = Unix.gettimeofday () in
+
+  let result = handle_update update in
+
+  let elapsed = Unix.gettimeofday () -. start in
+  Eio.traceln "⏱️  Update %Ld took %.3fs" update.update_id elapsed;
+
+  (* Warn on slow updates *)
+  if elapsed > 1.0 then
+    Eio.traceln "⚠️  Slow update detected!";
+
+  result
+]}
+
+{3 Memory Usage}
+
+{[
+let log_memory_usage () =
+  let stat = Gc.quick_stat () in
+  Eio.traceln "Memory: heap_words=%d live_words=%d"
+    stat.heap_words
+    stat.live_words
+
+let handle_update update =
+  log_memory_usage ();
+  (* Process update *)
+  ...
+]}
+
+{1 Logging and Monitoring}
+
+{2 Log Levels}
+
+Implement tiered logging:
+
+{[
+type log_level = Debug | Info | Warn | Error
+
+let current_level = ref Info
+
+let should_log level =
+  let level_value = function
+    | Debug -> 0
+    | Info -> 1
+    | Warn -> 2
+    | Error -> 3
+  in
+  level_value level >= level_value !current_level
+
+let log level fmt =
+  if should_log level then
+    Printf.ksprintf (fun msg ->
+      let prefix = match level with
+        | Debug -> "🔍 DEBUG"
+        | Info -> "ℹ️  INFO"
+        | Warn -> "⚠️  WARN"
+        | Error -> "❌ ERROR"
+      in
+      Eio.traceln "%s: %s" prefix msg
+    ) fmt
+  else
+    Printf.ifprintf () fmt
+
+(* Usage *)
+let () =
+  log Debug "Processing update %Ld" update_id;
+  log Info "Bot started successfully";
+  log Warn "Rate limit approaching";
+  log Error "Failed to connect to database";
+]}
+
+{2 Contextual Logging}
+
+Add context to all logs:
+
+{[
+type log_context = {
+  update_id : int64 option;
+  user_id : int64 option;
+  chat_id : int64 option;
+}
+
+let log ctx level fmt =
+  Printf.ksprintf (fun msg ->
+    let context =
+      let parts = [
+        Option.map (Printf.sprintf "update=%Ld") ctx.update_id;
+        Option.map (Printf.sprintf "user=%Ld") ctx.user_id;
+        Option.map (Printf.sprintf "chat=%Ld") ctx.chat_id;
+      ] |> List.filter_map Fun.id |> String.concat " "
+    in
+    if context = "" then
+      Eio.traceln "[%s] %s" level msg
+    else
+      Eio.traceln "[%s] [%s] %s" level context msg
+  ) fmt
+
+(* Usage *)
+let handle_update update =
+  let ctx = {
+    update_id = Some update.update_id;
+    user_id = Option.map (fun m -> m.from.id) update.message;
+    chat_id = Option.map (fun m -> m.chat.id) update.message;
+  } in
+
+  log ctx "info" "Processing update";
+  (* ... *)
+]}
+
+{2 Metrics Collection}
+
+{3 Simple Metrics}
+
+{[
+type metrics = {
+  mutable total_updates : int;
+  mutable messages : int;
+  mutable commands : int;
+  mutable callbacks : int;
+  mutable errors : int;
+  start_time : float;
+}
+
+let metrics = {
+  total_updates = 0;
+  messages = 0;
+  commands = 0;
+  callbacks = 0;
+  errors = 0;
+  start_time = Unix.time ();
+}
+
+let record_update update =
+  metrics.total_updates <- metrics.total_updates + 1;
+
+  match update with
+  | { message = Some msg; _ } ->
+      metrics.messages <- metrics.messages + 1;
+      (match msg.text with
+       | Some text when String.starts_with ~prefix:"/" text ->
+           metrics.commands <- metrics.commands + 1
+       | _ -> ())
+  | { callback_query = Some _; _ } ->
+      metrics.callbacks <- metrics.callbacks + 1
+  | _ -> ()
+
+let print_metrics () =
+  let uptime = Unix.time () -. metrics.start_time in
+  Eio.traceln "@[<v>Metrics:@,\
+    Uptime: %.0f seconds@,\
+    Total updates: %d@,\
+    Messages: %d@,\
+    Commands: %d@,\
+    Callbacks: %d@,\
+    Errors: %d@,\
+    Rate: %.2f updates/sec@]"
+    uptime
+    metrics.total_updates
+    metrics.messages
+    metrics.commands
+    metrics.callbacks
+    metrics.errors
+    (float_of_int metrics.total_updates /. uptime)
+]}
+
+{3 Periodic Metrics}
+
+{[
+let start_metrics_reporter env =
+  Eio.Fiber.fork ~sw (fun () ->
+    while true do
+      Eio.Time.sleep env#clock 60.0;  (* Every minute *)
+      print_metrics ()
+    done
+  )
+]}
+
+{2 Health Checks}
+
+{[
+type health = {
+  is_healthy : bool;
+  last_update_time : float;
+  error_count : int;
+}
+
+let health = ref {
+  is_healthy = true;
+  last_update_time = Unix.time ();
+  error_count = 0;
+}
+
+let update_health success =
+  if success then (
+    health := { !health with
+      is_healthy = true;
+      last_update_time = Unix.time ();
+      error_count = 0;
+    }
+  ) else (
+    health := { !health with
+      error_count = !health.error_count + 1;
+    };
+    (* Mark unhealthy after 5 consecutive errors *)
+    if !health.error_count >= 5 then
+      health := { !health with is_healthy = false }
+  )
+
+let check_health () =
+  let now = Unix.time () in
+  let time_since_update = now -. !health.last_update_time in
+
+  if time_since_update > 300.0 then (
+    (* No updates in 5 minutes *)
+    Eio.traceln "⚠️  Health check: No updates in 5 minutes";
+    false
+  ) else
+    !health.is_healthy
+]}
+
+{1 Testing Strategies}
+
+{2 Unit Testing}
+
+{3 Testing Pure Functions}
+
+[test/test_commands.ml]:
+
+{[
+open Alcotest
+
+let test_parse_command () =
+  let result = Commands.parse "/weather London" in
+  check (result (ok string)) "parses correctly"
+    (Ok "London") result
+
+let test_format_temperature () =
+  let result = Commands.format_temp 20.5 `Celsius in
+  check string "formats celsius" "20.5°C" result;
+
+  let result = Commands.format_temp 20.5 `Fahrenheit in
+  check string "formats fahrenheit" "68.9°F" result
+
+let suite = [
+  "parse_command", `Quick, test_parse_command;
+  "format_temperature", `Quick, test_format_temperature;
+]
+
+let () = run "Commands" ["parsing", suite]
+]}
+
+{3 Testing with Mocks}
+
+{[
+(* Mock API client *)
+module Mock_api = struct
+  let fetch_weather _env _config location =
+    match location with
+    | Types.City "London" ->
+        Ok Types.{
+          temperature = 20.0;
+          condition = "Sunny";
+          humidity = 60;
+          wind_speed = 10.0;
+        }
+    | _ ->
+        Error "City not found"
+end
+
+(* Test with mock *)
+let test_weather_command () =
+  let location = Types.City "London" in
+  match Mock_api.fetch_weather () () location with
+  | Ok weather ->
+      let formatted = Api.format_weather weather in
+      check (result string string) "formats weather"
+        (Ok "🌡️ 20.0°C - Sunny\n...") (Ok formatted)
+  | Error _ ->
+      fail "Should succeed for London"
+]}
+
+{2 Integration Testing}
+
+{3 Testing with Real Bot}
+
+{[
+(* Setup test bot *)
+let test_bot_token = Sys.getenv "TEST_BOT_TOKEN"
+let test_chat_id = Int64.of_string (Sys.getenv "TEST_CHAT_ID")
+
+let test_send_message () =
+  Eio_main.run @@ fun env ->
+  let client = Telegram.Client.create ~env ~token:test_bot_token () in
+
+  (* Send message *)
+  let* response = Telegram_generated.Gen_methods.send_message
+    client
+    ~chat_id:(Telegram.Id.Chat.of_int64 test_chat_id)
+    ~text:"Test message"
+    () in
+
+  (* Verify *)
+  match response.text with
+  | Some "Test message" ->
+      Alcotest.(check pass) "message sent" () ()
+  | _ ->
+      Alcotest.fail "Message text doesn't match"
+]}
+
+{3 End-to-End Testing}
+
+{[
+(* Test complete flow *)
+let test_weather_flow () =
+  Eio_main.run @@ fun env ->
+  let client = Telegram.Client.create ~env ~token:test_bot_token () in
+
+  (* 1. Send /weather command *)
+  let* cmd_response = send_message client test_chat_id "/weather London" in
+
+  (* 2. Wait for bot response *)
+  Eio.Time.sleep env#clock 2.0;
+
+  (* 3. Get latest messages *)
+  let* updates = get_updates client in
+
+  (* 4. Verify bot replied with weather *)
+  let bot_reply = find_bot_reply updates cmd_response.message_id in
+  check (option string) "bot replied"
+    (Some "🌡️") (* Weather emoji expected *)
+    (Option.bind bot_reply (fun m -> m.text))
+]}
+
+{2 Property-Based Testing}
+
+{[
+open QCheck
+
+let test_temperature_conversion =
+  Test.make
+    ~name:"temperature conversion roundtrip"
+    (float_range (-50.0) 50.0)
+    (fun celsius ->
+      let fahrenheit = Commands.celsius_to_fahrenheit celsius in
+      let back = Commands.fahrenheit_to_celsius fahrenheit in
+      Float.abs (celsius -. back) < 0.001
+    )
+
+let () =
+  QCheck_alcotest.run_tests ~verbose:true "Properties" [
+    test_temperature_conversion;
+  ]
+]}
+
+{2 Test Organization}
+
+{v
+test/
+├── unit/
+│   ├── test_commands.ml    # Pure function tests
+│   ├── test_api.ml          # API client tests (mocked)
+│   └── test_keyboards.ml    # Keyboard builder tests
+│
+├── integration/
+│   ├── test_bot.ml          # Real bot tests
+│   └── test_handlers.ml     # Handler integration tests
+│
+└── fixtures/
+    ├── sample_update.json   # Test data
+    └── sample_weather.json  # Mock API responses
+v}
+
+{2 Running Tests}
+
+{[
+# Run all tests
+dune runtest
+
+# Run specific test
+dune exec test/unit/test_commands.exe
+
+# Run with verbose output
+dune runtest --verbose
+
+# Run in watch mode
+dune runtest --watch
+
+# Run only fast tests
+dune runtest --only-packages my_bot
+]}
+
+{1 Development Tools}
+
+{2 Code Formatting}
+
+{[
+# Install ocamlformat
+opam install ocamlformat
+
+# Create .ocamlformat config
+cat > .ocamlformat << 'EOF'
+profile = default
+version = 0.26.0
+margin = 90
+EOF
+
+# Format all files
+dune build @fmt --auto-promote
+
+# Format on save (add to editor config)
+]}
+
+{2 Code Linting}
+
+{[
+# Check for unused values
+dune build @all --force
+
+# Find unused dependencies
+opam install unused
+unused
+
+# Type coverage
+dune build @check
+]}
+
+{2 Documentation Generation}
+
+{[
+# Build docs
+dune build @doc
+
+# Open in browser
+open _build/default/_doc/_html/index.html
+
+# Watch docs
+find . -name "*.mli" -o -name "*.mld" | \
+  entr -r dune build @doc
+]}
+
+{1 Troubleshooting}
+
+{2 Common Issues}
+
+{3 "Bot doesn't respond"}
+
+Debug checklist:
+{[
+(* 1. Check token *)
+let () =
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  Eio.traceln "Token: %s..." (String.sub token 0 10);
+
+(* 2. Verify bot info *)
+match Telegram_generated.Gen_methods.get_me client () with
+| Ok me -> Eio.traceln "Bot: @%s" (Option.value me.username ~default:"?")
+| Error err -> Eio.traceln "❌ Can't get bot info: %a" Telegram.Error.pp err
+
+(* 3. Check if updates arrive *)
+let handle_update update =
+  Eio.traceln "✓ Update received: %Ld" update.update_id;
+  (* ... *)
+]}
+
+{3 "Type errors after update"}
+
+{[
+# Clean and rebuild
+dune clean
+dune build
+
+# Check for stale artifacts
+find _build -name "*.cmi" -delete
+dune build
+]}
+
+{3 "Slow performance"}
+
+{[
+(* Profile update handling *)
+let profile_handler update =
+  let start = Unix.gettimeofday () in
+
+  let result = handle_update update in
+
+  let elapsed = Unix.gettimeofday () -. start in
+  if elapsed > 0.1 then
+    Eio.traceln "⚠️  Slow handler: %.3fs" elapsed;
+
+  result
+
+(* Check for blocking operations *)
+(* Use Eio.Fiber.fork for concurrent tasks *)
+]}
+
+{1 Production Checklist}
+
+Before deploying:
+
+{v
+Development:
+☐ All tests passing
+☐ No compiler warnings
+☐ Code formatted with ocamlformat
+☐ Documentation up to date
+
+Logging:
+☐ Appropriate log levels
+☐ No sensitive data in logs
+☐ Structured logging format
+☐ Log rotation configured
+
+Monitoring:
+☐ Metrics collection enabled
+☐ Health check endpoint
+☐ Error rate tracking
+☐ Performance monitoring
+
+Security:
+☐ Tokens in environment, not code
+☐ Input validation
+☐ Rate limiting
+☐ HTTPS for webhooks
+
+Testing:
+☐ Unit tests for logic
+☐ Integration tests with test bot
+☐ Load testing (if high traffic)
+☐ Rollback plan ready
+v}
+
+{1 Next Steps}
+
+- {{!page-project_structure}Project Structure} - Organize your code
+- {{!page-quick_start}Quick Start} - Build example bots
+- {{!page-core_concepts}Core Concepts} - Understand architecture
+- Review [examples/] for complete working bots

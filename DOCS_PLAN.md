@@ -10,7 +10,9 @@
 
 ## Progress Tracker
 
-**Overall Completion: 4/30 tasks (13%)**
+**Overall Completion: 5/30 tasks (17%)**
+
+**Phase 1 — Getting Started Guide: COMPLETE (5/5 tasks) ✓**
 
 ---
 
@@ -59,11 +61,15 @@ Foundation documentation for developers new to the library.
   - Best practices (naming, documentation, dependencies) ✓
   - Project templates for quick start ✓
 
-- [ ] Task 1.5: Development workflow
-  - Running bots locally
-  - Debugging techniques
-  - Logging and monitoring
-  - Testing strategies
+- [x] Task 1.5: Development workflow — COMPLETED: docs/development_workflow.mld
+  - Running bots locally (watch mode, auto-restart, dev server, environment files) ✓
+  - Debugging techniques (logging, structured logs, JSON logs, REPL testing, breakpoints) ✓
+  - Logging and monitoring (log levels, contextual logging, metrics, health checks) ✓
+  - Testing strategies (unit, integration, property-based, test organization) ✓
+  - Performance debugging (timing, memory usage, profiling) ✓
+  - Development tools (formatting, linting, docs generation) ✓
+  - Troubleshooting guide (common issues, debug checklists) ✓
+  - Production checklist ✓
 
 ---
 
