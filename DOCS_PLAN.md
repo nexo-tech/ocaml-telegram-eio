@@ -10,7 +10,7 @@
 
 ## Progress Tracker
 
-**Overall Completion: 7/30 tasks (23%)**
+**Overall Completion: 8/30 tasks (27%)**
 
 **Phase 1 — Getting Started Guide: COMPLETE (5/5 tasks) ✓**
 
@@ -98,11 +98,16 @@ Deep dive into the library's elegant functional API.
   - Error handling (route-level, global, built-in handlers) ✓
   - Complete production examples ✓
 
-- [ ] Task 2.3: Update processing
-  - Update types (messages, callbacks, inline queries)
-  - Polling vs webhooks
-  - Update filtering and routing
-  - Long-polling strategies
+- [x] Task 2.3: Update processing — COMPLETED: docs/update_processing.mld
+  - Update types (messages, callbacks, inline queries, payments, polls, group events) ✓
+  - Polling vs webhooks (comparison table, when to use each) ✓
+  - Long-polling strategies (offset persistence, deduplication, error handling, graceful shutdown) ✓
+  - Webhook setup (configuration, security, TLS, reverse proxy, graceful shutdown) ✓
+  - Update filtering and routing (pattern matching, conditional routing, type-safe routers) ✓
+  - Concurrent processing (sequential, concurrent fibers, bounded concurrency, per-chat sequential) ✓
+  - Delivery semantics (at-least-once, idempotency, exactly-once processing) ✓
+  - Best practices (development vs production, error handling, performance, security) ✓
+  - Complete production examples (polling and webhook bots) ✓
 
 - [ ] Task 2.4: Keyboard API
   - Reply keyboards (boilerplate-free builders)

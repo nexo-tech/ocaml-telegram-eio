@@ -1,0 +1,1162 @@
+{0 Update Processing}
+
+A comprehensive guide to receiving and processing Telegram updates with polling and webhooks.
+
+{1 Overview}
+
+Updates are the core of bot communication. They represent events from Telegram: new messages, callback queries, inline queries, and more. This library provides two elegant approaches to receiving updates:
+
+- {b Long Polling}: Pull updates from Telegram servers (simple, great for development)
+- {b Webhooks}: Push updates to your server (efficient, production-ready)
+
+{b Key Features}:
+- {b Automatic Offset Management}: Never worry about tracking update positions
+- {b Deduplication}: Built-in duplicate detection for at-least-once delivery
+- {b Graceful Shutdown}: Drain in-flight updates before stopping
+- {b Error Recovery}: Automatic retry with exponential backoff
+- {b Security}: Secret token validation and IP allowlisting for webhooks
+- {b Concurrency}: Process updates concurrently with Eio fibers
+
+{1 Update Types}
+
+{2 Update Structure}
+
+Every update contains an [update_id] and at most one of the following:
+
+{[
+type update = {
+  update_id : int64;
+  (* Message updates *)
+  message : message option;
+  edited_message : message option;
+  channel_post : message option;
+  edited_channel_post : message option;
+
+  (* Inline and callback updates *)
+  inline_query : inline_query option;
+  chosen_inline_result : chosen_inline_result option;
+  callback_query : callback_query option;
+
+  (* Advanced features *)
+  shipping_query : shipping_query option;
+  pre_checkout_query : pre_checkout_query option;
+  poll : poll option;
+  poll_answer : poll_answer option;
+  my_chat_member : chat_member_updated option;
+  chat_member : chat_member_updated option;
+  chat_join_request : chat_join_request option;
+}
+]}
+
+{2 Common Update Types}
+
+{b Message Updates}:
+- [message]: New incoming message
+- [edited_message]: Message was edited
+- [channel_post]: New channel post
+- [edited_channel_post]: Channel post was edited
+
+{b Interactive Updates}:
+- [callback_query]: Inline keyboard button pressed
+- [inline_query]: User typing in inline mode ([@botname query])
+- [chosen_inline_result]: User selected an inline result
+
+{b Group Management}:
+- [my_chat_member]: Bot's chat member status changed
+- [chat_member]: Another member's status changed
+- [chat_join_request]: User requesting to join chat
+
+{b Payments}:
+- [pre_checkout_query]: Payment before checkout
+- [shipping_query]: Shipping address provided
+
+{b Polls}:
+- [poll]: Poll state changed
+- [poll_answer]: User voted in non-anonymous poll
+
+{1 Long Polling}
+
+{2 Basic Usage}
+
+The simplest way to receive updates:
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+
+let () =
+  Eio_main.run @@ fun env ->
+
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token () in
+
+  (* Define update handler *)
+  let handler update =
+    match update.message with
+    | Some msg ->
+        Printf.printf "New message: %s\n"
+          (Option.value msg.text ~default:"<no text>");
+        flush stdout
+    | None -> ()
+  in
+
+  (* Start polling *)
+  Tg.Polling.run client ~handler
+]}
+
+{2 Polling Configuration}
+
+Configure polling behavior with {!Tg.Polling.make}:
+
+{[
+let config = Tg.Polling.make
+  ~timeout:30              (* Long poll timeout in seconds *)
+  ~limit:100               (* Max updates per request *)
+  ~allowed_updates:["message"; "callback_query"]  (* Filter update types *)
+  ~dedup_window:1000       (* Track last 1000 update IDs *)
+  ()
+in
+
+Tg.Polling.run_with_config client config ~handler
+]}
+
+{2 Configuration Options}
+
+{b timeout} (default: 30):
+- How long to wait for new updates before returning
+- Higher = fewer requests, more latency
+- Lower = more requests, less latency
+- Recommended: 20-50 seconds
+
+{b limit} (default: 100, max: 100):
+- Maximum updates to fetch per request
+- Higher = fewer requests for high-volume bots
+- Lower = more responsive for low-volume bots
+
+{b allowed_updates} (default: all types):
+- Filter which update types to receive
+- Reduces bandwidth and processing overhead
+- Common filters:
+  - [["message"]] - Only messages
+  - [["message"; "callback_query"]] - Messages and button presses
+  - [["message"; "edited_message"]] - New and edited messages
+
+{b dedup_window} (default: 0 = disabled):
+- Track last N update IDs to detect duplicates
+- Essential for at-least-once delivery guarantees
+- Recommended: 100-1000 for production bots
+- Memory usage: ~8KB per 1000 updates
+
+{2 Offset Persistence}
+
+Resume from the correct position after restarts:
+
+{[
+(* File-based offset storage *)
+let offset_storage = {
+  Tg.Polling.load = (fun () ->
+    try
+      let ic = open_in "bot_offset.txt" in
+      let offset = Int64.of_string (input_line ic) in
+      close_in ic;
+      Some offset
+    with _ -> None
+  );
+  save = (fun offset ->
+    let oc = open_out "bot_offset.txt" in
+    output_string oc (Int64.to_string offset);
+    close_out oc
+  );
+}
+
+let config = Tg.Polling.make
+  ~offset_storage
+  ~dedup_window:1000  (* Still needed! *)
+  ()
+in
+
+Tg.Polling.run_with_config client config ~handler
+]}
+
+{2 Error Handling}
+
+Handle polling errors gracefully:
+
+{[
+let config = Tg.Polling.make
+  ~on_error:(fun err ->
+    match err with
+    | Telegram.Error.Network_error msg ->
+        Printf.eprintf "Network error: %s (will retry)\n" msg
+    | Telegram.Error.Api_error { description; _ } ->
+        Printf.eprintf "API error: %s\n" description
+    | _ ->
+        Printf.eprintf "Error: %s\n" (Format.asprintf "%a" Telegram.Error.pp err)
+  )
+  ()
+in
+
+Tg.Polling.run_with_config client config ~handler
+]}
+
+{2 Graceful Shutdown}
+
+Stop polling cleanly using Eio switches:
+
+{[
+let () =
+  Eio_main.run @@ fun env ->
+
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token () in
+
+  Eio.Switch.run @@ fun sw ->
+
+  (* Handle SIGINT for graceful shutdown *)
+  Sys.set_signal Sys.sigint (Sys.Signal_handle (fun _ ->
+    Printf.printf "Shutting down gracefully...\n";
+    Eio.Switch.fail sw Exit
+  ));
+
+  (* Run polling with switch *)
+  try
+    Tg.Polling.run_with_switch client sw ~handler;
+    Printf.printf "Polling stopped\n"
+  with Exit ->
+    Printf.printf "Shutdown complete\n"
+]}
+
+{b Shutdown behavior}:
+1. Stop fetching new updates
+2. Process all updates from current batch
+3. Save final offset (if configured)
+4. Return cleanly
+
+{2 Production Polling Pattern}
+
+Complete production setup with all features:
+
+{[
+let run_production_polling client handler =
+  (* Offset storage (database, Redis, file, etc.) *)
+  let offset_storage = {
+    Tg.Polling.load = load_offset_from_db;
+    save = save_offset_to_db;
+  } in
+
+  (* Error handler with logging *)
+  let on_error err =
+    Logs.err (fun m -> m "Polling error: %a" Telegram.Error.pp err);
+    (* Optionally: send alert to monitoring system *)
+  in
+
+  (* Configuration *)
+  let config = Tg.Polling.make
+    ~timeout:30
+    ~limit:100
+    ~allowed_updates:["message"; "callback_query"; "inline_query"]
+    ~offset_storage
+    ~dedup_window:1000
+    ~on_error
+    ()
+  in
+
+  (* Run with graceful shutdown *)
+  Eio_main.run @@ fun env ->
+  Eio.Switch.run @@ fun sw ->
+
+  (* Signal handling *)
+  let shutdown _ =
+    Logs.info (fun m -> m "Shutdown signal received");
+    Eio.Switch.fail sw Exit
+  in
+  Sys.set_signal Sys.sigint (Sys.Signal_handle shutdown);
+  Sys.set_signal Sys.sigterm (Sys.Signal_handle shutdown);
+
+  (* Start polling *)
+  try
+    Logs.info (fun m -> m "Starting long polling...");
+    Tg.Polling.run_with_config_and_switch client config sw ~handler;
+    Logs.info (fun m -> m "Polling stopped gracefully")
+  with Exit ->
+    Logs.info (fun m -> m "Shutdown complete")
+]}
+
+{1 Webhooks}
+
+{2 Basic Usage}
+
+Receive updates via HTTP webhooks:
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+
+let () =
+  Eio_main.run @@ fun env ->
+
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token () in
+
+  (* Define update handler *)
+  let handler update =
+    match update.message with
+    | Some msg ->
+        Printf.printf "New message: %s\n"
+          (Option.value msg.text ~default:"<no text>")
+    | None -> ()
+  in
+
+  (* Start webhook server *)
+  Tg.Webhook.run client
+    ~secret_token:"my-secret-token-here"
+    ~port:8443
+    ~path:"/webhook"
+    ~handler
+]}
+
+{2 Setting Up Webhook}
+
+Tell Telegram where to send updates:
+
+{[
+(* Set webhook URL *)
+let setup_webhook client =
+  let url = "https://example.com:8443/webhook" in
+  let secret = "my-secret-token-here" in
+
+  match Telegram_generated.Gen_methods.set_webhook client
+    ~url
+    ~secret_token:secret
+    ~allowed_updates:["message"; "callback_query"]
+    () with
+  | Ok _ ->
+      Printf.printf "Webhook set successfully\n"
+  | Error err ->
+      Printf.eprintf "Failed to set webhook: %s\n"
+        (Format.asprintf "%a" Telegram.Error.pp err)
+
+(* Check webhook status *)
+let check_webhook client =
+  match Telegram_generated.Gen_methods.get_webhook_info client () with
+  | Ok info ->
+      Printf.printf "Webhook URL: %s\n" info.url;
+      Printf.printf "Pending updates: %d\n" info.pending_update_count
+  | Error err ->
+      Printf.eprintf "Error: %s\n"
+        (Format.asprintf "%a" Telegram.Error.pp err)
+
+(* Delete webhook (switch back to polling) *)
+let delete_webhook client =
+  match Telegram_generated.Gen_methods.delete_webhook client () with
+  | Ok _ -> Printf.printf "Webhook deleted\n"
+  | Error err -> Printf.eprintf "Error: %s\n"
+        (Format.asprintf "%a" Telegram.Error.pp err)
+]}
+
+{2 Webhook Configuration}
+
+Configure webhook server with {!Tg.Webhook.make}:
+
+{[
+let config = Tg.Webhook.make
+  ~port:8443
+  ~path:"/webhook"
+  ~secret_token:"my-secret-token"
+  ~max_connections:100
+  ~ip_allowlist:Tg.Webhook.telegram_ip_ranges
+  ()
+in
+
+Tg.Webhook.run_with_config client config ~handler
+]}
+
+{2 Configuration Options}
+
+{b port} (default: 8443):
+- Port to listen on
+- Telegram supports: 443, 80, 88, 8443
+- Recommended: 8443 (dedicated webhook port)
+
+{b path} (default: "/webhook"):
+- URL path to receive updates
+- Examples: ["/webhook"], ["/bot123456"], ["/my-bot"]
+- Keep secret to prevent spam
+
+{b secret_token} (default: None):
+- Secret token for request validation
+- {b Required for production!}
+- Sent via [X-Telegram-Bot-Api-Secret-Token] header
+- Use cryptographically random string
+
+{b max_connections} (default: 100):
+- Maximum concurrent connections
+- Higher = more throughput, more memory
+- Telegram default: 40 connections
+- Adjust based on handler latency
+
+{b ip_allowlist} (default: None = allow all):
+- Restrict to Telegram's IP ranges
+- Use [Tg.Webhook.telegram_ip_ranges] for official ranges
+- Additional security layer
+
+{2 Security Best Practices}
+
+{b 1. Always Use Secret Token}:
+
+{[
+(* Generate random secret *)
+let secret =
+  (* Use a cryptographically secure random generator *)
+  "randomly-generated-secret-string-here"
+
+let config = Tg.Webhook.make
+  ~secret_token:secret
+  ()
+]}
+
+{b 2. IP Allowlisting}:
+
+{[
+(* Restrict to Telegram's official IP ranges *)
+let config = Tg.Webhook.make
+  ~secret_token:"secret"
+  ~ip_allowlist:Tg.Webhook.telegram_ip_ranges
+  ()
+]}
+
+{b 3. TLS/HTTPS}:
+
+Webhooks require HTTPS. Use a reverse proxy:
+
+{v
+# Nginx configuration
+server {
+  listen 443 ssl;
+  server_name bot.example.com;
+
+  ssl_certificate /etc/ssl/certs/bot.crt;
+  ssl_certificate_key /etc/ssl/private/bot.key;
+
+  location /webhook {
+    proxy_pass http://127.0.0.1:8080/webhook;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  }
+}
+v}
+
+{b 4. Custom Validation}:
+
+{[
+(* Add rate limiting or custom checks *)
+let rate_limiter = (* your rate limiter *) in
+
+let custom_validator request =
+  let open Tg.Webhook in
+  (* Check rate limit *)
+  if not (rate_limiter.check request.client_addr) then
+    Reject "Rate limit exceeded"
+  (* Check custom header *)
+  else if not (List.mem_assoc "X-Custom-Auth" request.headers) then
+    Reject "Missing auth header"
+  else
+    Accept
+in
+
+let config = Tg.Webhook.make
+  ~secret_token:"secret"
+  ~custom_validator
+  ()
+]}
+
+{2 Graceful Shutdown}
+
+Stop webhook server cleanly:
+
+{[
+let () =
+  Eio_main.run @@ fun env ->
+
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token () in
+
+  let config = Tg.Webhook.make
+    ~port:8443
+    ~secret_token:"secret"
+    ()
+  in
+
+  Eio.Switch.run @@ fun sw ->
+
+  (* Handle shutdown signals *)
+  let shutdown _ =
+    Printf.printf "Shutting down webhook server...\n";
+    Eio.Switch.fail sw Exit
+  in
+  Sys.set_signal Sys.sigint (Sys.Signal_handle shutdown);
+  Sys.set_signal Sys.sigterm (Sys.Signal_handle shutdown);
+
+  (* Run webhook with switch *)
+  try
+    Tg.Webhook.run_with_config_and_switch client config sw ~handler;
+    Printf.printf "Webhook stopped\n"
+  with Exit ->
+    Printf.printf "Shutdown complete\n"
+]}
+
+{b Shutdown behavior}:
+1. Stop accepting new connections
+2. Wait for all in-flight requests to complete
+3. Return cleanly
+
+{2 Production Webhook Pattern}
+
+Complete production setup:
+
+{[
+let run_production_webhook client handler =
+  (* Error handler *)
+  let on_error err =
+    Logs.err (fun m -> m "Webhook error: %a" Telegram.Error.pp err);
+  in
+
+  (* Rate limiter (implement your own) *)
+  let rate_limiter = (* create_rate_limiter () *) in
+  let custom_validator request =
+    let open Tg.Webhook in
+    if rate_limiter.check request.client_addr then Accept
+    else Reject "Rate limited"
+  in
+
+  (* Configuration *)
+  let config = Tg.Webhook.make
+    ~port:8080  (* Behind reverse proxy *)
+    ~path:"/webhook"
+    ~secret_token:(Sys.getenv "WEBHOOK_SECRET")
+    ~max_connections:100
+    ~ip_allowlist:Tg.Webhook.telegram_ip_ranges
+    ~custom_validator
+    ~on_error
+    ()
+  in
+
+  (* Run with graceful shutdown *)
+  Eio_main.run @@ fun env ->
+  Eio.Switch.run @@ fun sw ->
+
+  (* Signal handling *)
+  let shutdown _ =
+    Logs.info (fun m -> m "Shutdown signal received");
+    Eio.Switch.fail sw Exit
+  in
+  Sys.set_signal Sys.sigint (Sys.Signal_handle shutdown);
+  Sys.set_signal Sys.sigterm (Sys.Signal_handle shutdown);
+
+  (* Timeout wrapper for handler *)
+  let handler_with_timeout update =
+    try
+      Eio.Time.with_timeout (env#clock) 10.0
+        (fun () -> handler update)
+        ~on_timeout:(fun () ->
+          Logs.warn (fun m -> m "Handler timeout")
+        )
+    with exn ->
+      Logs.err (fun m -> m "Handler error: %s" (Printexc.to_string exn))
+  in
+
+  (* Start server *)
+  try
+    Logs.info (fun m -> m "Starting webhook on port %d" config.port);
+    Tg.Webhook.run_with_config_and_switch client config sw
+      ~handler:handler_with_timeout;
+    Logs.info (fun m -> m "Webhook stopped gracefully")
+  with Exit ->
+    Logs.info (fun m -> m "Shutdown complete")
+]}
+
+{1 Polling vs Webhooks}
+
+{2 Comparison Table}
+
+{v
+┌──────────────────┬─────────────────────────┬─────────────────────────┐
+│ Feature          │ Long Polling            │ Webhooks                │
+├──────────────────┼─────────────────────────┼─────────────────────────┤
+│ Setup            │ Simple, zero config     │ Requires HTTPS/domain   │
+│ Development      │ ✓ Easy (localhost)      │ Needs tunnel/ngrok      │
+│ Production       │ Good for low volume     │ ✓ Best for high volume  │
+│ Latency          │ Higher (poll interval)  │ ✓ Lower (immediate)     │
+│ Server Load      │ Constant polling        │ ✓ Event-driven          │
+│ Telegram Load    │ Higher (many requests)  │ ✓ Lower (push only)     │
+│ Firewall         │ ✓ Outbound only         │ Needs inbound access    │
+│ Scalability      │ Single instance         │ ✓ Multiple instances    │
+│ State            │ ✓ Automatic offset      │ Telegram queues updates │
+│ Reliability      │ Client handles failures │ ✓ Telegram retries      │
+└──────────────────┴─────────────────────────┴─────────────────────────┘
+v}
+
+{2 When to Use Polling}
+
+Use long polling when:
+
+- {b Development/Testing}: Simplest to set up locally
+- {b No Public IP}: Behind firewall or NAT
+- {b Low Volume}: < 1 message/second
+- {b Single Instance}: Running one bot process
+- {b Quick Prototyping}: Get started fast
+- {b Personal Bots}: Small user base
+
+{[
+(* Perfect for development *)
+Tg.Polling.run client ~handler
+]}
+
+{2 When to Use Webhooks}
+
+Use webhooks when:
+
+- {b Production}: Higher volume, better efficiency
+- {b High Volume}: > 10 messages/second
+- {b Multiple Bots}: Same server, different paths
+- {b Low Latency}: Immediate response needed
+- {b Scaling}: Multiple instances with load balancer
+- {b Cost Efficiency}: Reduce API requests
+
+{[
+(* Production-ready *)
+Tg.Webhook.run client
+  ~secret_token:"secret"
+  ~port:8443
+  ~handler
+]}
+
+{2 Hybrid Approach}
+
+Use polling for development, webhooks for production:
+
+{[
+let run_bot client handler =
+  match Sys.getenv_opt "WEBHOOK_URL" with
+  | Some url ->
+      (* Production: use webhooks *)
+      let secret = Sys.getenv "WEBHOOK_SECRET" in
+      let config = Tg.Webhook.make
+        ~port:8080
+        ~secret_token:secret
+        ()
+      in
+      Tg.Webhook.run_with_config client config ~handler
+
+  | None ->
+      (* Development: use polling *)
+      let config = Tg.Polling.make ~timeout:30 () in
+      Tg.Polling.run_with_config client config ~handler
+]}
+
+{1 Update Filtering and Routing}
+
+{2 Pattern Matching Updates}
+
+Route different update types to different handlers:
+
+{[
+let handle_update update =
+  match update with
+  (* Message updates *)
+  | { message = Some msg; _ } ->
+      handle_message msg
+
+  | { edited_message = Some msg; _ } ->
+      handle_edited_message msg
+
+  (* Callback queries *)
+  | { callback_query = Some query; _ } ->
+      handle_callback_query query
+
+  (* Inline queries *)
+  | { inline_query = Some query; _ } ->
+      handle_inline_query query
+
+  (* Group management *)
+  | { my_chat_member = Some update; _ } ->
+      handle_bot_status_change update
+
+  | { chat_member = Some update; _ } ->
+      handle_member_change update
+
+  (* Polls *)
+  | { poll = Some poll; _ } ->
+      handle_poll_update poll
+
+  | { poll_answer = Some answer; _ } ->
+      handle_poll_answer answer
+
+  (* Payments *)
+  | { pre_checkout_query = Some query; _ } ->
+      handle_pre_checkout query
+
+  | _ ->
+      (* Unknown or unsupported update type *)
+      ()
+]}
+
+{2 Filtering by Update Type}
+
+Configure which update types to receive:
+
+{[
+(* Only receive messages *)
+let config = Tg.Polling.make
+  ~allowed_updates:["message"]
+  ()
+
+(* Messages and callbacks only *)
+let config = Tg.Polling.make
+  ~allowed_updates:["message"; "callback_query"]
+  ()
+
+(* Everything except inline queries *)
+let config = Tg.Polling.make
+  ~allowed_updates:[
+    "message";
+    "edited_message";
+    "callback_query";
+    "channel_post";
+    "edited_channel_post";
+  ]
+  ()
+]}
+
+{2 Update Router Pattern}
+
+Build a type-safe update router:
+
+{[
+type route =
+  | MessageRoute of (Telegram.Types.message -> unit)
+  | CallbackRoute of (Telegram.Types.callback_query -> unit)
+  | InlineRoute of (Telegram.Types.inline_query -> unit)
+
+let make_router routes =
+  fun update ->
+    List.iter (fun route ->
+      match route, update with
+      | MessageRoute handler, { message = Some msg; _ } ->
+          handler msg
+      | CallbackRoute handler, { callback_query = Some query; _ } ->
+          handler query
+      | InlineRoute handler, { inline_query = Some query; _ } ->
+          handler query
+      | _ -> ()
+    ) routes
+
+(* Define routes *)
+let routes = [
+  MessageRoute handle_message;
+  CallbackRoute handle_callback;
+  InlineRoute handle_inline;
+]
+
+(* Create router *)
+let router = make_router routes
+
+(* Use with polling or webhook *)
+Tg.Polling.run client ~handler:router
+]}
+
+{2 Conditional Routing}
+
+Route updates based on content:
+
+{[
+let smart_handler update =
+  match update.message with
+  | Some msg when is_command msg ->
+      handle_command msg
+
+  | Some msg when has_photo msg ->
+      handle_photo msg
+
+  | Some msg when is_group_message msg ->
+      handle_group_message msg
+
+  | Some msg ->
+      handle_regular_message msg
+
+  | None ->
+      match update.callback_query with
+      | Some query -> handle_callback query
+      | None -> ()
+
+(* Helper functions *)
+let is_command msg =
+  match msg.text with
+  | Some text -> String.length text > 0 && text.[0] = '/'
+  | None -> false
+
+let has_photo msg =
+  match msg.photo with
+  | Some photos -> List.length photos > 0
+  | None -> false
+
+let is_group_message msg =
+  match msg.chat.chat_type with
+  | `Group | `Supergroup -> true
+  | _ -> false
+]}
+
+{1 Concurrent Update Processing}
+
+{2 Sequential Processing (Default)}
+
+By default, updates are processed sequentially:
+
+{[
+(* Each update completes before next starts *)
+let handler update =
+  process_update update;  (* Blocking *)
+  save_to_database update (* Blocking *)
+
+Tg.Polling.run client ~handler
+]}
+
+Safe and simple, but can be slow for high-volume bots.
+
+{2 Concurrent Processing with Fibers}
+
+Process multiple updates concurrently:
+
+{[
+let concurrent_handler env update =
+  (* Spawn fiber for each update *)
+  Eio.Fiber.fork_promise ~sw (fun () ->
+    process_update update;
+    save_to_database update
+  )
+
+let run_concurrent client =
+  Eio_main.run @@ fun env ->
+  Eio.Switch.run @@ fun sw ->
+
+  let handler = concurrent_handler env in
+  Tg.Polling.run_with_switch client sw ~handler
+]}
+
+{2 Bounded Concurrency}
+
+Limit concurrent update processing:
+
+{[
+let bounded_concurrent_handler env semaphore update =
+  (* Acquire semaphore before processing *)
+  Eio.Semaphore.acquire semaphore;
+
+  Eio.Fiber.fork_promise ~sw (fun () ->
+    try
+      process_update update;
+      save_to_database update;
+      Eio.Semaphore.release semaphore
+    with exn ->
+      Eio.Semaphore.release semaphore;
+      raise exn
+  )
+
+let run_bounded client max_concurrent =
+  Eio_main.run @@ fun env ->
+  Eio.Switch.run @@ fun sw ->
+
+  (* Create semaphore with max permits *)
+  let semaphore = Eio.Semaphore.make max_concurrent in
+  let handler = bounded_concurrent_handler env semaphore in
+
+  Tg.Polling.run_with_switch client sw ~handler
+]}
+
+{2 Per-Chat Sequential Processing}
+
+Process updates concurrently, but sequentially per chat:
+
+{[
+(* Track active processing per chat *)
+let chat_locks = Hashtbl.create 100
+
+let per_chat_sequential_handler env update =
+  match update.message with
+  | None -> ()
+  | Some msg ->
+      let chat_id = msg.chat.id in
+
+      (* Get or create mutex for this chat *)
+      let mutex =
+        try Hashtbl.find chat_locks chat_id
+        with Not_found ->
+          let m = Eio.Mutex.create () in
+          Hashtbl.add chat_locks chat_id m;
+          m
+      in
+
+      (* Process with chat-specific lock *)
+      Eio.Mutex.use_rw ~protect:true mutex (fun () ->
+        process_update update;
+        save_to_database update
+      )
+]}
+
+{1 Delivery Semantics and Idempotency}
+
+{2 At-Least-Once Delivery}
+
+Telegram guarantees at-least-once delivery:
+- Updates may be delivered multiple times
+- Updates are never lost (unless expired after 24 hours)
+- Order is preserved per chat
+
+{2 Why Duplicates Happen}
+
+Duplicates can occur when:
+1. Network failure: Request succeeds but response is lost
+2. Process crash: Offset saved before processing completes
+3. Telegram retry: Rare internal server retries
+
+{2 Deduplication Strategy}
+
+Enable built-in deduplication:
+
+{[
+let config = Tg.Polling.make
+  ~dedup_window:1000  (* Track last 1000 update IDs *)
+  ()
+in
+
+Tg.Polling.run_with_config client config ~handler
+]}
+
+The library automatically:
+- Tracks recently seen update IDs
+- Skips duplicate updates
+- Maintains sliding window (constant memory)
+
+{2 Making Handlers Idempotent}
+
+Design handlers to be safe when called multiple times:
+
+{[
+(* Bad: Non-idempotent *)
+let bad_handler update =
+  (* Sends duplicate messages on retry *)
+  send_message "Thanks for your message!";
+  increment_counter user_id
+
+(* Good: Idempotent with database constraint *)
+let good_handler db update =
+  let update_id = update.update_id in
+
+  (* Try to insert update_id (unique constraint) *)
+  match Database.try_insert db "processed_updates" ~update_id with
+  | Ok () ->
+      (* First time seeing this update *)
+      send_message "Thanks for your message!";
+      increment_counter user_id
+
+  | Error `Already_exists ->
+      (* Already processed, skip *)
+      ()
+]}
+
+{2 Exactly-Once Processing}
+
+Achieve exactly-once semantics:
+
+{[
+let exactly_once_handler db update =
+  (* Use database transaction *)
+  Database.transaction db @@ fun tx ->
+
+  (* Insert update_id with unique constraint *)
+  match Database.insert tx "processed_updates"
+    ~values:["update_id", update.update_id] with
+  | exception Database.Unique_violation ->
+      (* Already processed *)
+      ()
+
+  | () ->
+      (* Process update within transaction *)
+      let result = process_update update in
+      Database.insert tx "results" ~values:["result", result];
+      (* Transaction commits - atomic *)
+]}
+
+{1 Best Practices}
+
+{2 Development}
+
+- Use polling for simplicity
+- No offset persistence needed
+- Disable deduplication
+- Log errors to console
+
+{[
+let dev_config = Tg.Polling.make
+  ~timeout:10
+  ~on_error:(fun err ->
+    Printf.eprintf "Error: %s\n" (Format.asprintf "%a" Telegram.Error.pp err)
+  )
+  ()
+]}
+
+{2 Production}
+
+- Use webhooks for efficiency
+- Enable offset persistence
+- Enable deduplication
+- Implement graceful shutdown
+- Use structured logging
+- Monitor webhook health
+
+{[
+let prod_config = Tg.Webhook.make
+  ~port:8080
+  ~secret_token:(Sys.getenv "WEBHOOK_SECRET")
+  ~ip_allowlist:Tg.Webhook.telegram_ip_ranges
+  ~max_connections:100
+  ~on_error:(fun err ->
+    Logs.err (fun m -> m "Webhook error: %a" Telegram.Error.pp err)
+  )
+  ()
+]}
+
+{2 Error Handling}
+
+- Don't throw exceptions in handlers
+- Log errors for debugging
+- Send user-friendly error messages
+- Retry transient failures
+
+{[
+let safe_handler update =
+  try
+    process_update update
+  with
+  | Database_error msg ->
+      Logs.err (fun m -> m "DB error: %s" msg);
+      (* Don't crash, continue processing *)
+  | exn ->
+      Logs.err (fun m -> m "Handler error: %s" (Printexc.to_string exn))
+]}
+
+{2 Performance}
+
+- Filter update types to reduce load
+- Process updates concurrently when possible
+- Use per-chat sequential processing for stateful handlers
+- Monitor handler latency
+- Scale horizontally with webhooks
+
+{2 Security}
+
+- Always use secret token for webhooks
+- Enable IP allowlisting
+- Validate all user inputs
+- Rate limit per user
+- Keep webhook path secret
+
+{1 Complete Examples}
+
+{2 Development Polling Bot}
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+
+let () =
+  Eio_main.run @@ fun env ->
+
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token () in
+
+  let handler update =
+    match update.message with
+    | Some msg ->
+        let text = Option.value msg.text ~default:"" in
+        Printf.printf "[%Ld] %s\n" msg.message_id text;
+        flush stdout
+    | None -> ()
+  in
+
+  Printf.printf "Starting polling...\n";
+  Tg.Polling.run client ~handler
+]}
+
+{2 Production Webhook Bot}
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+
+let () =
+  (* Load configuration *)
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let webhook_secret = Sys.getenv "WEBHOOK_SECRET" in
+  let port = int_of_string (Sys.getenv_opt "PORT" |> Option.value ~default:"8080") in
+
+  Eio_main.run @@ fun env ->
+
+  let client = Telegram.Client.create ~env ~token () in
+
+  (* Configure webhook *)
+  let config = Tg.Webhook.make
+    ~port
+    ~path:"/webhook"
+    ~secret_token:webhook_secret
+    ~max_connections:100
+    ~ip_allowlist:Tg.Webhook.telegram_ip_ranges
+    ~on_error:(fun err ->
+      Logs.err (fun m -> m "Error: %a" Telegram.Error.pp err)
+    )
+    ()
+  in
+
+  (* Define handler with timeout *)
+  let handler update =
+    try
+      Eio.Time.with_timeout (env#clock) 10.0
+        (fun () ->
+          match update.message with
+          | Some msg ->
+              process_message client msg
+          | None -> ()
+        )
+        ~on_timeout:(fun () ->
+          Logs.warn (fun m -> m "Handler timeout for update %Ld" update.update_id)
+        )
+    with exn ->
+      Logs.err (fun m -> m "Handler error: %s" (Printexc.to_string exn))
+  in
+
+  (* Run with graceful shutdown *)
+  Eio.Switch.run @@ fun sw ->
+
+  let shutdown _ =
+    Logs.info (fun m -> m "Shutting down...");
+    Eio.Switch.fail sw Exit
+  in
+  Sys.set_signal Sys.sigint (Sys.Signal_handle shutdown);
+  Sys.set_signal Sys.sigterm (Sys.Signal_handle shutdown);
+
+  try
+    Logs.info (fun m -> m "Starting webhook on port %d" port);
+    Tg.Webhook.run_with_config_and_switch client config sw ~handler;
+    Logs.info (fun m -> m "Webhook stopped")
+  with Exit ->
+    Logs.info (fun m -> m "Shutdown complete")
+]}
+
+{1 See Also}
+
+- {{!page-quick_start}Quick Start Tutorial} - Building your first bot
+- {{!page-command_dsl}Command DSL} - Command-driven bots
+- {{!Tg.Polling}Polling Module} - Complete Polling API reference
+- {{!Tg.Webhook}Webhook Module} - Complete Webhook API reference
+- {{!page-development_workflow}Development Workflow} - Testing and debugging
