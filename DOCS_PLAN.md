@@ -10,9 +10,10 @@
 
 ## Progress Tracker
 
-**Overall Completion: 9/30 tasks (30%)**
+**Overall Completion: 10/30 tasks (33%)**
 
 **Phase 1 — Getting Started Guide: COMPLETE (5/5 tasks) ✓**
+**Phase 2 — API Fundamentals: COMPLETE (6/6 tasks) ✓**
 
 ---
 
@@ -120,17 +121,23 @@ Deep dive into the library's elegant functional API.
   - Complete examples (menu navigation, pagination, confirmation, quiz) ✓
   - Best practices (button text, callback data, layout, reply vs inline, performance, error handling) ✓
 
-- [ ] Task 2.5: Callback queries
-  - Callback data encoding
-  - Callback handlers
-  - State management with callbacks
-  - Answering callback queries
+- [x] Task 2.5: Callback queries — COMPLETED: docs/callback_queries.mld
+  - Callback query structure and anatomy (id, data, message, user) ✓
+  - Basic callback handling (low-level and Bot DSL) ✓
+  - Answering callback queries (simple, with text, alert, URL, timing) ✓
+  - Callback data encoding (simple, structured, JSON, type-safe) ✓
+  - Data length limits and optimization strategies ✓
+  - State management (session-based, callback data state, database state) ✓
+  - Callback patterns (confirmation, toggle, like/unlike, multi-select, pagination, wizard/form) ✓
+  - Error handling (always answer, missing data, timeout protection) ✓
+  - Best practices (data design, response timing, state management, security) ✓
+  - Complete examples (shopping cart, form wizard, pagination) ✓
 
-- [ ] Task 2.6: Media and files
-  - Sending photos, videos, documents
-  - File uploads and downloads
-  - Media groups
-  - InputFile abstraction
+- [x] Task 2.6: Media and files — COVERED in message_handling.mld
+  - Sending photos, videos, documents ✓
+  - File uploads and downloads ✓
+  - Media groups ✓
+  - InputFile abstraction ✓
 
 ---
 

@@ -154,6 +154,7 @@ See the {e examples/} directory for complete, runnable examples:
 - {{!page-command_dsl}Command DSL} - Command routing, argument parsing, middleware, and bot composition
 - {{!page-update_processing}Update Processing} - Long polling, webhooks, filtering, and concurrent processing
 - {{!page-keyboard_api}Keyboard API} - Reply keyboards, inline keyboards, layouts, and interactive patterns
+- {{!page-callback_queries}Callback Queries} - Handling button presses, data encoding, and state management
 
 {2 Migration}
 

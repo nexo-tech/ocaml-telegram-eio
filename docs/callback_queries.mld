@@ -1,0 +1,1097 @@
+{0 Callback Queries}
+
+A comprehensive guide to handling inline keyboard button presses with callback queries.
+
+{1 Overview}
+
+Callback queries are events triggered when users press inline keyboard buttons. They enable interactive, stateful bot experiences without requiring users to send messages. This guide covers everything from basic callback handling to advanced state management patterns.
+
+{b Key Features}:
+- {b Instant Response}: No message sending required
+- {b Data Encoding}: Attach structured data to buttons (up to 64 bytes)
+- {b Message Updates}: Edit messages and keyboards in response
+- {b State Management}: Track multi-step interactions
+- {b Type-Safe}: Structured data parsing with compile-time safety
+
+{1 Callback Query Structure}
+
+{2 Anatomy of a Callback Query}
+
+When a user presses an inline keyboard button, your bot receives:
+
+{[
+type callback_query = {
+  id : string;
+    (* Unique identifier for this query *)
+
+  from : user;
+    (* User who pressed the button *)
+
+  message : message option;
+    (* Message with the keyboard (if not too old) *)
+
+  inline_message_id : string option;
+    (* Identifier of inline message (inline mode) *)
+
+  chat_instance : string;
+    (* Identifier for chat where button was pressed *)
+
+  data : string option;
+    (* Callback data from the button (up to 64 bytes) *)
+
+  game_short_name : string option;
+    (* Game identifier (for game buttons) *)
+}
+]}
+
+{2 Key Fields}
+
+{b id}:
+- Unique identifier for this callback query
+- Used to answer the callback (required)
+- Prevents duplicate processing
+
+{b data}:
+- The callback_data set on the button
+- Max 64 bytes
+- Encode action, parameters, state
+
+{b message}:
+- The message containing the keyboard
+- Available for regular messages
+- May be None for old messages or inline mode
+
+{1 Basic Callback Handling}
+
+{2 Low-Level Handling}
+
+Handle callbacks in update processing:
+
+{[
+open Ocaml_telegram_eio
+
+let handle_update client update =
+  match update.callback_query with
+  | None -> ()
+  | Some query ->
+      (* Extract callback data *)
+      let data = Option.value query.data ~default:"" in
+
+      (* Process the callback *)
+      (match data with
+       | "confirm" ->
+           (* Answer callback *)
+           let* _ = Telegram_generated.Gen_methods.answer_callback_query
+             client
+             ~callback_query_id:query.id
+             ~text:"Confirmed!"
+             ()
+           in
+
+           (* Edit the message *)
+           (match query.message with
+            | Some msg ->
+                let chat_id = Telegram.Id.Chat.of_int msg.chat.id in
+                Telegram_generated.Gen_methods.edit_message_text
+                  client
+                  ~chat_id
+                  ~message_id:msg.message_id
+                  ~text:"✓ You confirmed the action"
+                  ()
+            | None ->
+                Ok ())
+
+       | "cancel" ->
+           let* _ = Telegram_generated.Gen_methods.answer_callback_query
+             client
+             ~callback_query_id:query.id
+             ~text:"Cancelled"
+             ()
+           in
+           Ok ()
+
+       | _ ->
+           (* Unknown callback *)
+           Telegram_generated.Gen_methods.answer_callback_query
+             client
+             ~callback_query_id:query.id
+             ()
+      )
+]}
+
+{2 Bot DSL Handling}
+
+Use the Bot DSL for cleaner callback routing:
+
+{[
+open Tg.Bot
+
+let routes = [
+  (* Handle "confirm" callback *)
+  on (Event.callback "confirm") (fun _data ctx ->
+    let* _ = Ctx.edit ctx "✓ Confirmed!" in
+    ()
+  );
+
+  (* Handle "cancel" callback *)
+  on (Event.callback "cancel") (fun _data ctx ->
+    let* _ = Ctx.edit ctx "✗ Cancelled" in
+    ()
+  );
+
+  (* Handle callbacks with pattern matching *)
+  on (Event.callback "like") (fun _data ctx ->
+    let* _ = Ctx.edit ctx "You liked this!" in
+    ()
+  );
+]
+]}
+
+{1 Answering Callback Queries}
+
+{2 Why Answer Callbacks?}
+
+You {b must} answer callback queries to:
+- Remove the loading indicator on the button
+- Provide user feedback
+- Prevent timeout (callbacks expire after 30 seconds)
+
+{[
+(* Always answer, even on error *)
+let handle_callback client query =
+  try
+    process_callback query;
+    answer_callback_query client ~callback_query_id:query.id ()
+  with exn ->
+    (* Still answer to clear loading state *)
+    answer_callback_query client
+      ~callback_query_id:query.id
+      ~text:"An error occurred"
+      ()
+]}
+
+{2 Answer Options}
+
+{b Simple Answer}:
+
+{[
+(* Just remove loading indicator *)
+answer_callback_query client ~callback_query_id:query.id ()
+]}
+
+{b With Text}:
+
+{[
+(* Show popup notification *)
+answer_callback_query client
+  ~callback_query_id:query.id
+  ~text:"✓ Saved successfully"
+  ()
+]}
+
+{b With Alert}:
+
+{[
+(* Show alert dialog (more prominent) *)
+answer_callback_query client
+  ~callback_query_id:query.id
+  ~text:"⚠️ This action cannot be undone!"
+  ~show_alert:true
+  ()
+]}
+
+{b With URL}:
+
+{[
+(* Open URL in user's browser *)
+answer_callback_query client
+  ~callback_query_id:query.id
+  ~url:"https://example.com/payment"
+  ()
+]}
+
+{2 Answer Timing}
+
+Answer callbacks quickly:
+
+{[
+(* Bad: Answer after slow operation *)
+let handle_callback client query =
+  (* This takes 5 seconds... *)
+  let result = slow_database_query () in
+
+  (* User sees loading indicator for 5 seconds! *)
+  answer_callback_query client ~callback_query_id:query.id ()
+
+(* Good: Answer immediately, process async *)
+let handle_callback client query =
+  (* Answer right away *)
+  let* _ = answer_callback_query client
+    ~callback_query_id:query.id
+    ~text:"Processing..."
+    ()
+  in
+
+  (* Then do slow work *)
+  let result = slow_database_query () in
+
+  (* Update message when done *)
+  edit_message_text client ~text:"✓ Complete" ()
+]}
+
+{1 Callback Data Encoding}
+
+{2 Simple Data}
+
+Use plain strings for simple callbacks:
+
+{[
+(* Simple action identifiers *)
+Tg.Keyboard.callback ~text:"Like" ~data:"like"
+Tg.Keyboard.callback ~text:"Delete" ~data:"delete"
+Tg.Keyboard.callback ~text:"Share" ~data:"share"
+]}
+
+{2 Structured Data}
+
+Encode multiple values with delimiters:
+
+{[
+(* Format: action:type:id *)
+let button = Tg.Keyboard.callback
+  ~text:"Delete Post"
+  ~data:"delete:post:123"
+
+(* Parse in handler *)
+let handle_callback data =
+  match String.split_on_char ':' data with
+  | ["delete"; "post"; id] ->
+      delete_post (int_of_string id)
+  | ["edit"; "comment"; id] ->
+      edit_comment (int_of_string id)
+  | _ ->
+      (* Unknown format *)
+      ()
+]}
+
+{2 JSON Encoding}
+
+Use JSON for complex data (watch the 64-byte limit):
+
+{[
+(* Encode *)
+let encode_callback_data action id page =
+  let json = `Assoc [
+    ("action", `String action);
+    ("id", `Int id);
+    ("page", `Int page);
+  ] in
+  Yojson.Safe.to_string json
+
+let button = Tg.Keyboard.callback
+  ~text:"View"
+  ~data:(encode_callback_data "view" 123 1)
+
+(* Decode *)
+let decode_callback_data data =
+  try
+    let json = Yojson.Safe.from_string data in
+    let open Yojson.Safe.Util in
+    let action = json |> member "action" |> to_string in
+    let id = json |> member "id" |> to_int in
+    let page = json |> member "page" |> to_int in
+    Some (action, id, page)
+  with _ ->
+    None
+
+let handle_callback data =
+  match decode_callback_data data with
+  | Some ("view", id, page) ->
+      show_item id page
+  | Some ("edit", id, _) ->
+      edit_item id
+  | _ ->
+      ()
+]}
+
+{2 Type-Safe Encoding}
+
+Create type-safe encoders/decoders:
+
+{[
+(* Define callback types *)
+type callback_action =
+  | Like of int  (* post_id *)
+  | Unlike of int
+  | Delete of int
+  | Edit of int
+  | Page of { list_id : int; page : int }
+
+(* Encoder *)
+let encode_action = function
+  | Like id -> Printf.sprintf "like:%d" id
+  | Unlike id -> Printf.sprintf "unlike:%d" id
+  | Delete id -> Printf.sprintf "delete:%d" id
+  | Edit id -> Printf.sprintf "edit:%d" id
+  | Page { list_id; page } -> Printf.sprintf "page:%d:%d" list_id page
+
+(* Decoder *)
+let decode_action data =
+  match String.split_on_char ':' data with
+  | ["like"; id] -> Some (Like (int_of_string id))
+  | ["unlike"; id] -> Some (Unlike (int_of_string id))
+  | ["delete"; id] -> Some (Delete (int_of_string id))
+  | ["edit"; id] -> Some (Edit (int_of_string id))
+  | ["page"; list_id; page] ->
+      Some (Page {
+        list_id = int_of_string list_id;
+        page = int_of_string page;
+      })
+  | _ -> None
+
+(* Usage *)
+let create_button post_id =
+  Tg.Keyboard.callback
+    ~text:"Like"
+    ~data:(encode_action (Like post_id))
+
+let handle_callback data =
+  match decode_action data with
+  | Some (Like id) -> handle_like id
+  | Some (Unlike id) -> handle_unlike id
+  | Some (Delete id) -> handle_delete id
+  | Some (Edit id) -> handle_edit id
+  | Some (Page { list_id; page }) -> show_page list_id page
+  | None -> ()
+]}
+
+{2 Data Length Limits}
+
+Callback data is limited to 64 bytes:
+
+{[
+(* Bad: Too long *)
+let data = Printf.sprintf "action:delete:post:%d:user:%d:timestamp:%d"
+  post_id user_id timestamp
+(* Might exceed 64 bytes! *)
+
+(* Good: Use shorter encoding *)
+let data = Printf.sprintf "d:%d" post_id
+(* Store other data in database/session *)
+
+(* Good: Compress IDs *)
+let encode_short id =
+  (* Base62 encoding for shorter strings *)
+  base62_encode id
+
+let button = Tg.Keyboard.callback
+  ~text:"Delete"
+  ~data:(Printf.sprintf "d:%s" (encode_short post_id))
+]}
+
+{1 State Management with Callbacks}
+
+{2 Session-Based State}
+
+Store state in sessions between callbacks:
+
+{[
+open Tg.Bot
+
+(* Define session keys *)
+let wizard_step_key : int Session.key = Session.create_key "wizard_step"
+let wizard_data_key : string Session.key = Session.create_key "wizard_data"
+
+(* Start wizard *)
+let start_wizard ctx =
+  (* Initialize state *)
+  Ctx.session_set ctx wizard_step_key 1;
+  Ctx.session_set ctx wizard_data_key "";
+
+  let keyboard = Tg.Keyboard.inline [
+    [Tg.Keyboard.callback ~text:"Next →" ~data:"wizard:next"];
+    [Tg.Keyboard.callback ~text:"Cancel" ~data:"wizard:cancel"];
+  ] in
+
+  let* _ = Ctx.reply ctx
+    "Welcome to the wizard!\nStep 1: Choose an option"
+    ~reply_markup:keyboard
+  in
+  ()
+
+(* Handle next button *)
+let handle_wizard_next ctx =
+  let current_step = Ctx.session_get_or ctx wizard_step_key ~default:1 in
+  let next_step = current_step + 1 in
+
+  (* Update step *)
+  Ctx.session_set ctx wizard_step_key next_step;
+
+  (* Show next step *)
+  let text = Printf.sprintf "Step %d: ..." next_step in
+  let keyboard = Tg.Keyboard.inline [
+    [Tg.Keyboard.callback ~text:"← Back" ~data:"wizard:back"];
+    [Tg.Keyboard.callback ~text:"Next →" ~data:"wizard:next"];
+  ] in
+
+  Ctx.edit ctx text ~reply_markup:keyboard
+
+(* Routes *)
+let routes = [
+  on (Event.command "start") (fun _args ctx ->
+    start_wizard ctx
+  );
+
+  on (Event.callback "wizard:next") (fun _data ctx ->
+    handle_wizard_next ctx
+  );
+
+  on (Event.callback "wizard:back") (fun _data ctx ->
+    (* Decrement step *)
+    let step = Ctx.session_get_or ctx wizard_step_key ~default:1 in
+    Ctx.session_set ctx wizard_step_key (max 1 (step - 1));
+    ()
+  );
+]
+]}
+
+{2 Callback Data State}
+
+Embed state in callback data:
+
+{[
+(* Encode state in callback data *)
+let create_page_keyboard page total =
+  let buttons =
+    List.init 5 (fun i ->
+      let item_id = page * 5 + i in
+      [Tg.Keyboard.callback
+         ~text:(Printf.sprintf "Item %d" item_id)
+         ~data:(Printf.sprintf "view:%d:%d" item_id page)]
+    )
+  in
+
+  let nav =
+    if page > 0 && page < total - 1 then
+      [[
+        Tg.Keyboard.callback ~text:"←" ~data:(Printf.sprintf "page:%d" (page - 1));
+        Tg.Keyboard.callback ~text:"→" ~data:(Printf.sprintf "page:%d" (page + 1));
+      ]]
+    else if page > 0 then
+      [[Tg.Keyboard.callback ~text:"←" ~data:(Printf.sprintf "page:%d" (page - 1))]]
+    else if page < total - 1 then
+      [[Tg.Keyboard.callback ~text:"→" ~data:(Printf.sprintf "page:%d" (page + 1))]]
+    else
+      []
+  in
+
+  Tg.Keyboard.inline (buttons @ nav)
+
+(* Handle view with page context *)
+let handle_view_callback data =
+  match String.split_on_char ':' data with
+  | ["view"; item_id; page] ->
+      (* Has context of which page we came from *)
+      let keyboard = Tg.Keyboard.inline [
+        [Tg.Keyboard.callback
+           ~text:"← Back to list"
+           ~data:(Printf.sprintf "page:%s" page)]
+      ] in
+      show_item (int_of_string item_id) ~back_keyboard:keyboard
+  | _ -> ()
+]}
+
+{2 Database State}
+
+Store state in database for persistence:
+
+{[
+(* Store interaction state *)
+type interaction_state = {
+  user_id : int64;
+  current_step : string;
+  data : (string * string) list;
+  started_at : float;
+}
+
+let save_state db user_id state =
+  Database.execute db
+    "INSERT INTO interactions (user_id, step, data, started_at)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT (user_id) DO UPDATE
+     SET step = excluded.step,
+         data = excluded.data,
+         started_at = excluded.started_at"
+    [user_id; state.current_step; serialize state.data; state.started_at]
+
+let load_state db user_id =
+  Database.query_one db
+    "SELECT step, data, started_at FROM interactions WHERE user_id = ?"
+    [user_id]
+
+(* Use in handlers *)
+let handle_callback db query =
+  let user_id = query.from.id in
+  let state = load_state db user_id in
+
+  (* Process based on state *)
+  match state.current_step with
+  | "awaiting_confirmation" ->
+      (* Handle confirmation *)
+      let new_state = { state with current_step = "completed" } in
+      save_state db user_id new_state;
+      answer_callback_query ~text:"Confirmed!" ()
+
+  | "selecting_option" ->
+      (* Handle option selection *)
+      ()
+
+  | _ -> ()
+]}
+
+{1 Callback Patterns}
+
+{2 Confirmation Pattern}
+
+Confirm destructive actions:
+
+{[
+(* Show confirmation *)
+let confirm_delete client chat_id item_id =
+  let text = "⚠️ Delete this item?\nThis cannot be undone." in
+  let keyboard = Tg.Keyboard.inline [
+    [
+      Tg.Keyboard.callback
+        ~text:"🗑 Delete"
+        ~data:(Printf.sprintf "delete_confirmed:%d" item_id);
+      Tg.Keyboard.callback
+        ~text:"✗ Cancel"
+        ~data:"delete_cancelled";
+    ];
+  ] in
+
+  send_message client chat_id text ~reply_markup:keyboard
+
+(* Handle confirmation *)
+let routes = [
+  on (Event.callback "delete_confirmed:*") (fun data ctx ->
+    (* Extract ID *)
+    let id = int_of_string (String.sub data 17 (String.length data - 17)) in
+
+    (* Perform deletion *)
+    delete_item id;
+
+    let* _ = Ctx.edit ctx "✓ Item deleted" in
+    ()
+  );
+
+  on (Event.callback "delete_cancelled") (fun _data ctx ->
+    let* _ = Ctx.edit ctx "Deletion cancelled" in
+    ()
+  );
+]
+]}
+
+{2 Toggle Pattern}
+
+Toggle button states:
+
+{[
+(* Create toggle button *)
+let create_toggle_keyboard is_enabled item_id =
+  let button =
+    if is_enabled then
+      Tg.Keyboard.callback
+        ~text:"🔔 Notifications On"
+        ~data:(Printf.sprintf "toggle:off:%d" item_id)
+    else
+      Tg.Keyboard.callback
+        ~text:"🔕 Notifications Off"
+        ~data:(Printf.sprintf "toggle:on:%d" item_id)
+  in
+  Tg.Keyboard.inline [[button]]
+
+(* Handle toggle *)
+let handle_toggle data =
+  match String.split_on_char ':' data with
+  | ["toggle"; new_state; id] ->
+      let item_id = int_of_string id in
+      let enabled = (new_state = "on") in
+
+      (* Update state *)
+      update_notification_state item_id enabled;
+
+      (* Update keyboard *)
+      let new_keyboard = create_toggle_keyboard enabled item_id in
+
+      edit_message_reply_markup ~reply_markup:new_keyboard ()
+
+  | _ -> ()
+]}
+
+{2 Like/Unlike Pattern}
+
+Toggle like state with counter:
+
+{[
+(* Create like button with count *)
+let create_like_button post_id likes is_liked =
+  let text =
+    if is_liked then
+      Printf.sprintf "♥ %d" likes
+    else
+      Printf.sprintf "♡ %d" likes
+  in
+  let data =
+    if is_liked then
+      Printf.sprintf "unlike:%d" post_id
+    else
+      Printf.sprintf "like:%d" post_id
+  in
+  Tg.Keyboard.callback ~text ~data
+
+(* Handle like/unlike *)
+let handle_like_callback post_id user_id =
+  (* Toggle like in database *)
+  let (new_likes, is_liked) = toggle_like post_id user_id in
+
+  (* Update button *)
+  let new_button = create_like_button post_id new_likes is_liked in
+  let keyboard = Tg.Keyboard.inline [[new_button]] in
+
+  edit_message_reply_markup ~reply_markup:keyboard ()
+]}
+
+{2 Multi-Select Pattern}
+
+Select multiple items with checkmarks:
+
+{[
+(* Track selected items in session *)
+let selected_items_key : int list Session.key =
+  Session.create_key "selected_items"
+
+let create_select_keyboard ctx items =
+  let selected = Ctx.session_get_or ctx selected_items_key ~default:[] in
+
+  let buttons =
+    List.map (fun item ->
+      let is_selected = List.mem item.id selected in
+      let text =
+        if is_selected then
+          Printf.sprintf "☑ %s" item.name
+        else
+          Printf.sprintf "☐ %s" item.name
+      in
+      [Tg.Keyboard.callback
+         ~text
+         ~data:(Printf.sprintf "select:%d" item.id)]
+    ) items
+  in
+
+  let done_button =
+    if selected <> [] then
+      [[Tg.Keyboard.callback ~text:"✓ Done" ~data:"select:done"]]
+    else
+      []
+  in
+
+  Tg.Keyboard.inline (buttons @ done_button)
+
+(* Handle selection toggle *)
+let handle_select ctx item_id =
+  let selected = Ctx.session_get_or ctx selected_items_key ~default:[] in
+
+  let new_selected =
+    if List.mem item_id selected then
+      List.filter ((<>) item_id) selected
+    else
+      item_id :: selected
+  in
+
+  Ctx.session_set ctx selected_items_key new_selected;
+
+  (* Update keyboard *)
+  let keyboard = create_select_keyboard ctx items in
+  Ctx.edit ctx "Select items:" ~reply_markup:keyboard
+]}
+
+{2 Pagination Pattern}
+
+Navigate through pages:
+
+{[
+(* Create paginated keyboard *)
+let create_page_keyboard current_page total_pages get_items =
+  let items = get_items current_page in
+
+  let item_buttons =
+    List.map (fun item ->
+      [Tg.Keyboard.callback
+         ~text:item.name
+         ~data:(Printf.sprintf "view:%d" item.id)]
+    ) items
+  in
+
+  let nav_row =
+    match current_page with
+    | 0 when total_pages = 1 ->
+        (* Single page, no nav *)
+        []
+    | 0 ->
+        (* First page *)
+        [[Tg.Keyboard.callback
+            ~text:"Next →"
+            ~data:(Printf.sprintf "page:%d" (current_page + 1))]]
+    | n when n = total_pages - 1 ->
+        (* Last page *)
+        [[Tg.Keyboard.callback
+            ~text:"← Previous"
+            ~data:(Printf.sprintf "page:%d" (current_page - 1))]]
+    | n ->
+        (* Middle page *)
+        [[
+          Tg.Keyboard.callback
+            ~text:"← Previous"
+            ~data:(Printf.sprintf "page:%d" (current_page - 1));
+          Tg.Keyboard.callback
+            ~text:(Printf.sprintf "%d/%d" (n + 1) total_pages)
+            ~data:"noop";
+          Tg.Keyboard.callback
+            ~text:"Next →"
+            ~data:(Printf.sprintf "page:%d" (current_page + 1));
+        ]]
+  in
+
+  Tg.Keyboard.inline (item_buttons @ nav_row)
+
+(* Handle page navigation *)
+let routes = [
+  on (Event.callback "page:*") (fun data ctx ->
+    let page = int_of_string (String.sub data 5 (String.length data - 5)) in
+    let keyboard = create_page_keyboard page total_pages get_items in
+    let* _ = Ctx.edit ctx
+      (Printf.sprintf "Page %d of %d" (page + 1) total_pages)
+      ~reply_markup:keyboard
+    in
+    ()
+  );
+]
+]}
+
+{2 Wizard/Form Pattern}
+
+Multi-step forms with callbacks:
+
+{[
+type form_step =
+  | ChooseName
+  | ChooseAge
+  | ChooseCountry
+  | Confirm
+
+type form_data = {
+  name : string option;
+  age : int option;
+  country : string option;
+}
+
+let form_data_key : form_data Session.key =
+  Session.create_key "form_data"
+
+let form_step_key : form_step Session.key =
+  Session.create_key "form_step"
+
+(* Start form *)
+let start_form ctx =
+  Ctx.session_set ctx form_data_key { name = None; age = None; country = None };
+  Ctx.session_set ctx form_step_key ChooseName;
+
+  let* _ = Ctx.reply ctx
+    "Let's get started!\nWhat's your name?"
+  in
+  ()
+
+(* Handle text input *)
+let handle_form_input ctx text =
+  let step = Ctx.session_get_or ctx form_step_key ~default:ChooseName in
+  let data = Ctx.session_get_or ctx form_data_key
+    ~default:{ name = None; age = None; country = None } in
+
+  match step with
+  | ChooseName ->
+      let data = { data with name = Some text } in
+      Ctx.session_set ctx form_data_key data;
+      Ctx.session_set ctx form_step_key ChooseAge;
+
+      let keyboard = Tg.Keyboard.inline [
+        [Tg.Keyboard.callback ~text:"18-25" ~data:"age:18-25"];
+        [Tg.Keyboard.callback ~text:"26-35" ~data:"age:26-35"];
+        [Tg.Keyboard.callback ~text:"36+" ~data:"age:36+"];
+      ] in
+
+      let* _ = Ctx.reply ctx "What's your age group?" ~reply_markup:keyboard in
+      ()
+
+  | _ -> ()
+
+(* Handle age selection *)
+let handle_age_callback ctx age_range =
+  let data = Ctx.session_get_or ctx form_data_key
+    ~default:{ name = None; age = None; country = None } in
+
+  let data = { data with age = Some 25 (* parse age_range *) } in
+  Ctx.session_set ctx form_data_key data;
+  Ctx.session_set ctx form_step_key ChooseCountry;
+
+  let keyboard = Tg.Keyboard.inline [
+    [Tg.Keyboard.callback ~text:"🇺🇸 USA" ~data:"country:US"];
+    [Tg.Keyboard.callback ~text:"🇬🇧 UK" ~data:"country:UK"];
+    [Tg.Keyboard.callback ~text:"🇩🇪 Germany" ~data:"country:DE"];
+  ] in
+
+  let* _ = Ctx.edit ctx "Choose your country:" ~reply_markup:keyboard in
+  ()
+
+(* Handle country selection and show confirmation *)
+let handle_country_callback ctx country =
+  let data = Ctx.session_get_or ctx form_data_key
+    ~default:{ name = None; age = None; country = None } in
+
+  let data = { data with country = Some country } in
+  Ctx.session_set ctx form_data_key data;
+  Ctx.session_set ctx form_step_key Confirm;
+
+  let summary = Printf.sprintf
+    "Please confirm:\nName: %s\nAge: %d\nCountry: %s"
+    (Option.get data.name)
+    (Option.get data.age)
+    (Option.get data.country)
+  in
+
+  let keyboard = Tg.Keyboard.inline [
+    [
+      Tg.Keyboard.callback ~text:"✓ Submit" ~data:"form:submit";
+      Tg.Keyboard.callback ~text:"✗ Cancel" ~data:"form:cancel";
+    ];
+  ] in
+
+  let* _ = Ctx.edit ctx summary ~reply_markup:keyboard in
+  ()
+]}
+
+{1 Error Handling}
+
+{2 Always Answer Callbacks}
+
+Never leave callbacks unanswered:
+
+{[
+(* Bad: Doesn't answer on error *)
+let handle_callback client query =
+  let data = Option.value query.data ~default:"" in
+  process_callback data;  (* Might throw! *)
+  answer_callback_query client ~callback_query_id:query.id ()
+
+(* Good: Always answers *)
+let handle_callback client query =
+  try
+    let data = Option.value query.data ~default:"" in
+    process_callback data;
+    answer_callback_query client
+      ~callback_query_id:query.id
+      ~text:"Done!"
+      ()
+  with exn ->
+    (* Still answer to clear loading state *)
+    answer_callback_query client
+      ~callback_query_id:query.id
+      ~text:"An error occurred. Please try again."
+      ()
+]}
+
+{2 Handle Missing Data}
+
+Gracefully handle parse errors:
+
+{[
+let parse_callback_data data =
+  match String.split_on_char ':' data with
+  | ["action"; id] ->
+      (try Some (int_of_string id)
+       with _ -> None)
+  | _ -> None
+
+let handle_callback client query =
+  let data = Option.value query.data ~default:"" in
+
+  match parse_callback_data data with
+  | Some id ->
+      (* Valid data *)
+      process_item id;
+      answer_callback_query client ~callback_query_id:query.id ()
+
+  | None ->
+      (* Invalid data - inform user *)
+      answer_callback_query client
+        ~callback_query_id:query.id
+        ~text:"Invalid action. Please try again."
+        ()
+]}
+
+{2 Timeout Protection}
+
+Handle slow operations:
+
+{[
+let handle_callback client env query =
+  (* Answer immediately *)
+  let* _ = answer_callback_query client
+    ~callback_query_id:query.id
+    ~text:"Processing..."
+    ()
+  in
+
+  (* Process with timeout *)
+  try
+    Eio.Time.with_timeout (env#clock) 5.0
+      (fun () ->
+        let result = slow_operation () in
+        edit_message_text client ~text:"✓ Complete" ()
+      )
+      ~on_timeout:(fun () ->
+        edit_message_text client ~text:"⏱ Operation timed out" ()
+      )
+  with exn ->
+    edit_message_text client ~text:"✗ Error occurred" ()
+]}
+
+{1 Best Practices}
+
+{2 Callback Data Design}
+
+- {b Structure}: Use consistent format ([action:type:id])
+- {b Length}: Keep under 64 bytes
+- {b Encoding}: Use URL-safe characters
+- {b Versioning}: Include version for breaking changes
+
+{[
+(* Good: Structured and concise *)
+"like:123"
+"delete:post:456"
+"page:2:10"  (* page 2, items per page 10 *)
+
+(* Bad: Unstructured *)
+"like post number 123"
+
+(* Bad: Too long *)
+"action:delete:type:post:id:123:user:456:timestamp:1234567890"
+]}
+
+{2 Response Timing}
+
+- {b Answer quickly}: Within 1 second
+- {b Async processing}: Answer first, process later
+- {b User feedback}: Always inform about result
+- {b Loading states}: Update message during long operations
+
+{2 State Management}
+
+- {b Sessions}: For short-term state (current interaction)
+- {b Database}: For long-term state (user preferences)
+- {b Callback data}: For navigation state (page numbers)
+- {b Cleanup}: Clear old state periodically
+
+{2 Security}
+
+- {b Validate data}: Never trust callback data
+- {b Check permissions}: Verify user can perform action
+- {b Rate limit}: Prevent callback spam
+- {b Expire state}: Don't allow old callbacks
+
+{[
+let handle_delete_callback db query item_id =
+  (* Verify ownership *)
+  let item = get_item db item_id in
+  if item.owner_id <> query.from.id then
+    answer_callback_query ~text:"Permission denied" ()
+  else
+    (* Proceed with deletion *)
+    delete_item db item_id;
+    answer_callback_query ~text:"Deleted" ()
+]}
+
+{1 Complete Examples}
+
+{2 Shopping Cart}
+
+{[
+let cart_key : (int * int) list Session.key =
+  Session.create_key "cart"  (* (item_id, quantity) list *)
+
+(* Add to cart *)
+let handle_add_to_cart ctx item_id =
+  let cart = Ctx.session_get_or ctx cart_key ~default:[] in
+
+  let new_cart =
+    match List.assoc_opt item_id cart with
+    | Some qty ->
+        (* Increment quantity *)
+        (item_id, qty + 1) :: List.remove_assoc item_id cart
+    | None ->
+        (* Add new item *)
+        (item_id, 1) :: cart
+  in
+
+  Ctx.session_set ctx cart_key new_cart;
+
+  let* _ = answer_callback_query
+    ~text:"Added to cart!"
+    ()
+  in
+  ()
+
+(* View cart *)
+let show_cart ctx =
+  let cart = Ctx.session_get_or ctx cart_key ~default:[] in
+
+  if cart = [] then
+    let* _ = Ctx.reply ctx "Your cart is empty" in
+    ()
+  else
+    let items_text =
+      List.map (fun (item_id, qty) ->
+        let item = get_item item_id in
+        Printf.sprintf "%s x%d - $%.2f"
+          item.name qty (item.price *. float qty)
+      ) cart
+      |> String.concat "\n"
+    in
+
+    let total =
+      List.fold_left (fun acc (item_id, qty) ->
+        let item = get_item item_id in
+        acc +. (item.price *. float qty)
+      ) 0.0 cart
+    in
+
+    let text = Printf.sprintf "🛒 Your Cart\n\n%s\n\nTotal: $%.2f"
+      items_text total
+    in
+
+    let keyboard = Tg.Keyboard.inline [
+      [Tg.Keyboard.callback ~text:"💳 Checkout" ~data:"checkout"];
+      [Tg.Keyboard.callback ~text:"🗑 Clear Cart" ~data:"clear_cart"];
+    ] in
+
+    let* _ = Ctx.reply ctx text ~reply_markup:keyboard in
+    ()
+]}
+
+{1 See Also}
+
+- {{!page-keyboard_api}Keyboard API} - Creating keyboards with callback buttons
+- {{!page-command_dsl}Command DSL} - Routing callbacks with Bot DSL
+- {{!Tg.Bot}Bot Module} - Complete Bot DSL API reference
+- {{!Tg.Session}Session Module} - State management for callbacks
+- {{!page-quick_start}Quick Start Tutorial} - Callback handling examples
