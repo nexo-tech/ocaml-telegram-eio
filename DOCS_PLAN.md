@@ -10,11 +10,11 @@
 
 ## Progress Tracker
 
-**Overall Completion: 12/30 tasks (40%)**
+**Overall Completion: 13/30 tasks (43%)**
 
 **Phase 1 — Getting Started Guide: COMPLETE (5/5 tasks) ✓**
 **Phase 2 — API Fundamentals: COMPLETE (6/6 tasks) ✓**
-**Phase 3 — Advanced Patterns: IN PROGRESS (2/7 tasks) ✓**
+**Phase 3 — Advanced Patterns: IN PROGRESS (3/7 tasks) ✓**
 
 ---
 
@@ -177,11 +177,20 @@ Sophisticated patterns for production bots.
   - Best practices (middleware design, ordering, performance, testing) ✓
   - Complete production example (admin bot with layered middleware) ✓
 
-- [ ] Task 3.3: Error handling strategies
-  - Result types and error propagation
-  - Retry logic with backoff
-  - Graceful degradation
-  - Error reporting to users
+- [x] Task 3.3: Error handling strategies — COMPLETED: docs/error_handling.mld
+  - Error types and variants (Http_error, Api_error, Decode_error, Timeout, Canceled) ✓
+  - Response parameters (retry_after, migrate_to_chat_id) ✓
+  - Retryable vs non-retryable error classification ✓
+  - Result type patterns (basic handling, monadic bind, error mapping, or_fail) ✓
+  - Retry strategies (immediate, fixed, exponential, exponential_jitter, telegram_aware) ✓
+  - Retry configuration (max_attempts, on_retry callbacks, selective retry) ✓
+  - Graceful degradation (fallback values, partial success, circuit breaker pattern) ✓
+  - Error reporting to users (user-friendly messages, Bot DSL error handlers, built-in handlers) ✓
+  - Error categorization (transient, rate limited, user error, bot error, fatal) ✓
+  - Error recovery pipeline (fallback chains, multi-attempt strategies) ✓
+  - Error metrics and monitoring (tracking, classification, reporting) ✓
+  - Production examples (resilient broadcast, error-tolerant polling, full error handling bot) ✓
+  - Best practices (design, retry strategy selection, user communication, testing) ✓
 
 - [ ] Task 3.4: Concurrency patterns
   - Eio fibers and promises

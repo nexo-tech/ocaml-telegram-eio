@@ -161,6 +161,7 @@ See the {e examples/} directory for complete, runnable examples:
 
 - {{!page-state_machines}State Machines} - Conversation flows, FSM patterns, and multi-step interactions
 - {{!page-middleware_architecture}Middleware Architecture} - Request/response middleware, authentication, authorization, and logging
+- {{!page-error_handling}Error Handling Strategies} - Result types, retry logic, graceful degradation, and user error reporting
 
 {2 Migration}
 

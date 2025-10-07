@@ -1,0 +1,874 @@
+{0 Error Handling Strategies}
+
+Comprehensive guide to robust error handling in Telegram bots using Result types, retry logic with backoff, graceful degradation, and user-friendly error reporting.
+
+{1 Overview}
+
+Building resilient bots requires handling errors elegantly. The [ocaml_telegram_eio] library provides sophisticated error handling capabilities through:
+
+- {b Type-safe error representation}: All errors are typed with {!Telegram.Error.t}
+- {b Retryable vs non-retryable}: Automatic classification of transient vs permanent failures
+- {b Retry strategies}: Exponential backoff, jitter, Telegram-aware rate limit handling
+- {b Result types}: Explicit error propagation with [(result, Error.t) result]
+- {b Error recovery}: Graceful degradation and fallback patterns
+- {b User communication}: Clear, actionable error messages for end users
+
+{2 When to Use This Guide}
+
+Use these patterns when you need to:
+
+- Handle network failures and timeouts gracefully
+- Respect Telegram's rate limits and retry_after hints
+- Distinguish between recoverable and permanent errors
+- Provide helpful error messages to users
+- Build fault-tolerant bots that recover from failures
+- Implement retry logic with exponential backoff
+- Handle API changes and migrations
+
+{1 Error Types}
+
+{2 Error Variants}
+
+All Telegram API errors are represented by {!Telegram.Error.t}:
+
+{[
+type t =
+  | Http_error of int * string
+    (* HTTP-level errors: network failures, 5xx server errors *)
+  | Api_error of { code : int; description : string; parameters : response_parameters option }
+    (* Telegram API errors: 400 Bad Request, 403 Forbidden, 429 Too Many Requests *)
+  | Decode_error of string
+    (* JSON decoding failures: unexpected response format *)
+  | Timeout
+    (* Request timeout *)
+  | Canceled
+    (* Request canceled *)
+  | Not_implemented of string
+    (* Feature not implemented *)
+]}
+
+{2 Response Parameters}
+
+Some errors include additional metadata:
+
+{[
+type response_parameters = {
+  migrate_to_chat_id : Id.Chat.k Id.t option;
+    (* For group migrations: new chat ID *)
+  retry_after : int option;
+    (* Rate limit hint: seconds to wait before retry *)
+}
+]}
+
+{2 Retryable vs Non-Retryable Errors}
+
+The library automatically classifies errors:
+
+{[
+(* Check if an error should be retried *)
+let should_retry err =
+  Error.is_retryable err
+
+(* Examples of retryable errors:
+   - Network timeouts
+   - HTTP 5xx server errors
+   - 429 Too Many Requests (rate limits)
+   - Temporary service disruptions
+*)
+
+(* Examples of non-retryable errors:
+   - 400 Bad Request (invalid parameters)
+   - 401 Unauthorized (invalid token)
+   - 403 Forbidden (bot blocked by user)
+   - 404 Not Found (chat/message doesn't exist)
+*)
+]}
+
+{2 Extracting Error Information}
+
+{[
+(* Get retry_after hint from rate limit errors *)
+let handle_error err =
+  match Error.retry_after err with
+  | Some seconds ->
+      Printf.printf "Rate limited. Retry after %d seconds\n" seconds
+  | None ->
+      Printf.eprintf "Error: %s\n" (Format.asprintf "%a" Error.pp err)
+
+(* Get migration information *)
+let handle_migration err =
+  match Error.parameters err with
+  | Some { migrate_to_chat_id = Some new_chat_id; _ } ->
+      Printf.printf "Group migrated to: %Ld\n" (Id.Chat.to_int new_chat_id)
+  | _ -> ()
+]}
+
+{1 Result Type Patterns}
+
+{2 Basic Result Handling}
+
+All API calls return [Result.t]:
+
+{[
+let send_message client chat_id text =
+  match Gen_methods.send_message client ~chat_id ~text () with
+  | Ok message ->
+      Printf.printf "Message sent: %d\n" message.message_id
+  | Error err ->
+      Printf.eprintf "Failed to send: %a\n" Error.pp err
+]}
+
+{2 Error Propagation with Bind}
+
+Use monadic bind for composing operations:
+
+{[
+let open Result.Syntax in
+
+let send_and_pin client chat_id text =
+  (* Send message *)
+  let* message = Gen_methods.send_message client ~chat_id ~text () in
+
+  (* Pin the message *)
+  let message_id = message.message_id in
+  let* () = Gen_methods.pin_chat_message client ~chat_id ~message_id () in
+
+  Ok message
+
+(* Alternative: infix operator *)
+let send_and_pin' client chat_id text =
+  Gen_methods.send_message client ~chat_id ~text ()
+  >>= fun message ->
+  Gen_methods.pin_chat_message client ~chat_id ~message_id:message.message_id ()
+  >>= fun () ->
+  Ok message
+]}
+
+{2 Error Mapping and Transformation}
+
+{[
+(* Map errors to custom error types *)
+let send_with_context client chat_id text =
+  Gen_methods.send_message client ~chat_id ~text ()
+  |> Result.map_error (fun err ->
+      Printf.sprintf "Failed to send to chat %Ld: %a"
+        (Id.Chat.to_int chat_id)
+        Error.pp err
+    )
+
+(* Add context to errors *)
+let broadcast_message client chat_ids text =
+  List.map (fun chat_id ->
+    Gen_methods.send_message client ~chat_id ~text ()
+    |> Result.map_error (fun err -> (chat_id, err))
+  ) chat_ids
+]}
+
+{2 Or_fail Pattern}
+
+Convert Result to exception for cases where failure is unexpected:
+
+{[
+(* For initialization that must succeed *)
+let init_bot token =
+  Eio_main.run @@ fun env ->
+  let client = Client.create ~env ~token () in
+
+  (* Get bot info - fail fast if token is invalid *)
+  let me = Gen_methods.get_me client ()
+           |> Error.or_fail in
+
+  Printf.printf "Bot started: @%s\n"
+    (Option.value me.username ~default:"unknown");
+
+  client
+]}
+
+{1 Retry Strategies}
+
+{2 Built-in Retry Strategies}
+
+The {!Telegram.Retry} module provides composable retry strategies:
+
+{[
+(* Immediate retry - not recommended for production *)
+let immediate = Retry.Strategy.immediate
+
+(* Fixed delay between retries *)
+let fixed = Retry.Strategy.fixed 2.0  (* 2 seconds *)
+
+(* Exponential backoff: 1s, 2s, 4s, 8s, ... up to max *)
+let exponential =
+  Retry.Strategy.exponential
+    ~initial:1.0
+    ~max:30.0
+    ~multiplier:2.0
+    ()
+
+(* Exponential backoff with jitter (±10% randomness) *)
+let with_jitter =
+  Retry.Strategy.exponential_jitter
+    ~initial:1.0
+    ~max:30.0
+    ~jitter:0.1
+    ()
+
+(* Telegram-aware: respects retry_after hints *)
+let telegram_aware =
+  Retry.Strategy.telegram_aware ()
+]}
+
+{2 Retry Configuration}
+
+{[
+(* Default configuration *)
+let default_config = Retry.default
+(* Uses exponential backoff, max 3 attempts *)
+
+(* Custom configuration *)
+let custom_config =
+  Retry.make
+    ~strategy:(Retry.Strategy.exponential_jitter ())
+    ~max_attempts:5
+    ~on_retry:(fun ~attempt ~error ~delay ->
+      Printf.eprintf "Retry %d after %.1fs: %a\n"
+        attempt delay Error.pp error
+    )
+    ()
+]}
+
+{2 Using Retry Logic}
+
+{[
+(* Retry with default configuration *)
+let send_with_retry client chat_id text =
+  Retry.with_default @@ fun () ->
+    Gen_methods.send_message client ~chat_id ~text ()
+
+(* Retry with specific strategy *)
+let send_with_backoff client chat_id text =
+  let strategy = Retry.Strategy.exponential_jitter ~initial:0.5 ~max:10.0 () in
+  Retry.with_strategy strategy @@ fun () ->
+    Gen_methods.send_message client ~chat_id ~text ()
+
+(* Retry with custom config *)
+let send_critical_message client chat_id text =
+  let config =
+    Retry.make
+      ~strategy:(Retry.Strategy.telegram_aware ())
+      ~max_attempts:10
+      ~on_retry:(fun ~attempt ~error ~delay ->
+        Printf.eprintf "[CRITICAL] Retry %d/%d after %.1fs\n"
+          attempt 10 delay
+      )
+      ()
+  in
+  Retry.with_config config @@ fun () ->
+    Gen_methods.send_message client ~chat_id ~text ()
+]}
+
+{2 Selective Retry}
+
+Only retry on retryable errors:
+
+{[
+let send_with_selective_retry client chat_id text =
+  let rec attempt n =
+    match Gen_methods.send_message client ~chat_id ~text () with
+    | Ok msg -> Ok msg
+    | Error err when Error.is_retryable err && n < 3 ->
+        (* Wait and retry *)
+        let delay = Float.of_int (1 lsl n) in  (* 2^n seconds *)
+        Eio.Time.sleep (Eio.Stdenv.clock env) delay;
+        attempt (n + 1)
+    | Error err ->
+        (* Non-retryable or max attempts reached *)
+        Error err
+  in
+  attempt 0
+]}
+
+{1 Graceful Degradation}
+
+{2 Fallback Values}
+
+Provide defaults when operations fail:
+
+{[
+(* Get user info with fallback *)
+let get_user_display_name client user_id =
+  match Gen_methods.get_chat client ~chat_id:(Id.Chat.of_user user_id) () with
+  | Ok chat -> Option.value chat.first_name ~default:"User"
+  | Error _ -> "User"  (* Fallback on error *)
+
+(* Try multiple methods *)
+let send_notification client chat_id text =
+  (* Try sending with preview *)
+  match Gen_methods.send_message client ~chat_id ~text () with
+  | Ok msg -> Ok msg
+  | Error _ ->
+      (* Fallback: send without preview *)
+      Gen_methods.send_message client ~chat_id ~text
+        ~disable_web_page_preview:true ()
+]}
+
+{2 Partial Success Handling}
+
+{[
+(* Broadcast to multiple chats, collecting failures *)
+let broadcast client chat_ids text =
+  let results = List.map (fun chat_id ->
+    (chat_id, Gen_methods.send_message client ~chat_id ~text ())
+  ) chat_ids in
+
+  let successes = List.filter_map (fun (id, res) ->
+    match res with Ok msg -> Some (id, msg) | Error _ -> None
+  ) results in
+
+  let failures = List.filter_map (fun (id, res) ->
+    match res with Error err -> Some (id, err) | Ok _ -> None
+  ) results in
+
+  Printf.printf "Broadcast: %d/%d succeeded\n"
+    (List.length successes) (List.length chat_ids);
+
+  (successes, failures)
+]}
+
+{2 Circuit Breaker Pattern}
+
+{[
+type circuit_state = Closed | Open | HalfOpen
+
+type circuit_breaker = {
+  mutable state : circuit_state;
+  mutable failure_count : int;
+  mutable last_failure_time : float;
+  failure_threshold : int;
+  timeout : float;
+}
+
+let create_circuit_breaker ~failure_threshold ~timeout =
+  { state = Closed; failure_count = 0;
+    last_failure_time = 0.0; failure_threshold; timeout }
+
+let call_with_circuit_breaker breaker f =
+  let now = Unix.gettimeofday () in
+
+  match breaker.state with
+  | Open when now -. breaker.last_failure_time > breaker.timeout ->
+      (* Try transitioning to half-open *)
+      breaker.state <- HalfOpen;
+      call_with_circuit_breaker breaker f
+
+  | Open ->
+      (* Circuit is open, fail fast *)
+      Error (Error.Api_error {
+        code = 503;
+        description = "Service temporarily unavailable (circuit breaker open)";
+        parameters = None
+      })
+
+  | Closed | HalfOpen ->
+      match f () with
+      | Ok result ->
+          (* Success: reset circuit *)
+          breaker.state <- Closed;
+          breaker.failure_count <- 0;
+          Ok result
+
+      | Error err when Error.is_retryable err ->
+          (* Failure: increment counter *)
+          breaker.failure_count <- breaker.failure_count + 1;
+          breaker.last_failure_time <- now;
+
+          if breaker.failure_count >= breaker.failure_threshold then
+            breaker.state <- Open;
+
+          Error err
+
+      | Error err ->
+          (* Non-retryable: don't count against circuit *)
+          Error err
+
+(* Usage *)
+let breaker = create_circuit_breaker ~failure_threshold:5 ~timeout:60.0
+
+let send_with_circuit_breaker client chat_id text =
+  call_with_circuit_breaker breaker @@ fun () ->
+    Gen_methods.send_message client ~chat_id ~text ()
+]}
+
+{1 Error Reporting to Users}
+
+{2 User-Friendly Error Messages}
+
+{[
+(* Convert errors to user-readable messages *)
+let error_to_user_message err =
+  match err with
+  | Error.Api_error { code = 403; description; _ } ->
+      if String.contains description "blocked" then
+        "I cannot send you messages. Please unblock me and try again."
+      else
+        "I don't have permission to perform this action."
+
+  | Error.Api_error { code = 400; description; _ } ->
+      if String.contains description "message is not modified" then
+        "This message is already up to date."
+      else if String.contains description "text is empty" then
+        "Please provide some text."
+      else
+        "Invalid request. Please check your input."
+
+  | Error.Api_error { code = 429; parameters = Some { retry_after = Some sec; _ }; _ } ->
+      Printf.sprintf "Too many requests. Please try again in %d seconds." sec
+
+  | Error.Timeout ->
+      "Request timed out. Please try again."
+
+  | Error.Http_error (code, _) when code >= 500 ->
+      "Telegram servers are temporarily unavailable. Please try again later."
+
+  | _ ->
+      "Sorry, an error occurred while processing your request."
+
+(* Send error notification to user *)
+let notify_user_of_error client chat_id err =
+  let message = error_to_user_message err in
+  let _ = Gen_methods.send_message client ~chat_id ~text:message () in
+  ()
+]}
+
+{2 Error Handling in Bot DSL}
+
+{[
+(* Route-level error handler *)
+let my_route =
+  Bot.on Event.message (fun msg ctx ->
+    (* Handler code that might fail *)
+    match process_message msg with
+    | Ok () -> ()
+    | Error err ->
+        let user_msg = error_to_user_message err in
+        let _ = Ctx.reply ctx user_msg in
+        ()
+  )
+  |> Bot.with_error_handler (fun ctx exn ->
+      let err_msg = "Sorry, something went wrong: " ^ Printexc.to_string exn in
+      let _ = Ctx.reply ctx err_msg in
+      ()
+    )
+
+(* Global error handler *)
+let routes =
+  Bot.router
+    ~on_error:(fun ctx exn ->
+      (* Log error *)
+      Printf.eprintf "Error in handler: %s\n" (Printexc.to_string exn);
+
+      (* Notify user *)
+      let _ = Ctx.reply ctx "An error occurred. Please try again." in
+      ()
+    )
+    [ route1; route2; route3 ]
+]}
+
+{2 Built-in Error Handlers}
+
+{[
+(* Log errors to stderr *)
+let with_logging =
+  Bot.with_error_handler Bot.ErrorHandler.log route
+
+(* Log and send user notification *)
+let with_user_feedback =
+  Bot.with_error_handler
+    (Bot.ErrorHandler.log_and_reply ~message:"Oops! Something went wrong." ())
+    route
+
+(* Silent error handling (not recommended) *)
+let silent =
+  Bot.with_error_handler Bot.ErrorHandler.silent route
+
+(* Combine multiple error handlers *)
+let combined =
+  Bot.with_error_handler
+    (Bot.ErrorHandler.combine [
+      Bot.ErrorHandler.log;
+      Bot.ErrorHandler.log_and_reply ();
+    ])
+    route
+]}
+
+{1 Advanced Error Patterns}
+
+{2 Error Categorization}
+
+{[
+type error_category =
+  | Transient     (* Retry immediately or with backoff *)
+  | RateLimited   (* Respect retry_after hint *)
+  | UserError     (* Notify user, don't retry *)
+  | BotError      (* Log for developer, notify user *)
+  | Fatal         (* Stop bot, alert admin *)
+
+let categorize_error err =
+  match err with
+  | Error.Timeout | Error.Http_error (code, _) when code >= 500 ->
+      Transient
+
+  | Error.Api_error { code = 429; _ } ->
+      RateLimited
+
+  | Error.Api_error { code = 400; _ } | Error.Api_error { code = 403; _ } ->
+      UserError
+
+  | Error.Decode_error _ | Error.Not_implemented _ ->
+      BotError
+
+  | Error.Api_error { code = 401; _ } ->
+      Fatal
+
+  | _ ->
+      BotError
+
+(* Handle based on category *)
+let handle_categorized_error client chat_id err =
+  match categorize_error err with
+  | Transient ->
+      (* Retry with backoff *)
+      Printf.eprintf "Transient error, will retry: %a\n" Error.pp err
+
+  | RateLimited ->
+      (* Wait for retry_after *)
+      begin match Error.retry_after err with
+      | Some seconds ->
+          Printf.eprintf "Rate limited, waiting %d seconds\n" seconds;
+          Eio.Time.sleep (Eio.Stdenv.clock env) (Float.of_int seconds)
+      | None ->
+          Eio.Time.sleep (Eio.Stdenv.clock env) 1.0
+      end
+
+  | UserError ->
+      (* Notify user *)
+      let msg = error_to_user_message err in
+      let _ = Gen_methods.send_message client ~chat_id ~text:msg () in
+      ()
+
+  | BotError ->
+      (* Log and notify user *)
+      Printf.eprintf "Bot error: %a\n" Error.pp err;
+      let _ = Gen_methods.send_message client ~chat_id
+        ~text:"An internal error occurred." () in
+      ()
+
+  | Fatal ->
+      (* Alert admin and stop *)
+      Printf.eprintf "FATAL ERROR: %a\n" Error.pp err;
+      exit 1
+]}
+
+{2 Error Recovery Pipeline}
+
+{[
+(* Attempt operations with fallback chain *)
+let send_with_recovery client chat_id text =
+  (* Try 1: Send normally *)
+  match Gen_methods.send_message client ~chat_id ~text () with
+  | Ok msg -> Ok msg
+  | Error err1 ->
+      Printf.eprintf "Attempt 1 failed: %a\n" Error.pp err1;
+
+      (* Try 2: Send without preview *)
+      match Gen_methods.send_message client ~chat_id ~text
+              ~disable_web_page_preview:true () with
+      | Ok msg -> Ok msg
+      | Error err2 ->
+          Printf.eprintf "Attempt 2 failed: %a\n" Error.pp err2;
+
+          (* Try 3: Send truncated text *)
+          let short_text = String.sub text 0 (min 200 (String.length text)) in
+          match Gen_methods.send_message client ~chat_id ~text:short_text () with
+          | Ok msg -> Ok msg
+          | Error err3 ->
+              (* All attempts failed *)
+              Printf.eprintf "All recovery attempts failed\n";
+              Error err3
+]}
+
+{2 Error Metrics and Monitoring}
+
+{[
+type error_metrics = {
+  mutable total_errors : int;
+  mutable retryable_errors : int;
+  mutable non_retryable_errors : int;
+  mutable rate_limit_errors : int;
+  errors_by_code : (int, int) Hashtbl.t;
+}
+
+let create_metrics () = {
+  total_errors = 0;
+  retryable_errors = 0;
+  non_retryable_errors = 0;
+  rate_limit_errors = 0;
+  errors_by_code = Hashtbl.create 16;
+}
+
+let record_error metrics err =
+  metrics.total_errors <- metrics.total_errors + 1;
+
+  if Error.is_retryable err then
+    metrics.retryable_errors <- metrics.retryable_errors + 1
+  else
+    metrics.non_retryable_errors <- metrics.non_retryable_errors + 1;
+
+  begin match err with
+  | Error.Api_error { code = 429; _ } ->
+      metrics.rate_limit_errors <- metrics.rate_limit_errors + 1
+  | Error.Api_error { code; _ } ->
+      let count = Hashtbl.find_opt metrics.errors_by_code code |> Option.value ~default:0 in
+      Hashtbl.replace metrics.errors_by_code code (count + 1)
+  | _ -> ()
+  end
+
+let print_metrics metrics =
+  Printf.printf "Error Metrics:\n";
+  Printf.printf "  Total: %d\n" metrics.total_errors;
+  Printf.printf "  Retryable: %d (%.1f%%)\n"
+    metrics.retryable_errors
+    (100.0 *. Float.of_int metrics.retryable_errors /. Float.of_int metrics.total_errors);
+  Printf.printf "  Non-retryable: %d (%.1f%%)\n"
+    metrics.non_retryable_errors
+    (100.0 *. Float.of_int metrics.non_retryable_errors /. Float.of_int metrics.total_errors);
+  Printf.printf "  Rate limits: %d\n" metrics.rate_limit_errors;
+  Printf.printf "  By code:\n";
+  Hashtbl.iter (fun code count ->
+    Printf.printf "    %d: %d\n" code count
+  ) metrics.errors_by_code
+]}
+
+{1 Production Examples}
+
+{2 Resilient Broadcast System}
+
+{[
+(* Broadcast with retry, rate limiting, and progress tracking *)
+let broadcast_message client chat_ids text =
+  let total = List.length chat_ids in
+  let metrics = create_metrics () in
+  let successful = ref 0 in
+  let failed = ref [] in
+
+  (* Rate limit: max 30 messages per second *)
+  let semaphore = Eio.Semaphore.make 30 in
+  let clock = Eio.Stdenv.clock env in
+
+  List.iteri (fun i chat_id ->
+    (* Acquire rate limit token *)
+    Eio.Semaphore.acquire semaphore;
+
+    (* Send with retry *)
+    let result = Retry.with_default @@ fun () ->
+      Gen_methods.send_message client ~chat_id ~text ()
+    in
+
+    (* Process result *)
+    begin match result with
+    | Ok _ ->
+        successful := !successful + 1;
+        Printf.printf "\rProgress: %d/%d (%.1f%%) ✓"
+          (i + 1) total (100.0 *. Float.of_int (i + 1) /. Float.of_int total);
+        flush stdout
+
+    | Error err ->
+        record_error metrics err;
+        failed := (chat_id, err) :: !failed;
+        Printf.printf "\rProgress: %d/%d (%.1f%%) ✗"
+          (i + 1) total (100.0 *. Float.of_int (i + 1) /. Float.of_int total);
+        flush stdout
+    end;
+
+    (* Release token after 1 second *)
+    Eio.Fiber.fork ~sw (fun () ->
+      Eio.Time.sleep clock 1.0;
+      Eio.Semaphore.release semaphore
+    )
+  ) chat_ids;
+
+  Printf.printf "\n\nBroadcast complete:\n";
+  Printf.printf "  Successful: %d/%d\n" !successful total;
+  Printf.printf "  Failed: %d/%d\n" (List.length !failed) total;
+  print_metrics metrics;
+
+  (!successful, !failed)
+]}
+
+{2 Error-Tolerant Poll Handler}
+
+{[
+let handle_update_with_recovery client update =
+  let handle () =
+    match update.Update.message with
+    | Some msg ->
+        let chat_id = Id.Chat.of_int msg.Message.chat.Chat.id in
+        let text = Option.value msg.Message.text ~default:"" in
+
+        if text <> "" then
+          (* Try to echo with retry *)
+          let response = "You said: " ^ text in
+          Retry.with_config
+            (Retry.make ~strategy:(Retry.Strategy.telegram_aware ()) ~max_attempts:3 ())
+            (fun () -> Gen_methods.send_message client ~chat_id ~text:response ())
+        else
+          Ok ()
+
+    | None -> Ok ()
+  in
+
+  match handle () with
+  | Ok _ -> ()
+  | Error err ->
+      (* Log error but continue processing updates *)
+      Printf.eprintf "Error handling update: %a\n" Error.pp err;
+
+      (* Try to notify user if possible *)
+      begin match update.Update.message with
+      | Some msg ->
+          let chat_id = Id.Chat.of_int msg.Message.chat.Chat.id in
+          let user_msg = error_to_user_message err in
+          let _ = Gen_methods.send_message client ~chat_id ~text:user_msg () in
+          ()
+      | None -> ()
+      end
+]}
+
+{2 Production Bot with Full Error Handling}
+
+{[
+let run_production_bot token =
+  Eio_main.run @@ fun env ->
+
+  (* Create client *)
+  let client = Client.create ~env ~token () in
+
+  (* Verify token on startup *)
+  let me =
+    Retry.with_default (fun () -> Gen_methods.get_me client ())
+    |> Error.or_fail
+  in
+  Printf.printf "Bot started: @%s\n"
+    (Option.value me.username ~default:"unknown");
+
+  (* Error metrics *)
+  let metrics = create_metrics () in
+
+  (* Define error handler *)
+  let handle_error ctx exn =
+    Printf.eprintf "Handler error: %s\n" (Printexc.to_string exn);
+
+    (* Send user notification *)
+    let _ = Ctx.reply ctx "An error occurred. Please try again later." in
+    ()
+  in
+
+  (* Define routes with error handling *)
+  let routes =
+    Bot.router ~on_error:handle_error [
+      Bot.on (Event.command "start") (fun cmd ctx ->
+        match Ctx.reply ctx "Welcome! I'm a resilient bot with robust error handling." with
+        | Ok _ -> ()
+        | Error err ->
+            record_error metrics err;
+            handle_error ctx (Failure (Format.asprintf "%a" Error.pp err))
+      );
+
+      Bot.on Event.message (fun msg ctx ->
+        let text = Option.value msg.text ~default:"" in
+
+        (* Process with retry *)
+        let result = Retry.with_default @@ fun () ->
+          (* Echo back *)
+          Ctx.reply ctx ("Echo: " ^ text)
+        in
+
+        match result with
+        | Ok _ -> ()
+        | Error err ->
+            record_error metrics err;
+
+            (* Notify user based on error category *)
+            match categorize_error err with
+            | UserError | BotError ->
+                let user_msg = error_to_user_message err in
+                let _ = Ctx.reply ctx user_msg in
+                ()
+            | Fatal ->
+                Printf.eprintf "FATAL: %a\n" Error.pp err;
+                exit 1
+            | _ -> ()
+      );
+    ]
+  in
+
+  (* Run with polling *)
+  Printf.printf "Starting polling...\n";
+  Bot.run_polling ~env ~client routes;
+
+  (* Print metrics on shutdown *)
+  print_metrics metrics
+]}
+
+{1 Best Practices}
+
+{2 Error Handling Design}
+
+- {b Use Result types}: Never throw exceptions for expected errors
+- {b Classify errors}: Distinguish retryable from permanent failures
+- {b Fail fast on fatal errors}: Invalid tokens, missing permissions
+- {b Retry transient errors}: Network issues, server errors, rate limits
+- {b Respect retry_after}: Use [Retry.Strategy.telegram_aware] for production
+- {b Provide context}: Include relevant information when propagating errors
+- {b Log appropriately}: Debug details for developers, friendly messages for users
+
+{2 Retry Strategy Selection}
+
+- {b Development}: Use [Retry.Strategy.fixed] for predictable behavior
+- {b Production}: Use [Retry.Strategy.telegram_aware] to respect rate limits
+- {b High-volume bots}: Use [Retry.Strategy.exponential_jitter] to avoid thundering herd
+- {b Critical operations}: Increase max_attempts for important messages
+- {b Batch operations}: Implement circuit breaker to avoid cascading failures
+
+{2 User Communication}
+
+- {b Be specific}: "Too many requests" vs "An error occurred"
+- {b Be actionable}: Tell users what they can do
+- {b Be honest}: Don't hide errors, but don't show stack traces
+- {b Provide retry hints}: "Please try again in 30 seconds"
+- {b Log internally}: Keep detailed logs for debugging
+
+{2 Graceful Degradation}
+
+- {b Provide fallbacks}: Degraded functionality is better than no functionality
+- {b Handle partial failures}: Don't fail entire batch on single error
+- {b Cache when possible}: Serve stale data rather than fail
+- {b Circuit breaker}: Stop hammering failing services
+- {b Monitor and alert}: Track error rates and patterns
+
+{2 Testing Error Handling}
+
+- {b Test all error paths}: Don't just test happy path
+- {b Simulate failures}: Network errors, timeouts, rate limits
+- {b Test recovery}: Verify retry logic works correctly
+- {b Test user feedback}: Ensure error messages are helpful
+- {b Monitor in production}: Track error metrics and patterns
+
+{1 See Also}
+
+- {!Telegram.Error} - Error types and utilities
+- {!Telegram.Retry} - Retry strategies and configuration
+- {!Telegram.Response} - Response parsing and error extraction
+- {{!page-middleware_architecture}Middleware Architecture} - Error handling middleware
+- {{!page-core_concepts}Core Concepts} - Error handling philosophy
+- {{!page-development_workflow}Development Workflow} - Debugging and logging
