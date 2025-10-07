@@ -10,12 +10,12 @@
 
 ## Progress Tracker
 
-**Overall Completion: 19/30 tasks (63%)**
+**Overall Completion: 20/30 tasks (67%)**
 
 **Phase 1 — Getting Started Guide: COMPLETE (5/5 tasks) ✓**
 **Phase 2 — API Fundamentals: COMPLETE (6/6 tasks) ✓**
 **Phase 3 — Advanced Patterns: COMPLETE (7/7 tasks) ✓**
-**Phase 4 — Cookbook & Recipes: IN PROGRESS (2/12 tasks) ✓**
+**Phase 4 — Cookbook & Recipes: IN PROGRESS (3/12 tasks) ✓**
 
 ---
 
@@ -263,11 +263,13 @@ Real-world bot implementations with complete examples.
   - Complete production example (session-based preferences with style and transform settings) ✓
   - Best practices (formatting, filter design, transformation design, user experience) ✓
 
-- [ ] Task 4.3: Keyboard bot patterns
-  - Menu navigation
-  - Multi-level menus
-  - Dynamic keyboards
-  - Keyboard state management
+- [x] Task 4.3: Keyboard bot patterns — COMPLETED: docs/recipe_keyboard_bot.mld
+  - Simple menu navigation (main menu with callbacks, back navigation) ✓
+  - Multi-level menu hierarchies (tree-based structure, breadcrumb navigation) ✓
+  - Dynamic keyboards (data-driven, paginated lists, search and filter) ✓
+  - Keyboard state management (session-based state, multi-step forms, stateful item selection) ✓
+  - Complete production example (interactive shop bot with categories, cart, checkout) ✓
+  - Best practices (menu design, keyboard state, dynamic keyboards, user experience) ✓
 
 - [ ] Task 4.4: File handling bot
   - Document uploads

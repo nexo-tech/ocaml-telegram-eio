@@ -1,0 +1,1278 @@
+{0 Recipe: Keyboard Bot Patterns}
+
+A comprehensive cookbook for building interactive keyboard-based bots with menu navigation, multi-level menus, dynamic keyboards, and keyboard state management.
+
+{1 Overview}
+
+This recipe shows how to build sophisticated bot interfaces using Telegram keyboards. We'll cover everything from simple menu navigation to complex multi-level menu systems with state management.
+
+{b What you'll learn}:
+- Menu navigation with inline keyboards
+- Multi-level menu hierarchies
+- Dynamic keyboard generation based on data
+- Keyboard state management with sessions
+- Interactive patterns (settings, pagination, item selection)
+
+{b When to use keyboard bots}:
+- Building menu-driven interfaces
+- Creating settings and configuration UIs
+- Interactive catalogs and product browsers
+- Multi-step wizards and forms
+- Navigation-heavy applications
+
+{1 Simple Menu Navigation}
+
+{2 Basic Menu System}
+
+Start with a simple single-level menu:
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+
+(* Define menu options *)
+type menu_option =
+  | Settings
+  | Profile
+  | Help
+  | About
+
+(* Create keyboard for main menu *)
+let main_menu_keyboard =
+  Tg.Keyboard.inline [
+    [Tg.Keyboard.callback ~text:"⚙️ Settings" ~data:"menu:settings"];
+    [Tg.Keyboard.callback ~text:"👤 Profile" ~data:"menu:profile"];
+    [Tg.Keyboard.callback ~text:"❓ Help" ~data:"menu:help"];
+    [Tg.Keyboard.callback ~text:"ℹ️ About" ~data:"menu:about"];
+  ]
+
+(* Handle menu selection *)
+let routes = [
+  (* Show menu on /start *)
+  Tg.Bot.on (Tg.Bot.Event.command "start") (fun _args ctx ->
+    let* _ = Tg.Bot.Ctx.reply ctx
+      ~reply_markup:main_menu_keyboard
+      "Welcome! Choose an option from the menu below:"
+    in
+    Ok ()
+  );
+
+  (* Handle menu callbacks *)
+  Tg.Bot.on (Tg.Bot.Event.callback "menu:settings") (fun _data ctx ->
+    let* _ = Tg.Bot.Ctx.edit ctx "⚙️ Settings page (coming soon)" in
+    Ok ()
+  );
+
+  Tg.Bot.on (Tg.Bot.Event.callback "menu:profile") (fun _data ctx ->
+    let* _ = Tg.Bot.Ctx.edit ctx "👤 Your profile information" in
+    Ok ()
+  );
+
+  Tg.Bot.on (Tg.Bot.Event.callback "menu:help") (fun _data ctx ->
+    let* _ = Tg.Bot.Ctx.edit ctx "❓ Help: Use /start to see the menu" in
+    Ok ()
+  );
+
+  Tg.Bot.on (Tg.Bot.Event.callback "menu:about") (fun _data ctx ->
+    let* _ = Tg.Bot.Ctx.edit ctx "ℹ️ Bot version 1.0" in
+    Ok ()
+  );
+]
+]}
+
+{2 Menu with Back Navigation}
+
+Add navigation to return to previous menus:
+
+{[
+(* Settings submenu with back button *)
+let settings_keyboard =
+  Tg.Keyboard.inline [
+    [Tg.Keyboard.callback ~text:"🔔 Notifications" ~data:"settings:notifications"];
+    [Tg.Keyboard.callback ~text:"🌐 Language" ~data:"settings:language"];
+    [Tg.Keyboard.callback ~text:"🔒 Privacy" ~data:"settings:privacy"];
+    [Tg.Keyboard.callback ~text:"← Back to Menu" ~data:"menu:main"];
+  ]
+
+let routes = [
+  Tg.Bot.on (Tg.Bot.Event.callback "menu:settings") (fun _data ctx ->
+    let* _ = Tg.Bot.Ctx.edit ctx
+      ~reply_markup:settings_keyboard
+      "⚙️ Settings\n\nChoose a setting to configure:"
+    in
+    Ok ()
+  );
+
+  Tg.Bot.on (Tg.Bot.Event.callback "menu:main") (fun _data ctx ->
+    let* _ = Tg.Bot.Ctx.edit ctx
+      ~reply_markup:main_menu_keyboard
+      "📱 Main Menu"
+    in
+    Ok ()
+  );
+]
+]}
+
+{1 Multi-Level Menu Hierarchies}
+
+{2 Tree-Based Menu Structure}
+
+Build hierarchical menus with arbitrary depth:
+
+{[
+(* Menu tree data structure *)
+type menu_item = {
+  id : string;
+  title : string;
+  emoji : string;
+  children : menu_item list;
+  parent : string option;
+  action : (Tg.Bot.Ctx.t -> (unit, Telegram.Error.t) result) option;
+}
+
+(* Define menu structure *)
+let menu_tree =
+  { id = "main";
+    title = "Main Menu";
+    emoji = "📱";
+    parent = None;
+    action = None;
+    children = [
+      { id = "settings";
+        title = "Settings";
+        emoji = "⚙️";
+        parent = Some "main";
+        action = None;
+        children = [
+          { id = "notifications";
+            title = "Notifications";
+            emoji = "🔔";
+            parent = Some "settings";
+            action = Some (fun ctx ->
+              Tg.Bot.Ctx.reply ctx "Notification settings"
+            );
+            children = [];
+          };
+          { id = "language";
+            title = "Language";
+            emoji = "🌐";
+            parent = Some "settings";
+            action = Some (fun ctx ->
+              Tg.Bot.Ctx.reply ctx "Language selection"
+            );
+            children = [];
+          };
+        ];
+      };
+      { id = "profile";
+        title = "Profile";
+        emoji = "👤";
+        parent = Some "main";
+        action = None;
+        children = [
+          { id = "edit_name";
+            title = "Edit Name";
+            emoji = "✏️";
+            parent = Some "profile";
+            action = Some (fun ctx ->
+              Tg.Bot.Ctx.reply ctx "Enter your new name:"
+            );
+            children = [];
+          };
+          { id = "edit_bio";
+            title = "Edit Bio";
+            emoji = "📝";
+            parent = Some "profile";
+            action = Some (fun ctx ->
+              Tg.Bot.Ctx.reply ctx "Enter your new bio:"
+            );
+            children = [];
+          };
+        ];
+      };
+    ];
+  }
+
+(* Generate keyboard from menu tree *)
+let rec create_menu_keyboard menu_item =
+  let child_buttons =
+    List.map (fun child ->
+      [Tg.Keyboard.callback
+         ~text:(child.emoji ^ " " ^ child.title)
+         ~data:("nav:" ^ child.id)]
+    ) menu_item.children
+  in
+
+  let back_button =
+    match menu_item.parent with
+    | Some parent_id ->
+        [[Tg.Keyboard.callback ~text:"← Back" ~data:("nav:" ^ parent_id)]]
+    | None ->
+        []
+  in
+
+  Tg.Keyboard.inline (child_buttons @ back_button)
+
+(* Find menu item by ID *)
+let rec find_menu_item menu_tree id =
+  if menu_tree.id = id then
+    Some menu_tree
+  else
+    List.find_map (find_menu_item menu_tree) menu_tree.children
+
+(* Handle navigation *)
+let handle_navigation menu_tree data ctx =
+  (* Extract menu ID from callback data *)
+  let menu_id = String.sub data 4 (String.length data - 4) in
+
+  match find_menu_item menu_tree menu_id with
+  | Some menu_item ->
+      let text = menu_item.emoji ^ " " ^ menu_item.title in
+      let keyboard = create_menu_keyboard menu_item in
+
+      let* _ = Tg.Bot.Ctx.edit ctx ~reply_markup:keyboard text in
+
+      (* Execute action if present *)
+      (match menu_item.action with
+      | Some action -> action ctx
+      | None -> Ok ())
+
+  | None ->
+      let* _ = Tg.Bot.Ctx.answer ctx ~text:"Menu not found" in
+      Ok ()
+
+let routes menu_tree = [
+  Tg.Bot.on (Tg.Bot.Event.command "start") (fun _args ctx ->
+    let keyboard = create_menu_keyboard menu_tree in
+    let* _ = Tg.Bot.Ctx.reply ctx
+      ~reply_markup:keyboard
+      (menu_tree.emoji ^ " " ^ menu_tree.title)
+    in
+    Ok ()
+  );
+
+  Tg.Bot.on (Tg.Bot.Event.callback "nav:*") (fun data ctx ->
+    handle_navigation menu_tree data ctx
+  );
+]
+]}
+
+{2 Breadcrumb Navigation}
+
+Show the current path in menu hierarchies:
+
+{[
+(* Get path from root to current menu *)
+let rec get_menu_path menu_tree current_id =
+  let rec aux item acc =
+    if item.id = current_id then
+      Some (item :: acc)
+    else
+      List.find_map (fun child -> aux child (item :: acc)) item.children
+  in
+  match aux menu_tree [] with
+  | Some path -> List.rev path
+  | None -> []
+
+(* Format breadcrumb *)
+let format_breadcrumb path =
+  path
+  |> List.map (fun item -> item.emoji ^ " " ^ item.title)
+  |> String.concat " → "
+
+(* Show menu with breadcrumb *)
+let show_menu_with_breadcrumb menu_tree menu_id ctx =
+  match find_menu_item menu_tree menu_id with
+  | Some menu_item ->
+      let path = get_menu_path menu_tree menu_id in
+      let breadcrumb = format_breadcrumb path in
+      let keyboard = create_menu_keyboard menu_item in
+
+      let text =
+        if List.length path > 1 then
+          breadcrumb ^ "\n\n" ^ menu_item.title
+        else
+          menu_item.title
+      in
+
+      let* _ = Tg.Bot.Ctx.edit ctx ~reply_markup:keyboard text in
+      Ok ()
+
+  | None ->
+      Ok ()
+]}
+
+{1 Dynamic Keyboards}
+
+{2 Data-Driven Keyboards}
+
+Generate keyboards from dynamic data sources:
+
+{[
+(* Product catalog *)
+type product = {
+  id : int;
+  name : string;
+  price : float;
+  category : string;
+  in_stock : bool;
+}
+
+(* Generate product list keyboard *)
+let create_product_keyboard products =
+  let product_buttons =
+    products
+    |> List.filter (fun p -> p.in_stock)
+    |> List.map (fun product ->
+        [Tg.Keyboard.callback
+           ~text:(Printf.sprintf "%s - $%.2f" product.name product.price)
+           ~data:(Printf.sprintf "product:%d" product.id)]
+      )
+  in
+  Tg.Keyboard.inline product_buttons
+
+(* Category filter keyboard *)
+let create_category_keyboard categories =
+  let category_buttons =
+    List.map (fun category ->
+      [Tg.Keyboard.callback
+         ~text:category
+         ~data:("category:" ^ category)]
+    ) categories
+  in
+
+  let all_button = [[Tg.Keyboard.callback ~text:"📋 All Products" ~data:"category:all"]] in
+
+  Tg.Keyboard.inline (all_button @ category_buttons)
+
+(* Example: Show products by category *)
+let handle_category_selection category products ctx =
+  let filtered =
+    if category = "all" then
+      products
+    else
+      List.filter (fun p -> p.category = category) products
+  in
+
+  let keyboard = create_product_keyboard filtered in
+  let text =
+    Printf.sprintf "📦 Products%s (%d items)"
+      (if category = "all" then "" else " - " ^ category)
+      (List.length filtered)
+  in
+
+  let* _ = Tg.Bot.Ctx.edit ctx ~reply_markup:keyboard text in
+  Ok ()
+]}
+
+{2 Paginated Dynamic Lists}
+
+Handle large data sets with pagination:
+
+{[
+(* Paginated list module *)
+module PaginatedList = struct
+  type 'a page = {
+    items : 'a list;
+    page_num : int;
+    total_pages : int;
+    items_per_page : int;
+  }
+
+  let paginate items page_num items_per_page =
+    let total_items = List.length items in
+    let total_pages = (total_items + items_per_page - 1) / items_per_page in
+    let page_num = max 0 (min page_num (total_pages - 1)) in
+
+    let start_idx = page_num * items_per_page in
+    let end_idx = min (start_idx + items_per_page) total_items in
+
+    let page_items =
+      items
+      |> List.filteri (fun i _ -> i >= start_idx && i < end_idx)
+    in
+
+    { items = page_items;
+      page_num;
+      total_pages;
+      items_per_page;
+    }
+
+  let create_keyboard ~item_to_button ~prefix page =
+    let item_buttons =
+      List.map (fun item ->
+        [item_to_button item]
+      ) page.items
+    in
+
+    let nav_row =
+      match page.page_num, page.total_pages with
+      | _, 1 ->
+          (* Single page, no navigation *)
+          []
+      | 0, _ ->
+          (* First page *)
+          [[Tg.Keyboard.callback
+              ~text:"Next →"
+              ~data:(Printf.sprintf "%s:page:%d" prefix (page.page_num + 1))]]
+      | n, total when n = total - 1 ->
+          (* Last page *)
+          [[Tg.Keyboard.callback
+              ~text:"← Prev"
+              ~data:(Printf.sprintf "%s:page:%d" prefix (page.page_num - 1))]]
+      | n, _ ->
+          (* Middle page *)
+          [[
+            Tg.Keyboard.callback
+              ~text:"← Prev"
+              ~data:(Printf.sprintf "%s:page:%d" prefix (page.page_num - 1));
+            Tg.Keyboard.callback
+              ~text:(Printf.sprintf "%d/%d" (n + 1) page.total_pages)
+              ~data:"noop";
+            Tg.Keyboard.callback
+              ~text:"Next →"
+              ~data:(Printf.sprintf "%s:page:%d" prefix (page.page_num + 1));
+          ]]
+    in
+
+    Tg.Keyboard.inline (item_buttons @ nav_row)
+end
+
+(* Example: Paginated product browser *)
+let show_products_page products page_num ctx =
+  let page = PaginatedList.paginate products page_num 5 in
+
+  let keyboard = PaginatedList.create_keyboard
+    ~item_to_button:(fun product ->
+      Tg.Keyboard.callback
+        ~text:(Printf.sprintf "%s - $%.2f" product.name product.price)
+        ~data:(Printf.sprintf "product:%d" product.id)
+    )
+    ~prefix:"products"
+    page
+  in
+
+  let text =
+    Printf.sprintf "📦 Products (Page %d of %d)"
+      (page.page_num + 1)
+      page.total_pages
+  in
+
+  let* _ = Tg.Bot.Ctx.edit ctx ~reply_markup:keyboard text in
+  Ok ()
+
+let routes products = [
+  (* Handle pagination *)
+  Tg.Bot.on (Tg.Bot.Event.callback "products:page:*") (fun data ctx ->
+    (* Extract page number *)
+    let parts = String.split_on_char ':' data in
+    let page_num = int_of_string (List.nth parts 2) in
+    show_products_page products page_num ctx
+  );
+]
+]}
+
+{2 Search and Filter Keyboards}
+
+Combine search with dynamic keyboard updates:
+
+{[
+(* Search state *)
+type search_state = {
+  query : string option;
+  category : string option;
+  min_price : float option;
+  max_price : float option;
+}
+
+let empty_search = {
+  query = None;
+  category = None;
+  min_price = None;
+  max_price = None;
+}
+
+(* Session key for search state *)
+let search_key = Tg.Session.Key.create "search_state"
+
+(* Filter products by search state *)
+let filter_products products search =
+  products
+  |> (match search.query with
+      | Some q ->
+          List.filter (fun p ->
+            String.contains (String.lowercase_ascii p.name)
+                           (String.lowercase_ascii q))
+      | None -> Fun.id)
+  |> (match search.category with
+      | Some c -> List.filter (fun p -> p.category = c)
+      | None -> Fun.id)
+  |> (match search.min_price with
+      | Some min -> List.filter (fun p -> p.price >= min)
+      | None -> Fun.id)
+  |> (match search.max_price with
+      | Some max -> List.filter (fun p -> p.price <= max)
+      | None -> Fun.id)
+
+(* Create search filter keyboard *)
+let create_search_keyboard search =
+  let category_text =
+    match search.category with
+    | Some c -> "Category: " ^ c
+    | None -> "All Categories"
+  in
+
+  let price_text =
+    match search.min_price, search.max_price with
+    | Some min, Some max -> Printf.sprintf "Price: $%.0f-$%.0f" min max
+    | Some min, None -> Printf.sprintf "Price: >$%.0f" min
+    | None, Some max -> Printf.sprintf "Price: <$%.0f" max
+    | None, None -> "Any Price"
+  in
+
+  Tg.Keyboard.inline [
+    [Tg.Keyboard.callback ~text:("🏷️ " ^ category_text) ~data:"filter:category"];
+    [Tg.Keyboard.callback ~text:("💰 " ^ price_text) ~data:"filter:price"];
+    [Tg.Keyboard.callback ~text:"🔍 Search Results" ~data:"search:results"];
+    [Tg.Keyboard.callback ~text:"🔄 Clear Filters" ~data:"search:clear"];
+  ]
+
+(* Show search interface *)
+let show_search_keyboard ctx =
+  let search = Tg.Bot.Ctx.session_get_or ctx search_key ~default:empty_search in
+  let keyboard = create_search_keyboard search in
+  let* _ = Tg.Bot.Ctx.edit ctx
+    ~reply_markup:keyboard
+    "🔍 Search & Filter\n\nConfigure your search criteria:"
+  in
+  Ok ()
+]}
+
+{1 Keyboard State Management}
+
+{2 Session-Based State}
+
+Track keyboard state across interactions:
+
+{[
+(* Settings state *)
+type settings = {
+  notifications_enabled : bool;
+  language : string;
+  theme : string;
+}
+
+let default_settings = {
+  notifications_enabled = true;
+  language = "en";
+  theme = "light";
+}
+
+(* Session key *)
+let settings_key = Tg.Session.Key.create "settings"
+
+(* Toggle setting *)
+let toggle_notifications settings =
+  { settings with notifications_enabled = not settings.notifications_enabled }
+
+(* Create settings keyboard *)
+let create_settings_keyboard settings =
+  let notif_text =
+    if settings.notifications_enabled then
+      "🔔 Notifications: ON"
+    else
+      "🔕 Notifications: OFF"
+  in
+
+  Tg.Keyboard.inline [
+    [Tg.Keyboard.callback ~text:notif_text ~data:"settings:toggle:notifications"];
+    [Tg.Keyboard.callback
+       ~text:("🌐 Language: " ^ settings.language)
+       ~data:"settings:language"];
+    [Tg.Keyboard.callback
+       ~text:("🎨 Theme: " ^ settings.theme)
+       ~data:"settings:theme"];
+    [Tg.Keyboard.callback ~text:"💾 Save" ~data:"settings:save"];
+  ]
+
+(* Handle settings toggle *)
+let routes = [
+  Tg.Bot.on (Tg.Bot.Event.callback "settings:toggle:notifications") (fun _data ctx ->
+    let settings = Tg.Bot.Ctx.session_get_or ctx settings_key ~default:default_settings in
+    let updated = toggle_notifications settings in
+    Tg.Bot.Ctx.session_set ctx settings_key updated;
+
+    let keyboard = create_settings_keyboard updated in
+    let* _ = Tg.Bot.Ctx.edit ctx
+      ~reply_markup:keyboard
+      "⚙️ Settings\n\nToggled notifications!"
+    in
+    Ok ()
+  );
+
+  Tg.Bot.on (Tg.Bot.Event.callback "settings:save") (fun _data ctx ->
+    (* Settings are already saved in session *)
+    let* _ = Tg.Bot.Ctx.answer ctx ~text:"✓ Settings saved!" in
+    Ok ()
+  );
+]
+]}
+
+{2 Multi-Step Form with State}
+
+Build complex forms with keyboard navigation:
+
+{[
+(* Form state machine *)
+type form_step =
+  | AskName
+  | AskEmail
+  | AskAge
+  | Confirm
+
+type form_data = {
+  name : string option;
+  email : string option;
+  age : int option;
+}
+
+type form_state = {
+  step : form_step;
+  data : form_data;
+}
+
+let empty_form = {
+  step = AskName;
+  data = { name = None; email = None; age = None };
+}
+
+(* Session key *)
+let form_key = Tg.Session.Key.create "form_state"
+
+(* Create keyboard for current step *)
+let create_form_keyboard form_state =
+  match form_state.step with
+  | AskName ->
+      Tg.Keyboard.inline [
+        [Tg.Keyboard.callback ~text:"✗ Cancel" ~data:"form:cancel"];
+      ]
+
+  | AskEmail ->
+      Tg.Keyboard.inline [
+        [Tg.Keyboard.callback ~text:"⏭ Skip Email" ~data:"form:skip:email"];
+        [Tg.Keyboard.callback ~text:"← Back" ~data:"form:back"];
+        [Tg.Keyboard.callback ~text:"✗ Cancel" ~data:"form:cancel"];
+      ]
+
+  | AskAge ->
+      Tg.Keyboard.inline [
+        [Tg.Keyboard.callback ~text:"⏭ Skip Age" ~data:"form:skip:age"];
+        [Tg.Keyboard.callback ~text:"← Back" ~data:"form:back"];
+        [Tg.Keyboard.callback ~text:"✗ Cancel" ~data:"form:cancel"];
+      ]
+
+  | Confirm ->
+      Tg.Keyboard.inline [
+        [
+          Tg.Keyboard.callback ~text:"✓ Submit" ~data:"form:submit";
+          Tg.Keyboard.callback ~text:"✗ Cancel" ~data:"form:cancel";
+        ];
+        [Tg.Keyboard.callback ~text:"← Edit" ~data:"form:edit"];
+      ]
+
+(* Get text for current step *)
+let form_step_text form_state =
+  match form_state.step with
+  | AskName ->
+      "📝 Registration Form\n\nStep 1/3: Please enter your name:"
+
+  | AskEmail ->
+      "📝 Registration Form\n\nStep 2/3: Please enter your email address:"
+
+  | AskAge ->
+      "📝 Registration Form\n\nStep 3/3: Please enter your age:"
+
+  | Confirm ->
+      let data = form_state.data in
+      Printf.sprintf
+        "📝 Registration Form\n\n✓ Review your information:\n\nName: %s\nEmail: %s\nAge: %s"
+        (Option.value data.name ~default:"(not provided)")
+        (Option.value data.email ~default:"(not provided)")
+        (match data.age with Some a -> string_of_int a | None -> "(not provided)")
+
+(* Advance to next step *)
+let next_step = function
+  | AskName -> AskEmail
+  | AskEmail -> AskAge
+  | AskAge -> Confirm
+  | Confirm -> Confirm
+
+(* Go to previous step *)
+let prev_step = function
+  | AskName -> AskName
+  | AskEmail -> AskName
+  | AskAge -> AskEmail
+  | Confirm -> AskAge
+
+(* Handle form progression *)
+let routes = [
+  (* Start form *)
+  Tg.Bot.on (Tg.Bot.Event.command "register") (fun _args ctx ->
+    Tg.Bot.Ctx.session_set ctx form_key empty_form;
+
+    let keyboard = create_form_keyboard empty_form in
+    let* _ = Tg.Bot.Ctx.reply ctx
+      ~reply_markup:keyboard
+      (form_step_text empty_form)
+    in
+    Ok ()
+  );
+
+  (* Handle text input *)
+  Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
+    let form = Tg.Bot.Ctx.session_get_or ctx form_key ~default:empty_form in
+
+    let updated_data, next =
+      match form.step with
+      | AskName ->
+          ({ form.data with name = Some text }, next_step form.step)
+      | AskEmail ->
+          ({ form.data with email = Some text }, next_step form.step)
+      | AskAge ->
+          (try
+            let age = int_of_string text in
+            ({ form.data with age = Some age }, next_step form.step)
+          with _ ->
+            (form.data, form.step))  (* Invalid age, stay on same step *)
+      | Confirm ->
+          (form.data, form.step)
+    in
+
+    let updated_form = { step = next; data = updated_data } in
+    Tg.Bot.Ctx.session_set ctx form_key updated_form;
+
+    let keyboard = create_form_keyboard updated_form in
+    let* _ = Tg.Bot.Ctx.reply ctx
+      ~reply_markup:keyboard
+      (form_step_text updated_form)
+    in
+    Ok ()
+  );
+
+  (* Skip field *)
+  Tg.Bot.on (Tg.Bot.Event.callback "form:skip:*") (fun _data ctx ->
+    let form = Tg.Bot.Ctx.session_get_or ctx form_key ~default:empty_form in
+    let updated = { form with step = next_step form.step } in
+    Tg.Bot.Ctx.session_set ctx form_key updated;
+
+    let keyboard = create_form_keyboard updated in
+    let* _ = Tg.Bot.Ctx.edit ctx
+      ~reply_markup:keyboard
+      (form_step_text updated)
+    in
+    Ok ()
+  );
+
+  (* Back button *)
+  Tg.Bot.on (Tg.Bot.Event.callback "form:back") (fun _data ctx ->
+    let form = Tg.Bot.Ctx.session_get_or ctx form_key ~default:empty_form in
+    let updated = { form with step = prev_step form.step } in
+    Tg.Bot.Ctx.session_set ctx form_key updated;
+
+    let keyboard = create_form_keyboard updated in
+    let* _ = Tg.Bot.Ctx.edit ctx
+      ~reply_markup:keyboard
+      (form_step_text updated)
+    in
+    Ok ()
+  );
+
+  (* Submit form *)
+  Tg.Bot.on (Tg.Bot.Event.callback "form:submit") (fun _data ctx ->
+    let form = Tg.Bot.Ctx.session_get_or ctx form_key ~default:empty_form in
+
+    (* Process form data *)
+    let* _ = Tg.Bot.Ctx.edit ctx
+      "✓ Registration complete!\n\nThank you for registering."
+    in
+
+    (* Clear form state *)
+    Tg.Bot.Ctx.session_remove ctx form_key;
+    Ok ()
+  );
+
+  (* Cancel form *)
+  Tg.Bot.on (Tg.Bot.Event.callback "form:cancel") (fun _data ctx ->
+    Tg.Bot.Ctx.session_remove ctx form_key;
+    let* _ = Tg.Bot.Ctx.edit ctx "Registration cancelled." in
+    Ok ()
+  );
+]
+]}
+
+{2 Stateful Item Selection}
+
+Track multiple selections with keyboard state:
+
+{[
+(* Selection state *)
+type selection_state = {
+  selected : int list;  (* IDs of selected items *)
+  mode : [ `Single | `Multiple ];
+}
+
+let selection_key = Tg.Session.Key.create "selection"
+
+(* Check if item is selected *)
+let is_selected state item_id =
+  List.mem item_id state.selected
+
+(* Toggle item selection *)
+let toggle_selection state item_id =
+  if is_selected state item_id then
+    { state with selected = List.filter ((<>) item_id) state.selected }
+  else
+    match state.mode with
+    | `Single -> { state with selected = [item_id] }
+    | `Multiple -> { state with selected = item_id :: state.selected }
+
+(* Create selection keyboard *)
+let create_selection_keyboard items state =
+  let item_buttons =
+    List.map (fun item ->
+      let checkbox =
+        if is_selected state item.id then "☑️" else "☐"
+      in
+      [Tg.Keyboard.callback
+         ~text:(Printf.sprintf "%s %s" checkbox item.name)
+         ~data:(Printf.sprintf "select:%d" item.id)]
+    ) items
+  in
+
+  let done_button =
+    if List.length state.selected > 0 then
+      [[Tg.Keyboard.callback ~text:"✓ Done" ~data:"select:done"]]
+    else
+      []
+  in
+
+  Tg.Keyboard.inline (item_buttons @ done_button)
+
+(* Handle selection *)
+let routes items = [
+  (* Start selection *)
+  Tg.Bot.on (Tg.Bot.Event.command "select") (fun _args ctx ->
+    let state = { selected = []; mode = `Multiple } in
+    Tg.Bot.Ctx.session_set ctx selection_key state;
+
+    let keyboard = create_selection_keyboard items state in
+    let* _ = Tg.Bot.Ctx.reply ctx
+      ~reply_markup:keyboard
+      "Select items (multiple allowed):"
+    in
+    Ok ()
+  );
+
+  (* Toggle item *)
+  Tg.Bot.on (Tg.Bot.Event.callback "select:*") (fun data ctx ->
+    if data = "select:done" then
+      Ok ()
+    else
+      let item_id = int_of_string (String.sub data 7 (String.length data - 7)) in
+      let state = Tg.Bot.Ctx.session_get_or ctx selection_key
+        ~default:{ selected = []; mode = `Multiple }
+      in
+
+      let updated = toggle_selection state item_id in
+      Tg.Bot.Ctx.session_set ctx selection_key updated;
+
+      let keyboard = create_selection_keyboard items updated in
+      let* _ = Tg.Bot.Ctx.edit ctx
+        ~reply_markup:keyboard
+        (Printf.sprintf "Selected: %d items" (List.length updated.selected))
+      in
+      Ok ()
+  );
+
+  (* Finish selection *)
+  Tg.Bot.on (Tg.Bot.Event.callback "select:done") (fun _data ctx ->
+    let state = Tg.Bot.Ctx.session_get_or ctx selection_key
+      ~default:{ selected = []; mode = `Multiple }
+    in
+
+    let selected_items =
+      List.filter (fun item -> List.mem item.id state.selected) items
+    in
+
+    let summary =
+      selected_items
+      |> List.map (fun item -> "• " ^ item.name)
+      |> String.concat "\n"
+    in
+
+    let* _ = Tg.Bot.Ctx.edit ctx
+      (Printf.sprintf "✓ Selection complete:\n\n%s" summary)
+    in
+
+    Tg.Bot.Ctx.session_remove ctx selection_key;
+    Ok ()
+  );
+]
+]}
+
+{1 Complete Production Example}
+
+{2 Interactive Shop Bot}
+
+A complete shop bot with categories, pagination, cart, and checkout:
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+
+(* Domain types *)
+type product = {
+  id : int;
+  name : string;
+  description : string;
+  price : float;
+  category : string;
+  in_stock : bool;
+}
+
+type cart_item = {
+  product : product;
+  quantity : int;
+}
+
+type cart = {
+  items : cart_item list;
+}
+
+(* Session keys *)
+let cart_key = Tg.Session.Key.create "cart"
+let category_key = Tg.Session.Key.create "current_category"
+
+(* Sample products *)
+let products = [
+  { id = 1; name = "Coffee"; description = "Premium blend"; price = 5.99;
+    category = "Beverages"; in_stock = true };
+  { id = 2; name = "Tea"; description = "Green tea"; price = 4.99;
+    category = "Beverages"; in_stock = true };
+  { id = 3; name = "Croissant"; description = "Fresh baked"; price = 3.50;
+    category = "Bakery"; in_stock = true };
+  { id = 4; name = "Muffin"; description = "Blueberry"; price = 2.99;
+    category = "Bakery"; in_stock = true };
+]
+
+(* Get categories *)
+let get_categories () =
+  products
+  |> List.map (fun p -> p.category)
+  |> List.sort_uniq String.compare
+
+(* Cart operations *)
+let empty_cart = { items = [] }
+
+let add_to_cart cart product =
+  let existing =
+    List.find_opt (fun item -> item.product.id = product.id) cart.items
+  in
+  match existing with
+  | Some item ->
+      let updated_items =
+        List.map (fun i ->
+          if i.product.id = product.id then
+            { i with quantity = i.quantity + 1 }
+          else
+            i
+        ) cart.items
+      in
+      { items = updated_items }
+  | None ->
+      { items = { product; quantity = 1 } :: cart.items }
+
+let remove_from_cart cart product_id =
+  { items = List.filter (fun item -> item.product.id <> product_id) cart.items }
+
+let cart_total cart =
+  List.fold_left (fun acc item ->
+    acc +. (item.product.price *. float_of_int item.quantity)
+  ) 0.0 cart.items
+
+(* Keyboards *)
+let create_main_keyboard () =
+  Tg.Keyboard.inline [
+    [Tg.Keyboard.callback ~text:"🛍️ Browse Products" ~data:"shop:browse"];
+    [Tg.Keyboard.callback ~text:"🛒 View Cart" ~data:"shop:cart"];
+  ]
+
+let create_categories_keyboard () =
+  let categories = get_categories () in
+  let category_buttons =
+    List.map (fun cat ->
+      [Tg.Keyboard.callback ~text:cat ~data:("category:" ^ cat)]
+    ) categories
+  in
+  let all_button = [[Tg.Keyboard.callback ~text:"All Products" ~data:"category:all"]] in
+  Tg.Keyboard.inline (all_button @ category_buttons @ [[Tg.Keyboard.callback ~text:"← Back" ~data:"shop:main"]])
+
+let create_product_list_keyboard category =
+  let filtered =
+    if category = "all" then
+      products
+    else
+      List.filter (fun p -> p.category = category && p.in_stock) products
+  in
+
+  let product_buttons =
+    List.map (fun p ->
+      [Tg.Keyboard.callback
+         ~text:(Printf.sprintf "%s - $%.2f" p.name p.price)
+         ~data:(Printf.sprintf "product:%d" p.id)]
+    ) filtered
+  in
+
+  Tg.Keyboard.inline (product_buttons @ [[Tg.Keyboard.callback ~text:"← Back" ~data:"shop:browse"]])
+
+let create_product_detail_keyboard product =
+  Tg.Keyboard.inline [
+    [Tg.Keyboard.callback ~text:"➕ Add to Cart" ~data:(Printf.sprintf "add:%d" product.id)];
+    [Tg.Keyboard.callback ~text:"← Back to List" ~data:"product:back"];
+  ]
+
+let create_cart_keyboard cart =
+  let item_buttons =
+    List.map (fun item ->
+      [
+        Tg.Keyboard.callback
+          ~text:(Printf.sprintf "%s (x%d) - $%.2f"
+                  item.product.name
+                  item.quantity
+                  (item.product.price *. float_of_int item.quantity))
+          ~data:(Printf.sprintf "view:%d" item.product.id);
+        Tg.Keyboard.callback
+          ~text:"🗑"
+          ~data:(Printf.sprintf "remove:%d" item.product.id);
+      ]
+    ) cart.items
+  in
+
+  let checkout_buttons =
+    if List.length cart.items > 0 then
+      [[Tg.Keyboard.callback ~text:"💳 Checkout" ~data:"shop:checkout"]]
+    else
+      []
+  in
+
+  Tg.Keyboard.inline (item_buttons @ checkout_buttons @ [[Tg.Keyboard.callback ~text:"← Continue Shopping" ~data:"shop:browse"]])
+
+(* Routes *)
+let routes = [
+  (* Start command *)
+  Tg.Bot.on (Tg.Bot.Event.command "start") (fun _args ctx ->
+    let keyboard = create_main_keyboard () in
+    let* _ = Tg.Bot.Ctx.reply ctx
+      ~reply_markup:keyboard
+      "🛍️ Welcome to our shop!\n\nWhat would you like to do?"
+    in
+    Ok ()
+  );
+
+  (* Main menu *)
+  Tg.Bot.on (Tg.Bot.Event.callback "shop:main") (fun _data ctx ->
+    let keyboard = create_main_keyboard () in
+    let* _ = Tg.Bot.Ctx.edit ctx
+      ~reply_markup:keyboard
+      "🛍️ Main Menu"
+    in
+    Ok ()
+  );
+
+  (* Browse products - show categories *)
+  Tg.Bot.on (Tg.Bot.Event.callback "shop:browse") (fun _data ctx ->
+    let keyboard = create_categories_keyboard () in
+    let* _ = Tg.Bot.Ctx.edit ctx
+      ~reply_markup:keyboard
+      "📂 Choose a category:"
+    in
+    Ok ()
+  );
+
+  (* Category selection *)
+  Tg.Bot.on (Tg.Bot.Event.callback "category:*") (fun data ctx ->
+    let category = String.sub data 9 (String.length data - 9) in
+    Tg.Bot.Ctx.session_set ctx category_key category;
+
+    let keyboard = create_product_list_keyboard category in
+    let* _ = Tg.Bot.Ctx.edit ctx
+      ~reply_markup:keyboard
+      (Printf.sprintf "📦 Products - %s" category)
+    in
+    Ok ()
+  );
+
+  (* Product selection - show details *)
+  Tg.Bot.on (Tg.Bot.Event.callback "product:*") (fun data ctx ->
+    if data = "product:back" then
+      let category = Tg.Bot.Ctx.session_get_or ctx category_key ~default:"all" in
+      let keyboard = create_product_list_keyboard category in
+      let* _ = Tg.Bot.Ctx.edit ctx
+        ~reply_markup:keyboard
+        (Printf.sprintf "📦 Products - %s" category)
+      in
+      Ok ()
+    else
+      let product_id = int_of_string (String.sub data 8 (String.length data - 8)) in
+      match List.find_opt (fun p -> p.id = product_id) products with
+      | Some product ->
+          let keyboard = create_product_detail_keyboard product in
+          let text = Printf.sprintf
+            "📦 %s\n\n%s\n\n💰 Price: $%.2f\n📊 Status: %s"
+            product.name
+            product.description
+            product.price
+            (if product.in_stock then "In Stock" else "Out of Stock")
+          in
+          let* _ = Tg.Bot.Ctx.edit ctx ~reply_markup:keyboard text in
+          Ok ()
+      | None ->
+          Ok ()
+  );
+
+  (* Add to cart *)
+  Tg.Bot.on (Tg.Bot.Event.callback "add:*") (fun data ctx ->
+    let product_id = int_of_string (String.sub data 4 (String.length data - 4)) in
+    match List.find_opt (fun p -> p.id = product_id) products with
+    | Some product ->
+        let cart = Tg.Bot.Ctx.session_get_or ctx cart_key ~default:empty_cart in
+        let updated_cart = add_to_cart cart product in
+        Tg.Bot.Ctx.session_set ctx cart_key updated_cart;
+
+        let* _ = Tg.Bot.Ctx.answer ctx ~text:"✓ Added to cart!" in
+        Ok ()
+    | None ->
+        Ok ()
+  );
+
+  (* View cart *)
+  Tg.Bot.on (Tg.Bot.Event.callback "shop:cart") (fun _data ctx ->
+    let cart = Tg.Bot.Ctx.session_get_or ctx cart_key ~default:empty_cart in
+    let keyboard = create_cart_keyboard cart in
+
+    let text =
+      if List.length cart.items = 0 then
+        "🛒 Your cart is empty"
+      else
+        Printf.sprintf "🛒 Your Cart\n\nTotal: $%.2f" (cart_total cart)
+    in
+
+    let* _ = Tg.Bot.Ctx.edit ctx ~reply_markup:keyboard text in
+    Ok ()
+  );
+
+  (* Remove from cart *)
+  Tg.Bot.on (Tg.Bot.Event.callback "remove:*") (fun data ctx ->
+    let product_id = int_of_string (String.sub data 7 (String.length data - 7)) in
+    let cart = Tg.Bot.Ctx.session_get_or ctx cart_key ~default:empty_cart in
+    let updated_cart = remove_from_cart cart product_id in
+    Tg.Bot.Ctx.session_set ctx cart_key updated_cart;
+
+    let keyboard = create_cart_keyboard updated_cart in
+    let text =
+      if List.length updated_cart.items = 0 then
+        "🛒 Your cart is empty"
+      else
+        Printf.sprintf "🛒 Your Cart\n\nTotal: $%.2f" (cart_total updated_cart)
+    in
+
+    let* _ = Tg.Bot.Ctx.edit ctx ~reply_markup:keyboard text in
+    Ok ()
+  );
+
+  (* Checkout *)
+  Tg.Bot.on (Tg.Bot.Event.callback "shop:checkout") (fun _data ctx ->
+    let cart = Tg.Bot.Ctx.session_get_or ctx cart_key ~default:empty_cart in
+
+    let summary =
+      cart.items
+      |> List.map (fun item ->
+          Printf.sprintf "• %s x%d - $%.2f"
+            item.product.name
+            item.quantity
+            (item.product.price *. float_of_int item.quantity))
+      |> String.concat "\n"
+    in
+
+    let text = Printf.sprintf
+      "💳 Checkout\n\n%s\n\n💰 Total: $%.2f\n\nThank you for your order!"
+      summary
+      (cart_total cart)
+    in
+
+    (* Clear cart *)
+    Tg.Bot.Ctx.session_remove ctx cart_key;
+
+    let* _ = Tg.Bot.Ctx.edit ctx text in
+    Ok ()
+  );
+]
+
+(* Main bot *)
+let () =
+  Eio_main.run @@ fun env ->
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token in
+
+  (* Session middleware *)
+  let store = Tg.Session.Store.memory () in
+  let session_mw = Tg.Bot.Middleware.with_session store in
+
+  (* Create bot with session middleware *)
+  let bot = Tg.Bot.router ~middlewares:[session_mw] routes in
+
+  (* Run polling *)
+  Tg.Polling.run client (Tg.Bot.handle bot)
+]}
+
+{1 Best Practices}
+
+{2 Menu Design}
+
+- {b Keep menus shallow}: Max 2-3 levels deep
+- {b Limit options}: 5-7 options per menu for best UX
+- {b Consistent navigation}: Always provide back buttons
+- {b Visual hierarchy}: Use emojis to indicate menu levels
+- {b Clear labels}: Button text should be self-explanatory
+
+{2 Keyboard State}
+
+- {b Session storage}: Use session middleware for temporary state
+- {b State cleanup}: Remove session data when no longer needed
+- {b Validation}: Validate state before using it
+- {b Default values}: Always provide sensible defaults
+- {b State expiration}: Consider TTL for session data
+
+{2 Dynamic Keyboards}
+
+- {b Pagination}: Always paginate lists with >10 items
+- {b Lazy loading}: Generate keyboards on demand, not upfront
+- {b Caching}: Cache static keyboards for reuse
+- {b Performance}: Keep keyboard generation fast (<100ms)
+- {b Limits}: Stay within Telegram's button limits (100 buttons max)
+
+{2 User Experience}
+
+- {b Feedback}: Always answer callback queries
+- {b Loading states}: Show progress for slow operations
+- {b Error handling}: Gracefully handle missing state
+- {b Context preservation}: Maintain user context across interactions
+- {b Accessibility}: Use clear, descriptive button text
+
+{1 See Also}
+
+- {{!page-keyboard_api}Keyboard API} - Complete keyboard API reference
+- {{!page-callback_queries}Callback Queries} - Handling button presses
+- {{!page-session_management}Session Management} - User state storage
+- {{!page-state_machines}State Machines} - Complex conversation flows
+- {{!page-command_dsl}Command DSL} - Bot routing and middleware
