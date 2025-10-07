@@ -164,6 +164,7 @@ See the {e examples/} directory for complete, runnable examples:
 - {{!page-error_handling}Error Handling Strategies} - Result types, retry logic, graceful degradation, and user error reporting
 - {{!page-concurrency_patterns}Concurrency Patterns} - Eio fibers, promises, switches, background tasks, and synchronization
 - {{!page-session_management}Session Management} - User sessions, storage backends, expiration, and multi-user coordination
+- {{!page-bot_composition}Bot Composition} - Modular design, plugin architecture, handler composition, and code reusability
 
 {2 Migration}
 

@@ -10,11 +10,11 @@
 
 ## Progress Tracker
 
-**Overall Completion: 15/30 tasks (50%)**
+**Overall Completion: 16/30 tasks (53%)**
 
 **Phase 1 — Getting Started Guide: COMPLETE (5/5 tasks) ✓**
 **Phase 2 — API Fundamentals: COMPLETE (6/6 tasks) ✓**
-**Phase 3 — Advanced Patterns: IN PROGRESS (5/7 tasks) ✓**
+**Phase 3 — Advanced Patterns: IN PROGRESS (6/7 tasks) ✓**
 
 ---
 
@@ -216,11 +216,16 @@ Sophisticated patterns for production bots.
   - Production examples (complete user management system with profiles and email) ✓
   - Best practices (session design, backend selection, performance, security, testing) ✓
 
-- [ ] Task 3.6: Bot composition
-  - Modular bot design
-  - Plugin architecture
-  - Handler composition
-  - Code reusability patterns
+- [x] Task 3.6: Bot composition — COMPLETED: docs/bot_composition.mld
+  - Modular route design (feature modules, domain-driven modules) ✓
+  - Plugin architecture (plugin interface, plugin registry, dynamic loading) ✓
+  - Handler composition (shared logic, combinators, reusable components like pagination) ✓
+  - Router composition (nested routers, conditional routes, scoped routers) ✓
+  - Middleware composition (middleware stacks, middleware factories) ✓
+  - Code reusability patterns (shared utilities, template handlers, builder pattern) ✓
+  - Production patterns (layered architecture, multi-bot systems, extensible framework) ✓
+  - Best practices (module organization, handler design, route composition, plugin development) ✓
+  - Common patterns (command groups, state machine routes, fallback handlers) ✓
 
 - [ ] Task 3.7: Testing patterns
   - Unit testing bot handlers

@@ -1,0 +1,1055 @@
+{0 Bot Composition}
+
+Comprehensive guide to building modular, maintainable bots through composition patterns, plugin architecture, handler reusability, and clean code organization.
+
+{1 Overview}
+
+Bot composition enables building complex bots from small, reusable components. The [ocaml_telegram_eio] library provides:
+
+- {b Modular route design}: Compose routes from independent modules
+- {b Plugin architecture}: Add/remove features dynamically
+- {b Handler composition}: Reuse logic across multiple commands
+- {b Middleware stacking}: Layer cross-cutting concerns
+- {b Router nesting}: Build hierarchical bot structures
+- {b Feature flags}: Enable/disable functionality conditionally
+
+{2 When to Use This Guide}
+
+Use composition patterns when you need to:
+
+- Build large bots with multiple features
+- Share code between different bots
+- Enable/disable features dynamically
+- Organize code into logical modules
+- Implement plugin systems
+- Maintain clean separation of concerns
+- Test bot features in isolation
+
+{1 Modular Route Design}
+
+{2 Feature Modules}
+
+Organize routes by feature:
+
+{[
+(* user_commands.ml - User management commands *)
+module User_commands = struct
+  open Tg.Bot
+
+  let profile_route =
+    on (Event.command "profile") (fun _args ctx ->
+      let* _ = Ctx.reply ctx "Your profile information" in
+      ()
+    )
+
+  let settings_route =
+    on (Event.command "settings") (fun _args ctx ->
+      let* _ = Ctx.reply ctx "Settings panel" in
+      ()
+    )
+
+  let routes = [
+    profile_route;
+    settings_route;
+  ]
+end
+
+(* admin_commands.ml - Admin commands *)
+module Admin_commands = struct
+  open Tg.Bot
+
+  let stats_route =
+    on (Event.command "stats") (fun _args ctx ->
+      let* _ = Ctx.reply ctx "Bot statistics" in
+      ()
+    )
+
+  let broadcast_route =
+    on (Event.command "broadcast") (fun _args ctx ->
+      let* _ = Ctx.reply ctx "Broadcast message sent" in
+      ()
+    )
+
+  let routes = [
+    stats_route;
+    broadcast_route;
+  ]
+end
+
+(* main.ml - Compose all features *)
+let all_routes =
+  User_commands.routes @
+  Admin_commands.routes
+]}
+
+{2 Domain-Driven Modules}
+
+Organize by domain:
+
+{[
+(* orders.ml - Order management *)
+module Orders = struct
+  type order_state =
+    | AwaitingItems
+    | AwaitingConfirmation
+    | Confirmed
+
+  let state_key : order_state Session.key =
+    Session.make ~name:"order_state"
+
+  let start_order =
+    on (Event.command "order") (fun _args ctx ->
+      Ctx.session_set ctx state_key AwaitingItems;
+      let* _ = Ctx.reply ctx "What would you like to order?" in
+      ()
+    )
+
+  let confirm_order =
+    on (Event.callback_prefix "confirm_order:") (fun data ctx ->
+      Ctx.session_set ctx state_key Confirmed;
+      let* _ = Ctx.reply ctx "Order confirmed!" in
+      ()
+    )
+
+  let routes = [start_order; confirm_order]
+end
+
+(* payments.ml - Payment processing *)
+module Payments = struct
+  let checkout =
+    on (Event.command "checkout") (fun _args ctx ->
+      let* _ = Ctx.reply ctx "Proceeding to checkout" in
+      ()
+    )
+
+  let routes = [checkout]
+end
+
+(* catalog.ml - Product catalog *)
+module Catalog = struct
+  let browse =
+    on (Event.command "browse") (fun _args ctx ->
+      let* _ = Ctx.reply ctx "Browse our catalog" in
+      ()
+    )
+
+  let search =
+    on (Event.command "search") (fun args ctx ->
+      let query = Args.join_rest args 0 in
+      let* _ = Ctx.reply ctx ("Searching for: " ^ query) in
+      ()
+    )
+
+  let routes = [browse; search]
+end
+]}
+
+{1 Plugin Architecture}
+
+{2 Plugin Interface}
+
+Define a standard plugin interface:
+
+{[
+module type Plugin = sig
+  val name : string
+  val description : string
+  val enabled : unit -> bool
+  val routes : route list
+  val on_load : unit -> unit
+  val on_unload : unit -> unit
+end
+
+(* Example plugin *)
+module Weather_plugin : Plugin = struct
+  let name = "weather"
+  let description = "Weather information plugin"
+
+  let enabled () =
+    (* Check environment variable or config *)
+    match Sys.getenv_opt "ENABLE_WEATHER" with
+    | Some "true" -> true
+    | _ -> false
+
+  let weather_route =
+    on (Event.command "weather") (fun args ctx ->
+      let city = Args.join_rest args 0 in
+      (* Fetch weather data *)
+      let* _ = Ctx.reply ctx ("Weather for " ^ city) in
+      ()
+    )
+
+  let routes = [weather_route]
+
+  let on_load () =
+    Printf.printf "[Plugin] Weather plugin loaded\n"
+
+  let on_unload () =
+    Printf.printf "[Plugin] Weather plugin unloaded\n"
+end
+]}
+
+{2 Plugin Registry}
+
+Manage plugins centrally:
+
+{[
+module Plugin_registry = struct
+  type plugin = (module Plugin)
+
+  let plugins : plugin list ref = ref []
+
+  let register (module P : Plugin) =
+    plugins := (module P) :: !plugins;
+    P.on_load ()
+
+  let unregister name =
+    !plugins |> List.iter (fun (module P) ->
+      if P.name = name then
+        P.on_unload ()
+    );
+    plugins := List.filter (fun (module P) -> P.name <> name) !plugins
+
+  let all_routes () =
+    !plugins
+    |> List.filter (fun (module P) -> P.enabled ())
+    |> List.concat_map (fun (module P) -> P.routes)
+
+  let list_plugins () =
+    !plugins |> List.map (fun (module P) ->
+      (P.name, P.description, P.enabled ())
+    )
+end
+
+(* Register plugins *)
+let () =
+  Plugin_registry.register (module Weather_plugin);
+  Plugin_registry.register (module Translation_plugin);
+  Plugin_registry.register (module Games_plugin)
+
+(* Get all enabled routes *)
+let routes = Plugin_registry.all_routes ()
+]}
+
+{2 Dynamic Plugin Loading}
+
+Load plugins from configuration:
+
+{[
+module Dynamic_plugins = struct
+  type plugin_config = {
+    name : string;
+    enabled : bool;
+    settings : (string * string) list;
+  }
+
+  let load_config filename =
+    (* Load JSON config *)
+    let json = Yojson.Safe.from_file filename in
+    (* Parse plugin configs *)
+    []  (* TODO: parse *)
+
+  let create_plugin config =
+    (* Dynamically create plugin based on config *)
+    match config.name with
+    | "weather" when config.enabled ->
+        Some (module Weather_plugin : Plugin)
+    | "translation" when config.enabled ->
+        Some (module Translation_plugin : Plugin)
+    | _ -> None
+
+  let load_all_plugins config_file =
+    let configs = load_config config_file in
+    List.filter_map create_plugin configs
+    |> List.iter Plugin_registry.register
+end
+]}
+
+{1 Handler Composition}
+
+{2 Shared Handler Logic}
+
+Extract common patterns:
+
+{[
+(* Common handler utilities *)
+module Handler_utils = struct
+  (* Require user to be authenticated *)
+  let require_auth handler =
+    fun args ctx ->
+      match Ctx.session_get ctx auth_key with
+      | Some (LoggedIn user_info) ->
+          handler args ctx user_info
+      | _ ->
+          let* _ = Ctx.reply ctx "Please login first with /login" in
+          ()
+
+  (* Require admin permission *)
+  let require_admin handler =
+    fun args ctx ->
+      match Ctx.user ctx with
+      | Some user when is_admin user ->
+          handler args ctx
+      | Some _ ->
+          let* _ = Ctx.reply ctx "Admin access required" in
+          ()
+      | None ->
+          let* _ = Ctx.reply ctx "User info not available" in
+          ()
+
+  (* Add logging *)
+  let with_logging name handler =
+    fun args ctx ->
+      Printf.printf "[Handler] %s started\n" name;
+      let result = handler args ctx in
+      Printf.printf "[Handler] %s completed\n" name;
+      result
+
+  (* Add timing *)
+  let with_timing handler =
+    fun args ctx ->
+      let start = Unix.gettimeofday () in
+      let result = handler args ctx in
+      let elapsed = Unix.gettimeofday () -. start in
+      Printf.printf "[Timing] Handler took %.3fs\n" elapsed;
+      result
+end
+
+(* Use composed handlers *)
+let admin_route =
+  on (Event.command "admin")
+    (Handler_utils.require_auth
+      (Handler_utils.require_admin
+        (Handler_utils.with_logging "admin"
+          (fun _args ctx _user_info ->
+            let* _ = Ctx.reply ctx "Admin panel" in
+            ()
+          )
+        )
+      )
+    )
+]}
+
+{2 Handler Combinators}
+
+Build complex handlers from simple ones:
+
+{[
+module Handler_combinators = struct
+  (* Try handler1, fall back to handler2 if it fails *)
+  let (<|>) handler1 handler2 =
+    fun args ctx ->
+      try handler1 args ctx
+      with _ -> handler2 args ctx
+
+  (* Run both handlers in sequence *)
+  let (>>) handler1 handler2 =
+    fun args ctx ->
+      handler1 args ctx;
+      handler2 args ctx
+
+  (* Conditional handler *)
+  let when_ predicate handler =
+    fun args ctx ->
+      if predicate ctx then
+        handler args ctx
+      else
+        ()
+
+  (* Handler with validation *)
+  let validate validator handler =
+    fun args ctx ->
+      match validator args ctx with
+      | Ok () -> handler args ctx
+      | Error msg ->
+          let* _ = Ctx.reply ctx msg in
+          ()
+end
+
+(* Usage *)
+let my_handler =
+  Handler_combinators.(
+    when_ is_private_chat
+      (validate check_args
+        (with_logging "my_command" actual_handler)
+      )
+  )
+]}
+
+{2 Reusable Components}
+
+{[
+(* Pagination component *)
+module Pagination = struct
+  type 'a page = {
+    items : 'a list;
+    page_num : int;
+    total_pages : int;
+  }
+
+  let create_keyboard page =
+    let open Tg.Keyboard in
+    let buttons =
+      let prev = if page.page_num > 1 then
+        [callback_button "← Previous" (Printf.sprintf "page:%d" (page.page_num - 1))]
+      else [] in
+
+      let next = if page.page_num < page.total_pages then
+        [callback_button "Next →" (Printf.sprintf "page:%d" (page.page_num + 1))]
+      else [] in
+
+      prev @ next
+    in
+    inline_keyboard (row buttons)
+
+  let handle_page_callback data ctx render_page =
+    match Scanf.sscanf_opt data "page:%d" (fun n -> n) with
+    | Some page_num ->
+        (* Fetch page data *)
+        let page = fetch_page page_num in
+        let text = render_page page in
+        let keyboard = create_keyboard page in
+
+        let* _ = Ctx.edit_message_text ctx text ~reply_markup:keyboard in
+        ()
+    | None -> ()
+end
+
+(* Confirmation component *)
+module Confirmation = struct
+  let ask ctx ~message ~on_confirm ~on_cancel =
+    let keyboard =
+      Tg.Keyboard.(inline_keyboard (
+        row [
+          callback_button "✓ Confirm" "confirm";
+          callback_button "✗ Cancel" "cancel";
+        ]
+      ))
+    in
+    let* _ = Ctx.reply ctx message ~reply_markup:keyboard in
+    ()
+
+  let handle_callback data ctx on_confirm on_cancel =
+    match data with
+    | "confirm" ->
+        let* _ = Ctx.answer_callback_query ctx ~text:"Confirmed" in
+        on_confirm ctx
+    | "cancel" ->
+        let* _ = Ctx.answer_callback_query ctx ~text:"Cancelled" in
+        on_cancel ctx
+    | _ -> ()
+end
+]}
+
+{1 Router Composition}
+
+{2 Nested Routers}
+
+Build hierarchical structures:
+
+{[
+(* Admin router with auth middleware *)
+let admin_router =
+  router
+    ~middlewares:[require_admin_middleware]
+    ~on_error:ErrorHandler.log_and_reply
+    [
+      on (Event.command "users") (fun _args ctx -> ...);
+      on (Event.command "ban") (fun args ctx -> ...);
+      on (Event.command "broadcast") (fun args ctx -> ...);
+    ]
+
+(* User router with rate limiting *)
+let user_router =
+  router
+    ~middlewares:[rate_limit_middleware]
+    [
+      on (Event.command "profile") (fun _args ctx -> ...);
+      on (Event.command "settings") (fun _args ctx -> ...);
+    ]
+
+(* Public router (no auth required) *)
+let public_router =
+  router
+    [
+      on (Event.command "start") (fun _args ctx -> ...);
+      on (Event.command "help") (fun _args ctx -> ...);
+    ]
+
+(* Combine all routers *)
+let all_routes =
+  public_router @
+  user_router @
+  admin_router
+]}
+
+{2 Conditional Routes}
+
+Enable/disable based on config:
+
+{[
+module Feature_flags = struct
+  let is_enabled flag =
+    match Sys.getenv_opt ("FEATURE_" ^ String.uppercase_ascii flag) with
+    | Some "true" -> true
+    | _ -> false
+
+  let when_enabled flag routes =
+    if is_enabled flag then routes else []
+end
+
+let routes =
+  Feature_flags.when_enabled "payments" Payments.routes @
+  Feature_flags.when_enabled "games" Games.routes @
+  Core.routes  (* Always enabled *)
+]}
+
+{2 Scoped Routers}
+
+{[
+(* Group-only commands *)
+let group_routes =
+  router
+    ~middlewares:[require_group_middleware]
+    [
+      on (Event.command "poll") create_poll_handler;
+      on (Event.command "kick") kick_user_handler;
+    ]
+
+(* Private chat only commands *)
+let private_routes =
+  router
+    ~middlewares:[require_private_middleware]
+    [
+      on (Event.command "profile") profile_handler;
+      on (Event.command "settings") settings_handler;
+    ]
+
+(* Channel commands *)
+let channel_routes =
+  router
+    ~middlewares:[require_channel_middleware]
+    [
+      on (Event.channel_post) handle_channel_post;
+    ]
+]}
+
+{1 Middleware Composition}
+
+{2 Middleware Stacks}
+
+Layer multiple concerns:
+
+{[
+(* Common middleware stack *)
+let common_middleware = [
+  Middleware.logging ();
+  Middleware.require_user ();
+  track_usage_middleware;
+]
+
+(* Admin middleware stack *)
+let admin_middleware =
+  common_middleware @ [
+    require_admin_middleware;
+    audit_log_middleware;
+  ]
+
+(* Premium user middleware *)
+let premium_middleware =
+  common_middleware @ [
+    require_premium_middleware;
+  ]
+
+(* Apply to routes *)
+let routes =
+  router ~middlewares:common_middleware [
+    on (Event.command "start") start_handler;
+  ] @
+  router ~middlewares:admin_middleware [
+    on (Event.command "admin") admin_handler;
+  ] @
+  router ~middlewares:premium_middleware [
+    on (Event.command "premium") premium_handler;
+  ]
+]}
+
+{2 Middleware Factories}
+
+{[
+module Middleware_factory = struct
+  let rate_limit ~max_per_minute =
+    let limiter = Rate_limiter.create ~max_per_minute in
+    Middleware.make
+      ~before:(fun ctx ->
+        match Ctx.user ctx with
+        | Some user ->
+            Rate_limiter.check limiter (User.to_int user.id)
+        | None -> Ok ctx
+      )
+      "rate_limit"
+
+  let require_role role =
+    Middleware.make
+      ~before:(fun ctx ->
+        match get_user_role ctx with
+        | Some r when r >= role -> Ok ctx
+        | _ -> Error "Insufficient permissions"
+      )
+      "require_role"
+
+  let cache ~ttl =
+    let cache = Cache.create ~ttl in
+    Middleware.make
+      ~before:(fun ctx ->
+        (* Check cache *)
+        match Cache.get cache (cache_key ctx) with
+        | Some response ->
+            (* Send cached response *)
+            let* _ = Ctx.reply ctx response in
+            Error "cached"  (* Skip handler *)
+        | None -> Ok ctx
+      )
+      ~after:(fun ctx ->
+        (* Store response in cache *)
+        Cache.set cache (cache_key ctx) (get_response ctx)
+      )
+      "cache"
+end
+]}
+
+{1 Code Reusability Patterns}
+
+{2 Shared Utilities}
+
+{[
+(* bot_utils.ml - Shared utility functions *)
+module Bot_utils = struct
+  let safe_reply ctx text =
+    match Ctx.reply ctx text with
+    | Ok _ -> ()
+    | Error err ->
+        Printf.eprintf "Reply error: %a\n" Error.pp err
+
+  let send_typing ctx =
+    let* _ = Ctx.send_chat_action ctx "typing" in
+    ()
+
+  let format_user user =
+    match user.username with
+    | Some username -> "@" ^ username
+    | None -> user.first_name
+
+  let parse_int_arg args index =
+    match List.nth_opt args index with
+    | Some s -> int_of_string_opt s
+    | None -> None
+
+  let require_args n args ctx =
+    if List.length args < n then (
+      let* _ = Ctx.reply ctx (Printf.sprintf "Expected %d arguments" n) in
+      Error ()
+    ) else
+      Ok ()
+end
+]}
+
+{2 Template Handlers}
+
+{[
+(* Generic CRUD handlers *)
+module CRUD_handlers = struct
+  let make_list_handler ~fetch_items ~format_item =
+    fun _args ctx ->
+      let items = fetch_items () in
+      let text = items
+        |> List.map format_item
+        |> String.concat "\n"
+      in
+      let* _ = Ctx.reply ctx text in
+      ()
+
+  let make_create_handler ~parse_args ~create_item =
+    fun args ctx ->
+      match parse_args args with
+      | Ok data ->
+          create_item data;
+          let* _ = Ctx.reply ctx "Created successfully" in
+          ()
+      | Error msg ->
+          let* _ = Ctx.reply ctx msg in
+          ()
+
+  let make_delete_handler ~parse_id ~delete_item =
+    fun args ctx ->
+      match parse_id args with
+      | Some id ->
+          delete_item id;
+          let* _ = Ctx.reply ctx "Deleted successfully" in
+          ()
+      | None ->
+          let* _ = Ctx.reply ctx "Invalid ID" in
+          ()
+end
+
+(* Usage *)
+let list_users_route =
+  on (Event.command "users")
+    (CRUD_handlers.make_list_handler
+      ~fetch_items:User_db.all
+      ~format_item:(fun u -> Printf.sprintf "- %s" u.name)
+    )
+]}
+
+{2 Builder Pattern}
+
+{[
+(* Command builder *)
+module Command_builder = struct
+  type 'a t = {
+    name : string;
+    description : string;
+    parse_args : string list -> ('a, string) result;
+    handler : 'a -> [ `Chat ] ctx -> unit;
+    middlewares : [ `Chat ] Middleware.t list;
+  }
+
+  let create name = {
+    name;
+    description = "";
+    parse_args = (fun _ -> Ok ());
+    handler = (fun () _ctx -> ());
+    middlewares = [];
+  }
+
+  let with_description desc cmd =
+    { cmd with description = desc }
+
+  let with_parser parser cmd =
+    { cmd with parse_args = parser }
+
+  let with_handler handler cmd =
+    { cmd with handler }
+
+  let with_middleware mw cmd =
+    { cmd with middlewares = mw :: cmd.middlewares }
+
+  let build cmd =
+    let route_handler args ctx =
+      match cmd.parse_args args with
+      | Ok data -> cmd.handler data ctx
+      | Error msg ->
+          let* _ = Ctx.reply ctx msg in
+          ()
+    in
+    on (Event.command cmd.name) route_handler
+    |> with_middleware cmd.middlewares
+end
+
+(* Usage *)
+let my_command =
+  Command_builder.create "add"
+  |> Command_builder.with_description "Add two numbers"
+  |> Command_builder.with_parser (fun args ->
+      match args with
+      | [a; b] ->
+          (match int_of_string_opt a, int_of_string_opt b with
+           | Some x, Some y -> Ok (x, y)
+           | _ -> Error "Invalid numbers")
+      | _ -> Error "Usage: /add <num1> <num2>"
+    )
+  |> Command_builder.with_handler (fun (a, b) ctx ->
+      let* _ = Ctx.reply ctx (string_of_int (a + b)) in
+      ()
+    )
+  |> Command_builder.with_middleware (Middleware.logging ())
+  |> Command_builder.build
+]}
+
+{1 Production Patterns}
+
+{2 Layered Architecture}
+
+{[
+(* Layer 1: Domain logic *)
+module Domain = struct
+  type user = { id : int; name : string; email : string }
+  type product = { id : int; name : string; price : float }
+
+  let get_user id = (* database query *)
+  let create_order user_id products = (* business logic *)
+end
+
+(* Layer 2: Application services *)
+module Services = struct
+  let format_user user =
+    Printf.sprintf "%s (%s)" user.Domain.name user.Domain.email
+
+  let calculate_total products =
+    List.fold_left (fun acc p -> acc +. p.Domain.price) 0.0 products
+end
+
+(* Layer 3: Bot handlers *)
+module Handlers = struct
+  let show_profile user_id ctx =
+    match Domain.get_user user_id with
+    | Some user ->
+        let text = Services.format_user user in
+        let* _ = Ctx.reply ctx text in
+        ()
+    | None ->
+        let* _ = Ctx.reply ctx "User not found" in
+        ()
+end
+
+(* Layer 4: Routes *)
+let profile_route =
+  on (Event.command "profile") (fun _args ctx ->
+    match Ctx.user ctx with
+    | Some user ->
+        Handlers.show_profile (User.to_int user.id) ctx
+    | None ->
+        let* _ = Ctx.reply ctx "User info unavailable" in
+        ()
+  )
+]}
+
+{2 Multi-Bot System}
+
+Share code across multiple bots:
+
+{[
+(* shared/core_commands.ml *)
+module Core_commands = struct
+  let start_route =
+    on (Event.command "start") (fun _args ctx ->
+      let* _ = Ctx.reply ctx "Welcome!" in
+      ()
+    )
+
+  let help_route =
+    on (Event.command "help") (fun _args ctx ->
+      let* _ = Ctx.reply ctx "Help information" in
+      ()
+    )
+
+  let routes = [start_route; help_route]
+end
+
+(* bot1/main.ml - Customer support bot *)
+let bot1_routes =
+  Core_commands.routes @
+  Support.routes @
+  Tickets.routes
+
+(* bot2/main.ml - Sales bot *)
+let bot2_routes =
+  Core_commands.routes @
+  Products.routes @
+  Orders.routes
+
+(* Run multiple bots *)
+let () =
+  Eio_main.run @@ fun env ->
+  let token1 = Sys.getenv "BOT1_TOKEN" in
+  let token2 = Sys.getenv "BOT2_TOKEN" in
+
+  let client1 = Client.create ~env ~token:token1 () in
+  let client2 = Client.create ~env ~token:token2 () in
+
+  Eio.Switch.run @@ fun sw ->
+
+  (* Bot 1 fiber *)
+  Eio.Fiber.fork ~sw (fun () ->
+    Bot.run_polling ~env ~client:client1 bot1_routes
+  );
+
+  (* Bot 2 fiber *)
+  Eio.Fiber.fork ~sw (fun () ->
+    Bot.run_polling ~env ~client:client2 bot2_routes
+  )
+]}
+
+{2 Extensible Bot Framework}
+
+{[
+module Bot_framework = struct
+  type config = {
+    token : string;
+    plugins : (module Plugin) list;
+    middlewares : [ `Chat ] Middleware.t list;
+    error_handler : [ `Chat ] ctx -> exn -> unit;
+  }
+
+  let create_bot config =
+    (* Load all plugin routes *)
+    let plugin_routes =
+      config.plugins
+      |> List.concat_map (fun (module P : Plugin) ->
+          if P.enabled () then (
+            P.on_load ();
+            P.routes
+          ) else []
+        )
+    in
+
+    (* Build router with global middleware *)
+    router
+      ~middlewares:config.middlewares
+      ~on_error:config.error_handler
+      plugin_routes
+
+  let run config env =
+    let client = Client.create ~env ~token:config.token () in
+    let routes = create_bot config in
+    Bot.run_polling ~env ~client routes
+end
+
+(* Usage *)
+let () =
+  Eio_main.run @@ fun env ->
+  Bot_framework.run {
+    token = Sys.getenv "BOT_TOKEN";
+    plugins = [
+      (module Weather_plugin);
+      (module Translation_plugin);
+      (module Games_plugin);
+    ];
+    middlewares = [
+      Middleware.logging ();
+      Middleware.require_user ();
+    ];
+    error_handler = ErrorHandler.log_and_reply ();
+  } env
+]}
+
+{1 Best Practices}
+
+{2 Module Organization}
+
+- {b Group by feature}: Keep related commands together
+- {b Separate concerns}: Domain logic, handlers, routes
+- {b Use interfaces}: Define module signatures for plugins
+- {b Limit dependencies}: Avoid circular dependencies
+- {b Extract utilities}: Share common code via utility modules
+
+{2 Handler Design}
+
+- {b Single responsibility}: Each handler does one thing
+- {b Compose behaviors}: Build complex handlers from simple ones
+- {b Error handling}: Always handle errors gracefully
+- {b Type safety}: Use types to prevent mistakes
+- {b Testability}: Write handlers that are easy to test
+
+{2 Route Composition}
+
+- {b Start small}: Begin with simple routes, compose into larger systems
+- {b Use routers}: Group related routes with shared middleware
+- {b Conditional inclusion}: Use feature flags for optional features
+- {b Layer middleware}: Apply from general to specific
+- {b Document structure}: Comment router hierarchy
+
+{2 Plugin Development}
+
+- {b Consistent interface}: Follow plugin interface strictly
+- {b Configuration}: Make plugins configurable
+- {b Graceful degradation}: Handle missing dependencies
+- {b Clean lifecycle}: Implement on_load/on_unload properly
+- {b Error isolation}: Plugin errors shouldn't crash bot
+
+{2 Code Reusability}
+
+- {b Extract patterns}: Turn repeated code into utilities
+- {b Parameterize logic}: Use functions for variable parts
+- {b Template methods}: Provide hooks for customization
+- {b Builders}: Use builder pattern for complex objects
+- {b Factories}: Generate similar components
+
+{1 Common Patterns}
+
+{2 Command Groups}
+
+{[
+(* Group related commands *)
+module Help_system = struct
+  type command_info = {
+    name : string;
+    description : string;
+    usage : string;
+  }
+
+  let commands = ref []
+
+  let register cmd =
+    commands := cmd :: !commands
+
+  let help_route =
+    on (Event.command "help") (fun _args ctx ->
+      let text = !commands
+        |> List.map (fun cmd ->
+            Printf.sprintf "/%s - %s\nUsage: %s"
+              cmd.name cmd.description cmd.usage
+          )
+        |> String.concat "\n\n"
+      in
+      let* _ = Ctx.reply ctx text in
+      ()
+    )
+end
+
+(* Register commands *)
+let () =
+  Help_system.register {
+    name = "start";
+    description = "Start the bot";
+    usage = "/start";
+  }
+]}
+
+{2 State Machine Routes}
+
+{[
+(* Compose state machine from routes *)
+let registration_routes = [
+  on (Event.command "register") start_registration;
+  on Event.text handle_registration_input;
+  on (Event.callback_prefix "reg:") handle_registration_callback;
+]
+
+let order_routes = [
+  on (Event.command "order") start_order;
+  on Event.text handle_order_input;
+  on (Event.callback_prefix "order:") handle_order_callback;
+]
+]}
+
+{2 Fallback Handlers}
+
+{[
+(* Define specific handlers first, fallback last *)
+let routes = [
+  (* Specific commands *)
+  on (Event.command "start") start_handler;
+  on (Event.command "help") help_handler;
+
+  (* Fallback for unknown commands *)
+  on (Event.command_any) (fun cmd _args ctx ->
+    let* _ = Ctx.reply ctx ("Unknown command: " ^ cmd) in
+    ()
+  );
+
+  (* Fallback for all text *)
+  on Event.text (fun text ctx ->
+    let* _ = Ctx.reply ctx "Try /help for available commands" in
+    ()
+  );
+]
+]}
+
+{1 See Also}
+
+- {!Tg.Bot} - Bot DSL API reference
+- {{!page-middleware_architecture}Middleware Architecture} - Middleware composition
+- {{!page-command_dsl}Command DSL} - Command routing and parsing
+- {{!page-state_machines}State Machines} - Stateful bot composition
+- {{!page-project_structure}Project Structure} - File organization patterns
