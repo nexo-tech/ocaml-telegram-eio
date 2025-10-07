@@ -151,6 +151,7 @@ See the {e examples/} directory for complete, runnable examples:
 {2 API Guides}
 
 - {{!page-message_handling}Message Handling} - Message types, pattern matching, formatting, and composition
+- {{!page-command_dsl}Command DSL} - Command routing, argument parsing, middleware, and bot composition
 
 {2 Migration}
 

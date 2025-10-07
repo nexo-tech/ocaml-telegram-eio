@@ -1,0 +1,1205 @@
+{0 Command DSL}
+
+A comprehensive guide to building command-driven bots with the elegant Bot DSL.
+
+{1 Overview}
+
+The Bot DSL provides a powerful, type-safe, and boilerplate-free way to build command-driven Telegram bots. Instead of manually parsing messages and dispatching commands, you define routes declaratively using event matchers and handlers.
+
+{b Key Features}:
+- {b Zero Boilerplate}: No manual string parsing or command routing
+- {b Type-Safe}: Compile-time guarantees for argument types
+- {b Composable}: Middleware, error handlers, and route composition
+- {b Production-Ready}: Built-in rate limiting, authorization, and logging
+- {b Functional}: Pure functional patterns with immutable context
+
+{1 Quick Start}
+
+The simplest command bot using the Bot DSL:
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+
+let () =
+  Eio_main.run @@ fun env ->
+
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token () in
+
+  (* Define command routes *)
+  let routes = [
+    (* /start command *)
+    Tg.Bot.on (Tg.Bot.Event.command "start") (fun _args ctx ->
+      let* _ = Tg.Bot.Ctx.reply ctx "Welcome! Try /help" in
+      ()
+    );
+
+    (* /help command *)
+    Tg.Bot.on (Tg.Bot.Event.command "help") (fun _args ctx ->
+      let* _ = Tg.Bot.Ctx.reply ctx "Available commands:\n/start - Welcome\n/help - This message" in
+      ()
+    );
+  ] in
+
+  (* Start bot with polling *)
+  Tg.Bot.run_polling ~env ~client routes
+]}
+
+{1 Command Definition Syntax}
+
+{2 Basic Commands}
+
+Commands are defined using {!Tg.Bot.on} with {!Tg.Bot.Event.command} matcher:
+
+{[
+(* Simple command with no arguments *)
+let start_route =
+  Tg.Bot.on (Tg.Bot.Event.command "start") (fun _args ctx ->
+    let* _ = Tg.Bot.Ctx.reply ctx "Hello! Welcome to the bot." in
+    ()
+  )
+
+(* Command with raw arguments (string list) *)
+let echo_route =
+  Tg.Bot.on (Tg.Bot.Event.command "echo") (fun args ctx ->
+    match args with
+    | [] ->
+        let* _ = Tg.Bot.Ctx.reply ctx "Usage: /echo <text>" in
+        ()
+    | _ ->
+        let text = String.concat " " args in
+        let* _ = Tg.Bot.Ctx.reply ctx text in
+        ()
+  )
+]}
+
+{2 Commands with Parsed Arguments}
+
+The {!Tg.Bot.Args} module provides type-safe argument parsing:
+
+{[
+(* Parse single integer argument *)
+let age_route =
+  Tg.Bot.on (Tg.Bot.Event.command "age") (fun args ctx ->
+    match Tg.Bot.Args.expect_1 args with
+    | None ->
+        let* _ = Tg.Bot.Ctx.reply ctx "Usage: /age <number>" in
+        ()
+    | Some age_str ->
+        match Tg.Bot.Args.parse_int age_str with
+        | None ->
+            let* _ = Tg.Bot.Ctx.reply ctx "Please provide a valid number" in
+            ()
+        | Some age ->
+            let msg = Printf.sprintf "You are %d years old" age in
+            let* _ = Tg.Bot.Ctx.reply ctx msg in
+            ()
+  )
+
+(* Parse two arguments *)
+let add_route =
+  Tg.Bot.on (Tg.Bot.Event.command "add") (fun args ctx ->
+    match Tg.Bot.Args.expect_2 args with
+    | None ->
+        let* _ = Tg.Bot.Ctx.reply ctx "Usage: /add <num1> <num2>" in
+        ()
+    | Some (a_str, b_str) ->
+        match Tg.Bot.Args.parse_int a_str, Tg.Bot.Args.parse_int b_str with
+        | Some a, Some b ->
+            let result = a + b in
+            let msg = Printf.sprintf "%d + %d = %d" a b result in
+            let* _ = Tg.Bot.Ctx.reply ctx msg in
+            ()
+        | _ ->
+            let* _ = Tg.Bot.Ctx.reply ctx "Both arguments must be numbers" in
+            ()
+  )
+
+(* Join remaining arguments *)
+let note_route =
+  Tg.Bot.on (Tg.Bot.Event.command "note") (fun args ctx ->
+    match args with
+    | [] ->
+        let* _ = Tg.Bot.Ctx.reply ctx "Usage: /note <title> <content...>" in
+        ()
+    | title :: rest ->
+        let content = Tg.Bot.Args.join_rest rest 0 in
+        let msg = Printf.sprintf "Note: %s\n\n%s" title content in
+        let* _ = Tg.Bot.Ctx.reply ctx msg in
+        ()
+  )
+]}
+
+{2 Command Aliases}
+
+Commands automatically handle bot username suffix (e.g., [/start@mybot]):
+
+{[
+(* Both /start and /start@mybot work automatically *)
+Tg.Bot.on (Tg.Bot.Event.command "start") handler
+]}
+
+{1 Command Routing and Dispatch}
+
+{2 Multiple Commands}
+
+Define multiple command handlers in a route list:
+
+{[
+let routes = [
+  (* Welcome command *)
+  Tg.Bot.on (Tg.Bot.Event.command "start") (fun _args ctx ->
+    let* _ = Tg.Bot.Ctx.reply ctx "Welcome! Type /help for commands" in
+    ()
+  );
+
+  (* Help command *)
+  Tg.Bot.on (Tg.Bot.Event.command "help") (fun _args ctx ->
+    let help_text =
+      "Available commands:\n\
+       /start - Welcome message\n\
+       /help - Show this help\n\
+       /echo <text> - Echo your text\n\
+       /upper <text> - Uppercase your text\n\
+       /add <a> <b> - Add two numbers"
+    in
+    let* _ = Tg.Bot.Ctx.reply ctx help_text in
+    ()
+  );
+
+  (* Echo command *)
+  Tg.Bot.on (Tg.Bot.Event.command "echo") (fun args ctx ->
+    let text = String.concat " " args in
+    let* _ = Tg.Bot.Ctx.reply ctx
+      (if text = "" then "Usage: /echo <text>" else text) in
+    ()
+  );
+
+  (* Uppercase command *)
+  Tg.Bot.on (Tg.Bot.Event.command "upper") (fun args ctx ->
+    let text = String.concat " " args in
+    let* _ = Tg.Bot.Ctx.reply ctx
+      (if text = "" then "Usage: /upper <text>"
+       else String.uppercase_ascii text) in
+    ()
+  );
+
+  (* Calculator command *)
+  Tg.Bot.on (Tg.Bot.Event.command "add") (fun args ctx ->
+    match Tg.Bot.Args.expect_2 args with
+    | None ->
+        let* _ = Tg.Bot.Ctx.reply ctx "Usage: /add <num1> <num2>" in
+        ()
+    | Some (a, b) ->
+        match Tg.Bot.Args.parse_int a, Tg.Bot.Args.parse_int b with
+        | Some x, Some y ->
+            let msg = Printf.sprintf "%d + %d = %d" x y (x + y) in
+            let* _ = Tg.Bot.Ctx.reply ctx msg in
+            ()
+        | _ ->
+            let* _ = Tg.Bot.Ctx.reply ctx "Both arguments must be numbers" in
+            ()
+  );
+]
+]}
+
+{2 Pattern Matching on Events}
+
+Use {!Tg.Bot.Event.when_} to add conditions to event matchers:
+
+{[
+(* Only handle commands from specific user *)
+let admin_only_command user_id =
+  let event =
+    Tg.Bot.Event.command "admin"
+    |> Tg.Bot.Event.when_ (fun _args ->
+         match Tg.Bot.Ctx.user ctx with
+         | Some user ->
+             Telegram.Id.User.to_int user.id = user_id
+         | None -> false
+       )
+  in
+  Tg.Bot.on event handler
+
+(* Only handle commands with specific argument count *)
+let two_arg_command =
+  let event =
+    Tg.Bot.Event.command "cmd"
+    |> Tg.Bot.Event.when_ (fun args -> List.length args = 2)
+  in
+  Tg.Bot.on event handler
+]}
+
+{2 Text Event Matching}
+
+Handle non-command text messages:
+
+{[
+(* Handle all text messages *)
+let text_route =
+  Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
+    let response = Printf.sprintf "You said: %s" text in
+    let* _ = Tg.Bot.Ctx.reply ctx response in
+    ()
+  )
+
+(* Handle text with condition *)
+let question_route =
+  let event =
+    Tg.Bot.Event.text
+    |> Tg.Bot.Event.when_ (fun text ->
+         String.length text > 0 && text.[String.length text - 1] = '?'
+       )
+  in
+  Tg.Bot.on event (fun text ctx ->
+    let* _ = Tg.Bot.Ctx.reply ctx "That's a great question!" in
+    ()
+  )
+]}
+
+{2 Callback Query Routing}
+
+Handle inline keyboard callbacks:
+
+{[
+(* Handle callback with specific data *)
+let like_callback =
+  Tg.Bot.on (Tg.Bot.Event.callback "like") (fun data ctx ->
+    let* _ = Tg.Bot.Ctx.edit ctx "You liked this!" in
+    ()
+  )
+
+(* Handle callbacks with pattern matching *)
+let rating_callbacks =
+  List.init 5 (fun i ->
+    let rating = i + 1 in
+    let data = Printf.sprintf "rate_%d" rating in
+    Tg.Bot.on (Tg.Bot.Event.callback data) (fun _ ctx ->
+      let msg = Printf.sprintf "You rated: %d stars" rating in
+      let* _ = Tg.Bot.Ctx.edit ctx msg in
+      ()
+    )
+  )
+]}
+
+{1 Argument Parsing}
+
+{2 Args Module Functions}
+
+The {!Tg.Bot.Args} module provides utilities for parsing command arguments:
+
+{[
+(* Parse integer *)
+val parse_int : string -> int option
+
+(* Parse float *)
+val parse_float : string -> float option  (* if available *)
+
+(* Expect exactly 1 argument *)
+val expect_1 : string list -> string option
+
+(* Expect exactly 2 arguments *)
+val expect_2 : string list -> (string * string) option
+
+(* Expect exactly 3 arguments *)
+val expect_3 : string list -> (string * string * string) option
+
+(* Join remaining arguments from index *)
+val join_rest : string list -> int -> string
+]}
+
+{2 Parsing Patterns}
+
+Common argument parsing patterns:
+
+{[
+(* Optional argument with default *)
+let greet_route =
+  Tg.Bot.on (Tg.Bot.Event.command "greet") (fun args ctx ->
+    let name =
+      match Tg.Bot.Args.expect_1 args with
+      | Some n -> n
+      | None -> "friend"
+    in
+    let msg = Printf.sprintf "Hello, %s!" name in
+    let* _ = Tg.Bot.Ctx.reply ctx msg in
+    ()
+  )
+
+(* Variable number of arguments *)
+let sum_route =
+  Tg.Bot.on (Tg.Bot.Event.command "sum") (fun args ctx ->
+    match args with
+    | [] ->
+        let* _ = Tg.Bot.Ctx.reply ctx "Usage: /sum <num1> <num2> ..." in
+        ()
+    | nums ->
+        let total =
+          List.fold_left (fun acc str ->
+            match Tg.Bot.Args.parse_int str with
+            | Some n -> acc + n
+            | None -> acc
+          ) 0 nums
+        in
+        let msg = Printf.sprintf "Sum: %d" total in
+        let* _ = Tg.Bot.Ctx.reply ctx msg in
+        ()
+  )
+
+(* Parse with validation *)
+let set_age_route =
+  Tg.Bot.on (Tg.Bot.Event.command "setage") (fun args ctx ->
+    match Tg.Bot.Args.expect_1 args with
+    | None ->
+        let* _ = Tg.Bot.Ctx.reply ctx "Usage: /setage <age>" in
+        ()
+    | Some age_str ->
+        match Tg.Bot.Args.parse_int age_str with
+        | Some age when age > 0 && age < 150 ->
+            (* Valid age *)
+            let msg = Printf.sprintf "Age set to %d" age in
+            let* _ = Tg.Bot.Ctx.reply ctx msg in
+            ()
+        | Some _ ->
+            let* _ = Tg.Bot.Ctx.reply ctx "Age must be between 1 and 150" in
+            ()
+        | None ->
+            let* _ = Tg.Bot.Ctx.reply ctx "Please provide a valid number" in
+            ()
+  )
+
+(* Complex argument parsing *)
+let remind_route =
+  Tg.Bot.on (Tg.Bot.Event.command "remind") (fun args ctx ->
+    (* Expected: /remind <minutes> <message...> *)
+    match args with
+    | [] ->
+        let* _ = Tg.Bot.Ctx.reply ctx "Usage: /remind <minutes> <message>" in
+        ()
+    | mins_str :: rest ->
+        match Tg.Bot.Args.parse_int mins_str with
+        | None ->
+            let* _ = Tg.Bot.Ctx.reply ctx "Minutes must be a number" in
+            ()
+        | Some minutes when minutes <= 0 ->
+            let* _ = Tg.Bot.Ctx.reply ctx "Minutes must be positive" in
+            ()
+        | Some minutes ->
+            let message = Tg.Bot.Args.join_rest rest 0 in
+            if message = "" then
+              let* _ = Tg.Bot.Ctx.reply ctx "Please provide a reminder message" in
+              ()
+            else
+              let msg = Printf.sprintf "Reminder set for %d minutes: %s"
+                minutes message in
+              let* _ = Tg.Bot.Ctx.reply ctx msg in
+              ()
+  )
+]}
+
+{2 Custom Argument Parsers}
+
+Build reusable argument parsers:
+
+{[
+(* URL parser *)
+let parse_url s =
+  if String.starts_with ~prefix:"http://" s ||
+     String.starts_with ~prefix:"https://" s then
+    Some s
+  else
+    None
+
+(* Email parser (simple) *)
+let parse_email s =
+  if String.contains s '@' && String.contains s '.' then
+    Some s
+  else
+    None
+
+(* Enum parser *)
+type color = Red | Green | Blue
+
+let parse_color = function
+  | "red" -> Some Red
+  | "green" -> Some Green
+  | "blue" -> Some Blue
+  | _ -> None
+
+(* Using custom parsers *)
+let color_route =
+  Tg.Bot.on (Tg.Bot.Event.command "color") (fun args ctx ->
+    match Tg.Bot.Args.expect_1 args with
+    | None ->
+        let* _ = Tg.Bot.Ctx.reply ctx "Usage: /color <red|green|blue>" in
+        ()
+    | Some color_str ->
+        match parse_color color_str with
+        | Some color ->
+            let msg = Printf.sprintf "You chose: %s" color_str in
+            let* _ = Tg.Bot.Ctx.reply ctx msg in
+            ()
+        | None ->
+            let* _ = Tg.Bot.Ctx.reply ctx "Unknown color. Use: red, green, or blue" in
+            ()
+  )
+]}
+
+{1 Command Middleware Patterns}
+
+{2 Built-in Middleware}
+
+The {!Tg.Bot.Middleware} module provides common middleware:
+
+{[
+(* Logging middleware *)
+let log_mw = Tg.Bot.Middleware.logging ~prefix:"[Bot]" ()
+
+(* User authorization *)
+let admin_mw =
+  Tg.Bot.Middleware.only_users [
+    Telegram.Id.User.of_int 123456789L;
+    Telegram.Id.User.of_int 987654321L;
+  ]
+
+(* Rate limiting *)
+let rate_limit_mw =
+  Tg.Bot.Middleware.rate_limit ~max_per_minute:10 ()
+
+(* Require user in update *)
+let require_user_mw = Tg.Bot.Middleware.require_user ()
+
+(* Require chat in update *)
+let require_chat_mw = Tg.Bot.Middleware.require_chat ()
+]}
+
+{2 Applying Middleware to Routes}
+
+Middleware can be applied globally or per-route:
+
+{[
+(* Global middleware for all routes *)
+let routes =
+  Tg.Bot.router
+    ~middlewares:[
+      Tg.Bot.Middleware.logging ();
+      Tg.Bot.Middleware.require_user ();
+      Tg.Bot.Middleware.rate_limit ~max_per_minute:20 ();
+    ]
+    [
+      Tg.Bot.on (Tg.Bot.Event.command "start") start_handler;
+      Tg.Bot.on (Tg.Bot.Event.command "help") help_handler;
+    ]
+
+(* Per-route middleware *)
+let admin_route =
+  Tg.Bot.on (Tg.Bot.Event.command "admin") admin_handler
+  |> Tg.Bot.with_middleware [
+       Tg.Bot.Middleware.only_users [admin_user_id];
+     ]
+
+(* Combining both *)
+let routes =
+  Tg.Bot.router
+    ~middlewares:[Tg.Bot.Middleware.logging ()]
+    [
+      (* Public commands *)
+      Tg.Bot.on (Tg.Bot.Event.command "start") start_handler;
+      Tg.Bot.on (Tg.Bot.Event.command "help") help_handler;
+
+      (* Admin-only commands *)
+      Tg.Bot.on (Tg.Bot.Event.command "stats") stats_handler
+      |> Tg.Bot.with_middleware [admin_mw];
+
+      Tg.Bot.on (Tg.Bot.Event.command "broadcast") broadcast_handler
+      |> Tg.Bot.with_middleware [admin_mw];
+    ]
+]}
+
+{2 Custom Middleware}
+
+Create custom middleware with {!Tg.Bot.Middleware.make}:
+
+{[
+(* Timing middleware *)
+let timing_middleware =
+  Tg.Bot.Middleware.make
+    ~before:(fun ctx ->
+      (* Store start time in context somehow *)
+      Ok ctx
+    )
+    ~after:(fun ctx ->
+      (* Calculate and log duration *)
+      Printf.printf "Handler completed\n";
+    )
+    ~on_error:(fun ctx exn ->
+      Printf.eprintf "Handler error: %s\n" (Printexc.to_string exn)
+    )
+    "timing"
+
+(* Authorization middleware with custom logic *)
+let custom_auth_middleware check_permission =
+  Tg.Bot.Middleware.make
+    ~before:(fun ctx ->
+      match Tg.Bot.Ctx.user ctx with
+      | None -> Error "User required"
+      | Some user ->
+          let user_id = Telegram.Id.User.to_int user.id in
+          if check_permission user_id then
+            Ok ctx
+          else
+            Error "Permission denied"
+    )
+    "custom_auth"
+
+(* Context enrichment middleware *)
+let enrich_context get_user_data =
+  Tg.Bot.Middleware.enrich (fun ctx ->
+    match Tg.Bot.Ctx.user ctx with
+    | None -> ctx
+    | Some user ->
+        (* Enrich context with user data *)
+        (* In practice, you'd store in session *)
+        ctx
+  )
+
+(* Middleware combinators *)
+let combined_mw =
+  Tg.Bot.Middleware.combine [
+    Tg.Bot.Middleware.logging ();
+    Tg.Bot.Middleware.require_user ();
+    custom_auth_middleware (fun _ -> true);
+  ]
+
+(* Using >> operator *)
+let chained_mw =
+  Tg.Bot.Middleware.logging ()
+  >> Tg.Bot.Middleware.require_user ()
+  >> Tg.Bot.Middleware.rate_limit ~max_per_minute:10 ()
+]}
+
+{2 Session Middleware}
+
+Enable stateful bots with session middleware:
+
+{[
+(* In-memory session store *)
+module Store = Tg.Session.InMemory
+
+let () =
+  Eio_main.run @@ fun env ->
+
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token () in
+
+  (* Create session store *)
+  let store = Store.create () in
+
+  (* Session middleware *)
+  let session_mw =
+    Tg.Bot.Middleware.with_session (module Store) store
+  in
+
+  (* Define session keys *)
+  let counter_key : int Tg.Session.key =
+    Tg.Session.create_key "counter"
+  in
+
+  (* Counter command using sessions *)
+  let count_route =
+    Tg.Bot.on (Tg.Bot.Event.command "count") (fun _args ctx ->
+      (* Get current count *)
+      let count = Tg.Bot.Ctx.session_get_or ctx counter_key ~default:0 in
+      let new_count = count + 1 in
+
+      (* Update session *)
+      Tg.Bot.Ctx.session_set ctx counter_key new_count;
+
+      let msg = Printf.sprintf "Count: %d" new_count in
+      let* _ = Tg.Bot.Ctx.reply ctx msg in
+      ()
+    )
+  in
+
+  let routes =
+    Tg.Bot.router
+      ~middlewares:[session_mw]
+      [count_route]
+  in
+
+  Tg.Bot.run_polling ~env ~client routes
+]}
+
+{1 Entity-Aware Parsing}
+
+{2 Message Entities}
+
+Parse message entities (mentions, URLs, hashtags, commands):
+
+{[
+(* Get all entities from message *)
+let entities_route =
+  Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
+    let entities = Tg.Bot.Ctx.entities ctx in
+    let count = List.length entities in
+    let msg = Printf.sprintf "Found %d entities" count in
+    let* _ = Tg.Bot.Ctx.reply ctx msg in
+    ()
+  )
+
+(* Get specific entity types *)
+let mentions_route =
+  Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
+    let mentions = Tg.Bot.Ctx.get_entities ctx `Mention in
+    let count = List.length mentions in
+    let msg = Printf.sprintf "Found %d mentions" count in
+    let* _ = Tg.Bot.Ctx.reply ctx msg in
+    ()
+  )
+
+(* Extract URLs from message *)
+let urls_route =
+  Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
+    let url_entities = Tg.Bot.Ctx.get_entities ctx `Url in
+    let urls =
+      List.map (fun entity ->
+        Tg.Bot.Entity.text entity
+      ) url_entities
+    in
+    if urls = [] then
+      let* _ = Tg.Bot.Ctx.reply ctx "No URLs found" in
+      ()
+    else
+      let msg = Printf.sprintf "URLs:\n%s" (String.concat "\n" urls) in
+      let* _ = Tg.Bot.Ctx.reply ctx msg in
+      ()
+  )
+
+(* Process hashtags *)
+let hashtag_route =
+  Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
+    let hashtags = Tg.Bot.Ctx.get_entities ctx `Hashtag in
+    let tags =
+      List.map (fun entity ->
+        Tg.Bot.Entity.text entity
+      ) hashtags
+    in
+    if tags <> [] then
+      let msg = Printf.sprintf "Tags: %s" (String.concat ", " tags) in
+      let* _ = Tg.Bot.Ctx.reply ctx msg in
+      ()
+    else
+      ()
+  )
+]}
+
+{2 Entity Types}
+
+Available entity types for parsing:
+
+- [`BotCommand]: Bot commands like [/start]
+- [`Url]: URLs in messages
+- [`Mention]: Username mentions like [@username]
+- [`Hashtag]: Hashtags like [#topic]
+- [`Code]: Inline code spans
+- [`Pre]: Code blocks
+
+{1 Command Composition and Helpers}
+
+{2 Reusable Command Builders}
+
+Extract common patterns into reusable builders:
+
+{[
+(* Simple text response command *)
+let text_command cmd text =
+  Tg.Bot.on (Tg.Bot.Event.command cmd) (fun _args ctx ->
+    let* _ = Tg.Bot.Ctx.reply ctx text in
+    ()
+  )
+
+(* Commands with validation *)
+let validated_command cmd parser error_msg handler =
+  Tg.Bot.on (Tg.Bot.Event.command cmd) (fun args ctx ->
+    match parser args with
+    | None ->
+        let* _ = Tg.Bot.Ctx.reply ctx error_msg in
+        ()
+    | Some value ->
+        handler value ctx
+  )
+
+(* Single-arg integer command *)
+let int_command cmd error_msg handler =
+  validated_command cmd
+    (fun args ->
+      match Tg.Bot.Args.expect_1 args with
+      | None -> None
+      | Some s -> Tg.Bot.Args.parse_int s
+    )
+    error_msg
+    handler
+
+(* Example usage *)
+let routes = [
+  text_command "start" "Welcome!";
+  text_command "about" "This is a Telegram bot";
+
+  int_command "double" "Usage: /double <number>" (fun n ctx ->
+    let result = n * 2 in
+    let msg = Printf.sprintf "%d × 2 = %d" n result in
+    let* _ = Tg.Bot.Ctx.reply ctx msg in
+    ()
+  );
+]
+]}
+
+{2 Command Groups}
+
+Organize related commands into groups:
+
+{[
+(* Math command group *)
+module MathCommands = struct
+  let add_route =
+    Tg.Bot.on (Tg.Bot.Event.command "add") (fun args ctx ->
+      match Tg.Bot.Args.expect_2 args with
+      | Some (a, b) ->
+          (match Tg.Bot.Args.parse_int a, Tg.Bot.Args.parse_int b with
+           | Some x, Some y ->
+               let msg = Printf.sprintf "%d + %d = %d" x y (x + y) in
+               let* _ = Tg.Bot.Ctx.reply ctx msg in
+               ()
+           | _ ->
+               let* _ = Tg.Bot.Ctx.reply ctx "Invalid numbers" in
+               ()
+          )
+      | None ->
+          let* _ = Tg.Bot.Ctx.reply ctx "Usage: /add <a> <b>" in
+          ()
+    )
+
+  let multiply_route =
+    Tg.Bot.on (Tg.Bot.Event.command "mul") (fun args ctx ->
+      (* Similar implementation *)
+      ()
+    )
+
+  let all_routes = [add_route; multiply_route]
+end
+
+(* User command group *)
+module UserCommands = struct
+  let profile_route =
+    Tg.Bot.on (Tg.Bot.Event.command "profile") (fun _args ctx ->
+      match Tg.Bot.Ctx.user ctx with
+      | None ->
+          let* _ = Tg.Bot.Ctx.reply ctx "User not found" in
+          ()
+      | Some user ->
+          let msg = Printf.sprintf "User: %s" user.first_name in
+          let* _ = Tg.Bot.Ctx.reply ctx msg in
+          ()
+    )
+
+  let settings_route =
+    Tg.Bot.on (Tg.Bot.Event.command "settings") (fun _args ctx ->
+      let* _ = Tg.Bot.Ctx.reply ctx "Settings menu" in
+      ()
+    )
+
+  let all_routes = [profile_route; settings_route]
+end
+
+(* Combine all groups *)
+let routes =
+  MathCommands.all_routes @
+  UserCommands.all_routes @
+  [
+    Tg.Bot.on (Tg.Bot.Event.command "start") start_handler;
+    Tg.Bot.on (Tg.Bot.Event.command "help") help_handler;
+  ]
+]}
+
+{2 Help Command Generation}
+
+Build help commands dynamically from route definitions:
+
+{[
+(* Command definition with metadata *)
+type command_def = {
+  name : string;
+  description : string;
+  usage : string;
+  handler : string list -> [ `Chat ] Tg.Bot.ctx -> unit;
+}
+
+let commands = [
+  {
+    name = "start";
+    description = "Start the bot";
+    usage = "/start";
+    handler = fun _args ctx ->
+      let* _ = Tg.Bot.Ctx.reply ctx "Welcome!" in
+      ()
+  };
+  {
+    name = "echo";
+    description = "Echo your message";
+    usage = "/echo <text>";
+    handler = fun args ctx ->
+      let text = String.concat " " args in
+      let* _ = Tg.Bot.Ctx.reply ctx text in
+      ()
+  };
+  {
+    name = "add";
+    description = "Add two numbers";
+    usage = "/add <num1> <num2>";
+    handler = fun args ctx ->
+      (* implementation *)
+      ()
+  };
+]
+
+(* Generate help text *)
+let generate_help () =
+  let lines = List.map (fun cmd ->
+    Printf.sprintf "/%s - %s\n  Usage: %s"
+      cmd.name cmd.description cmd.usage
+  ) commands in
+  "Available commands:\n\n" ^ String.concat "\n\n" lines
+
+(* Help command route *)
+let help_route =
+  Tg.Bot.on (Tg.Bot.Event.command "help") (fun _args ctx ->
+    let help_text = generate_help () in
+    let* _ = Tg.Bot.Ctx.reply ctx help_text in
+    ()
+  )
+
+(* Convert command definitions to routes *)
+let command_routes =
+  List.map (fun cmd ->
+    Tg.Bot.on (Tg.Bot.Event.command cmd.name) cmd.handler
+  ) commands
+
+let all_routes = help_route :: command_routes
+]}
+
+{1 Error Handling}
+
+{2 Route-Level Error Handlers}
+
+Handle errors at the route level:
+
+{[
+(* Custom error handler for a route *)
+let risky_route =
+  Tg.Bot.on (Tg.Bot.Event.command "risky") (fun _args ctx ->
+    (* This might fail *)
+    failwith "Something went wrong"
+  )
+  |> Tg.Bot.with_error_handler (fun ctx exn ->
+       let* _ = Tg.Bot.Ctx.reply ctx "An error occurred. Please try again." in
+       ()
+     )
+]}
+
+{2 Global Error Handlers}
+
+Apply error handlers to all routes:
+
+{[
+(* Global error handler with logging and user notification *)
+let global_error_handler ctx exn =
+  Printf.eprintf "Error in handler: %s\n" (Printexc.to_string exn);
+  let* _ = Tg.Bot.Ctx.reply ctx
+    "Sorry, an error occurred while processing your request." in
+  ()
+
+let routes =
+  Tg.Bot.router
+    ~on_error:global_error_handler
+    [
+      Tg.Bot.on (Tg.Bot.Event.command "start") start_handler;
+      Tg.Bot.on (Tg.Bot.Event.command "help") help_handler;
+    ]
+]}
+
+{2 Built-in Error Handlers}
+
+Use predefined error handlers from {!Tg.Bot.ErrorHandler}:
+
+{[
+(* Log errors to stderr *)
+let routes =
+  Tg.Bot.router
+    ~on_error:Tg.Bot.ErrorHandler.log
+    [...]
+
+(* Log and notify user *)
+let routes =
+  Tg.Bot.router
+    ~on_error:(Tg.Bot.ErrorHandler.log_and_reply
+                 ~message:"Oops! Something went wrong." ())
+    [...]
+
+(* Silent (ignore errors) *)
+let routes =
+  Tg.Bot.router
+    ~on_error:Tg.Bot.ErrorHandler.silent
+    [...]
+
+(* Combine multiple error handlers *)
+let routes =
+  Tg.Bot.router
+    ~on_error:(Tg.Bot.ErrorHandler.combine [
+      Tg.Bot.ErrorHandler.log;
+      Tg.Bot.ErrorHandler.log_and_reply ();
+    ])
+    [...]
+]}
+
+{1 Context API}
+
+{2 Context Accessors}
+
+Access bot context information:
+
+{[
+(* Get client *)
+let client = Tg.Bot.Ctx.client ctx
+
+(* Get Eio environment *)
+let env = Tg.Bot.Ctx.env ctx
+
+(* Get chat ID *)
+let chat_id = Tg.Bot.Ctx.chat ctx
+
+(* Get user (optional) *)
+let user_opt = Tg.Bot.Ctx.user ctx
+
+(* Get message *)
+let message = Tg.Bot.Ctx.message ctx
+]}
+
+{2 Context Helpers}
+
+Convenient message operations:
+
+{[
+(* Reply to message *)
+let* response = Tg.Bot.Ctx.reply ctx "Hello!"
+
+(* Send message without reply reference *)
+let* response = Tg.Bot.Ctx.send ctx "General message"
+
+(* Edit current message *)
+let* _ = Tg.Bot.Ctx.edit ctx "Updated text"
+
+(* Answer (alias for reply) *)
+let* response = Tg.Bot.Ctx.answer ctx "Response"
+]}
+
+{1 Complete Examples}
+
+{2 Feature-Rich Command Bot}
+
+A production-ready bot with multiple features:
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+
+let () =
+  Eio_main.run @@ fun env ->
+
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token () in
+
+  (* Admin user IDs *)
+  let admin_ids = [
+    Telegram.Id.User.of_int 123456789L;
+  ] in
+
+  (* Session store for stateful commands *)
+  module Store = Tg.Session.InMemory
+  let store = Store.create () in
+
+  (* Session keys *)
+  let language_key : string Tg.Session.key =
+    Tg.Session.create_key "language"
+  in
+
+  (* Middleware *)
+  let session_mw = Tg.Bot.Middleware.with_session (module Store) store in
+  let logging_mw = Tg.Bot.Middleware.logging ~prefix:"[Bot]" () in
+  let rate_limit_mw = Tg.Bot.Middleware.rate_limit ~max_per_minute:20 () in
+  let admin_mw = Tg.Bot.Middleware.only_users admin_ids in
+
+  (* Command handlers *)
+  let start_handler _args ctx =
+    let welcome =
+      "Welcome to the bot!\n\n\
+       Available commands:\n\
+       /help - Show all commands\n\
+       /echo <text> - Echo message\n\
+       /lang <en|ru> - Set language\n\
+       /stats - Show statistics (admin only)"
+    in
+    let* _ = Tg.Bot.Ctx.reply ctx welcome in
+    ()
+  in
+
+  let help_handler _args ctx =
+    let help_text =
+      "Command Reference:\n\n\
+       /start - Welcome message\n\
+       /help - This help message\n\
+       /echo <text> - Echo your text\n\
+       /upper <text> - Convert to uppercase\n\
+       /add <a> <b> - Add two numbers\n\
+       /lang <code> - Set language (en, ru)\n\
+       /stats - Statistics (admin only)"
+    in
+    let* _ = Tg.Bot.Ctx.reply ctx help_text in
+    ()
+  in
+
+  let echo_handler args ctx =
+    match args with
+    | [] ->
+        let* _ = Tg.Bot.Ctx.reply ctx "Usage: /echo <text>" in
+        ()
+    | _ ->
+        let text = String.concat " " args in
+        let* _ = Tg.Bot.Ctx.reply ctx text in
+        ()
+  in
+
+  let upper_handler args ctx =
+    match args with
+    | [] ->
+        let* _ = Tg.Bot.Ctx.reply ctx "Usage: /upper <text>" in
+        ()
+    | _ ->
+        let text = String.concat " " args in
+        let* _ = Tg.Bot.Ctx.reply ctx (String.uppercase_ascii text) in
+        ()
+  in
+
+  let add_handler args ctx =
+    match Tg.Bot.Args.expect_2 args with
+    | None ->
+        let* _ = Tg.Bot.Ctx.reply ctx "Usage: /add <num1> <num2>" in
+        ()
+    | Some (a, b) ->
+        match Tg.Bot.Args.parse_int a, Tg.Bot.Args.parse_int b with
+        | Some x, Some y ->
+            let result = x + y in
+            let msg = Printf.sprintf "%d + %d = %d" x y result in
+            let* _ = Tg.Bot.Ctx.reply ctx msg in
+            ()
+        | _ ->
+            let* _ = Tg.Bot.Ctx.reply ctx "Both arguments must be numbers" in
+            ()
+  in
+
+  let lang_handler args ctx =
+    match Tg.Bot.Args.expect_1 args with
+    | None ->
+        let current = Tg.Bot.Ctx.session_get_or ctx language_key ~default:"en" in
+        let msg = Printf.sprintf "Current language: %s\nUsage: /lang <en|ru>" current in
+        let* _ = Tg.Bot.Ctx.reply ctx msg in
+        ()
+    | Some lang when lang = "en" || lang = "ru" ->
+        Tg.Bot.Ctx.session_set ctx language_key lang;
+        let msg = Printf.sprintf "Language set to: %s" lang in
+        let* _ = Tg.Bot.Ctx.reply ctx msg in
+        ()
+    | Some _ ->
+        let* _ = Tg.Bot.Ctx.reply ctx "Supported languages: en, ru" in
+        ()
+  in
+
+  let stats_handler _args ctx =
+    (* Admin-only command *)
+    let msg = "Statistics:\nTotal users: 42\nMessages today: 123" in
+    let* _ = Tg.Bot.Ctx.reply ctx msg in
+    ()
+  in
+
+  (* Define routes *)
+  let routes =
+    Tg.Bot.router
+      ~middlewares:[logging_mw; session_mw; rate_limit_mw]
+      ~on_error:(Tg.Bot.ErrorHandler.log_and_reply ())
+      [
+        (* Public commands *)
+        Tg.Bot.on (Tg.Bot.Event.command "start") start_handler;
+        Tg.Bot.on (Tg.Bot.Event.command "help") help_handler;
+        Tg.Bot.on (Tg.Bot.Event.command "echo") echo_handler;
+        Tg.Bot.on (Tg.Bot.Event.command "upper") upper_handler;
+        Tg.Bot.on (Tg.Bot.Event.command "add") add_handler;
+        Tg.Bot.on (Tg.Bot.Event.command "lang") lang_handler;
+
+        (* Admin-only commands *)
+        Tg.Bot.on (Tg.Bot.Event.command "stats") stats_handler
+        |> Tg.Bot.with_middleware [admin_mw];
+      ]
+  in
+
+  (* Start bot *)
+  Printf.printf "Bot started. Waiting for updates...\n";
+  flush stdout;
+
+  Tg.Bot.run_polling ~env ~client routes
+]}
+
+{1 Best Practices}
+
+{2 Command Design}
+
+- {b Clear Usage}: Always provide usage information for invalid arguments
+- {b Validation}: Validate all user inputs before processing
+- {b Feedback}: Give immediate feedback for long-running operations
+- {b Error Messages}: Make error messages helpful and actionable
+- {b Help Command}: Always include a comprehensive [/help] command
+
+{2 Argument Parsing}
+
+- {b Type Safety}: Use parser functions instead of manual string operations
+- {b Defaults}: Provide sensible defaults for optional arguments
+- {b Validation}: Validate parsed values (ranges, formats, etc.)
+- {b Error Handling}: Handle parsing failures gracefully
+
+{2 Middleware Usage}
+
+- {b Composition}: Combine small, focused middleware pieces
+- {b Order Matters}: Apply middleware in logical order (auth before rate limit)
+- {b Global vs Local}: Use global middleware for common concerns, local for specific routes
+- {b Performance}: Be mindful of middleware overhead in high-traffic bots
+
+{2 Error Handling}
+
+- {b User-Friendly}: Don't expose technical errors to users
+- {b Logging}: Always log errors for debugging
+- {b Graceful Degradation}: Handle errors without crashing the bot
+- {b Retry Logic}: Consider retrying on transient failures
+
+{2 Code Organization}
+
+- {b Module Structure}: Group related commands into modules
+- {b Reusability}: Extract common patterns into helper functions
+- {b Type Safety}: Use type system to prevent errors
+- {b Documentation}: Document command behavior and requirements
+
+{1 See Also}
+
+- {{!page-quick_start}Quick Start Tutorial} - Hands-on tutorials and examples
+- {{!page-message_handling}Message Handling} - Working with messages
+- {{!Tg.Bot}Bot Module} - Complete Bot DSL API reference
+- {{!Tg.Session}Session Module} - Stateful bot patterns
+- {{!page-development_workflow}Development Workflow} - Testing and debugging commands

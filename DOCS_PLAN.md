@@ -10,7 +10,7 @@
 
 ## Progress Tracker
 
-**Overall Completion: 6/30 tasks (20%)**
+**Overall Completion: 7/30 tasks (23%)**
 
 **Phase 1 — Getting Started Guide: COMPLETE (5/5 tasks) ✓**
 
@@ -87,11 +87,16 @@ Deep dive into the library's elegant functional API.
   - Advanced patterns (message queue, conversation history, reactions) ✓
   - Best practices (escaping, long messages, preserving format) ✓
 
-- [ ] Task 2.2: Command DSL
-  - Command definition syntax
-  - Command routing and dispatch
-  - Argument parsing
-  - Command middleware patterns
+- [x] Task 2.2: Command DSL — COMPLETED: docs/command_dsl.mld
+  - Command definition syntax (basic commands, parsed arguments, aliases) ✓
+  - Command routing and dispatch (multiple commands, pattern matching, events) ✓
+  - Argument parsing (Args module, parsing patterns, custom parsers) ✓
+  - Command middleware patterns (built-in, custom, session, combinators) ✓
+  - Entity-aware parsing (mentions, URLs, hashtags, commands) ✓
+  - Command composition and helpers (builders, groups, help generation) ✓
+  - Context API and helpers (accessors, reply, send, edit) ✓
+  - Error handling (route-level, global, built-in handlers) ✓
+  - Complete production examples ✓
 
 - [ ] Task 2.3: Update processing
   - Update types (messages, callbacks, inline queries)
