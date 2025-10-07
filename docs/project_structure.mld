@@ -1,0 +1,981 @@
+{0 Project Structure Guide}
+
+This guide teaches you how to organize Telegram bot projects for maintainability, scalability, and team collaboration. Learn proven patterns for structuring code, separating concerns, and configuring your build system.
+
+{1 Project Organization Philosophies}
+
+{2 Small Bot (Single File)}
+
+For simple bots (<200 lines):
+
+{v
+my_bot/
+├── dune-project
+├── bin/
+│   ├── dune
+│   └── main.ml       # Everything in one file
+└── .gitignore
+v}
+
+{b When to use}: Learning, prototypes, single-purpose bots (echo, calculator)
+
+{2 Medium Bot (Module Per Feature)}
+
+For growing bots (200-1000 lines):
+
+{v
+my_bot/
+├── dune-project
+├── lib/
+│   ├── dune
+│   ├── commands.ml   # Command handlers
+│   ├── keyboards.ml  # Keyboard builders
+│   └── handlers.ml   # Update handlers
+├── bin/
+│   ├── dune
+│   └── main.ml       # Entry point
+└── test/
+    ├── dune
+    └── test_commands.ml
+v}
+
+{b When to use}: Feature-rich bots with multiple commands and interactions
+
+{2 Large Bot (Layered Architecture)}
+
+For production bots (1000+ lines):
+
+{v
+my_bot/
+├── dune-project
+├── lib/
+│   ├── dune
+│   ├── domain/       # Business logic
+│   │   ├── user.ml
+│   │   ├── order.ml
+│   │   └── payment.ml
+│   ├── bot/          # Bot layer
+│   │   ├── commands.ml
+│   │   ├── callbacks.ml
+│   │   ├── inline.ml
+│   │   └── middleware.ml
+│   ├── storage/      # Persistence
+│   │   ├── database.ml
+│   │   └── cache.ml
+│   └── utils/        # Shared utilities
+│       ├── config.ml
+│       └── logging.ml
+├── bin/
+│   ├── dune
+│   └── main.ml
+├── test/
+│   ├── dune
+│   ├── unit/
+│   └── integration/
+└── config/
+    ├── dev.json
+    └── prod.json
+v}
+
+{b When to use}: Complex bots, team projects, long-term maintenance
+
+{1 Recommended Structure: Medium Bot}
+
+Let's build a complete project structure for a feature-rich bot.
+
+{2 Directory Layout}
+
+{v
+weather_bot/
+├── dune-project         # Project metadata
+├── weather_bot.opam     # Generated package file
+├── .gitignore
+├── README.md
+│
+├── lib/                 # Library code (reusable)
+│   ├── dune
+│   ├── config.ml        # Configuration
+│   ├── types.ml         # Custom types
+│   ├── api.ml           # External API calls
+│   ├── handlers.ml      # Update handlers
+│   ├── commands.ml      # Command implementations
+│   ├── keyboards.ml     # Keyboard builders
+│   └── session.ml       # Session management
+│
+├── bin/                 # Executables
+│   ├── dune
+│   └── main.ml          # Entry point
+│
+├── test/                # Tests
+│   ├── dune
+│   ├── test_commands.ml
+│   └── test_handlers.ml
+│
+└── assets/              # Static files
+    └── help.txt
+v}
+
+{2 Step-by-Step Setup}
+
+{3 1. Create dune-project}
+
+{[
+cat > dune-project << 'EOF'
+(lang dune 3.7)
+(name weather_bot)
+(version 0.1.0)
+(generate_opam_files true)
+
+(package
+ (name weather_bot)
+ (synopsis "Weather forecast Telegram bot")
+ (depends
+  (ocaml (>= 5.1.0))
+  (dune (>= 3.7))
+  (eio (>= 0.12))
+  (eio_main (>= 0.12))
+  (ocaml_telegram_eio (>= 0.1.0))
+  (yojson (>= 2.0.0))
+  (alcotest :with-test)))
+EOF
+]}
+
+{3 2. Create lib/dune (Library)}
+
+{[
+mkdir -p lib
+cat > lib/dune << 'EOF'
+(library
+ (name weather_bot_lib)
+ (libraries
+   eio
+   yojson
+   ocaml_telegram_eio.telegram
+   ocaml_telegram_eio.tg))
+EOF
+]}
+
+{3 3. Create bin/dune (Executable)}
+
+{[
+mkdir -p bin
+cat > bin/dune << 'EOF'
+(executable
+ (name main)
+ (public_name weather_bot)
+ (libraries
+   eio_main
+   weather_bot_lib))
+EOF
+]}
+
+{3 4. Create test/dune (Tests)}
+
+{[
+mkdir -p test
+cat > test/dune << 'EOF'
+(test
+ (name test_weather_bot)
+ (libraries
+   alcotest
+   weather_bot_lib))
+EOF
+]}
+
+{1 Separation of Concerns}
+
+Organize code into layers with clear responsibilities.
+
+{2 Layer 1: Configuration}
+
+[lib/config.ml]:
+
+{[
+(** Application configuration *)
+
+type t = {
+  bot_token : string;
+  api_key : string;
+  database_url : string option;
+  log_level : [ `Debug | `Info | `Error ];
+}
+
+let load_env () =
+  let get_env key =
+    match Sys.getenv_opt key with
+    | Some v -> v
+    | None -> failwith (Printf.sprintf "%s not set" key)
+  in
+  {
+    bot_token = get_env "TELEGRAM_BOT_TOKEN";
+    api_key = get_env "WEATHER_API_KEY";
+    database_url = Sys.getenv_opt "DATABASE_URL";
+    log_level = `Info;
+  }
+
+let load_file path =
+  (* Load from JSON config file *)
+  let json = Yojson.Safe.from_file path in
+  (* Parse JSON into config record *)
+  ...
+]}
+
+{2 Layer 2: Domain Types}
+
+[lib/types.ml]:
+
+{[
+(** Domain types (pure, no Telegram dependencies) *)
+
+type weather = {
+  temperature : float;
+  condition : string;
+  humidity : int;
+  wind_speed : float;
+}
+
+type location =
+  | City of string
+  | Coords of { lat : float; lon : float }
+
+type forecast = {
+  location : location;
+  current : weather;
+  hourly : weather list;
+}
+
+(** User preferences *)
+type user_prefs = {
+  user_id : int64;
+  default_location : location option;
+  units : [ `Celsius | `Fahrenheit ];
+}
+]}
+
+{2 Layer 3: Business Logic}
+
+[lib/api.ml]:
+
+{[
+(** External API calls (weather service) *)
+
+open Eio.Std
+
+let fetch_weather env config location =
+  (* Make HTTP request to weather API *)
+  (* Returns Result.t for error handling *)
+  match location with
+  | Types.City name ->
+      let url = Printf.sprintf
+        "https://api.weather.com/v1/current?city=%s&key=%s"
+        name config.Config.api_key
+      in
+      (* HTTP GET, parse JSON, convert to Types.weather *)
+      ...
+
+  | Types.Coords { lat; lon } ->
+      (* Fetch by coordinates *)
+      ...
+
+let format_weather weather =
+  Printf.sprintf
+    "🌡️ %.1f°C - %s\n\
+     💧 Humidity: %d%%\n\
+     💨 Wind: %.1f km/h"
+    weather.Types.temperature
+    weather.condition
+    weather.humidity
+    weather.wind_speed
+]}
+
+{2 Layer 4: Keyboards}
+
+[lib/keyboards.ml]:
+
+{[
+(** Keyboard builders *)
+
+open Tg.Keyboard
+
+let main_menu () =
+  inline [
+    [ callback ~text:"🌤️ Current Weather" ~data:"current"
+    ; callback ~text:"📅 Forecast" ~data:"forecast" ];
+    [ callback ~text:"📍 Set Location" ~data:"location"
+    ; callback ~text:"⚙️ Settings" ~data:"settings" ];
+  ]
+
+let location_keyboard () =
+  reply [
+    [ "📍 Send Location" ];  (* Will trigger location request *)
+    [ "🏙️ Enter City Name" ];
+    [ "❌ Cancel" ];
+  ]
+
+let units_keyboard () =
+  inline (Layout.horizontal [
+    callback ~text:"°C Celsius" ~data:"units:c";
+    callback ~text:"°F Fahrenheit" ~data:"units:f";
+  ])
+]}
+
+{2 Layer 5: Command Handlers}
+
+[lib/commands.ml]:
+
+{[
+(** Command implementations (no Telegram types here) *)
+
+open Types
+
+let handle_weather_request api_client location units =
+  (* Pure business logic *)
+  let* weather = Api.fetch_weather api_client location in
+  let formatted = Api.format_weather weather in
+  Ok formatted
+
+let handle_location_set user_id location =
+  (* Save user preference *)
+  (* Returns Result.t *)
+  ...
+]}
+
+{2 Layer 6: Bot Handlers}
+
+[lib/handlers.ml]:
+
+{[
+(** Telegram update handlers (glue layer) *)
+
+open Eio.Std
+open Tg.Bot
+
+let setup_bot env config client =
+  Bot.make client
+
+  (* Commands *)
+  |> Bot.command "start" (fun ctx _args ->
+      let welcome =
+        "👋 Welcome to Weather Bot!\n\n\
+         Use /weather to check current weather\n\
+         Use /forecast for upcoming weather"
+      in
+      ctx#reply_with_markup welcome (Keyboards.main_menu ())
+    )
+
+  |> Bot.command "weather" (fun ctx args ->
+      (* Get user location preference *)
+      let location = Types.City "London" in  (* Default *)
+
+      (* Fetch weather *)
+      match Commands.handle_weather_request env config location `Celsius with
+      | Ok text -> ctx#reply text
+      | Error err -> ctx#reply ("❌ " ^ err)
+    )
+
+  |> Bot.command "forecast" (fun ctx args ->
+      (* Similar to weather *)
+      ...
+    )
+
+  (* Callback handlers *)
+  |> Bot.on Event.callback (fun ctx data ->
+      match String.split_on_char ':' data with
+      | ["current"] ->
+          (* Handle current weather callback *)
+          ...
+
+      | ["forecast"] ->
+          (* Handle forecast callback *)
+          ...
+
+      | ["units"; unit] ->
+          (* Update user units preference *)
+          ...
+
+      | _ ->
+          ctx#reply "Unknown action"
+    )
+
+  (* Location handler *)
+  |> Bot.on Event.message (fun ctx msg ->
+      match msg.Telegram_generated.Gen_types.Message.location with
+      | Some loc ->
+          let location = Types.Coords {
+            lat = loc.Location.latitude;
+            lon = loc.Location.longitude;
+          } in
+          (* Save and fetch weather *)
+          ...
+
+      | None -> Ok ()
+    )
+]}
+
+{2 Layer 7: Entry Point}
+
+[bin/main.ml]:
+
+{[
+(** Application entry point *)
+
+open Eio.Std
+
+let () =
+  (* Load configuration *)
+  let config = Weather_bot_lib.Config.load_env () in
+
+  (* Start Eio runtime *)
+  Eio_main.run @@ fun env ->
+
+  (* Create Telegram client *)
+  let client = Telegram.Client.create ~env ~token:config.bot_token () in
+
+  (* Setup bot with handlers *)
+  let bot = Weather_bot_lib.Handlers.setup_bot env config client in
+
+  (* Start polling *)
+  Eio.traceln "Weather bot started!";
+  Tg.Bot.run bot
+]}
+
+{1 Module Design Patterns}
+
+{2 Interface Files (.mli)}
+
+Always provide interfaces for public modules:
+
+[lib/api.mli]:
+
+{[
+(** External API client *)
+
+open Types
+
+val fetch_weather :
+  Eio_unix.Stdenv.base ->
+  Config.t ->
+  location ->
+  (weather, string) result
+(** Fetch current weather for location *)
+
+val fetch_forecast :
+  Eio_unix.Stdenv.base ->
+  Config.t ->
+  location ->
+  (forecast, string) result
+(** Fetch weather forecast *)
+
+val format_weather : weather -> string
+(** Format weather for display *)
+]}
+
+{b Benefits}:
+- Hides implementation details
+- Documents public API
+- Enables separate compilation
+- Prevents accidental dependencies
+
+{2 Module Organization}
+
+{3 Flat Structure (Small Project)}
+
+{[
+lib/
+├── config.ml
+├── types.ml
+├── api.ml
+├── handlers.ml
+└── keyboards.ml
+]}
+
+All modules at same level.
+
+{3 Nested Structure (Large Project)}
+
+{[
+lib/
+├── core/
+│   ├── config.ml
+│   └── types.ml
+├── domain/
+│   ├── weather.ml
+│   ├── user.ml
+│   └── forecast.ml
+└── bot/
+    ├── commands.ml
+    ├── handlers.ml
+    └── keyboards.ml
+]}
+
+Grouped by concern.
+
+{3 Namespace Module}
+
+Create a top-level module that re-exports:
+
+[lib/weather_bot.ml]:
+
+{[
+(** Main library entry point *)
+
+module Config = Config
+module Types = Types
+module Api = Api
+module Commands = Commands
+module Keyboards = Keyboards
+module Handlers = Handlers
+
+(** Re-export commonly used types *)
+type weather = Types.weather
+type location = Types.location
+]}
+
+Users import: [open Weather_bot] instead of individual modules.
+
+{2 Functor Pattern}
+
+Abstract over implementations:
+
+{[
+(** Storage interface *)
+module type STORAGE = sig
+  type t
+  type user_prefs
+
+  val create : unit -> t
+  val get_prefs : t -> int64 -> user_prefs option
+  val set_prefs : t -> int64 -> user_prefs -> unit
+end
+
+(** In-memory storage *)
+module Memory_storage : STORAGE = struct
+  type t = (int64, user_prefs) Hashtbl.t
+  type user_prefs = Types.user_prefs
+
+  let create () = Hashtbl.create 100
+  let get_prefs t id = Hashtbl.find_opt t id
+  let set_prefs t id prefs = Hashtbl.replace t id prefs
+end
+
+(** Database storage *)
+module Database_storage : STORAGE = struct
+  (* PostgreSQL implementation *)
+  ...
+end
+
+(** Bot parameterized by storage *)
+module Make_bot (S : STORAGE) = struct
+  let setup storage client =
+    Bot.make client
+    |> Bot.command "settings" (fun ctx _args ->
+        let prefs = S.get_prefs storage ctx#user_id in
+        (* Use preferences *)
+        ...
+      )
+end
+
+(* Instantiate with desired storage *)
+module Bot = Make_bot(Memory_storage)
+]}
+
+{1 Dune Configuration}
+
+{2 Multi-Library Project}
+
+{v
+my_bot/
+├── lib/
+│   ├── core/
+│   │   └── dune         # Core library
+│   ├── api/
+│   │   └── dune         # API client library
+│   └── bot/
+│       └── dune         # Bot logic library
+└── bin/
+    └── dune             # Executable
+v}
+
+[lib/core/dune]:
+{[
+(library
+ (name core)
+ (public_name my_bot.core)
+ (libraries eio yojson))
+]}
+
+[lib/api/dune]:
+{[
+(library
+ (name api)
+ (public_name my_bot.api)
+ (libraries
+   eio
+   cohttp-eio
+   my_bot.core))
+]}
+
+[lib/bot/dune]:
+{[
+(library
+ (name bot)
+ (public_name my_bot.bot)
+ (libraries
+   ocaml_telegram_eio.telegram
+   ocaml_telegram_eio.tg
+   my_bot.core
+   my_bot.api))
+]}
+
+[bin/dune]:
+{[
+(executable
+ (name main)
+ (public_name my_bot)
+ (libraries
+   eio_main
+   my_bot.bot))
+]}
+
+{2 Preprocessing}
+
+{3 PPX for JSON}
+
+{[
+(library
+ (name my_lib)
+ (libraries yojson)
+ (preprocess (pps ppx_deriving_yojson)))
+]}
+
+Use in code:
+{[
+type config = {
+  token : string;
+  api_key : string;
+} [@@deriving yojson]
+
+let config_of_json = config_of_yojson
+let json_of_config = yojson_of_config
+]}
+
+{3 Environment Variables at Compile Time}
+
+{[
+(rule
+ (target config.ml)
+ (action
+  (with-stdout-to %{target}
+   (bash "echo let version = \"%{version}\""))))
+]}
+
+{2 Multiple Executables}
+
+{[
+(executable
+ (name main)
+ (public_name my_bot)
+ (libraries eio_main my_bot.bot))
+
+(executable
+ (name admin)
+ (public_name my_bot_admin)
+ (libraries eio_main my_bot.bot))
+
+(executable
+ (name worker)
+ (public_name my_bot_worker)
+ (libraries eio_main my_bot.bot))
+]}
+
+{2 Assets and Data Files}
+
+{3 Install Data Files}
+
+{[
+(install
+ (section share)
+ (files
+   (assets/help.txt as help.txt)
+   (assets/config.template.json as config.template.json)))
+]}
+
+{3 Embed Files in Binary}
+
+{[
+(rule
+ (targets help_text.ml)
+ (deps assets/help.txt)
+ (action
+  (with-stdout-to %{targets}
+   (progn
+    (echo "let help_text = {|")
+    (cat %{deps})
+    (echo "|}")))))
+
+(library
+ (name resources)
+ (modules help_text))
+]}
+
+{1 Testing Structure}
+
+{2 Test Organization}
+
+{v
+test/
+├── dune
+├── unit/              # Unit tests
+│   ├── test_config.ml
+│   ├── test_api.ml
+│   └── test_commands.ml
+├── integration/       # Integration tests
+│   └── test_bot.ml
+└── fixtures/          # Test data
+    └── sample_response.json
+v}
+
+{2 Unit Tests}
+
+[test/unit/test_commands.ml]:
+
+{[
+open Alcotest
+
+let test_format_weather () =
+  let weather = Types.{
+    temperature = 20.5;
+    condition = "Sunny";
+    humidity = 60;
+    wind_speed = 15.0;
+  } in
+  let result = Api.format_weather weather in
+  check string "formats correctly"
+    "🌡️ 20.5°C - Sunny\n💧 Humidity: 60%\n💨 Wind: 15.0 km/h"
+    result
+
+let suite = [
+  "format_weather", `Quick, test_format_weather;
+]
+
+let () =
+  run "Commands" [
+    "formatting", suite;
+  ]
+]}
+
+{2 Integration Tests}
+
+[test/integration/test_bot.ml]:
+
+{[
+(* Test with real bot *)
+let test_echo_command () =
+  let token = Sys.getenv "TEST_BOT_TOKEN" in
+  let chat_id = Int64.of_string (Sys.getenv "TEST_CHAT_ID") in
+
+  Eio_main.run @@ fun env ->
+  let client = Telegram.Client.create ~env ~token () in
+
+  (* Send test message *)
+  let* response = Telegram_generated.Gen_methods.send_message
+    client ~chat_id ~text:"Test message" () in
+
+  (* Verify response *)
+  Alcotest.(check (option string))
+    "message sent"
+    (Some "Test message")
+    response.Message.text
+]}
+
+{1 Configuration Management}
+
+{2 Environment-Based Config}
+
+{[
+(** Development *)
+export TELEGRAM_BOT_TOKEN="dev_token"
+export DATABASE_URL="sqlite://dev.db"
+export LOG_LEVEL="debug"
+
+(** Production *)
+export TELEGRAM_BOT_TOKEN="prod_token"
+export DATABASE_URL="postgresql://prod:5432/bot"
+export LOG_LEVEL="info"
+]}
+
+{2 File-Based Config}
+
+[config/dev.json]:
+{[
+{
+  "bot_token": "dev_token",
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "name": "bot_dev"
+  },
+  "log_level": "debug"
+}
+]}
+
+Load in code:
+{[
+let load_config env =
+  let config_file = match env with
+    | "dev" -> "config/dev.json"
+    | "prod" -> "config/prod.json"
+    | _ -> failwith "Unknown environment"
+  in
+  Config.load_file config_file
+]}
+
+{2 Layered Config}
+
+{[
+(* 1. Default config *)
+let default = {
+  log_level = `Info;
+  timeout = 30;
+  max_retries = 3;
+}
+
+(* 2. Override from file *)
+let from_file = Config.load_file "config.json"
+
+(* 3. Override from environment *)
+let from_env = Config.load_env ()
+
+(* 4. Merge with priority: env > file > default *)
+let config = { default with
+  log_level = from_env.log_level;
+  timeout = from_file.timeout;
+}
+]}
+
+{1 Best Practices}
+
+{2 Naming Conventions}
+
+{[
+(* Modules: PascalCase *)
+module Weather_api = ...
+module User_preferences = ...
+
+(* Types: snake_case *)
+type user_prefs = ...
+type api_response = ...
+
+(* Functions: snake_case *)
+let fetch_weather location = ...
+let format_response data = ...
+
+(* Constructors: PascalCase *)
+type location =
+  | City of string
+  | Coords of { lat : float; lon : float }
+]}
+
+{2 File Naming}
+
+{[
+(* Interface + Implementation *)
+config.mli
+config.ml
+
+(* Tests match source *)
+config.ml → test_config.ml
+
+(* Executables: descriptive *)
+main.ml
+admin_tool.ml
+migration.ml
+]}
+
+{2 Module Documentation}
+
+[lib/api.mli]:
+
+{[
+(** Weather API client.
+
+    This module provides functions for fetching weather data
+    from external APIs.
+
+    {1 Usage}
+
+    {[
+      let* weather = Api.fetch_weather env config (City "London") in
+      let text = Api.format_weather weather in
+      print_endline text
+    ]}
+
+    {1 Error Handling}
+
+    All functions return [Result.t]. Common errors:
+    - Invalid API key
+    - Network timeout
+    - Invalid location
+*)
+
+val fetch_weather : ... (** ... *)
+]}
+
+{2 Dependency Direction}
+
+{v
+Layer 1: Pure domain types (no dependencies)
+           ↓
+Layer 2: Business logic (depends on types)
+           ↓
+Layer 3: Bot handlers (depends on logic)
+           ↓
+Layer 4: Main (depends on everything)
+v}
+
+Never create circular dependencies.
+
+{1 Common Project Templates}
+
+{2 Simple Bot Template}
+
+{[
+mkdir simple_bot && cd simple_bot
+cat > dune-project << 'EOF'
+(lang dune 3.7)
+(name simple_bot)
+EOF
+
+mkdir bin
+cat > bin/dune << 'EOF'
+(executable (name main) (libraries eio_main ocaml_telegram_eio.telegram ocaml_telegram_eio.tg))
+EOF
+
+cat > bin/main.ml << 'EOF'
+let () =
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  Eio_main.run @@ fun env ->
+  let client = Telegram.Client.create ~env ~token () in
+  (* Add your bot logic here *)
+  Tg.Polling.run client ~handler:(fun _ -> Ok ())
+EOF
+]}
+
+{2 Library + Executable Template}
+
+Use [dune init project my_bot] then add telegram dependencies.
+
+{1 Next Steps}
+
+Now that you understand project structure:
+
+- {{!page-quick_start}Quick Start Tutorial} - Build your first structured bot
+- {{!page-core_concepts}Core Concepts} - Understand the architecture
+- Review example bots in [examples/] directory
+- Study open-source Telegram bots for patterns
+
+{2 Recommended Reading}
+
+- {{:https://dune.readthedocs.io}Dune Documentation}
+- {{:https://ocaml.org/docs/guidelines}OCaml Guidelines}
+- {{:https://dev.realworldocaml.org}Real World OCaml} (project structure chapter)

@@ -1,3 +1,3 @@
 (documentation
  (package ocaml_telegram_eio)
- (mld_files index getting_started core_concepts quick_start migration faq))
+ (mld_files index getting_started core_concepts quick_start project_structure migration faq))

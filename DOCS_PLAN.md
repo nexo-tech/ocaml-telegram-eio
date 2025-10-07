@@ -10,7 +10,7 @@
 
 ## Progress Tracker
 
-**Overall Completion: 3/30 tasks (10%)**
+**Overall Completion: 4/30 tasks (13%)**
 
 ---
 
@@ -49,11 +49,15 @@ Foundation documentation for developers new to the library.
   - Common patterns (admin commands, rate limiting, broadcasting) ✓
   - 9 progressive tutorials from simple to advanced ✓
 
-- [ ] Task 1.4: Project structure guide
-  - Recommended file organization
-  - Separation of concerns
-  - Module design patterns
-  - Dune configuration best practices
+- [x] Task 1.4: Project structure guide — COMPLETED: docs/project_structure.mld
+  - File organization patterns (small/medium/large projects) ✓
+  - Separation of concerns (7 layers: config, types, logic, keyboards, commands, handlers, entry) ✓
+  - Module design patterns (interfaces, nested structure, functors, namespaces) ✓
+  - Dune configuration (multi-library, preprocessing, assets, multiple executables) ✓
+  - Testing structure (unit, integration, fixtures) ✓
+  - Configuration management (env-based, file-based, layered) ✓
+  - Best practices (naming, documentation, dependencies) ✓
+  - Project templates for quick start ✓
 
 - [ ] Task 1.5: Development workflow
   - Running bots locally
