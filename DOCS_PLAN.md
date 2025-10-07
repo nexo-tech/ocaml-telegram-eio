@@ -10,11 +10,11 @@
 
 ## Progress Tracker
 
-**Overall Completion: 13/30 tasks (43%)**
+**Overall Completion: 14/30 tasks (47%)**
 
 **Phase 1 — Getting Started Guide: COMPLETE (5/5 tasks) ✓**
 **Phase 2 — API Fundamentals: COMPLETE (6/6 tasks) ✓**
-**Phase 3 — Advanced Patterns: IN PROGRESS (3/7 tasks) ✓**
+**Phase 3 — Advanced Patterns: IN PROGRESS (4/7 tasks) ✓**
 
 ---
 
@@ -192,11 +192,18 @@ Sophisticated patterns for production bots.
   - Production examples (resilient broadcast, error-tolerant polling, full error handling bot) ✓
   - Best practices (design, retry strategy selection, user communication, testing) ✓
 
-- [ ] Task 3.4: Concurrency patterns
-  - Eio fibers and promises
-  - Concurrent message handling
-  - Background tasks
-  - Synchronization primitives
+- [x] Task 3.4: Concurrency patterns — COMPLETED: docs/concurrency_patterns.mld
+  - Eio fundamentals (direct-style effects, environment, advantages over Lwt/Async) ✓
+  - Fibers (lightweight concurrency, execution model, return values with promises, error handling) ✓
+  - Switches (structured concurrency, lifecycle, nested switches, cleanup handlers, cancellation) ✓
+  - Concurrent update processing (sequential, fully concurrent, bounded concurrency, per-chat sequential) ✓
+  - Background tasks (periodic tasks, monitoring, health checks, queue processing, worker pools) ✓
+  - Promises (creating and resolving, combinators, timeouts, parallel operations) ✓
+  - Synchronization primitives (semaphores for rate limiting, mutexes for shared state, conditions, streams) ✓
+  - Timeouts and cancellation (basic timeouts, cancellable operations, cleanup on timeout) ✓
+  - Production patterns (concurrent broadcast with rate limiting, worker pools, parallel downloads, resilient bot) ✓
+  - Best practices (concurrency design, performance optimization, resource management, error handling, testing) ✓
+  - Common pitfalls (forgotten switch scope, mutex deadlock, unprotected cleanup) ✓
 
 - [ ] Task 3.5: Session management
   - User session tracking

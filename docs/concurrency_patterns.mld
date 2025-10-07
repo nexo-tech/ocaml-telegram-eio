@@ -1,0 +1,1085 @@
+{0 Concurrency Patterns}
+
+Comprehensive guide to building high-performance, concurrent Telegram bots using Eio's structured concurrency: fibers, promises, switches, semaphores, and synchronization primitives.
+
+{1 Overview}
+
+Building scalable bots requires handling multiple operations concurrently. The [ocaml_telegram_eio] library is built on {{:https://github.com/ocaml-multicore/eio}Eio}, OCaml's structured concurrency framework, providing:
+
+- {b Lightweight fibers}: Spawn thousands of concurrent tasks without OS threads
+- {b Structured concurrency}: Automatic resource cleanup and cancellation
+- {b Direct-style code}: Write async code that looks synchronous (no monads!)
+- {b Type safety}: Compile-time guarantees for concurrent operations
+- {b Synchronization primitives}: Mutexes, semaphores, promises, conditions
+- {b Timeouts and cancellation}: Built-in support for time limits
+
+{2 When to Use This Guide}
+
+Use these patterns when you need to:
+
+- Handle multiple updates concurrently for better throughput
+- Run background tasks alongside the main polling loop
+- Implement rate limiting and throttling
+- Broadcast messages to multiple chats in parallel
+- Build responsive bots that don't block on slow operations
+- Coordinate between multiple concurrent tasks
+- Implement worker pools and job queues
+
+{1 Eio Fundamentals}
+
+{2 Why Eio Over Lwt/Async?}
+
+Eio provides structured concurrency with algebraic effects:
+
+{[
+(* Lwt/Async: monadic, explicit binding *)
+let%lwt user = get_user_lwt id in
+let%lwt posts = get_posts_lwt user in
+Lwt.return posts
+
+(* Eio: direct-style, looks synchronous *)
+let user = get_user id in
+let posts = get_posts user in
+posts
+]}
+
+{b Key advantages}:
+- No bind operators ([>>=], [let*]) needed for simple sequential code
+- Automatic resource cleanup via switches
+- Cancellation propagates automatically
+- Better stack traces and debugging
+- Easier to reason about control flow
+
+{2 The Environment}
+
+Eio programs start with an environment providing capabilities:
+
+{[
+let () =
+  Eio_main.run @@ fun env ->
+
+  (* Access standard capabilities *)
+  let clock = Eio.Stdenv.clock env in
+  let net = Eio.Stdenv.net env in
+  let fs = Eio.Stdenv.fs env in
+
+  (* Create bot client with environment *)
+  let client = Telegram.Client.create ~env ~token () in
+
+  (* Run bot *)
+  Tg.Polling.run client ~handler:handle_update
+]}
+
+{2 Direct-Style Effects}
+
+Eio uses effect handlers for async operations:
+
+{[
+(* This looks synchronous but is fully async! *)
+let send_greeting client chat_id name =
+  (* Non-blocking API call *)
+  let* result = Gen_methods.send_message client ~chat_id
+    ~text:("Hello, " ^ name ^ "!") () in
+
+  (* Continues after response arrives *)
+  match result with
+  | Ok msg -> Printf.printf "Sent message %d\n" msg.message_id
+  | Error err -> Printf.eprintf "Error: %a\n" Error.pp err
+]}
+
+{1 Fibers: Lightweight Concurrency}
+
+{2 Creating Fibers}
+
+Fibers are lightweight threads managed by Eio:
+
+{[
+Eio.Switch.run @@ fun sw ->
+
+  (* Fork a fiber (runs concurrently) *)
+  Eio.Fiber.fork ~sw (fun () ->
+    Printf.printf "Running in fiber 1\n";
+    Eio.Time.sleep (Eio.Stdenv.clock env) 1.0;
+    Printf.printf "Fiber 1 done\n"
+  );
+
+  (* Fork another fiber *)
+  Eio.Fiber.fork ~sw (fun () ->
+    Printf.printf "Running in fiber 2\n";
+    Eio.Time.sleep (Eio.Stdenv.clock env) 0.5;
+    Printf.printf "Fiber 2 done\n"
+  );
+
+  Printf.printf "Main fiber continues\n"
+
+(* Switch waits for all fibers to complete before exiting *)
+Printf.printf "All fibers completed\n"
+]}
+
+{2 Fiber Execution Model}
+
+{[
+(* Sequential: one after another *)
+let sequential () =
+  task1 ();  (* Waits for completion *)
+  task2 ();  (* Starts after task1 *)
+  task3 ()   (* Starts after task2 *)
+
+(* Concurrent: all at once *)
+let concurrent () =
+  Eio.Switch.run @@ fun sw ->
+  Eio.Fiber.fork ~sw task1;  (* Starts immediately *)
+  Eio.Fiber.fork ~sw task2;  (* Starts immediately *)
+  Eio.Fiber.fork ~sw task3   (* Starts immediately *)
+  (* All three run concurrently *)
+]}
+
+{2 Fiber Return Values with Promises}
+
+{[
+(* Fibers don't return values directly - use promises *)
+let fetch_user_info client user_id =
+  Eio.Switch.run @@ fun sw ->
+
+  (* Create promise for result *)
+  let promise = Eio.Promise.create () in
+
+  (* Fork fiber to fetch user *)
+  Eio.Fiber.fork ~sw (fun () ->
+    let result = Gen_methods.get_chat client
+      ~chat_id:(Id.Chat.of_user user_id) () in
+    Eio.Promise.resolve promise result
+  );
+
+  (* Wait for fiber to complete *)
+  Eio.Promise.await promise
+]}
+
+{2 Error Handling in Fibers}
+
+{[
+(* Exceptions in fibers cancel the entire switch *)
+Eio.Switch.run @@ fun sw ->
+
+  Eio.Fiber.fork ~sw (fun () ->
+    failwith "Oops!"  (* This cancels all fibers in the switch *)
+  );
+
+  Eio.Fiber.fork ~sw (fun () ->
+    (* This will be cancelled *)
+    Eio.Time.sleep clock 10.0
+  )
+
+(* Exception propagates to Switch.run caller *)
+
+(* Handle errors gracefully *)
+Eio.Switch.run @@ fun sw ->
+
+  Eio.Fiber.fork ~sw (fun () ->
+    try
+      risky_operation ()
+    with exn ->
+      Printf.eprintf "Fiber error: %s\n" (Printexc.to_string exn)
+      (* Fiber exits without cancelling switch *)
+  )
+]}
+
+{1 Switches: Structured Concurrency}
+
+{2 Switch Lifecycle}
+
+Switches manage fiber lifetimes:
+
+{[
+(* Create a switch scope *)
+Eio.Switch.run @@ fun sw ->
+
+  (* Fibers spawned in this switch *)
+  Eio.Fiber.fork ~sw fiber1;
+  Eio.Fiber.fork ~sw fiber2;
+  Eio.Fiber.fork ~sw fiber3;
+
+  (* Do some work *)
+  main_work ()
+
+(* Switch exits here:
+   1. Wait for all fibers to complete
+   2. Cancel any still-running fibers
+   3. Run cleanup handlers
+   4. Propagate any exceptions *)
+]}
+
+{2 Nested Switches}
+
+{[
+(* Outer switch *)
+Eio.Switch.run @@ fun outer_sw ->
+
+  (* Background monitoring task *)
+  Eio.Fiber.fork ~sw:outer_sw (fun () ->
+    monitor_bot_health ()
+  );
+
+  (* Inner switch for update handling *)
+  Eio.Switch.run @@ fun inner_sw ->
+
+    (* Process batch of updates *)
+    updates |> List.iter (fun update ->
+      Eio.Fiber.fork ~sw:inner_sw (fun () ->
+        handle_update update
+      )
+    )
+
+    (* Inner switch waits for all updates *)
+
+  (* Monitoring continues here *)
+]}
+
+{2 Cleanup Handlers}
+
+{[
+let with_notification client chat_id f =
+  Eio.Switch.run @@ fun sw ->
+
+  (* Send "typing..." indicator *)
+  let _ = Gen_methods.send_chat_action client ~chat_id ~action:"typing" () in
+
+  (* Register cleanup: stop typing when done *)
+  Eio.Switch.on_release sw (fun () ->
+    Printf.printf "Cleanup: stopping typing indicator\n"
+  );
+
+  (* Do work *)
+  f ()
+
+  (* Cleanup runs automatically *)
+]}
+
+{2 Cancellation Detection}
+
+{[
+let cancellable_task sw =
+  (* Check if switch is cancelled *)
+  let cancelled = ref false in
+  Eio.Switch.on_release sw (fun () -> cancelled := true);
+
+  (* Long-running task with cancellation checks *)
+  for i = 1 to 100 do
+    if !cancelled then (
+      Printf.printf "Task cancelled at iteration %d\n" i;
+      raise Exit
+    );
+
+    (* Do work *)
+    expensive_operation i;
+  done
+]}
+
+{1 Concurrent Update Processing}
+
+{2 Sequential Processing}
+
+Default: process updates one at a time (simple, ordered):
+
+{[
+let handle_updates_sequential client updates =
+  List.iter (fun update ->
+    match handle_update client update with
+    | Ok () -> ()
+    | Error err ->
+        Printf.eprintf "Error: %a\n" Error.pp err
+  ) updates
+]}
+
+{2 Fully Concurrent Processing}
+
+Process all updates simultaneously (maximum throughput):
+
+{[
+let handle_updates_concurrent client updates =
+  Eio.Switch.run @@ fun sw ->
+
+  updates |> List.iter (fun update ->
+    Eio.Fiber.fork ~sw (fun () ->
+      match handle_update client update with
+      | Ok () -> ()
+      | Error err ->
+          Printf.eprintf "Error: %a\n" Error.pp err
+    )
+  )
+
+  (* Switch waits for all updates to complete *)
+]}
+
+{2 Bounded Concurrency}
+
+Limit concurrent updates with semaphore:
+
+{[
+let handle_updates_bounded client max_concurrent updates =
+  let sem = Eio.Semaphore.make max_concurrent in
+
+  Eio.Switch.run @@ fun sw ->
+
+  updates |> List.iter (fun update ->
+    Eio.Fiber.fork ~sw (fun () ->
+      (* Acquire permit *)
+      Eio.Semaphore.acquire sem;
+
+      (* Process with cleanup *)
+      Fun.protect
+        ~finally:(fun () -> Eio.Semaphore.release sem)
+        (fun () ->
+          match handle_update client update with
+          | Ok () -> ()
+          | Error err ->
+              Printf.eprintf "Error: %a\n" Error.pp err
+        )
+    )
+  )
+]}
+
+{2 Per-Chat Sequential Processing}
+
+Process each chat's updates sequentially, but different chats concurrently:
+
+{[
+let handle_updates_per_chat client updates =
+  (* Group updates by chat_id *)
+  let by_chat = Hashtbl.create 16 in
+
+  updates |> List.iter (fun update ->
+    match update.Update.message with
+    | Some msg ->
+        let chat_id = msg.Message.chat.Chat.id in
+        let existing = Hashtbl.find_opt by_chat chat_id |> Option.value ~default:[] in
+        Hashtbl.replace by_chat chat_id (update :: existing)
+    | None -> ()
+  );
+
+  (* Process each chat concurrently *)
+  Eio.Switch.run @@ fun sw ->
+
+  Hashtbl.iter (fun chat_id chat_updates ->
+    Eio.Fiber.fork ~sw (fun () ->
+      (* Sequential processing within this chat *)
+      List.iter (fun update ->
+        match handle_update client update with
+        | Ok () -> ()
+        | Error err ->
+            Printf.eprintf "Chat %Ld error: %a\n" chat_id Error.pp err
+      ) (List.rev chat_updates)
+    )
+  ) by_chat
+]}
+
+{1 Background Tasks}
+
+{2 Periodic Tasks}
+
+Run tasks on a schedule:
+
+{[
+let send_daily_summary client admin_chat_id =
+  (* Wait 24 hours between summaries *)
+  let interval = 24.0 *. 60.0 *. 60.0 in
+  let clock = Eio.Stdenv.clock env in
+
+  while true do
+    (* Generate and send summary *)
+    let summary = generate_daily_summary () in
+    let _ = Gen_methods.send_message client ~chat_id:admin_chat_id
+      ~text:summary () in
+
+    (* Wait until next summary *)
+    Eio.Time.sleep clock interval
+  done
+
+(* Run as background fiber *)
+let run_bot_with_summary token admin_chat_id =
+  Eio_main.run @@ fun env ->
+  let client = Client.create ~env ~token () in
+
+  Eio.Switch.run @@ fun sw ->
+
+  (* Background: daily summary *)
+  Eio.Fiber.fork ~sw (fun () ->
+    send_daily_summary client admin_chat_id
+  );
+
+  (* Foreground: handle updates *)
+  Tg.Polling.run client ~handler:handle_update
+]}
+
+{2 Monitoring and Health Checks}
+
+{[
+let monitor_bot_health client admin_chat_id =
+  let clock = Eio.Stdenv.clock env in
+  let check_interval = 60.0 in  (* Every minute *)
+
+  while true do
+    (* Check if bot is responsive *)
+    match Gen_methods.get_me client () with
+    | Ok _ ->
+        Printf.printf "[Health] Bot OK\n"
+
+    | Error err ->
+        (* Alert admin *)
+        let alert = Printf.sprintf "⚠️ Health check failed: %a"
+          Error.pp err in
+        let _ = Gen_methods.send_message client ~chat_id:admin_chat_id
+          ~text:alert () in
+        ()
+
+    Eio.Time.sleep clock check_interval
+  done
+]}
+
+{2 Queue Processing}
+
+{[
+module Job_queue = struct
+  type 'a t = {
+    queue : 'a Queue.t;
+    mutex : Eio.Mutex.t;
+    condition : Eio.Condition.t;
+  }
+
+  let create () = {
+    queue = Queue.create ();
+    mutex = Eio.Mutex.create ();
+    condition = Eio.Condition.create ();
+  }
+
+  let enqueue q item =
+    Eio.Mutex.use_rw ~protect:true q.mutex (fun () ->
+      Queue.add item q.queue;
+      Eio.Condition.broadcast q.condition
+    )
+
+  let dequeue q =
+    Eio.Mutex.use_rw ~protect:true q.mutex (fun () ->
+      while Queue.is_empty q.queue do
+        Eio.Condition.await_no_mutex q.condition
+      done;
+      Queue.take q.queue
+    )
+end
+
+(* Worker pool processing jobs *)
+let run_worker_pool num_workers job_queue process_job =
+  Eio.Switch.run @@ fun sw ->
+
+  (* Spawn workers *)
+  for i = 1 to num_workers do
+    Eio.Fiber.fork ~sw (fun () ->
+      while true do
+        let job = Job_queue.dequeue job_queue in
+        Printf.printf "Worker %d processing job\n" i;
+        process_job job
+      done
+    )
+  done
+]}
+
+{1 Promises: Async Results}
+
+{2 Creating and Resolving Promises}
+
+{[
+(* Create a promise *)
+let promise, resolver = Eio.Promise.create_with_resolver () in
+
+(* Resolve in another fiber *)
+Eio.Fiber.fork ~sw (fun () ->
+  let result = expensive_computation () in
+  Eio.Promise.resolve resolver result
+);
+
+(* Wait for result *)
+let value = Eio.Promise.await promise in
+Printf.printf "Got result: %d\n" value
+]}
+
+{2 Promise Combinators}
+
+{[
+(* Wait for all promises *)
+let wait_all promises =
+  promises |> List.map Eio.Promise.await
+
+(* Parallel API calls *)
+let fetch_multiple_chats client chat_ids =
+  Eio.Switch.run @@ fun sw ->
+
+  let promises =
+    chat_ids |> List.map (fun chat_id ->
+      let promise, resolver = Eio.Promise.create_with_resolver () in
+
+      Eio.Fiber.fork ~sw (fun () ->
+        let result = Gen_methods.get_chat client ~chat_id () in
+        Eio.Promise.resolve resolver result
+      );
+
+      promise
+    )
+  in
+
+  (* Wait for all *)
+  wait_all promises
+]}
+
+{2 Promise with Timeout}
+
+{[
+let await_with_timeout clock timeout promise =
+  Eio.Switch.run @@ fun sw ->
+
+  (* Result promise *)
+  let result_promise, result_resolver = Eio.Promise.create_with_resolver () in
+
+  (* Racing fibers *)
+  Eio.Fiber.fork ~sw (fun () ->
+    (* Wait for original promise *)
+    let value = Eio.Promise.await promise in
+    Eio.Promise.resolve result_resolver (Some value)
+  );
+
+  Eio.Fiber.fork ~sw (fun () ->
+    (* Wait for timeout *)
+    Eio.Time.sleep clock timeout;
+    Eio.Promise.resolve result_resolver None
+  );
+
+  (* Wait for either to complete *)
+  Eio.Promise.await result_promise
+]}
+
+{1 Synchronization Primitives}
+
+{2 Semaphores: Rate Limiting}
+
+{[
+(* Telegram rate limit: 30 messages/second per bot *)
+let rate_limiter = Eio.Semaphore.make 30 in
+
+let send_rate_limited client chat_id text =
+  (* Acquire permit *)
+  Eio.Semaphore.acquire rate_limiter;
+
+  (* Send with cleanup *)
+  Fun.protect
+    ~finally:(fun () ->
+      (* Release permit after 1 second *)
+      Eio.Fiber.fork ~sw (fun () ->
+        Eio.Time.sleep clock 1.0;
+        Eio.Semaphore.release rate_limiter
+      )
+    )
+    (fun () ->
+      Gen_methods.send_message client ~chat_id ~text ()
+    )
+]}
+
+{2 Mutexes: Protecting Shared State}
+
+{[
+type stats = {
+  mutable message_count : int;
+  mutable user_count : int;
+  mutable error_count : int;
+  mutex : Eio.Mutex.t;
+}
+
+let create_stats () = {
+  message_count = 0;
+  user_count = 0;
+  error_count = 0;
+  mutex = Eio.Mutex.create ();
+}
+
+(* Safe increment *)
+let increment_messages stats =
+  Eio.Mutex.use_rw ~protect:true stats.mutex (fun () ->
+    stats.message_count <- stats.message_count + 1
+  )
+
+(* Safe read *)
+let get_stats stats =
+  Eio.Mutex.use_ro stats.mutex (fun () ->
+    (stats.message_count, stats.user_count, stats.error_count)
+  )
+]}
+
+{2 Conditions: Wait for Events}
+
+{[
+type bot_state = {
+  mutable is_running : bool;
+  mutex : Eio.Mutex.t;
+  condition : Eio.Condition.t;
+}
+
+(* Wait for bot to start *)
+let wait_for_bot_start state =
+  Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
+    while not state.is_running do
+      Eio.Condition.await_no_mutex state.condition
+    done
+  )
+
+(* Signal bot started *)
+let signal_bot_started state =
+  Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
+    state.is_running <- true;
+    Eio.Condition.broadcast state.condition
+  )
+]}
+
+{2 Streams: Producer-Consumer}
+
+{[
+(* Simple stream using condition variable *)
+module Stream = struct
+  type 'a t = {
+    buffer : 'a Queue.t;
+    mutex : Eio.Mutex.t;
+    condition : Eio.Condition.t;
+    mutable closed : bool;
+  }
+
+  let create () = {
+    buffer = Queue.create ();
+    mutex = Eio.Mutex.create ();
+    condition = Eio.Condition.create ();
+    closed = false;
+  }
+
+  let push stream item =
+    Eio.Mutex.use_rw ~protect:true stream.mutex (fun () ->
+      if stream.closed then
+        failwith "Stream closed"
+      else (
+        Queue.add item stream.buffer;
+        Eio.Condition.broadcast stream.condition
+      )
+    )
+
+  let pop stream =
+    Eio.Mutex.use_rw ~protect:true stream.mutex (fun () ->
+      while Queue.is_empty stream.buffer && not stream.closed do
+        Eio.Condition.await_no_mutex stream.condition
+      done;
+
+      if Queue.is_empty stream.buffer then
+        None  (* Stream closed and empty *)
+      else
+        Some (Queue.take stream.buffer)
+    )
+
+  let close stream =
+    Eio.Mutex.use_rw ~protect:true stream.mutex (fun () ->
+      stream.closed <- true;
+      Eio.Condition.broadcast stream.condition
+    )
+end
+
+(* Producer-consumer pattern *)
+let run_producer_consumer () =
+  let stream = Stream.create () in
+
+  Eio.Switch.run @@ fun sw ->
+
+  (* Producer *)
+  Eio.Fiber.fork ~sw (fun () ->
+    for i = 1 to 100 do
+      Stream.push stream i;
+      Printf.printf "Produced: %d\n" i;
+      Eio.Time.sleep clock 0.1
+    done;
+    Stream.close stream
+  );
+
+  (* Consumer *)
+  Eio.Fiber.fork ~sw (fun () ->
+    let rec consume () =
+      match Stream.pop stream with
+      | None -> Printf.printf "Stream closed\n"
+      | Some item ->
+          Printf.printf "Consumed: %d\n" item;
+          consume ()
+    in
+    consume ()
+  )
+]}
+
+{1 Timeouts and Cancellation}
+
+{2 Basic Timeouts}
+
+{[
+(* Timeout operation *)
+let send_with_timeout client chat_id text timeout =
+  match Eio.Time.with_timeout clock timeout (fun () ->
+    Gen_methods.send_message client ~chat_id ~text ()
+  ) with
+  | Some result -> result
+  | None -> Error Error.Timeout
+
+(* Example: 5 second timeout *)
+let send_quick client chat_id text =
+  send_with_timeout client chat_id text 5.0
+]}
+
+{2 Cancellable Operations}
+
+{[
+(* Create cancellable switch *)
+let run_cancellable f =
+  Eio.Switch.run @@ fun sw ->
+
+  (* Set up cancellation trigger *)
+  let cancelled = ref false in
+  Eio.Switch.on_release sw (fun () -> cancelled := true);
+
+  (* Run operation *)
+  f sw cancelled
+]}
+
+{2 Timeout with Cleanup}
+
+{[
+let fetch_with_timeout_and_cleanup client chat_id timeout =
+  Eio.Switch.run @@ fun sw ->
+
+  (* Set up cleanup *)
+  Eio.Switch.on_release sw (fun () ->
+    Printf.printf "Cleaning up fetch operation\n"
+  );
+
+  (* Try to fetch with timeout *)
+  match Eio.Time.with_timeout clock timeout (fun () ->
+    Gen_methods.get_chat client ~chat_id ()
+  ) with
+  | Some result -> result
+  | None ->
+      Printf.eprintf "Fetch timed out after %.1fs\n" timeout;
+      Error Error.Timeout
+]}
+
+{1 Production Patterns}
+
+{2 Concurrent Broadcast with Rate Limiting}
+
+{[
+let broadcast_concurrent client chat_ids text ~max_per_second =
+  (* Create rate limiter *)
+  let sem = Eio.Semaphore.make max_per_second in
+  let clock = Eio.Stdenv.clock env in
+
+  (* Track results *)
+  let success_count = ref 0 in
+  let failure_count = ref 0 in
+  let mutex = Eio.Mutex.create () in
+
+  Eio.Switch.run @@ fun sw ->
+
+  (* Send to each chat *)
+  chat_ids |> List.iter (fun chat_id ->
+    Eio.Fiber.fork ~sw (fun () ->
+      (* Acquire rate limit token *)
+      Eio.Semaphore.acquire sem;
+
+      (* Send message *)
+      let result = Gen_methods.send_message client ~chat_id ~text () in
+
+      (* Update stats *)
+      Eio.Mutex.use_rw ~protect:true mutex (fun () ->
+        match result with
+        | Ok _ -> success_count := !success_count + 1
+        | Error _ -> failure_count := !failure_count + 1
+      );
+
+      (* Release token after 1 second *)
+      Eio.Fiber.fork ~sw (fun () ->
+        Eio.Time.sleep clock 1.0;
+        Eio.Semaphore.release sem
+      )
+    )
+  );
+
+  (* Return stats *)
+  (!success_count, !failure_count)
+]}
+
+{2 Worker Pool for Update Processing}
+
+{[
+let create_worker_pool num_workers =
+  let queue = Job_queue.create () in
+
+  (* Start workers *)
+  Eio.Switch.run @@ fun sw ->
+
+  for i = 1 to num_workers do
+    Eio.Fiber.fork ~sw (fun () ->
+      Printf.printf "Worker %d started\n" i;
+
+      let rec process_loop () =
+        let job = Job_queue.dequeue queue in
+
+        begin match job with
+        | `Update (client, update) ->
+            Printf.printf "Worker %d processing update\n" i;
+            begin match handle_update client update with
+            | Ok () -> ()
+            | Error err ->
+                Printf.eprintf "Worker %d error: %a\n" i Error.pp err
+            end
+
+        | `Shutdown ->
+            Printf.printf "Worker %d shutting down\n" i;
+            raise Exit
+        end;
+
+        process_loop ()
+      in
+
+      try process_loop ()
+      with Exit -> ()
+    )
+  done;
+
+  queue
+]}
+
+{2 Parallel File Downloads}
+
+{[
+let download_files_parallel client file_ids output_dir ~max_concurrent =
+  let sem = Eio.Semaphore.make max_concurrent in
+
+  Eio.Switch.run @@ fun sw ->
+
+  let results =
+    file_ids |> List.map (fun file_id ->
+      let promise, resolver = Eio.Promise.create_with_resolver () in
+
+      Eio.Fiber.fork ~sw (fun () ->
+        (* Acquire permit *)
+        Eio.Semaphore.acquire sem;
+
+        Fun.protect
+          ~finally:(fun () -> Eio.Semaphore.release sem)
+          (fun () ->
+            (* Download file *)
+            let result =
+              let* file_info = Gen_methods.get_file client ~file_id () in
+              match file_info.file_path with
+              | None -> Error (Error.Api_error {
+                  code = 400;
+                  description = "No file path";
+                  parameters = None
+                })
+              | Some path ->
+                  let output_path = output_dir ^ "/" ^ file_id in
+                  Download.to_file client path output_path
+            in
+
+            Eio.Promise.resolve resolver result
+          )
+      );
+
+      promise
+    )
+  in
+
+  (* Wait for all downloads *)
+  results |> List.map Eio.Promise.await
+]}
+
+{2 Resilient Bot with Background Tasks}
+
+{[
+let run_production_bot token admin_chat_id =
+  Eio_main.run @@ fun env ->
+  let client = Client.create ~env ~token () in
+  let clock = Eio.Stdenv.clock env in
+
+  (* Shared stats *)
+  let stats = create_stats () in
+
+  Eio.Switch.run @@ fun sw ->
+
+  (* Background: periodic health check *)
+  Eio.Fiber.fork ~sw (fun () ->
+    while true do
+      match Gen_methods.get_me client () with
+      | Ok _ -> Printf.printf "[Health] OK\n"
+      | Error err ->
+          let alert = Printf.sprintf "Health check failed: %a"
+            Error.pp err in
+          let _ = Gen_methods.send_message client ~chat_id:admin_chat_id
+            ~text:alert () in
+          ()
+
+      Eio.Time.sleep clock 60.0
+    done
+  );
+
+  (* Background: hourly stats report *)
+  Eio.Fiber.fork ~sw (fun () ->
+    while true do
+      Eio.Time.sleep clock 3600.0;
+
+      let (msg_count, user_count, err_count) = get_stats stats in
+      let report = Printf.sprintf
+        "📊 Hourly Report:\n\
+         Messages: %d\n\
+         Users: %d\n\
+         Errors: %d"
+        msg_count user_count err_count
+      in
+
+      let _ = Gen_methods.send_message client ~chat_id:admin_chat_id
+        ~text:report () in
+      ()
+    done
+  );
+
+  (* Background: cleanup old sessions *)
+  Eio.Fiber.fork ~sw (fun () ->
+    while true do
+      Eio.Time.sleep clock (6.0 *. 3600.0);  (* Every 6 hours *)
+      cleanup_expired_sessions ();
+      Printf.printf "Session cleanup completed\n"
+    done
+  );
+
+  (* Foreground: process updates with concurrency *)
+  let handle_update_with_stats update =
+    increment_messages stats;
+
+    match handle_update client update with
+    | Ok () -> ()
+    | Error err ->
+        Eio.Mutex.use_rw ~protect:true stats.mutex (fun () ->
+          stats.error_count <- stats.error_count + 1
+        );
+        Printf.eprintf "Error: %a\n" Error.pp err
+  in
+
+  Tg.Polling.run client ~handler:handle_update_with_stats
+]}
+
+{1 Best Practices}
+
+{2 Concurrency Design}
+
+- {b Use structured concurrency}: Always use [Switch.run] to manage fiber lifetimes
+- {b Avoid unbounded concurrency}: Use semaphores to limit concurrent operations
+- {b Handle errors in fibers}: Exceptions cancel entire switch unless caught
+- {b Leverage direct-style}: Write code that looks synchronous but runs async
+- {b Use promises for results}: Fibers don't return values directly
+
+{2 Performance Optimization}
+
+- {b Sequential for ordering}: When order matters (e.g., per-chat messages)
+- {b Concurrent for throughput}: When operations are independent
+- {b Bounded concurrency for safety}: Prevent resource exhaustion
+- {b Rate limiting for API limits}: Respect Telegram's 30 req/sec limit
+- {b Background tasks for maintenance}: Health checks, cleanup, reporting
+
+{2 Resource Management}
+
+- {b Clean up properly}: Use [Switch.on_release] for cleanup handlers
+- {b Protect critical sections}: Use [Fun.protect] with mutexes
+- {b Close resources}: Streams, files, connections
+- {b Limit fiber count}: Don't spawn unlimited fibers
+- {b Monitor resource usage}: Track stats, detect leaks
+
+{2 Error Handling}
+
+- {b Catch fiber exceptions}: Prevent switch cancellation
+- {b Log errors appropriately}: Debug info for developers
+- {b Retry transient failures}: Network errors, timeouts
+- {b Fail fast on fatal errors}: Invalid config, auth failures
+- {b Graceful degradation}: Continue on non-critical errors
+
+{2 Testing Concurrency}
+
+- {b Unit test handlers}: Test logic separately from concurrency
+- {b Integration test patterns}: Test concurrent execution
+- {b Stress test limits}: Verify semaphore, rate limiter behavior
+- {b Test cancellation}: Ensure cleanup handlers run
+- {b Race condition testing}: Use property-based testing
+
+{1 Common Pitfalls}
+
+{2 Forgetting Switch Scope}
+
+{v
+(* BAD: Fiber created outside switch - leaks! *)
+let bad () =
+  let p, r = Eio.Promise.create_with_resolver () in
+  Eio.Fiber.fork (fun () ->  (* ERROR: No switch! *)
+    Eio.Promise.resolve r 42
+  );
+  Eio.Promise.await p
+
+(* GOOD: Fiber in switch scope *)
+let good () =
+  Eio.Switch.run @@ fun sw ->
+  let p, r = Eio.Promise.create_with_resolver () in
+  Eio.Fiber.fork ~sw (fun () ->
+    Eio.Promise.resolve r 42
+  );
+  Eio.Promise.await p
+v}
+
+{2 Mutex Deadlock}
+
+{v
+(* BAD: Nested mutex acquisition - deadlock! *)
+let bad mutex =
+  Eio.Mutex.use_rw ~protect:true mutex (fun () ->
+    (* ... *)
+    Eio.Mutex.use_rw ~protect:true mutex (fun () ->  (* DEADLOCK *)
+      (* ... *)
+    )
+  )
+
+(* GOOD: Single acquisition or separate mutexes *)
+let good mutex =
+  Eio.Mutex.use_rw ~protect:true mutex (fun () ->
+    (* Do all work here *)
+  )
+v}
+
+{2 Unprotected Cleanup}
+
+{v
+(* BAD: Resource leak on exception *)
+let bad sem =
+  Eio.Semaphore.acquire sem;
+  risky_operation ();  (* May throw! *)
+  Eio.Semaphore.release sem  (* Never reached! *)
+
+(* GOOD: Protected cleanup *)
+let good sem =
+  Eio.Semaphore.acquire sem;
+  Fun.protect
+    ~finally:(fun () -> Eio.Semaphore.release sem)
+    (fun () -> risky_operation ())
+v}
+
+{1 See Also}
+
+- {{:https://github.com/ocaml-multicore/eio}Eio Documentation}
+- {{!page-core_concepts}Core Concepts} - Eio concurrency overview
+- {{!page-update_processing}Update Processing} - Concurrent update strategies
+- {{!page-error_handling}Error Handling} - Error handling in concurrent code
+- {{!page-middleware_architecture}Middleware Architecture} - Concurrent middleware
+- {!Tg.Polling} - Long polling with concurrent update handling
+- {!Tg.Webhook} - Webhook server with concurrent request handling
