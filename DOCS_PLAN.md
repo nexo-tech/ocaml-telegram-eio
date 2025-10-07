@@ -10,7 +10,7 @@
 
 ## Progress Tracker
 
-**Overall Completion: 0/45 tasks (0%)**
+**Overall Completion: 0/30 tasks (0%)**
 
 ---
 
@@ -175,10 +175,10 @@ Real-world bot implementations with complete examples.
   - Inline keyboard integration
 
 - [ ] Task 4.6: Webhook bot
-  - Webhook setup
-  - HTTPS configuration
-  - Webhook authentication
-  - Deployment patterns
+  - Webhook setup and configuration
+  - Webhook vs polling tradeoffs
+  - Webhook handler patterns
+  - Request validation
 
 - [ ] Task 4.7: Poll and quiz bot
   - Creating polls
@@ -251,91 +251,6 @@ Comprehensive guides for different bot categories.
   - CI/CD status bot
   - Database query bot
   - API gateway bot
-
----
-
-## Phase 6 — Performance & Optimization (4 tasks)
-
-Making bots fast, efficient, and scalable.
-
-- [ ] Task 6.1: Performance optimization
-  - Request batching
-  - Caching strategies
-  - Memory optimization
-  - Connection pooling
-
-- [ ] Task 6.2: Scalability patterns
-  - Horizontal scaling
-  - Load balancing
-  - Distributed state
-  - Database integration
-
-- [ ] Task 6.3: Rate limiting strategies
-  - Telegram rate limits
-  - User rate limiting
-  - Backpressure handling
-  - Queue management
-
-- [ ] Task 6.4: Monitoring and observability
-  - Metrics collection
-  - Health checks
-  - Performance profiling
-  - Error tracking
-
----
-
-## Phase 7 — Deployment & Production (4 tasks)
-
-Running bots in production environments.
-
-- [ ] Task 7.1: Deployment strategies
-  - Systemd services
-  - Docker containers
-  - Cloud platforms (AWS, GCP, Azure)
-  - Serverless deployment
-
-- [ ] Task 7.2: Configuration management
-  - Environment variables
-  - Configuration files
-  - Secrets management
-  - Multi-environment setup
-
-- [ ] Task 7.3: Logging and debugging
-  - Structured logging
-  - Log aggregation
-  - Debugging in production
-  - Troubleshooting guide
-
-- [ ] Task 7.4: Security best practices
-  - Token management
-  - Input validation
-  - Rate limiting
-  - HTTPS and certificates
-
----
-
-## Phase 8 — Reference Documentation (2 tasks)
-
-Complete API reference and type documentation.
-
-- [ ] Task 8.1: API method reference
-  - All sendMessage variants
-  - Media methods
-  - Chat management
-  - User management
-  - Inline queries
-  - Payments
-  - Games
-  - Stickers
-
-- [ ] Task 8.2: Type reference
-  - Core types (Message, Update, User, Chat)
-  - Media types
-  - Keyboard types
-  - Payment types
-  - Game types
-  - Error types
-  - Helper types
 
 ---
 
@@ -476,7 +391,7 @@ Documentation is complete when:
 5. ✅ All examples compile and run successfully
 6. ✅ Documentation is discoverable through odoc browsing
 7. ✅ Code examples demonstrate functional elegance
-8. ✅ Performance and production concerns are addressed
+8. ✅ Bot development patterns and DSL usage are clear
 
 ---
 
