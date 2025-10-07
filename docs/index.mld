@@ -163,6 +163,7 @@ See the {e examples/} directory for complete, runnable examples:
 - {{!page-middleware_architecture}Middleware Architecture} - Request/response middleware, authentication, authorization, and logging
 - {{!page-error_handling}Error Handling Strategies} - Result types, retry logic, graceful degradation, and user error reporting
 - {{!page-concurrency_patterns}Concurrency Patterns} - Eio fibers, promises, switches, background tasks, and synchronization
+- {{!page-session_management}Session Management} - User sessions, storage backends, expiration, and multi-user coordination
 
 {2 Migration}
 

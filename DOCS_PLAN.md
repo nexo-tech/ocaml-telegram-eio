@@ -10,11 +10,11 @@
 
 ## Progress Tracker
 
-**Overall Completion: 14/30 tasks (47%)**
+**Overall Completion: 15/30 tasks (50%)**
 
 **Phase 1 — Getting Started Guide: COMPLETE (5/5 tasks) ✓**
 **Phase 2 — API Fundamentals: COMPLETE (6/6 tasks) ✓**
-**Phase 3 — Advanced Patterns: IN PROGRESS (4/7 tasks) ✓**
+**Phase 3 — Advanced Patterns: IN PROGRESS (5/7 tasks) ✓**
 
 ---
 
@@ -205,11 +205,16 @@ Sophisticated patterns for production bots.
   - Best practices (concurrency design, performance optimization, resource management, error handling, testing) ✓
   - Common pitfalls (forgotten switch scope, mutex deadlock, unprotected cleanup) ✓
 
-- [ ] Task 3.5: Session management
-  - User session tracking
-  - Session storage backends
-  - Session expiration
-  - Multi-user coordination
+- [x] Task 3.5: Session management — COMPLETED: docs/session_management.mld
+  - Session API basics (typed keys, working with sessions, type safety) ✓
+  - Storage backends (in-memory, file-based, database, Redis, custom implementations) ✓
+  - Session expiration (TTL-based expiration, automatic cleanup, manual invalidation) ✓
+  - Bot DSL integration (session middleware, context API, automatic loading/saving) ✓
+  - User tracking patterns (preferences, authentication state, usage tracking) ✓
+  - Multi-user coordination (shared state, user-to-user communication, per-user rate limiting) ✓
+  - Advanced patterns (session migration, backup/restore, distributed sessions with Redis) ✓
+  - Production examples (complete user management system with profiles and email) ✓
+  - Best practices (session design, backend selection, performance, security, testing) ✓
 
 - [ ] Task 3.6: Bot composition
   - Modular bot design

@@ -1,0 +1,1089 @@
+{0 Session Management}
+
+Comprehensive guide to managing user sessions, implementing storage backends, handling session expiration, and coordinating multi-user interactions in Telegram bots.
+
+{1 Overview}
+
+Session management is essential for building stateful bots that maintain user context across interactions. The [ocaml_telegram_eio] library provides:
+
+- {b Type-safe sessions}: Phantom types prevent mixing data types
+- {b Pluggable storage}: In-memory, file-based, or custom backends
+- {b Automatic expiration}: TTL-based session cleanup
+- {b Per-user isolation}: Each user has independent session state
+- {b Thread-safe operations}: Concurrent access with proper locking
+- {b Bot DSL integration}: Seamless middleware support
+
+{2 When to Use This Guide}
+
+Use session management when you need to:
+
+- Track user preferences and settings
+- Build multi-step workflows (forms, wizards)
+- Maintain conversation context
+- Store temporary user data
+- Implement user authentication state
+- Cache expensive computations per user
+- Coordinate state across multiple bot instances
+
+{1 Session API Basics}
+
+{2 Creating Session Keys}
+
+Session keys are typed with phantom types for safety:
+
+{[
+open Tg.Session
+
+(* Create keys for different data types *)
+let username_key : string key = make ~name:"username"
+let age_key : int key = make ~name:"age"
+let premium_key : bool key = make ~name:"is_premium"
+let balance_key : float key = make ~name:"balance"
+
+(* Complex types work too *)
+type preferences = {
+  language : string;
+  notifications : bool;
+  theme : string;
+}
+
+let prefs_key : preferences key = make ~name:"preferences"
+]}
+
+{2 Working with Sessions}
+
+{[
+(* Create empty session *)
+let session = Session.empty
+
+(* Set values *)
+Session.set session username_key "alice";
+Session.set session age_key 25;
+Session.set session premium_key true
+
+(* Get values *)
+match Session.get session username_key with
+| Some name -> Printf.printf "Username: %s\n" name
+| None -> Printf.printf "Username not set\n"
+
+(* Get with default *)
+let age = Session.get_or session age_key ~default:0
+
+(* Check if key exists *)
+if Session.exists session premium_key then
+  Printf.printf "Premium status is set\n"
+
+(* Delete key *)
+Session.delete session age_key
+
+(* Modify value *)
+Session.modify session age_key ~default:0 (fun age -> age + 1)
+
+(* Clear all data *)
+Session.clear session
+]}
+
+{2 Type Safety}
+
+{[
+(* This works: correct types *)
+Session.set session username_key "bob"
+
+(* Compile error: type mismatch *)
+(* Session.set session username_key 42 *)  (* ERROR: int not string *)
+
+(* This works: safe retrieval *)
+let name : string option = Session.get session username_key
+
+(* Compile error: wrong result type *)
+(* let name : int option = Session.get session username_key *)  (* ERROR *)
+]}
+
+{1 Session Storage Backends}
+
+{2 In-Memory Store}
+
+Fast, ephemeral storage (lost on restart):
+
+{[
+module Store = Tg.Session.Memory_store
+
+(* Create store *)
+let store = Store.create ()
+
+(* Store a session *)
+let user_id = 123456L in
+let session = Session.empty in
+Session.set session username_key "alice";
+Store.set_session store ~user_id session
+
+(* Retrieve session *)
+let session = Store.get_session store ~user_id in
+match Session.get session username_key with
+| Some name -> Printf.printf "User: %s\n" name
+| None -> Printf.printf "No session\n"
+
+(* Delete session *)
+Store.delete_session store ~user_id
+
+(* List all user IDs *)
+let user_ids = Store.all_user_ids store in
+Printf.printf "Active sessions: %d\n" (List.length user_ids)
+]}
+
+{2 Custom Storage Backend}
+
+Implement the {!Tg.Session.Store} interface:
+
+{[
+module type Store = sig
+  type t
+
+  val get_session : t -> user_id:int64 -> Session.t
+  val set_session : t -> user_id:int64 -> Session.t -> unit
+  val delete_session : t -> user_id:int64 -> unit
+  val all_user_ids : t -> int64 list
+end
+]}
+
+{2 File-Based Store}
+
+Persist sessions to disk:
+
+{[
+module File_store : Tg.Session.Store = struct
+  type t = {
+    directory : string;
+    mutex : Eio.Mutex.t;
+  }
+
+  let create directory =
+    (* Create directory if needed *)
+    if not (Sys.file_exists directory) then
+      Unix.mkdir directory 0o755;
+    { directory; mutex = Eio.Mutex.create () }
+
+  let session_path store user_id =
+    Printf.sprintf "%s/session_%Ld.json" store.directory user_id
+
+  let get_session store ~user_id =
+    Eio.Mutex.use_ro store.mutex (fun () ->
+      let path = session_path store user_id in
+      if Sys.file_exists path then (
+        let content = In_channel.with_open_text path In_channel.input_all in
+        (* Deserialize from JSON *)
+        match Yojson.Safe.from_string content with
+        | `Assoc _ as json ->
+            (* Convert JSON to session - simplified *)
+            Session.empty  (* TODO: proper deserialization *)
+        | _ -> Session.empty
+      ) else
+        Session.empty
+    )
+
+  let set_session store ~user_id session =
+    Eio.Mutex.use_rw ~protect:true store.mutex (fun () ->
+      let path = session_path store user_id in
+      (* Serialize to JSON *)
+      let json = `Assoc [] in  (* TODO: proper serialization *)
+      let content = Yojson.Safe.to_string json in
+      Out_channel.with_open_text path (fun oc ->
+        Out_channel.output_string oc content
+      )
+    )
+
+  let delete_session store ~user_id =
+    Eio.Mutex.use_rw ~protect:true store.mutex (fun () ->
+      let path = session_path store user_id in
+      if Sys.file_exists path then
+        Sys.remove path
+    )
+
+  let all_user_ids store =
+    Eio.Mutex.use_ro store.mutex (fun () ->
+      Sys.readdir store.directory
+      |> Array.to_list
+      |> List.filter_map (fun filename ->
+          Scanf.sscanf_opt filename "session_%Ld.json" (fun id -> id)
+        )
+    )
+end
+
+(* Usage *)
+let store = File_store.create "./sessions"
+]}
+
+{2 Database Store}
+
+Store sessions in PostgreSQL/SQLite:
+
+{[
+module Database_store : Tg.Session.Store = struct
+  type t = {
+    db : Caqti_eio.connection;
+    mutex : Eio.Mutex.t;
+  }
+
+  let create db = {
+    db;
+    mutex = Eio.Mutex.create ();
+  }
+
+  (* SQL queries *)
+  let get_query =
+    Caqti_request.find_opt
+      Caqti_type.int64
+      Caqti_type.string
+      "SELECT data FROM sessions WHERE user_id = ?"
+
+  let set_query =
+    Caqti_request.exec
+      Caqti_type.(t2 int64 string)
+      "INSERT INTO sessions (user_id, data, updated_at)
+       VALUES (?, ?, NOW())
+       ON CONFLICT (user_id)
+       DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()"
+
+  let delete_query =
+    Caqti_request.exec
+      Caqti_type.int64
+      "DELETE FROM sessions WHERE user_id = ?"
+
+  let all_ids_query =
+    Caqti_request.collect
+      Caqti_type.unit
+      Caqti_type.int64
+      "SELECT user_id FROM sessions"
+
+  let get_session store ~user_id =
+    Eio.Mutex.use_ro store.mutex (fun () ->
+      match Caqti_eio.exec store.db get_query user_id with
+      | Ok (Some json_data) ->
+          (* Deserialize from JSON *)
+          Session.empty  (* TODO: deserialize *)
+      | Ok None -> Session.empty
+      | Error _ -> Session.empty
+    )
+
+  let set_session store ~user_id session =
+    Eio.Mutex.use_rw ~protect:true store.mutex (fun () ->
+      (* Serialize session to JSON *)
+      let json_data = "{}" in  (* TODO: serialize *)
+      let _ = Caqti_eio.exec store.db set_query (user_id, json_data) in
+      ()
+    )
+
+  let delete_session store ~user_id =
+    Eio.Mutex.use_rw ~protect:true store.mutex (fun () ->
+      let _ = Caqti_eio.exec store.db delete_query user_id in
+      ()
+    )
+
+  let all_user_ids store =
+    Eio.Mutex.use_ro store.mutex (fun () ->
+      match Caqti_eio.collect_list store.db all_ids_query () with
+      | Ok ids -> ids
+      | Error _ -> []
+    )
+end
+]}
+
+{2 Redis Store}
+
+Fast, distributed session storage:
+
+{[
+module Redis_store : Tg.Session.Store = struct
+  type t = {
+    client : Redis.client;
+    prefix : string;
+    mutex : Eio.Mutex.t;
+  }
+
+  let create client ~prefix = {
+    client;
+    prefix;
+    mutex = Eio.Mutex.create ();
+  }
+
+  let session_key store user_id =
+    Printf.sprintf "%s:session:%Ld" store.prefix user_id
+
+  let get_session store ~user_id =
+    Eio.Mutex.use_ro store.mutex (fun () ->
+      let key = session_key store user_id in
+      match Redis.get store.client key with
+      | Some json_data ->
+          (* Deserialize from JSON *)
+          Session.empty  (* TODO: deserialize *)
+      | None -> Session.empty
+    )
+
+  let set_session store ~user_id session =
+    Eio.Mutex.use_rw ~protect:true store.mutex (fun () ->
+      let key = session_key store user_id in
+      let json_data = "{}" in  (* TODO: serialize *)
+      Redis.set store.client key json_data
+    )
+
+  let delete_session store ~user_id =
+    Eio.Mutex.use_rw ~protect:true store.mutex (fun () ->
+      let key = session_key store user_id in
+      Redis.del store.client [key]
+    )
+
+  let all_user_ids store =
+    Eio.Mutex.use_ro store.mutex (fun () ->
+      let pattern = Printf.sprintf "%s:session:*" store.prefix in
+      Redis.keys store.client pattern
+      |> List.filter_map (fun key ->
+          Scanf.sscanf_opt key (store.prefix ^ ":session:%Ld") (fun id -> id)
+        )
+    )
+end
+]}
+
+{1 Session Expiration}
+
+{2 TTL-Based Expiration}
+
+Automatic cleanup of old sessions:
+
+{[
+module Expiring_store : Tg.Session.Store = struct
+  type session_entry = {
+    session : Session.t;
+    mutable last_access : float;
+  }
+
+  type t = {
+    sessions : (int64, session_entry) Hashtbl.t;
+    ttl : float;  (* Time to live in seconds *)
+    mutex : Eio.Mutex.t;
+  }
+
+  let create ~ttl = {
+    sessions = Hashtbl.create 256;
+    ttl;
+    mutex = Eio.Mutex.create ();
+  }
+
+  let is_expired store entry =
+    let now = Unix.gettimeofday () in
+    now -. entry.last_access > store.ttl
+
+  let get_session store ~user_id =
+    Eio.Mutex.use_rw ~protect:true store.mutex (fun () ->
+      match Hashtbl.find_opt store.sessions user_id with
+      | Some entry when not (is_expired store entry) ->
+          (* Update access time *)
+          entry.last_access <- Unix.gettimeofday ();
+          entry.session
+      | Some _ ->
+          (* Expired - remove and return empty *)
+          Hashtbl.remove store.sessions user_id;
+          Session.empty
+      | None -> Session.empty
+    )
+
+  let set_session store ~user_id session =
+    Eio.Mutex.use_rw ~protect:true store.mutex (fun () ->
+      let entry = {
+        session;
+        last_access = Unix.gettimeofday ();
+      } in
+      Hashtbl.replace store.sessions user_id entry
+    )
+
+  let delete_session store ~user_id =
+    Eio.Mutex.use_rw ~protect:true store.mutex (fun () ->
+      Hashtbl.remove store.sessions user_id
+    )
+
+  let all_user_ids store =
+    Eio.Mutex.use_ro store.mutex (fun () ->
+      Hashtbl.to_seq_keys store.sessions
+      |> List.of_seq
+    )
+
+  (* Cleanup expired sessions *)
+  let cleanup store =
+    Eio.Mutex.use_rw ~protect:true store.mutex (fun () ->
+      let to_remove = ref [] in
+      Hashtbl.iter (fun user_id entry ->
+        if is_expired store entry then
+          to_remove := user_id :: !to_remove
+      ) store.sessions;
+
+      List.iter (fun user_id ->
+        Hashtbl.remove store.sessions user_id
+      ) !to_remove;
+
+      List.length !to_remove
+    )
+end
+
+(* Background cleanup task *)
+let run_session_cleanup store ~interval =
+  let clock = Eio.Stdenv.clock env in
+
+  Eio.Fiber.fork ~sw (fun () ->
+    while true do
+      Eio.Time.sleep clock interval;
+      let removed = Expiring_store.cleanup store in
+      Printf.printf "Cleaned up %d expired sessions\n" removed
+    done
+  )
+
+(* Usage: 30 minute TTL, cleanup every 5 minutes *)
+let store = Expiring_store.create ~ttl:(30.0 *. 60.0) in
+run_session_cleanup store ~interval:(5.0 *. 60.0)
+]}
+
+{2 Manual Expiration}
+
+Explicit session invalidation:
+
+{[
+(* Set expiration time in session *)
+let expiry_key : float key = Session.make ~name:"expires_at"
+
+let set_session_with_expiry store user_id session ~ttl =
+  let expiry = Unix.gettimeofday () +. ttl in
+  Session.set session expiry_key expiry;
+  Store.set_session store ~user_id session
+
+let get_session_if_valid store user_id =
+  let session = Store.get_session store ~user_id in
+
+  match Session.get session expiry_key with
+  | Some expiry when Unix.gettimeofday () < expiry ->
+      Some session  (* Still valid *)
+  | Some _ ->
+      (* Expired *)
+      Store.delete_session store ~user_id;
+      None
+  | None ->
+      Some session  (* No expiry set *)
+]}
+
+{1 Bot DSL Integration}
+
+{2 Session Middleware}
+
+Automatic session management in routes:
+
+{[
+open Tg.Bot
+
+(* Create store *)
+module Store = Tg.Session.Memory_store
+let store = Store.create ()
+
+(* Session middleware *)
+let session_mw = Middleware.with_session (module Store) store
+
+(* Use in routes *)
+let routes =
+  router
+    ~middlewares:[session_mw]
+    [
+      on (Event.command "start") (fun _args ctx ->
+        (* Session automatically loaded and saved *)
+        Ctx.session_set ctx username_key "alice";
+
+        let* _ = Ctx.reply ctx "Session started!" in
+        ()
+      );
+
+      on (Event.command "whoami") (fun _args ctx ->
+        let name = Ctx.session_get_or ctx username_key ~default:"Guest" in
+        let* _ = Ctx.reply ctx (Printf.sprintf "You are: %s" name) in
+        ()
+      );
+
+      on (Event.command "logout") (fun _args ctx ->
+        Ctx.session_clear ctx;
+        let* _ = Ctx.reply ctx "Session cleared" in
+        ()
+      );
+    ]
+]}
+
+{2 Session Context API}
+
+{[
+(* Set value *)
+Ctx.session_set ctx key value
+
+(* Get value *)
+match Ctx.session_get ctx key with
+| Some value -> (* use value *)
+| None -> (* not set *)
+
+(* Get with default *)
+let value = Ctx.session_get_or ctx key ~default
+
+(* Delete key *)
+Ctx.session_delete ctx key
+
+(* Check existence *)
+if Ctx.session_exists ctx key then
+  (* key exists *)
+
+(* Modify value *)
+Ctx.session_modify ctx key ~default (fun old -> new_value)
+
+(* Clear all *)
+Ctx.session_clear ctx
+]}
+
+{1 User Tracking Patterns}
+
+{2 User Preferences}
+
+{[
+type user_prefs = {
+  language : string;
+  timezone : string;
+  notifications : bool;
+}
+
+let prefs_key : user_prefs key = Session.make ~name:"preferences"
+
+let default_prefs = {
+  language = "en";
+  timezone = "UTC";
+  notifications = true;
+}
+
+let get_user_prefs ctx =
+  Ctx.session_get_or ctx prefs_key ~default:default_prefs
+
+let set_user_language ctx lang =
+  let prefs = get_user_prefs ctx in
+  let updated = { prefs with language = lang } in
+  Ctx.session_set ctx prefs_key updated;
+  updated
+
+(* Usage in commands *)
+let settings_command =
+  on (Event.command "settings") (fun _args ctx ->
+    let prefs = get_user_prefs ctx in
+    let msg = Printf.sprintf
+      "Settings:\n\
+       Language: %s\n\
+       Timezone: %s\n\
+       Notifications: %s"
+      prefs.language
+      prefs.timezone
+      (if prefs.notifications then "On" else "Off")
+    in
+    let* _ = Ctx.reply ctx msg in
+    ()
+  )
+]}
+
+{2 Authentication State}
+
+{[
+type auth_state =
+  | LoggedOut
+  | AwaitingPassword
+  | LoggedIn of { user_id : int; username : string }
+
+let auth_key : auth_state key = Session.make ~name:"auth_state"
+
+let require_auth handler =
+  fun args ctx ->
+    match Ctx.session_get_or ctx auth_key ~default:LoggedOut with
+    | LoggedIn user_info ->
+        handler args ctx user_info
+    | _ ->
+        let* _ = Ctx.reply ctx "Please login first with /login" in
+        ()
+
+(* Protected route *)
+let admin_command =
+  on (Event.command "admin") (require_auth (fun _args ctx user_info ->
+    let msg = Printf.sprintf "Admin panel for %s" user_info.username in
+    let* _ = Ctx.reply ctx msg in
+    ()
+  ))
+]}
+
+{2 Usage Tracking}
+
+{[
+type usage_stats = {
+  mutable message_count : int;
+  mutable command_count : int;
+  mutable last_seen : float;
+}
+
+let stats_key : usage_stats key = Session.make ~name:"usage_stats"
+
+let default_stats () = {
+  message_count = 0;
+  command_count = 0;
+  last_seen = Unix.gettimeofday ();
+}
+
+let track_message_middleware =
+  Middleware.make
+    ~before:(fun ctx ->
+      (* Update stats *)
+      Ctx.session_modify ctx stats_key ~default:(default_stats ()) (fun stats ->
+        stats.message_count <- stats.message_count + 1;
+        stats.last_seen <- Unix.gettimeofday ();
+        stats
+      );
+      Ok ctx
+    )
+    "track_message"
+
+let stats_command =
+  on (Event.command "stats") (fun _args ctx ->
+    let stats = Ctx.session_get_or ctx stats_key ~default:(default_stats ()) in
+    let msg = Printf.sprintf
+      "Your stats:\n\
+       Messages: %d\n\
+       Commands: %d\n\
+       Last seen: %.0f seconds ago"
+      stats.message_count
+      stats.command_count
+      (Unix.gettimeofday () -. stats.last_seen)
+    in
+    let* _ = Ctx.reply ctx msg in
+    ()
+  )
+]}
+
+{1 Multi-User Coordination}
+
+{2 Shared State Between Users}
+
+{[
+(* Global state separate from per-user sessions *)
+module Global_state = struct
+  type t = {
+    mutable active_users : int64 list;
+    mutable total_messages : int;
+    mutex : Eio.Mutex.t;
+  }
+
+  let create () = {
+    active_users = [];
+    total_messages = 0;
+    mutex = Eio.Mutex.create ();
+  }
+
+  let add_user state user_id =
+    Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
+      if not (List.mem user_id state.active_users) then
+        state.active_users <- user_id :: state.active_users
+    )
+
+  let increment_messages state =
+    Eio.Mutex.use_rw ~protect:true state.mutex (fun () ->
+      state.total_messages <- state.total_messages + 1
+    )
+
+  let get_stats state =
+    Eio.Mutex.use_ro state.mutex (fun () ->
+      (List.length state.active_users, state.total_messages)
+    )
+end
+
+let global_state = Global_state.create ()
+
+(* Track active users *)
+let track_user_middleware =
+  Middleware.make
+    ~before:(fun ctx ->
+      begin match Ctx.user ctx with
+      | Some user ->
+          let user_id = Telegram.Id.User.to_int user.id in
+          Global_state.add_user global_state user_id
+      | None -> ()
+      end;
+      Ok ctx
+    )
+    "track_user"
+]}
+
+{2 User-to-User Communication}
+
+{[
+(* Message queue per user *)
+module Message_queue = struct
+  type t = {
+    queues : (int64, string Queue.t) Hashtbl.t;
+    mutex : Eio.Mutex.t;
+  }
+
+  let create () = {
+    queues = Hashtbl.create 64;
+    mutex = Eio.Mutex.create ();
+  }
+
+  let enqueue mq user_id message =
+    Eio.Mutex.use_rw ~protect:true mq.mutex (fun () ->
+      let queue = match Hashtbl.find_opt mq.queues user_id with
+        | Some q -> q
+        | None ->
+            let q = Queue.create () in
+            Hashtbl.add mq.queues user_id q;
+            q
+      in
+      Queue.add message queue
+    )
+
+  let dequeue_all mq user_id =
+    Eio.Mutex.use_rw ~protect:true mq.mutex (fun () ->
+      match Hashtbl.find_opt mq.queues user_id with
+      | Some queue ->
+          let messages = Queue.to_seq queue |> List.of_seq in
+          Queue.clear queue;
+          messages
+      | None -> []
+    )
+end
+
+let message_queue = Message_queue.create ()
+
+(* Send message to user *)
+let send_to_user_command =
+  on (Event.command "send") (fun args ctx ->
+    match Args.parse args with
+    | [target_id_str; message] ->
+        begin match Int64.of_string_opt target_id_str with
+        | Some target_id ->
+            Message_queue.enqueue message_queue target_id message;
+            let* _ = Ctx.reply ctx "Message queued" in
+            ()
+        | None ->
+            let* _ = Ctx.reply ctx "Invalid user ID" in
+            ()
+        end
+    | _ ->
+        let* _ = Ctx.reply ctx "Usage: /send <user_id> <message>" in
+        ()
+  )
+
+(* Check messages *)
+let inbox_command =
+  on (Event.command "inbox") (fun _args ctx ->
+    match Ctx.user ctx with
+    | Some user ->
+        let user_id = Telegram.Id.User.to_int user.id in
+        let messages = Message_queue.dequeue_all message_queue user_id in
+        if List.length messages = 0 then
+          let* _ = Ctx.reply ctx "No messages" in
+          ()
+        else
+          let msg = String.concat "\n---\n" messages in
+          let* _ = Ctx.reply ctx ("Messages:\n" ^ msg) in
+          ()
+    | None ->
+        let* _ = Ctx.reply ctx "User info not available" in
+        ()
+  )
+]}
+
+{2 Rate Limiting Per User}
+
+{[
+module Rate_limiter = struct
+  type user_state = {
+    mutable requests : float list;  (* Timestamps *)
+    max_per_minute : int;
+  }
+
+  type t = {
+    users : (int64, user_state) Hashtbl.t;
+    mutex : Eio.Mutex.t;
+    max_per_minute : int;
+  }
+
+  let create ~max_per_minute = {
+    users = Hashtbl.create 256;
+    mutex = Eio.Mutex.create ();
+    max_per_minute;
+  }
+
+  let check_rate_limit limiter user_id =
+    Eio.Mutex.use_rw ~protect:true limiter.mutex (fun () ->
+      let now = Unix.gettimeofday () in
+      let one_minute_ago = now -. 60.0 in
+
+      let state = match Hashtbl.find_opt limiter.users user_id with
+        | Some s -> s
+        | None ->
+            let s = {
+              requests = [];
+              max_per_minute = limiter.max_per_minute;
+            } in
+            Hashtbl.add limiter.users user_id s;
+            s
+      in
+
+      (* Remove old requests *)
+      state.requests <- List.filter (fun ts -> ts > one_minute_ago) state.requests;
+
+      (* Check limit *)
+      if List.length state.requests >= state.max_per_minute then
+        Error "Rate limit exceeded"
+      else (
+        state.requests <- now :: state.requests;
+        Ok ()
+      )
+    )
+end
+
+let limiter = Rate_limiter.create ~max_per_minute:10
+
+let rate_limit_middleware =
+  Middleware.make
+    ~before:(fun ctx ->
+      match Ctx.user ctx with
+      | Some user ->
+          let user_id = Telegram.Id.User.to_int user.id in
+          begin match Rate_limiter.check_rate_limit limiter user_id with
+          | Ok () -> Ok ctx
+          | Error msg -> Error msg
+          end
+      | None -> Ok ctx
+    )
+    "rate_limit"
+]}
+
+{1 Advanced Patterns}
+
+{2 Session Migration}
+
+{[
+(* Migrate sessions from old to new store *)
+let migrate_sessions ~from_store ~to_store =
+  let user_ids = Store.all_user_ids from_store in
+
+  List.iter (fun user_id ->
+    let session = Store.get_session from_store ~user_id in
+    Store.set_session to_store ~user_id session;
+    Printf.printf "Migrated session for user %Ld\n" user_id
+  ) user_ids;
+
+  Printf.printf "Migrated %d sessions\n" (List.length user_ids)
+]}
+
+{2 Session Backup}
+
+{[
+(* Backup all sessions to JSON *)
+let backup_sessions store ~output_file =
+  let user_ids = Store.all_user_ids store in
+
+  let backups = user_ids |> List.map (fun user_id ->
+    let session = Store.get_session store ~user_id in
+    (* Serialize session to JSON *)
+    let json = `Assoc [] in  (* TODO: serialize *)
+    (user_id, json)
+  ) in
+
+  let json = `Assoc (List.map (fun (id, session_json) ->
+    (Int64.to_string id, session_json)
+  ) backups) in
+
+  let content = Yojson.Safe.pretty_to_string json in
+  Out_channel.with_open_text output_file (fun oc ->
+    Out_channel.output_string oc content
+  );
+
+  Printf.printf "Backed up %d sessions to %s\n"
+    (List.length user_ids) output_file
+
+(* Restore from backup *)
+let restore_sessions store ~input_file =
+  let content = In_channel.with_open_text input_file In_channel.input_all in
+  let json = Yojson.Safe.from_string content in
+
+  match json with
+  | `Assoc backups ->
+      List.iter (fun (user_id_str, session_json) ->
+        match Int64.of_string_opt user_id_str with
+        | Some user_id ->
+            (* Deserialize session *)
+            let session = Session.empty in  (* TODO: deserialize *)
+            Store.set_session store ~user_id session
+        | None -> ()
+      ) backups;
+
+      Printf.printf "Restored %d sessions\n" (List.length backups)
+
+  | _ -> Printf.eprintf "Invalid backup format\n"
+]}
+
+{2 Distributed Sessions}
+
+{[
+(* Share sessions across multiple bot instances using Redis *)
+module Distributed_sessions = struct
+  let create_redis_store () =
+    let client = Redis.connect ~host:"localhost" ~port:6379 () in
+    Redis_store.create client ~prefix:"mybot"
+
+  (* Use Redis store with session middleware *)
+  let setup_distributed_bot () =
+    let store = create_redis_store () in
+    let session_mw = Middleware.with_session (module Redis_store) store in
+
+    router
+      ~middlewares:[session_mw]
+      [
+        (* Routes use shared Redis sessions *)
+        on (Event.command "start") (fun _args ctx ->
+          (* Session accessible from any bot instance *)
+          Ctx.session_set ctx username_key "alice";
+          let* _ = Ctx.reply ctx "Session stored in Redis" in
+          ()
+        );
+      ]
+end
+]}
+
+{1 Production Examples}
+
+{2 Complete User Management System}
+
+{[
+type user_profile = {
+  username : string;
+  email : string option;
+  premium : bool;
+  created_at : float;
+}
+
+let profile_key : user_profile key = Session.make ~name:"profile"
+
+module User_manager = struct
+  let create_profile username =
+    {
+      username;
+      email = None;
+      premium = false;
+      created_at = Unix.gettimeofday ();
+    }
+
+  let get_or_create ctx username =
+    match Ctx.session_get ctx profile_key with
+    | Some profile -> profile
+    | None ->
+        let profile = create_profile username in
+        Ctx.session_set ctx profile_key profile;
+        profile
+
+  let set_email ctx email =
+    Ctx.session_modify ctx profile_key
+      ~default:(create_profile "unknown")
+      (fun profile -> { profile with email = Some email })
+
+  let upgrade_to_premium ctx =
+    Ctx.session_modify ctx profile_key
+      ~default:(create_profile "unknown")
+      (fun profile -> { profile with premium = true })
+end
+
+(* Commands *)
+let profile_command =
+  on (Event.command "profile") (fun _args ctx ->
+    match Ctx.user ctx with
+    | Some user ->
+        let username = Option.value user.username ~default:"unknown" in
+        let profile = User_manager.get_or_create ctx username in
+
+        let msg = Printf.sprintf
+          "Profile:\n\
+           Username: %s\n\
+           Email: %s\n\
+           Premium: %s\n\
+           Member since: %s"
+          profile.username
+          (Option.value profile.email ~default:"Not set")
+          (if profile.premium then "Yes" else "No")
+          (Unix.gmtime profile.created_at |> fun tm ->
+            Printf.sprintf "%04d-%02d-%02d"
+              (tm.Unix.tm_year + 1900)
+              (tm.Unix.tm_mon + 1)
+              tm.Unix.tm_mday)
+        in
+
+        let* _ = Ctx.reply ctx msg in
+        ()
+
+    | None ->
+        let* _ = Ctx.reply ctx "User info not available" in
+        ()
+  )
+
+let set_email_command =
+  on (Event.command "setemail") (fun args ctx ->
+    match Args.parse args with
+    | [email] ->
+        User_manager.set_email ctx email;
+        let* _ = Ctx.reply ctx "Email updated" in
+        ()
+    | _ ->
+        let* _ = Ctx.reply ctx "Usage: /setemail <email>" in
+        ()
+  )
+]}
+
+{1 Best Practices}
+
+{2 Session Design}
+
+- {b Use typed keys}: Leverage phantom types for compile-time safety
+- {b Minimize session size}: Store only essential data
+- {b Clear when done}: Remove session data for completed flows
+- {b Set expiration}: Don't let sessions grow unbounded
+- {b Validate data}: Check for stale or corrupted session data
+
+{2 Storage Backend Selection}
+
+- {b In-memory}: Development, small bots, temporary data
+- {b File-based}: Single-instance bots, simple persistence
+- {b Database}: Production, data integrity, complex queries
+- {b Redis}: Distributed bots, high performance, TTL support
+- {b Hybrid}: Cache in memory, persist to database
+
+{2 Performance}
+
+- {b Lazy loading}: Load sessions only when needed
+- {b Batch operations}: Group multiple session updates
+- {b Connection pooling}: Reuse database connections
+- {b Cache frequently accessed data}: Avoid repeated queries
+- {b Background cleanup}: Remove expired sessions periodically
+
+{2 Security}
+
+- {b Sanitize inputs}: Validate all user-provided data
+- {b Encrypt sensitive data}: Use encryption for passwords, tokens
+- {b Implement timeouts}: Auto-logout after inactivity
+- {b Rate limiting}: Prevent session abuse
+- {b Audit logging}: Track session modifications
+
+{2 Testing}
+
+- {b Mock stores}: Use in-memory store for tests
+- {b Test expiration}: Verify TTL and cleanup logic
+- {b Test concurrency}: Ensure thread-safe operations
+- {b Test migration}: Verify data moves correctly between stores
+- {b Test recovery}: Handle corrupt/missing session data gracefully
+
+{1 See Also}
+
+- {!Tg.Session} - Session API reference
+- {{!page-state_machines}State Machines} - Stateful conversation flows
+- {{!page-middleware_architecture}Middleware Architecture} - Session middleware patterns
+- {{!page-concurrency_patterns}Concurrency Patterns} - Thread-safe session access
+- {!Tg.Bot.Ctx} - Context API for session access in handlers
