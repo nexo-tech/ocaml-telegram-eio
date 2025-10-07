@@ -10,12 +10,12 @@
 
 ## Progress Tracker
 
-**Overall Completion: 18/30 tasks (60%)**
+**Overall Completion: 19/30 tasks (63%)**
 
 **Phase 1 — Getting Started Guide: COMPLETE (5/5 tasks) ✓**
 **Phase 2 — API Fundamentals: COMPLETE (6/6 tasks) ✓**
 **Phase 3 — Advanced Patterns: COMPLETE (7/7 tasks) ✓**
-**Phase 4 — Cookbook & Recipes: IN PROGRESS (1/12 tasks) ✓**
+**Phase 4 — Cookbook & Recipes: IN PROGRESS (2/12 tasks) ✓**
 
 ---
 
@@ -254,11 +254,14 @@ Real-world bot implementations with complete examples.
   - Complete production example (full-featured bot with tracking and stats) ✓
   - Best practices (command design, help system, admin commands, argument parsing) ✓
 
-- [ ] Task 4.2: Echo bot variations
-  - Simple echo
-  - Echo with formatting
-  - Selective echo (filters)
-  - Echo with transformations
+- [x] Task 4.2: Echo bot variations — COMPLETED: docs/recipe_echo_bot.mld
+  - Simple echo (basic message mirroring) ✓
+  - Echo with formatting (HTML/Markdown, bold/italic/code, escaping) ✓
+  - Selective echo with filters (user-based, chat-type, keyword, content type) ✓
+  - Echo with transformations (uppercase, reverse, l33t speak, remove vowels, character frequency) ✓
+  - Smart context-aware echo (questions, greetings, URLs, sentiment analysis) ✓
+  - Complete production example (session-based preferences with style and transform settings) ✓
+  - Best practices (formatting, filter design, transformation design, user experience) ✓
 
 - [ ] Task 4.3: Keyboard bot patterns
   - Menu navigation

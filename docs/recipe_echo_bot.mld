@@ -1,0 +1,809 @@
+{0 Recipe: Echo Bot Variations}
+
+Complete guide to building echo bots: from simple message mirrors to sophisticated bots with formatting, filters, and transformations.
+
+{1 Overview}
+
+Echo bots are the "Hello World" of Telegram bots. They demonstrate core concepts while being simple enough to understand quickly. This recipe shows progressively more sophisticated echo bot implementations.
+
+{2 What You'll Build}
+
+- Simple echo bot (basic message mirroring)
+- Echo with rich text formatting
+- Selective echo (content-based filtering)
+- Echo with transformations (uppercase, reverse, etc.)
+- Smart echo (context-aware responses)
+
+{2 Prerequisites}
+
+- Basic understanding of {{!page-message_handling}Message Handling}
+- Familiarity with {{!page-command_dsl}Command DSL}
+
+{1 Simple Echo Bot}
+
+{2 Basic Echo}
+
+The simplest possible echo bot:
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+open Tg.Bot
+
+let () =
+  Eio_main.run @@ fun env ->
+
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token () in
+
+  let routes = [
+    (* Echo all text messages *)
+    on Event.text (fun text ctx ->
+      let* _ = Ctx.reply ctx text in
+      ()
+    );
+  ] in
+
+  run_polling ~env ~client routes
+]}
+
+{2 Echo with Command Support}
+
+Add commands while echoing other messages:
+
+{[
+let routes = [
+  (* Start command *)
+  on (Event.command "start") (fun _args ctx ->
+    let* _ = Ctx.reply ctx
+      "👋 I'm an echo bot!\n\
+       Send me any message and I'll echo it back."
+    in
+    ()
+  );
+
+  (* Stop command *)
+  on (Event.command "stop") (fun _args ctx ->
+    let* _ = Ctx.reply ctx "Goodbye! Use /start to resume." in
+    ()
+  );
+
+  (* Echo everything else *)
+  on Event.text (fun text ctx ->
+    let* _ = Ctx.reply ctx text in
+    ()
+  );
+]
+]}
+
+{2 Echo with Metadata}
+
+Show message information along with the echo:
+
+{[
+let echo_with_info =
+  on Event.text (fun text ctx ->
+    match Ctx.message ctx with
+    | Some msg ->
+        let info = Printf.sprintf
+          "📨 Message Info:\n\
+           Length: %d characters\n\
+           Words: %d\n\
+           From: %s\n\n\
+           Echo: %s"
+          (String.length text)
+          (List.length (String.split_on_char ' ' text))
+          (match msg.from with
+           | Some user -> user.first_name
+           | None -> "Unknown")
+          text
+        in
+        let* _ = Ctx.reply ctx info in
+        ()
+    | None -> ()
+  )
+]}
+
+{1 Echo with Formatting}
+
+{2 HTML Formatting}
+
+Echo with rich text formatting:
+
+{[
+module Format_echo = struct
+  let escape_html text =
+    let open String in
+    text
+    |> String.split_on_char '<' |> String.concat "&lt;"
+    |> String.split_on_char '>' |> String.concat "&gt;"
+    |> String.split_on_char '&' |> String.concat "&amp;"
+
+  let format_bold text =
+    Printf.sprintf "<b>%s</b>" (escape_html text)
+
+  let format_italic text =
+    Printf.sprintf "<i>%s</i>" (escape_html text)
+
+  let format_code text =
+    Printf.sprintf "<code>%s</code>" (escape_html text)
+
+  let format_quote text =
+    let lines = String.split_on_char '\n' text in
+    lines
+    |> List.map (fun line -> "❝ " ^ line)
+    |> String.concat "\n"
+
+  let route =
+    on Event.text (fun text ctx ->
+      let formatted = format_bold text in
+      let* _ = Ctx.reply ctx formatted ~parse_mode:`HTML in
+      ()
+    )
+end
+]}
+
+{2 Markdown Formatting}
+
+{[
+module Markdown_echo = struct
+  let format_as_code text =
+    "```\n" ^ text ^ "\n```"
+
+  let format_as_quote text =
+    let lines = String.split_on_char '\n' text in
+    lines
+    |> List.map (fun line -> "> " ^ line)
+    |> String.concat "\n"
+
+  let format_numbered_list text =
+    let lines = String.split_on_char '\n' text in
+    lines
+    |> List.mapi (fun i line -> Printf.sprintf "%d. %s" (i + 1) line)
+    |> String.concat "\n"
+
+  let route =
+    on Event.text (fun text ctx ->
+      let formatted = format_as_code text in
+      let* _ = Ctx.reply ctx formatted ~parse_mode:`MarkdownV2 in
+      ()
+    )
+end
+]}
+
+{2 Styled Echo Options}
+
+Let users choose formatting style:
+
+{[
+module Styled_echo = struct
+  type style = Plain | Bold | Italic | Code | Quote
+
+  let style_key : style Session.key = Session.make ~name:"echo_style"
+
+  let apply_style style text =
+    match style with
+    | Plain -> text
+    | Bold -> Printf.sprintf "<b>%s</b>" (Format_echo.escape_html text)
+    | Italic -> Printf.sprintf "<i>%s</i>" (Format_echo.escape_html text)
+    | Code -> Printf.sprintf "<code>%s</code>" (Format_echo.escape_html text)
+    | Quote -> Format_echo.format_quote text
+
+  let style_command =
+    on (Event.command "style") (fun args ctx ->
+      match args with
+      | ["plain"] ->
+          Ctx.session_set ctx style_key Plain;
+          let* _ = Ctx.reply ctx "✓ Style set to plain" in
+          ()
+      | ["bold"] ->
+          Ctx.session_set ctx style_key Bold;
+          let* _ = Ctx.reply ctx "✓ Style set to <b>bold</b>" ~parse_mode:`HTML in
+          ()
+      | ["italic"] ->
+          Ctx.session_set ctx style_key Italic;
+          let* _ = Ctx.reply ctx "✓ Style set to <i>italic</i>" ~parse_mode:`HTML in
+          ()
+      | ["code"] ->
+          Ctx.session_set ctx style_key Code;
+          let* _ = Ctx.reply ctx "✓ Style set to <code>code</code>" ~parse_mode:`HTML in
+          ()
+      | ["quote"] ->
+          Ctx.session_set ctx style_key Quote;
+          let* _ = Ctx.reply ctx "✓ Style set to quote" in
+          ()
+      | _ ->
+          let* _ = Ctx.reply ctx
+            "Usage: /style <plain|bold|italic|code|quote>"
+          in
+          ()
+    )
+
+  let echo_with_style =
+    on Event.text (fun text ctx ->
+      let style = Ctx.session_get_or ctx style_key ~default:Plain in
+      let formatted = apply_style style text in
+      let parse_mode = if style = Plain then None else Some `HTML in
+      let* _ = Ctx.reply ctx formatted ?parse_mode in
+      ()
+    )
+end
+]}
+
+{1 Selective Echo}
+
+{2 Content Filtering}
+
+Echo only certain types of messages:
+
+{[
+module Filtered_echo = struct
+  (* Echo only short messages *)
+  let short_messages_only =
+    on Event.text (fun text ctx ->
+      if String.length text <= 100 then
+        let* _ = Ctx.reply ctx ("Echo: " ^ text) in
+        ()
+      else
+        let* _ = Ctx.reply ctx "Message too long (max 100 chars)" in
+        ()
+    )
+
+  (* Echo only messages with specific keywords *)
+  let keyword_filter keywords =
+    on Event.text (fun text ctx ->
+      let text_lower = String.lowercase_ascii text in
+      let has_keyword = List.exists (fun kw ->
+        String.contains text_lower (String.lowercase_ascii kw)
+      ) keywords in
+
+      if has_keyword then
+        let* _ = Ctx.reply ctx ("📢 " ^ text) in
+        ()
+      else
+        let* _ = Ctx.reply ctx "Message doesn't contain required keywords" in
+        ()
+    )
+
+  (* Echo only valid URLs *)
+  let url_echo =
+    on Event.text (fun text ctx ->
+      let url_pattern = Str.regexp "https?://[^ ]+" in
+      if Str.string_match url_pattern text 0 then
+        let* _ = Ctx.reply ctx ("🔗 " ^ text) in
+        ()
+      else
+        let* _ = Ctx.reply ctx "Please send a valid URL" in
+        ()
+    )
+end
+]}
+
+{2 User-Based Filtering}
+
+{[
+module User_filtered_echo = struct
+  (* Echo only from specific users *)
+  let whitelist_users allowed_ids =
+    on Event.text (fun text ctx ->
+      match Ctx.user ctx with
+      | Some user ->
+          let user_id = Telegram.Id.User.to_int user.id in
+          if List.mem user_id allowed_ids then
+            let* _ = Ctx.reply ctx text in
+            ()
+          else
+            let* _ = Ctx.reply ctx "You're not authorized to use this bot" in
+            ()
+      | None ->
+          let* _ = Ctx.reply ctx "User info not available" in
+          ()
+    )
+
+  (* Echo with per-user rate limiting *)
+  let rate_limited_echo max_per_minute =
+    let limiter = Rate_limiter.create ~max_per_minute in
+
+    on Event.text (fun text ctx ->
+      match Ctx.user ctx with
+      | Some user ->
+          let user_id = Telegram.Id.User.to_int user.id in
+          begin match Rate_limiter.check_rate_limit limiter user_id with
+          | Ok () ->
+              let* _ = Ctx.reply ctx text in
+              ()
+          | Error _ ->
+              let* _ = Ctx.reply ctx "⏱️ Too many messages, please slow down" in
+              ()
+          end
+      | None -> ()
+    )
+end
+]}
+
+{2 Chat Type Filtering}
+
+{[
+module Chat_filtered_echo = struct
+  (* Echo only in private chats *)
+  let private_only =
+    on Event.text (fun text ctx ->
+      match Ctx.chat ctx with
+      | Some chat when chat.type_ = "private" ->
+          let* _ = Ctx.reply ctx text in
+          ()
+      | Some _ ->
+          let* _ = Ctx.reply ctx "This bot only works in private chats" in
+          ()
+      | None -> ()
+    )
+
+  (* Echo only in groups *)
+  let groups_only =
+    on Event.text (fun text ctx ->
+      match Ctx.chat ctx with
+      | Some chat when chat.type_ = "group" || chat.type_ = "supergroup" ->
+          let* _ = Ctx.reply ctx text in
+          ()
+      | Some _ ->
+          let* _ = Ctx.reply ctx "This bot only works in groups" in
+          ()
+      | None -> ()
+    )
+end
+]}
+
+{1 Echo with Transformations}
+
+{2 Text Transformations}
+
+{[
+module Transform_echo = struct
+  type transform =
+    | Uppercase
+    | Lowercase
+    | Reverse
+    | L33t
+    | Remove_vowels
+    | Word_count
+    | Character_frequency
+
+  let uppercase text =
+    String.uppercase_ascii text
+
+  let lowercase text =
+    String.lowercase_ascii text
+
+  let reverse text =
+    String.to_seq text
+    |> List.of_seq
+    |> List.rev
+    |> List.to_seq
+    |> String.of_seq
+
+  let l33t_speak text =
+    let replace c =
+      match c with
+      | 'a' | 'A' -> '4'
+      | 'e' | 'E' -> '3'
+      | 'i' | 'I' -> '1'
+      | 'o' | 'O' -> '0'
+      | 's' | 'S' -> '5'
+      | 't' | 'T' -> '7'
+      | _ -> c
+    in
+    String.map replace text
+
+  let remove_vowels text =
+    let is_vowel c =
+      match Char.lowercase_ascii c with
+      | 'a' | 'e' | 'i' | 'o' | 'u' -> true
+      | _ -> false
+    in
+    String.to_seq text
+    |> Seq.filter (fun c -> not (is_vowel c))
+    |> String.of_seq
+
+  let word_count text =
+    let words = String.split_on_char ' ' text
+                |> List.filter (fun w -> w <> "") in
+    Printf.sprintf "Word count: %d\n\nWords:\n%s"
+      (List.length words)
+      (String.concat "\n" words)
+
+  let character_frequency text =
+    let freq = Hashtbl.create 26 in
+    String.iter (fun c ->
+      let count = Hashtbl.find_opt freq c |> Option.value ~default:0 in
+      Hashtbl.replace freq c (count + 1)
+    ) text;
+
+    let sorted = Hashtbl.to_seq freq
+      |> List.of_seq
+      |> List.sort (fun (_, a) (_, b) -> compare b a)
+    in
+
+    let lines = sorted |> List.map (fun (c, count) ->
+      Printf.sprintf "%c: %d" c count
+    ) in
+
+    "Character frequency:\n" ^ String.concat "\n" lines
+
+  let apply transform text =
+    match transform with
+    | Uppercase -> uppercase text
+    | Lowercase -> lowercase text
+    | Reverse -> reverse text
+    | L33t -> l33t_speak text
+    | Remove_vowels -> remove_vowels text
+    | Word_count -> word_count text
+    | Character_frequency -> character_frequency text
+
+  (* Command to set transformation *)
+  let transform_key : transform Session.key = Session.make ~name:"transform"
+
+  let set_transform =
+    on (Event.command "transform") (fun args ctx ->
+      match args with
+      | ["upper"] ->
+          Ctx.session_set ctx transform_key Uppercase;
+          let* _ = Ctx.reply ctx "✓ Transformation: UPPERCASE" in
+          ()
+      | ["lower"] ->
+          Ctx.session_set ctx transform_key Lowercase;
+          let* _ = Ctx.reply ctx "✓ Transformation: lowercase" in
+          ()
+      | ["reverse"] ->
+          Ctx.session_set ctx transform_key Reverse;
+          let* _ = Ctx.reply ctx "✓ Transformation: esrever" in
+          ()
+      | ["l33t"] ->
+          Ctx.session_set ctx transform_key L33t;
+          let* _ = Ctx.reply ctx "✓ 7r4n5f0rm4710n: 1337" in
+          ()
+      | ["novowels"] ->
+          Ctx.session_set ctx transform_key Remove_vowels;
+          let* _ = Ctx.reply ctx "✓ Trnsfrmtn: rmv vwls" in
+          ()
+      | ["count"] ->
+          Ctx.session_set ctx transform_key Word_count;
+          let* _ = Ctx.reply ctx "✓ Transformation: word count" in
+          ()
+      | ["freq"] ->
+          Ctx.session_set ctx transform_key Character_frequency;
+          let* _ = Ctx.reply ctx "✓ Transformation: character frequency" in
+          ()
+      | _ ->
+          let* _ = Ctx.reply ctx
+            "Usage: /transform <upper|lower|reverse|l33t|novowels|count|freq>"
+          in
+          ()
+    )
+
+  let echo_with_transform =
+    on Event.text (fun text ctx ->
+      let transform = Ctx.session_get_or ctx transform_key ~default:Uppercase in
+      let result = apply transform text in
+      let* _ = Ctx.reply ctx result in
+      ()
+    )
+end
+]}
+
+{2 Multiple Transformations}
+
+{[
+module Pipeline_echo = struct
+  let pipeline transforms text =
+    List.fold_left (fun acc t ->
+      Transform_echo.apply t acc
+    ) text transforms
+
+  let pipeline_key : Transform_echo.transform list Session.key =
+    Session.make ~name:"pipeline"
+
+  let add_to_pipeline =
+    on (Event.command "add") (fun args ctx ->
+      (* Parse transform from args and add to pipeline *)
+      let current = Ctx.session_get_or ctx pipeline_key ~default:[] in
+      (* Add new transform to current *)
+      Ctx.session_set ctx pipeline_key (current @ [Transform_echo.Uppercase]);
+      let* _ = Ctx.reply ctx "Added to pipeline" in
+      ()
+    )
+
+  let clear_pipeline =
+    on (Event.command "clear") (fun _args ctx ->
+      Ctx.session_set ctx pipeline_key [];
+      let* _ = Ctx.reply ctx "Pipeline cleared" in
+      ()
+    )
+
+  let echo_pipeline =
+    on Event.text (fun text ctx ->
+      let transforms = Ctx.session_get_or ctx pipeline_key ~default:[] in
+      let result = pipeline transforms text in
+      let* _ = Ctx.reply ctx result in
+      ()
+    )
+end
+]}
+
+{1 Smart Echo}
+
+{2 Context-Aware Responses}
+
+{[
+module Smart_echo = struct
+  let get_response text =
+    let text_lower = String.lowercase_ascii text in
+
+    (* Question detection *)
+    if String.contains text '?' then
+      "🤔 " ^ text ^ "\n\nThat's a great question!"
+
+    (* Greeting detection *)
+    else if String.starts_with ~prefix:"hello" text_lower
+         || String.starts_with ~prefix:"hi" text_lower then
+      "👋 " ^ text ^ "\n\nHello to you too!"
+
+    (* Gratitude detection *)
+    else if String.contains text_lower "thank" then
+      "😊 " ^ text ^ "\n\nYou're welcome!"
+
+    (* Farewell detection *)
+    else if String.starts_with ~prefix:"bye" text_lower
+         || String.starts_with ~prefix:"goodbye" text_lower then
+      "👋 " ^ text ^ "\n\nGoodbye! Come back soon!"
+
+    (* Default echo *)
+    else
+      "📝 " ^ text
+
+  let route =
+    on Event.text (fun text ctx ->
+      let response = get_response text in
+      let* _ = Ctx.reply ctx response in
+      ()
+    )
+end
+]}
+
+{2 Echo with Sentiment}
+
+{[
+module Sentiment_echo = struct
+  let analyze_sentiment text =
+    let positive_words = ["good"; "great"; "happy"; "love"; "awesome"; "excellent"] in
+    let negative_words = ["bad"; "sad"; "hate"; "terrible"; "awful"; "horrible"] in
+
+    let text_lower = String.lowercase_ascii text in
+    let has_positive = List.exists (fun w -> String.contains text_lower w) positive_words in
+    let has_negative = List.exists (fun w -> String.contains text_lower w) negative_words in
+
+    match has_positive, has_negative with
+    | true, false -> "😊 Positive"
+    | false, true -> "😢 Negative"
+    | true, true -> "😐 Mixed"
+    | false, false -> "😶 Neutral"
+
+  let route =
+    on Event.text (fun text ctx ->
+      let sentiment = analyze_sentiment text in
+      let response = Printf.sprintf
+        "%s\n\nSentiment: %s\n\nEcho: %s"
+        sentiment sentiment text
+      in
+      let* _ = Ctx.reply ctx response in
+      ()
+    )
+end
+]}
+
+{1 Complete Production Example}
+
+{2 Feature-Rich Echo Bot}
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+open Tg.Bot
+
+let () =
+  Eio_main.run @@ fun env ->
+
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token () in
+
+  (* Session store *)
+  module Store = Session.Memory_store
+  let store = Store.create () in
+  let session_mw = Middleware.with_session (module Store) store in
+
+  (* Routes *)
+  let routes = router
+    ~middlewares:[session_mw]
+    ~on_error:ErrorHandler.(log_and_reply ())
+    [
+      (* Commands *)
+      on (Event.command "start") (fun _args ctx ->
+        let* _ = Ctx.reply ctx
+          "👋 Welcome to Echo Bot Plus!\n\n\
+           Features:\n\
+           • /style - Set echo style\n\
+           • /transform - Set transformation\n\
+           • /filter - Toggle filtering\n\
+           • /stats - Show your stats\n\n\
+           Send me any message to try it out!"
+        in
+        ()
+      );
+
+      on (Event.command "help") (fun _args ctx ->
+        let* _ = Ctx.reply ctx
+          "Echo Bot Commands:\n\n\
+           /style <plain|bold|italic|code|quote>\n\
+           /transform <upper|lower|reverse|l33t>\n\
+           /filter <on|off>\n\
+           /stats\n\
+           /reset"
+        in
+        ()
+      );
+
+      (* Style command *)
+      Styled_echo.style_command;
+
+      (* Transform command *)
+      Transform_echo.set_transform;
+
+      (* Stats tracking *)
+      on (Event.command "stats") (fun _args ctx ->
+        let count_key : int Session.key = Session.make ~name:"echo_count" in
+        let count = Ctx.session_get_or ctx count_key ~default:0 in
+
+        let* _ = Ctx.reply ctx
+          (Printf.sprintf "📊 Your Stats:\nMessages echoed: %d" count)
+        in
+        ()
+      );
+
+      (* Reset settings *)
+      on (Event.command "reset") (fun _args ctx ->
+        Ctx.session_clear ctx;
+        let* _ = Ctx.reply ctx "✓ Settings reset to defaults" in
+        ()
+      );
+
+      (* Echo with all features *)
+      on Event.text (fun text ctx ->
+        (* Track message count *)
+        let count_key : int Session.key = Session.make ~name:"echo_count" in
+        Ctx.session_modify ctx count_key ~default:0 (fun n -> n + 1);
+
+        (* Get user preferences *)
+        let style = Ctx.session_get_or ctx Styled_echo.style_key
+          ~default:Styled_echo.Plain in
+        let transform = Ctx.session_get_or ctx Transform_echo.transform_key
+          ~default:Transform_echo.Uppercase in
+
+        (* Apply transformation *)
+        let transformed = Transform_echo.apply transform text in
+
+        (* Apply style *)
+        let formatted = Styled_echo.apply_style style transformed in
+
+        (* Send response *)
+        let parse_mode = if style = Styled_echo.Plain then None else Some `HTML in
+        let* _ = Ctx.reply ctx formatted ?parse_mode in
+        ()
+      );
+    ]
+  in
+
+  (* Start bot *)
+  Printf.printf "🤖 Echo Bot Plus started\n";
+  flush stdout;
+  run_polling ~env ~client routes
+]}
+
+{1 Best Practices}
+
+{2 Echo Bot Design}
+
+- {b Clear purpose}: Explain what the bot does
+- {b User control}: Let users customize behavior
+- {b Feedback}: Confirm when settings change
+- {b Defaults}: Sensible default behavior
+- {b Help}: Easy-to-find documentation
+
+{2 Message Handling}
+
+- {b Always respond}: Never leave users hanging
+- {b Error messages}: Clear, helpful error messages
+- {b Input validation}: Check message length, format
+- {b Rate limiting}: Prevent spam and abuse
+- {b Safe transformations}: Handle unicode, special chars
+
+{2 Formatting}
+
+- {b Escape properly}: Use HTML/Markdown escape functions
+- {b Test edge cases}: Empty strings, special characters
+- {b Fallback}: Plain text if formatting fails
+- {b Parse mode}: Specify correct parse mode
+- {b Preview}: Test how messages look
+
+{2 Filtering}
+
+- {b Informative rejections}: Tell users why messages are filtered
+- {b Flexible rules}: Allow configuration
+- {b Whitelist vs blacklist}: Choose appropriate strategy
+- {b Performance}: Efficient filter checks
+- {b Logging}: Track filtered messages
+
+{1 Common Patterns}
+
+{2 Echo State Machine}
+
+{[
+type echo_state = Disabled | Enabled | Paused
+
+let state_key : echo_state Session.key = Session.make ~name:"echo_state"
+
+let toggle_echo =
+  on (Event.command "toggle") (fun _args ctx ->
+    let current = Ctx.session_get_or ctx state_key ~default:Enabled in
+    let new_state = match current with
+      | Enabled -> Disabled
+      | Disabled -> Enabled
+      | Paused -> Enabled
+    in
+    Ctx.session_set ctx state_key new_state;
+    let msg = match new_state with
+      | Enabled -> "✓ Echo enabled"
+      | Disabled -> "✗ Echo disabled"
+      | Paused -> "⏸ Echo paused"
+    in
+    let* _ = Ctx.reply ctx msg in
+    ()
+  )
+]}
+
+{2 Echo History}
+
+{[
+let history_key : string list Session.key = Session.make ~name:"history"
+
+let echo_with_history =
+  on Event.text (fun text ctx ->
+    (* Add to history *)
+    let history = Ctx.session_get_or ctx history_key ~default:[] in
+    let new_history = text :: (List.take 10 history) in  (* Keep last 10 *)
+    Ctx.session_set ctx history_key new_history;
+
+    (* Echo *)
+    let* _ = Ctx.reply ctx text in
+    ()
+  )
+
+let show_history =
+  on (Event.command "history") (fun _args ctx ->
+    let history = Ctx.session_get_or ctx history_key ~default:[] in
+    let text = if history = [] then
+      "No message history"
+    else
+      "Recent messages:\n" ^ String.concat "\n" (List.mapi (fun i msg ->
+        Printf.sprintf "%d. %s" (i + 1) msg
+      ) history)
+    in
+    let* _ = Ctx.reply ctx text in
+    ()
+  )
+]}
+
+{1 See Also}
+
+- {{!page-message_handling}Message Handling} - Working with messages
+- {{!page-command_dsl}Command DSL} - Command routing
+- {{!page-session_management}Session Management} - User preferences
+- {{!page-middleware_architecture}Middleware} - Rate limiting and filtering

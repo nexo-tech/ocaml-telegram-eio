@@ -170,6 +170,7 @@ See the {e examples/} directory for complete, runnable examples:
 {2 Cookbook & Recipes}
 
 - {{!page-recipe_command_bot}Command Bot Recipe} - Multi-command bot with help system and admin commands
+- {{!page-recipe_echo_bot}Echo Bot Variations} - Simple to sophisticated echo bots with formatting and transformations
 
 {2 Migration}
 
