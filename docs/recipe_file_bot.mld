@@ -1,0 +1,1085 @@
+{0 Recipe: File Handling Bot}
+
+A comprehensive cookbook for building file handling bots that upload, download, process, and manage documents, images, videos, and media collections.
+
+{1 Overview}
+
+This recipe demonstrates how to build bots that handle files and media effectively. We'll cover document uploads, image processing, file downloads, and multi-file handling with albums.
+
+{b What you'll learn}:
+- Uploading documents and images
+- Processing and transforming images
+- Downloading files from users
+- Multi-file handling with albums
+- File caching and validation
+- Progress tracking for large files
+
+{b When to use file handling bots}:
+- Document management and archival
+- Image galleries and photo sharing
+- File conversion and processing
+- Media storage and retrieval
+- Backup and sync services
+
+{1 Document Upload Handling}
+
+{2 Basic Document Reception}
+
+Handle documents sent by users:
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+
+(* Handle document uploads *)
+let routes = [
+  Tg.Bot.on Tg.Bot.Event.document (fun doc ctx ->
+    let file_name = Option.value doc.file_name ~default:"document" in
+    let file_size = Option.value doc.file_size ~default:0L in
+    let mime_type = Option.value doc.mime_type ~default:"application/octet-stream" in
+
+    let info = Printf.sprintf
+      "📄 Received document:\n\nName: %s\nSize: %Ld bytes\nType: %s"
+      file_name file_size mime_type
+    in
+
+    let* _ = Tg.Bot.Ctx.reply ctx info in
+    Ok ()
+  );
+]
+]}
+
+{2 Document Download and Processing}
+
+Download documents for processing:
+
+{[
+(* Download document to string *)
+let download_document client doc =
+  match Tg.Download.get_and_download_string client ~file_id:doc.file_id with
+  | Ok contents ->
+      Ok contents
+  | Error err ->
+      Error err
+
+(* Process text files *)
+let process_text_file client doc ctx =
+  match download_document client doc with
+  | Ok contents ->
+      let line_count = String.split_on_char '\n' contents |> List.length in
+      let char_count = String.length contents in
+      let word_count =
+        String.split_on_char ' ' contents
+        |> List.filter (fun s -> String.length s > 0)
+        |> List.length
+      in
+
+      let stats = Printf.sprintf
+        "📊 File Statistics:\n\nLines: %d\nWords: %d\nCharacters: %d"
+        line_count word_count char_count
+      in
+
+      let* _ = Tg.Bot.Ctx.reply ctx stats in
+      Ok ()
+
+  | Error err ->
+      let* _ = Tg.Bot.Ctx.reply ctx "❌ Failed to download document" in
+      Ok ()
+
+let routes client = [
+  Tg.Bot.on Tg.Bot.Event.document (fun doc ctx ->
+    process_text_file client doc ctx
+  );
+]
+]}
+
+{2 Document Validation and Filtering}
+
+Validate documents before processing:
+
+{[
+(* Document validation *)
+module DocumentValidator = struct
+  type validation_error =
+    | TooLarge of int64
+    | InvalidType of string
+    | MissingFilename
+
+  let max_size = 10_000_000L  (* 10 MB *)
+
+  let allowed_types = [
+    "application/pdf";
+    "text/plain";
+    "text/csv";
+    "application/json";
+    "application/xml";
+  ]
+
+  let validate doc =
+    (* Check filename *)
+    (match doc.file_name with
+    | None -> Error MissingFilename
+    | Some _ -> Ok ());
+
+    (* Check file size *)
+    let size = Option.value doc.file_size ~default:0L in
+    if size > max_size then
+      Error (TooLarge size)
+    else
+      Ok ();
+
+    (* Check MIME type *)
+    let mime = Option.value doc.mime_type ~default:"" in
+    if not (List.mem mime allowed_types) then
+      Error (InvalidType mime)
+    else
+      Ok ()
+
+  let error_message = function
+    | TooLarge size ->
+        Printf.sprintf "File too large: %Ld bytes (max %Ld)" size max_size
+    | InvalidType mime ->
+        Printf.sprintf "Invalid file type: %s" mime
+    | MissingFilename ->
+        "File must have a name"
+end
+
+(* Handle with validation *)
+let routes client = [
+  Tg.Bot.on Tg.Bot.Event.document (fun doc ctx ->
+    match DocumentValidator.validate doc with
+    | Ok () ->
+        (* Process document *)
+        process_text_file client doc ctx
+
+    | Error err ->
+        let msg = "❌ " ^ DocumentValidator.error_message err in
+        let* _ = Tg.Bot.Ctx.reply ctx msg in
+        Ok ()
+  );
+]
+]}
+
+{2 Sending Documents}
+
+Send documents to users:
+
+{[
+(* Send document from local file *)
+let send_document_file client chat_id path =
+  let document = Telegram.Input_file.upload
+    ~filename:(Filename.basename path)
+    ~mime_type:"application/pdf"
+    path
+  in
+
+  Telegram_generated.Gen_methods.send_document client
+    ~chat_id
+    ~document
+    ~caption:"📄 Here's your document"
+    ()
+
+(* Send with thumbnail *)
+let send_document_with_thumbnail client chat_id doc_path thumb_path =
+  let document = Telegram.Input_file.path doc_path in
+  let thumbnail = Telegram.Input_file.path thumb_path in
+
+  Telegram_generated.Gen_methods.send_document client
+    ~chat_id
+    ~document
+    ~thumbnail
+    ()
+
+(* Resend cached document *)
+let send_cached_document client chat_id file_id =
+  let document = Telegram.Input_file.file_id file_id in
+
+  Telegram_generated.Gen_methods.send_document client
+    ~chat_id
+    ~document
+    ()
+]}
+
+{1 Image Processing}
+
+{2 Photo Upload and Metadata}
+
+Handle photo uploads with metadata:
+
+{[
+(* Photo upload handler *)
+let handle_photo client photos ctx =
+  (* Photos are sorted by size, largest first *)
+  match photos with
+  | largest :: _ ->
+      let file_id = largest.file_id in
+      let width = largest.width in
+      let height = largest.height in
+      let size = Option.value largest.file_size ~default:0L in
+
+      let info = Printf.sprintf
+        "📸 Photo received\n\nDimensions: %dx%d\nSize: %Ld bytes"
+        width height size
+      in
+
+      let* _ = Tg.Bot.Ctx.reply ctx info in
+      Ok ()
+
+  | [] ->
+      Ok ()
+
+let routes client = [
+  Tg.Bot.on Tg.Bot.Event.photo (fun photos ctx ->
+    handle_photo client photos ctx
+  );
+]
+]}
+
+{2 Image Download and Processing}
+
+Download and process images:
+
+{[
+(* Download photo to buffer *)
+let download_photo client photo_size =
+  let file_id = photo_size.file_id in
+  let buf = Buffer.create (1024 * 1024) in  (* 1 MB initial *)
+
+  match Tg.Download.get_and_download client ~file_id buf with
+  | Ok bytes_written ->
+      Ok (Buffer.contents buf)
+  | Error err ->
+      Error err
+
+(* Simple image info extraction *)
+let analyze_photo client photos ctx =
+  match photos with
+  | largest :: _ ->
+      (match download_photo client largest with
+      | Ok contents ->
+          let size = String.length contents in
+          let dimensions = Printf.sprintf "%dx%d" largest.width largest.height in
+
+          let info = Printf.sprintf
+            "🔍 Photo Analysis:\n\nDimensions: %s\nFile size: %d bytes\nFormat: JPEG"
+            dimensions size
+          in
+
+          let* _ = Tg.Bot.Ctx.reply ctx info in
+          Ok ()
+
+      | Error _ ->
+          let* _ = Tg.Bot.Ctx.reply ctx "❌ Failed to download photo" in
+          Ok ())
+
+  | [] ->
+      Ok ()
+]}
+
+{2 Sending Photos}
+
+Send photos with various options:
+
+{[
+(* Basic photo send *)
+let send_photo_simple client chat_id path =
+  let photo = Telegram.Input_file.path path in
+
+  Telegram_generated.Gen_methods.send_photo client
+    ~chat_id
+    ~photo
+    ()
+
+(* Photo with caption and formatting *)
+let send_photo_captioned client chat_id path caption =
+  let photo = Telegram.Input_file.path path in
+
+  Telegram_generated.Gen_methods.send_photo client
+    ~chat_id
+    ~photo
+    ~caption
+    ~parse_mode:(Telegram.Parse_mode.html ())
+    ()
+
+(* Photo with spoiler *)
+let send_photo_spoiler client chat_id path =
+  let photo = Telegram.Input_file.path path in
+
+  Telegram_generated.Gen_methods.send_photo client
+    ~chat_id
+    ~photo
+    ~has_spoiler:true
+    ~caption:"⚠️ Spoiler alert!"
+    ()
+
+(* Photo from URL *)
+let send_photo_from_url client chat_id url =
+  let photo = Telegram.Input_file.url url in
+
+  Telegram_generated.Gen_methods.send_photo client
+    ~chat_id
+    ~photo
+    ()
+]}
+
+{2 Image Transformation Bot}
+
+Process and transform images:
+
+{[
+(* Photo processing state *)
+type processing_mode =
+  | Info
+  | Resize of int * int
+  | Grayscale
+  | Thumbnail
+
+let mode_key = Tg.Session.Key.create "photo_mode"
+
+(* Set processing mode *)
+let set_mode_keyboard =
+  Tg.Keyboard.inline [
+    [Tg.Keyboard.callback ~text:"ℹ️ Info Only" ~data:"mode:info"];
+    [Tg.Keyboard.callback ~text:"📐 Resize" ~data:"mode:resize"];
+    [Tg.Keyboard.callback ~text:"🎨 Grayscale" ~data:"mode:gray"];
+    [Tg.Keyboard.callback ~text:"🖼️ Thumbnail" ~data:"mode:thumb"];
+  ]
+
+(* Process photo based on mode *)
+let process_photo_with_mode client photos mode ctx =
+  match photos with
+  | largest :: _ ->
+      (match mode with
+      | Info ->
+          let info = Printf.sprintf
+            "📸 Photo Info:\n\nDimensions: %dx%d\nFile ID: %s"
+            largest.width largest.height largest.file_id
+          in
+          let* _ = Tg.Bot.Ctx.reply ctx info in
+          Ok ()
+
+      | Resize (w, h) ->
+          let* _ = Tg.Bot.Ctx.reply ctx
+            (Printf.sprintf "Resizing to %dx%d... (processing)" w h)
+          in
+          (* In real implementation: download, resize, re-upload *)
+          Ok ()
+
+      | Grayscale ->
+          let* _ = Tg.Bot.Ctx.reply ctx "Converting to grayscale... (processing)" in
+          Ok ()
+
+      | Thumbnail ->
+          let* _ = Tg.Bot.Ctx.reply ctx "Creating thumbnail... (processing)" in
+          Ok ())
+
+  | [] ->
+      Ok ()
+
+let routes client = [
+  (* Show mode selection *)
+  Tg.Bot.on (Tg.Bot.Event.command "mode") (fun _args ctx ->
+    let* _ = Tg.Bot.Ctx.reply ctx
+      ~reply_markup:set_mode_keyboard
+      "Select processing mode:"
+    in
+    Ok ()
+  );
+
+  (* Handle mode selection *)
+  Tg.Bot.on (Tg.Bot.Event.callback "mode:info") (fun _data ctx ->
+    Tg.Bot.Ctx.session_set ctx mode_key Info;
+    let* _ = Tg.Bot.Ctx.answer ctx ~text:"Mode: Info" in
+    Ok ()
+  );
+
+  Tg.Bot.on (Tg.Bot.Event.callback "mode:resize") (fun _data ctx ->
+    Tg.Bot.Ctx.session_set ctx mode_key (Resize (800, 600));
+    let* _ = Tg.Bot.Ctx.answer ctx ~text:"Mode: Resize 800x600" in
+    Ok ()
+  );
+
+  Tg.Bot.on (Tg.Bot.Event.callback "mode:gray") (fun _data ctx ->
+    Tg.Bot.Ctx.session_set ctx mode_key Grayscale;
+    let* _ = Tg.Bot.Ctx.answer ctx ~text:"Mode: Grayscale" in
+    Ok ()
+  );
+
+  Tg.Bot.on (Tg.Bot.Event.callback "mode:thumb") (fun _data ctx ->
+    Tg.Bot.Ctx.session_set ctx mode_key Thumbnail;
+    let* _ = Tg.Bot.Ctx.answer ctx ~text:"Mode: Thumbnail" in
+    Ok ()
+  );
+
+  (* Process photos *)
+  Tg.Bot.on Tg.Bot.Event.photo (fun photos ctx ->
+    let mode = Tg.Bot.Ctx.session_get_or ctx mode_key ~default:Info in
+    process_photo_with_mode client photos mode ctx
+  );
+]
+]}
+
+{1 File Downloads}
+
+{2 Download to Memory}
+
+Download small files to memory:
+
+{[
+(* Download to string - small files only *)
+let download_small_file client file_id =
+  match Tg.Download.get_and_download_string client ~file_id with
+  | Ok contents ->
+      Printf.printf "Downloaded %d bytes\n" (String.length contents);
+      Ok contents
+  | Error err ->
+      Error err
+
+(* Download to buffer - better memory efficiency *)
+let download_to_buffer client file_id =
+  let buf = Buffer.create 4096 in
+
+  match Tg.Download.get_and_download client ~file_id buf with
+  | Ok bytes_written ->
+      Printf.printf "Downloaded %Ld bytes\n" bytes_written;
+      Ok (Buffer.contents buf)
+  | Error err ->
+      Error err
+]}
+
+{2 Download to Disk}
+
+Stream large files directly to disk:
+
+{[
+(* Get download URL *)
+let get_download_url client file_id =
+  match Tg.Download.get_file client ~file_id with
+  | Ok file_info ->
+      (match file_info.file_path with
+      | Some file_path ->
+          Ok (Tg.Download.download_url client ~file_path)
+      | None ->
+          Error "No file path available")
+  | Error err ->
+      Error err
+
+(* Download file to disk (conceptual - would use HTTP client) *)
+let download_to_file client file_id output_path =
+  match get_download_url client file_id with
+  | Ok url ->
+      Printf.printf "Download URL: %s\n" url;
+      (* In real implementation: use HTTP client to stream to file *)
+      Printf.printf "Saving to: %s\n" output_path;
+      Ok ()
+  | Error msg ->
+      Error msg
+]}
+
+{2 Download Progress Tracking}
+
+Track download progress for large files:
+
+{[
+(* Download with progress callback *)
+let download_with_progress client file_id output_path on_progress =
+  match Tg.Download.get_file client ~file_id with
+  | Ok file_info ->
+      let total_size = Option.value file_info.file_size ~default:0L in
+      on_progress 0L total_size;
+
+      (* In real implementation: stream with progress updates *)
+      on_progress total_size total_size;
+      Ok ()
+
+  | Error err ->
+      Error err
+
+(* Usage *)
+let download_handler client doc ctx =
+  let file_id = doc.file_id in
+  let file_name = Option.value doc.file_name ~default:"document" in
+
+  let* _ = Tg.Bot.Ctx.reply ctx "⏬ Starting download..." in
+
+  let on_progress bytes_downloaded total_bytes =
+    if total_bytes > 0L then
+      let percent = Int64.to_float bytes_downloaded /. Int64.to_float total_bytes *. 100.0 in
+      Printf.printf "\rDownloading: %.1f%%" percent;
+      flush stdout
+  in
+
+  match download_with_progress client file_id ("/tmp/" ^ file_name) on_progress with
+  | Ok () ->
+      let* _ = Tg.Bot.Ctx.reply ctx "✓ Download complete!" in
+      Ok ()
+  | Error _ ->
+      let* _ = Tg.Bot.Ctx.reply ctx "❌ Download failed" in
+      Ok ()
+]}
+
+{1 Multi-File Handling (Albums)}
+
+{2 Sending Photo Albums}
+
+Send multiple photos as an album:
+
+{[
+(* Basic photo album *)
+let send_photo_album client chat_id paths =
+  match paths with
+  | path1 :: path2 :: rest ->
+      let album =
+        Tg.Album.create
+          (Tg.Album.photo
+             ~caption:"Photo 1"
+             (Telegram.Input_file.path path1))
+          (Tg.Album.photo
+             ~caption:"Photo 2"
+             (Telegram.Input_file.path path2))
+      in
+
+      let album =
+        List.fold_left (fun alb path ->
+          Tg.Album.add (Tg.Album.photo (Telegram.Input_file.path path)) alb
+        ) album rest
+      in
+
+      let album = Tg.Album.build album in
+
+      Tg.Album.send client ~chat_id album
+
+  | _ ->
+      Error "Need at least 2 photos for album"
+
+(* Album from list of paths *)
+let send_album_from_list client chat_id paths =
+  let items =
+    List.map (fun path ->
+      Tg.Album.photo (Telegram.Input_file.path path)
+    ) paths
+  in
+
+  match Tg.Album.of_list items with
+  | Ok album ->
+      Tg.Album.send client ~chat_id album
+  | Error msg ->
+      Error msg  (* < 2 or > 10 items *)
+]}
+
+{2 Mixed Media Albums}
+
+Combine photos and videos in one album:
+
+{[
+(* Mixed photo and video album *)
+let send_mixed_album client chat_id =
+  let album =
+    Tg.Album.create
+      (Tg.Album.photo
+         ~caption:"Beautiful sunset 🌅"
+         (Telegram.Input_file.path "/photos/sunset.jpg"))
+      (Tg.Album.video
+         ~caption:"Sunset timelapse ⏱️"
+         ~duration:30
+         (Telegram.Input_file.path "/videos/timelapse.mp4"))
+    |> Tg.Album.add (Tg.Album.photo
+         ~caption:"After sunset 🌃"
+         (Telegram.Input_file.path "/photos/evening.jpg"))
+    |> Tg.Album.build
+  in
+
+  Tg.Album.send client ~chat_id album
+]}
+
+{2 Dynamic Album Generation}
+
+Generate albums from user selections:
+
+{[
+(* Album builder state *)
+type album_state = {
+  items : string list;  (* File paths *)
+  max_items : int;
+}
+
+let album_key = Tg.Session.Key.create "album_builder"
+
+(* Create album builder keyboard *)
+let create_album_keyboard state =
+  let item_count = List.length state.items in
+  let remaining = state.max_items - item_count in
+
+  let status_text = Printf.sprintf
+    "📸 Album: %d/%d photos"
+    item_count state.max_items
+  in
+
+  let buttons =
+    if item_count >= 2 then
+      [
+        [Tg.Keyboard.callback ~text:"✓ Send Album" ~data:"album:send"];
+        [Tg.Keyboard.callback ~text:"🗑 Clear" ~data:"album:clear"];
+      ]
+    else
+      [
+        [Tg.Keyboard.callback ~text:"🗑 Clear" ~data:"album:clear"];
+      ]
+  in
+
+  Tg.Keyboard.inline buttons
+
+(* Handle photo for album *)
+let routes client = [
+  (* Start album builder *)
+  Tg.Bot.on (Tg.Bot.Event.command "album") (fun _args ctx ->
+    let state = { items = []; max_items = 10 } in
+    Tg.Bot.Ctx.session_set ctx album_key state;
+
+    let keyboard = create_album_keyboard state in
+    let* _ = Tg.Bot.Ctx.reply ctx
+      ~reply_markup:keyboard
+      "📸 Album Builder\n\nSend photos to add to album (2-10 photos)"
+    in
+    Ok ()
+  );
+
+  (* Add photo to album *)
+  Tg.Bot.on Tg.Bot.Event.photo (fun photos ctx ->
+    let state = Tg.Bot.Ctx.session_get_or ctx album_key
+      ~default:{ items = []; max_items = 10 }
+    in
+
+    (* Get file_id to cache the photo *)
+    match photos with
+    | largest :: _ ->
+        let file_id = largest.file_id in
+
+        if List.length state.items >= state.max_items then
+          let* _ = Tg.Bot.Ctx.reply ctx "Album is full (max 10 photos)" in
+          Ok ()
+        else
+          let updated = { state with items = file_id :: state.items } in
+          Tg.Bot.Ctx.session_set ctx album_key updated;
+
+          let keyboard = create_album_keyboard updated in
+          let* _ = Tg.Bot.Ctx.reply ctx
+            ~reply_markup:keyboard
+            (Printf.sprintf "✓ Added photo (%d/%d)"
+               (List.length updated.items) updated.max_items)
+          in
+          Ok ()
+
+    | [] ->
+        Ok ()
+  );
+
+  (* Send album *)
+  Tg.Bot.on (Tg.Bot.Event.callback "album:send") (fun _data ctx ->
+    let state = Tg.Bot.Ctx.session_get_or ctx album_key
+      ~default:{ items = []; max_items = 10 }
+    in
+
+    if List.length state.items < 2 then
+      let* _ = Tg.Bot.Ctx.answer ctx ~text:"Need at least 2 photos" in
+      Ok ()
+    else
+      (* Create album from cached file_ids *)
+      let items =
+        state.items
+        |> List.rev  (* Restore original order *)
+        |> List.map (fun file_id ->
+            Tg.Album.photo (Telegram.Input_file.file_id file_id)
+          )
+      in
+
+      (match Tg.Album.of_list items with
+      | Ok album ->
+          (match Tg.Bot.Ctx.chat ctx with
+          | Some chat ->
+              let chat_id = chat.id in
+              (match Tg.Album.send client ~chat_id album with
+              | Ok _ ->
+                  Tg.Bot.Ctx.session_remove ctx album_key;
+                  let* _ = Tg.Bot.Ctx.answer ctx ~text:"✓ Album sent!" in
+                  Ok ()
+              | Error _ ->
+                  let* _ = Tg.Bot.Ctx.answer ctx ~text:"Failed to send album" in
+                  Ok ())
+          | None ->
+              Ok ())
+
+      | Error msg ->
+          let* _ = Tg.Bot.Ctx.answer ctx ~text:("Error: " ^ msg) in
+          Ok ())
+  );
+
+  (* Clear album *)
+  Tg.Bot.on (Tg.Bot.Event.callback "album:clear") (fun _data ctx ->
+    Tg.Bot.Ctx.session_remove ctx album_key;
+    let* _ = Tg.Bot.Ctx.answer ctx ~text:"Album cleared" in
+    Ok ()
+  );
+]
+]}
+
+{1 Complete Production Example}
+
+{2 File Management Bot}
+
+A complete file management bot with upload, download, and organization:
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+
+(* File metadata *)
+type file_entry = {
+  file_id : string;
+  file_name : string;
+  file_size : int64;
+  mime_type : string;
+  uploaded_at : float;
+  user_id : int64;
+}
+
+(* User file storage *)
+type user_storage = {
+  files : file_entry list;
+  quota : int64;  (* Bytes *)
+}
+
+(* Session keys *)
+let storage_key = Tg.Session.Key.create "user_storage"
+
+(* Storage operations *)
+let empty_storage = {
+  files = [];
+  quota = 100_000_000L;  (* 100 MB per user *)
+}
+
+let total_size storage =
+  List.fold_left (fun acc entry ->
+    Int64.add acc entry.file_size
+  ) 0L storage.files
+
+let has_space storage file_size =
+  Int64.add (total_size storage) file_size <= storage.quota
+
+let add_file storage entry =
+  { storage with files = entry :: storage.files }
+
+let remove_file storage file_id =
+  { storage with files = List.filter (fun e -> e.file_id <> file_id) storage.files }
+
+(* File cache for quick access *)
+let file_cache = Hashtbl.create 1000
+
+(* Create file list keyboard *)
+let create_file_list_keyboard storage =
+  let file_buttons =
+    storage.files
+    |> List.mapi (fun i entry ->
+        let size_mb = Int64.to_float entry.file_size /. 1_000_000.0 in
+        [
+          Tg.Keyboard.callback
+            ~text:(Printf.sprintf "%d. %s (%.1f MB)" (i + 1) entry.file_name size_mb)
+            ~data:("file:view:" ^ entry.file_id);
+          Tg.Keyboard.callback
+            ~text:"⬇️"
+            ~data:("file:download:" ^ entry.file_id);
+          Tg.Keyboard.callback
+            ~text:"🗑"
+            ~data:("file:delete:" ^ entry.file_id);
+        ]
+      )
+  in
+
+  let storage_info =
+    let used = total_size storage in
+    let quota = storage.quota in
+    [[Tg.Keyboard.callback
+        ~text:(Printf.sprintf "📊 Storage: %.1f/%.1f MB"
+                (Int64.to_float used /. 1_000_000.0)
+                (Int64.to_float quota /. 1_000_000.0))
+        ~data:"noop"]]
+  in
+
+  Tg.Keyboard.inline (file_buttons @ storage_info)
+
+(* Main routes *)
+let routes client = [
+  (* Start command *)
+  Tg.Bot.on (Tg.Bot.Event.command "start") (fun _args ctx ->
+    let* _ = Tg.Bot.Ctx.reply ctx
+      "📁 File Manager Bot\n\n\
+       Commands:\n\
+       /files - View your files\n\
+       /upload - Upload files\n\
+       /stats - Storage statistics\n\n\
+       Simply send any file to upload it!"
+    in
+    Ok ()
+  );
+
+  (* View files *)
+  Tg.Bot.on (Tg.Bot.Event.command "files") (fun _args ctx ->
+    let storage = Tg.Bot.Ctx.session_get_or ctx storage_key ~default:empty_storage in
+
+    if List.length storage.files = 0 then
+      let* _ = Tg.Bot.Ctx.reply ctx "📁 No files uploaded yet" in
+      Ok ()
+    else
+      let keyboard = create_file_list_keyboard storage in
+      let* _ = Tg.Bot.Ctx.reply ctx
+        ~reply_markup:keyboard
+        (Printf.sprintf "📁 Your Files (%d)" (List.length storage.files))
+      in
+      Ok ()
+  );
+
+  (* Storage stats *)
+  Tg.Bot.on (Tg.Bot.Event.command "stats") (fun _args ctx ->
+    let storage = Tg.Bot.Ctx.session_get_or ctx storage_key ~default:empty_storage in
+    let used = total_size storage in
+    let quota = storage.quota in
+    let percent = Int64.to_float used /. Int64.to_float quota *. 100.0 in
+
+    let stats = Printf.sprintf
+      "📊 Storage Statistics\n\n\
+       Files: %d\n\
+       Used: %.2f MB\n\
+       Quota: %.2f MB\n\
+       Usage: %.1f%%"
+      (List.length storage.files)
+      (Int64.to_float used /. 1_000_000.0)
+      (Int64.to_float quota /. 1_000_000.0)
+      percent
+    in
+
+    let* _ = Tg.Bot.Ctx.reply ctx stats in
+    Ok ()
+  );
+
+  (* Handle document upload *)
+  Tg.Bot.on Tg.Bot.Event.document (fun doc ctx ->
+    let storage = Tg.Bot.Ctx.session_get_or ctx storage_key ~default:empty_storage in
+
+    let file_size = Option.value doc.file_size ~default:0L in
+
+    if not (has_space storage file_size) then
+      let* _ = Tg.Bot.Ctx.reply ctx "❌ Storage quota exceeded" in
+      Ok ()
+    else
+      let entry = {
+        file_id = doc.file_id;
+        file_name = Option.value doc.file_name ~default:"document";
+        file_size;
+        mime_type = Option.value doc.mime_type ~default:"application/octet-stream";
+        uploaded_at = Unix.time ();
+        user_id = (match Tg.Bot.Ctx.user ctx with
+                   | Some u -> Telegram.Id.User.to_int u.id
+                   | None -> 0L);
+      } in
+
+      let updated = add_file storage entry in
+      Tg.Bot.Ctx.session_set ctx storage_key updated;
+
+      (* Cache file *)
+      Hashtbl.add file_cache doc.file_id entry;
+
+      let* _ = Tg.Bot.Ctx.reply ctx
+        (Printf.sprintf "✓ Uploaded: %s (%.2f MB)"
+           entry.file_name
+           (Int64.to_float file_size /. 1_000_000.0))
+      in
+      Ok ()
+  );
+
+  (* Handle photo upload *)
+  Tg.Bot.on Tg.Bot.Event.photo (fun photos ctx ->
+    match photos with
+    | largest :: _ ->
+        let storage = Tg.Bot.Ctx.session_get_or ctx storage_key ~default:empty_storage in
+        let file_size = Option.value largest.file_size ~default:0L in
+
+        if not (has_space storage file_size) then
+          let* _ = Tg.Bot.Ctx.reply ctx "❌ Storage quota exceeded" in
+          Ok ()
+        else
+          let entry = {
+            file_id = largest.file_id;
+            file_name = Printf.sprintf "photo_%d.jpg" (int_of_float (Unix.time ()));
+            file_size;
+            mime_type = "image/jpeg";
+            uploaded_at = Unix.time ();
+            user_id = (match Tg.Bot.Ctx.user ctx with
+                       | Some u -> Telegram.Id.User.to_int u.id
+                       | None -> 0L);
+          } in
+
+          let updated = add_file storage entry in
+          Tg.Bot.Ctx.session_set ctx storage_key updated;
+
+          let* _ = Tg.Bot.Ctx.reply ctx "✓ Photo uploaded" in
+          Ok ()
+
+    | [] ->
+        Ok ()
+  );
+
+  (* Download file *)
+  Tg.Bot.on (Tg.Bot.Event.callback "file:download:*") (fun data ctx ->
+    let file_id = String.sub data 14 (String.length data - 14) in
+
+    (* Find file entry *)
+    match Hashtbl.find_opt file_cache file_id with
+    | Some entry ->
+        (* Resend the file *)
+        (match Tg.Bot.Ctx.chat ctx with
+        | Some chat ->
+            let chat_id = chat.id in
+            let document = Telegram.Input_file.file_id file_id in
+
+            (match Telegram_generated.Gen_methods.send_document client
+                     ~chat_id
+                     ~document
+                     ~caption:(Printf.sprintf "📥 %s" entry.file_name)
+                     ()
+            with
+            | Ok _ ->
+                let* _ = Tg.Bot.Ctx.answer ctx ~text:"✓ File sent" in
+                Ok ()
+            | Error _ ->
+                let* _ = Tg.Bot.Ctx.answer ctx ~text:"Failed to send file" in
+                Ok ())
+
+        | None ->
+            Ok ())
+
+    | None ->
+        let* _ = Tg.Bot.Ctx.answer ctx ~text:"File not found" in
+        Ok ()
+  );
+
+  (* Delete file *)
+  Tg.Bot.on (Tg.Bot.Event.callback "file:delete:*") (fun data ctx ->
+    let file_id = String.sub data 12 (String.length data - 12) in
+    let storage = Tg.Bot.Ctx.session_get_or ctx storage_key ~default:empty_storage in
+
+    let updated = remove_file storage file_id in
+    Tg.Bot.Ctx.session_set ctx storage_key updated;
+
+    Hashtbl.remove file_cache file_id;
+
+    let keyboard = create_file_list_keyboard updated in
+    let* _ = Tg.Bot.Ctx.edit ctx
+      ~reply_markup:keyboard
+      (Printf.sprintf "📁 Your Files (%d)" (List.length updated.files))
+    in
+    let* _ = Tg.Bot.Ctx.answer ctx ~text:"✓ File deleted" in
+    Ok ()
+  );
+
+  (* View file details *)
+  Tg.Bot.on (Tg.Bot.Event.callback "file:view:*") (fun data ctx ->
+    let file_id = String.sub data 10 (String.length data - 10) in
+
+    match Hashtbl.find_opt file_cache file_id with
+    | Some entry ->
+        let uploaded = Unix.gmtime entry.uploaded_at in
+        let date_str = Printf.sprintf "%04d-%02d-%02d %02d:%02d"
+          (uploaded.tm_year + 1900)
+          (uploaded.tm_mon + 1)
+          uploaded.tm_mday
+          uploaded.tm_hour
+          uploaded.tm_min
+        in
+
+        let details = Printf.sprintf
+          "📄 File Details\n\n\
+           Name: %s\n\
+           Size: %.2f MB\n\
+           Type: %s\n\
+           Uploaded: %s UTC"
+          entry.file_name
+          (Int64.to_float entry.file_size /. 1_000_000.0)
+          entry.mime_type
+          date_str
+        in
+
+        let* _ = Tg.Bot.Ctx.answer ctx ~show_alert:true ~text:details in
+        Ok ()
+
+    | None ->
+        let* _ = Tg.Bot.Ctx.answer ctx ~text:"File not found" in
+        Ok ()
+  );
+]
+
+(* Main bot *)
+let () =
+  Eio_main.run @@ fun env ->
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token in
+
+  (* Session middleware *)
+  let store = Tg.Session.Store.memory () in
+  let session_mw = Tg.Bot.Middleware.with_session store in
+
+  (* Create bot *)
+  let bot = Tg.Bot.router ~middlewares:[session_mw] (routes client) in
+
+  (* Run polling *)
+  Tg.Polling.run client (Tg.Bot.handle bot)
+]}
+
+{1 Best Practices}
+
+{2 File Validation}
+
+- {b Validate MIME types}: Check both MIME type and file extension
+- {b Size limits}: Enforce reasonable size limits before processing
+- {b Filename sanitization}: Remove dangerous characters from filenames
+- {b Virus scanning}: Scan uploads for malware in production
+- {b User quotas}: Limit storage per user to prevent abuse
+
+{2 Download Strategy}
+
+- {b Small files (<1MB)}: Use `get_and_download_string`
+- {b Medium files (1-10MB)}: Use `get_and_download` with buffer
+- {b Large files (>10MB)}: Stream to disk using download URL
+- {b Temporary files}: Clean up temp files after processing
+- {b Error handling}: Handle network failures gracefully
+
+{2 Upload Optimization}
+
+- {b Cache file IDs}: Reuse file_id to avoid re-uploading
+- {b Use URLs}: For public files, let Telegram download
+- {b Progress tracking}: Show progress for large uploads
+- {b Batch uploads}: Use albums for multiple related files
+- {b Format selection}: Choose optimal format (JPEG for photos, MP4 for videos)
+
+{2 Performance}
+
+- {b Lazy loading}: Don't download files until needed
+- {b Parallel processing}: Process multiple files concurrently with Eio
+- {b Caching}: Cache processed results to avoid reprocessing
+- {b Cleanup}: Delete temporary files promptly
+- {b Rate limiting}: Respect Telegram's rate limits
+
+{2 Security}
+
+- {b File type validation}: Validate both MIME and extension
+- {b Path traversal protection}: Sanitize file paths
+- {b Access control}: Verify user permissions before downloads
+- {b Content scanning}: Scan for malicious content
+- {b Encryption}: Encrypt sensitive files at rest
+
+{1 See Also}
+
+- {{!page-media_files}Media and Files} - Complete file handling API reference
+- {{!Tg.Download}Download Module} - File download utilities
+- {{!Tg.Upload}Upload Module} - File upload with progress tracking
+- {{!Tg.Album}Album Module} - Media group/album handling
+- {{!Telegram.Input_file}InputFile} - File input abstraction

@@ -10,12 +10,12 @@
 
 ## Progress Tracker
 
-**Overall Completion: 20/30 tasks (67%)**
+**Overall Completion: 21/30 tasks (70%)**
 
 **Phase 1 — Getting Started Guide: COMPLETE (5/5 tasks) ✓**
 **Phase 2 — API Fundamentals: COMPLETE (6/6 tasks) ✓**
 **Phase 3 — Advanced Patterns: COMPLETE (7/7 tasks) ✓**
-**Phase 4 — Cookbook & Recipes: IN PROGRESS (3/12 tasks) ✓**
+**Phase 4 — Cookbook & Recipes: IN PROGRESS (4/12 tasks) ✓**
 
 ---
 
@@ -271,11 +271,13 @@ Real-world bot implementations with complete examples.
   - Complete production example (interactive shop bot with categories, cart, checkout) ✓
   - Best practices (menu design, keyboard state, dynamic keyboards, user experience) ✓
 
-- [ ] Task 4.4: File handling bot
-  - Document uploads
-  - Image processing
-  - File downloads
-  - Multi-file handling
+- [x] Task 4.4: File handling bot — COMPLETED: docs/recipe_file_bot.mld
+  - Document upload handling (reception, download, validation, filtering) ✓
+  - Image processing (photo upload, metadata extraction, download, transformations) ✓
+  - File downloads (to memory, to disk, progress tracking) ✓
+  - Multi-file handling (photo albums, mixed media, dynamic album generation) ✓
+  - Complete production example (file management bot with upload, download, storage quotas) ✓
+  - Best practices (validation, download strategy, upload optimization, performance, security) ✓
 
 - [ ] Task 4.5: Inline query bot
   - Inline search

@@ -172,6 +172,7 @@ See the {e examples/} directory for complete, runnable examples:
 - {{!page-recipe_command_bot}Command Bot Recipe} - Multi-command bot with help system and admin commands
 - {{!page-recipe_echo_bot}Echo Bot Variations} - Simple to sophisticated echo bots with formatting and transformations
 - {{!page-recipe_keyboard_bot}Keyboard Bot Patterns} - Interactive menus, multi-level navigation, and keyboard state management
+- {{!page-recipe_file_bot}File Handling Bot} - Document uploads, image processing, downloads, and multi-file albums
 
 {2 Migration}
 
