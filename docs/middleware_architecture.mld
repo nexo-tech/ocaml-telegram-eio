@@ -1,0 +1,971 @@
+{0 Middleware Architecture}
+
+A comprehensive guide to building modular, composable bots with middleware for authentication, logging, rate limiting, and request/response processing.
+
+{1 Overview}
+
+Middleware provides a powerful way to add cross-cutting concerns to your bot without cluttering handler logic. Inspired by web frameworks, middleware wraps handlers with reusable behavior that runs before, after, or around the main handler logic.
+
+{b Key Concepts}:
+- {b Before hooks}: Run before handler (validation, auth, context enrichment)
+- {b After hooks}: Run after successful handler (logging, cleanup)
+- {b Error hooks}: Run when handler fails (error logging, recovery)
+- {b Composition}: Chain multiple middleware pieces together
+
+{b Use Cases}:
+- Authentication and authorization
+- Rate limiting and throttling
+- Logging and monitoring
+- Request validation
+- Context enrichment
+- Error handling
+- Caching
+
+{1 Middleware Basics}
+
+{2 Understanding Middleware}
+
+Middleware wraps handlers with additional behavior:
+
+{[
+(* Without middleware *)
+let handler ctx =
+  (* Manually check auth *)
+  if not (is_admin ctx) then
+    Ctx.reply ctx "Permission denied"
+  else
+    (* Handler logic *)
+    process_admin_command ctx
+
+(* With middleware *)
+let admin_middleware = Middleware.only_users [admin_user_id]
+
+let handler ctx =
+  (* Auth already checked by middleware *)
+  process_admin_command ctx
+
+(* Apply middleware to route *)
+let route =
+  on (Event.command "admin") handler
+  |> with_middleware [admin_middleware]
+]}
+
+{2 Middleware Execution Order}
+
+Middleware runs in a specific order:
+
+{[
+(* Execution flow *)
+┌─────────────────────────────────────┐
+│ 1. Before hooks (outer → inner)    │
+├─────────────────────────────────────┤
+│ 2. Handler execution                │
+├─────────────────────────────────────┤
+│ 3. After hooks (inner → outer)      │
+│    OR                               │
+│ 3. Error hooks (if handler fails)   │
+└─────────────────────────────────────┘
+
+(* Example with 3 middleware *)
+Middleware.combine [mw1; mw2; mw3]
+
+(* Execution: *)
+mw1.before
+  mw2.before
+    mw3.before
+      handler()
+    mw3.after
+  mw2.after
+mw1.after
+]}
+
+{1 Custom Middleware}
+
+{2 Basic Custom Middleware}
+
+Create middleware with before/after/error hooks:
+
+{[
+open Tg.Bot
+
+(* Simple timing middleware *)
+let timing_middleware =
+  Middleware.make
+    ~before:(fun ctx ->
+      (* Store start time somehow *)
+      Printf.printf "Handler starting...\n";
+      Ok ctx
+    )
+    ~after:(fun ctx ->
+      Printf.printf "Handler completed\n"
+    )
+    ~on_error:(fun ctx exn ->
+      Printf.eprintf "Handler error: %s\n" (Printexc.to_string exn)
+    )
+    "timing"
+
+(* Validation middleware *)
+let validation_middleware check_valid error_msg =
+  Middleware.make
+    ~before:(fun ctx ->
+      if check_valid ctx then
+        Ok ctx
+      else
+        Error error_msg
+    )
+    "validation"
+]}
+
+{2 Before Hooks}
+
+Before hooks can transform context or reject requests:
+
+{[
+(* Enrich context with user data *)
+let enrich_user_data db =
+  Middleware.make
+    ~before:(fun ctx ->
+      match Ctx.user ctx with
+      | None -> Ok ctx
+      | Some user ->
+          let user_id = Telegram.Id.User.to_int user.id in
+          let profile = Database.get_user_profile db user_id in
+          (* Store profile in session *)
+          Ctx.session_set ctx profile_key profile;
+          Ok ctx
+    )
+    "enrich_user_data"
+
+(* Validate input *)
+let require_text_input =
+  Middleware.make
+    ~before:(fun ctx ->
+      let msg = Ctx.message ctx in
+      match msg.text with
+      | Some text when String.length text > 0 ->
+          Ok ctx
+      | _ ->
+          let* _ = Ctx.reply ctx "Text input required" in
+          Error "No text input"
+    )
+    "require_text"
+
+(* Check subscription *)
+let require_subscription db =
+  Middleware.make
+    ~before:(fun ctx ->
+      match Ctx.user ctx with
+      | None -> Error "No user"
+      | Some user ->
+          let user_id = Telegram.Id.User.to_int user.id in
+          if is_subscribed db user_id then
+            Ok ctx
+          else
+            let* _ = Ctx.reply ctx "Subscription required" in
+            Error "Not subscribed"
+    )
+    "require_subscription"
+]}
+
+{2 After Hooks}
+
+After hooks run after successful handler execution:
+
+{[
+(* Log successful operations *)
+let audit_logging db =
+  Middleware.make
+    ~after:(fun ctx ->
+      match Ctx.user ctx with
+      | Some user ->
+          let user_id = Telegram.Id.User.to_int user.id in
+          Database.log_action db user_id "command_executed";
+      | None -> ()
+    )
+    "audit_logging"
+
+(* Update metrics *)
+let metrics_middleware metrics =
+  Middleware.make
+    ~after:(fun ctx ->
+      metrics.total_commands <- metrics.total_commands + 1;
+      metrics.last_command_time <- Unix.time ()
+    )
+    "metrics"
+
+(* Cleanup *)
+let cleanup_middleware =
+  Middleware.make
+    ~after:(fun ctx ->
+      (* Clean up temporary data *)
+      Ctx.session_delete ctx temp_data_key
+    )
+    "cleanup"
+]}
+
+{2 Error Hooks}
+
+Error hooks handle exceptions from handlers:
+
+{[
+(* Log errors *)
+let error_logging_middleware =
+  Middleware.make
+    ~on_error:(fun ctx exn ->
+      Printf.eprintf "[ERROR] %s: %s\n"
+        (get_handler_name ctx)
+        (Printexc.to_string exn);
+
+      (* Optionally notify admins *)
+      notify_admins_of_error ctx exn
+    )
+    "error_logging"
+
+(* Graceful error recovery *)
+let error_recovery_middleware =
+  Middleware.make
+    ~on_error:(fun ctx exn ->
+      (* Log error *)
+      log_error exn;
+
+      (* Send user-friendly message *)
+      let* _ = Ctx.reply ctx
+        "An error occurred. Please try again later."
+      in
+      ()
+    )
+    "error_recovery"
+
+(* Retry logic *)
+let retry_middleware max_retries =
+  let retries = ref 0 in
+  Middleware.make
+    ~on_error:(fun ctx exn ->
+      if !retries < max_retries then (
+        retries := !retries + 1;
+        Printf.printf "Retry %d/%d\n" !retries max_retries;
+        (* Handler will be retried *)
+      ) else (
+        Printf.eprintf "Max retries exceeded\n";
+        let* _ = Ctx.reply ctx "Operation failed after retries" in
+        ()
+      )
+    )
+    "retry"
+]}
+
+{1 Built-in Middleware}
+
+{2 Logging Middleware}
+
+Log updates and handler execution:
+
+{[
+(* Basic logging *)
+let log_mw = Middleware.logging ()
+
+(* Custom prefix *)
+let log_mw = Middleware.logging ~prefix:"[MyBot]" ()
+
+(* Usage *)
+let routes =
+  router
+    ~middlewares:[log_mw]
+    [
+      on (Event.command "start") start_handler;
+      on (Event.command "help") help_handler;
+    ]
+
+(* Output:
+   [Bot] Received update 123456 from user @alice
+   [Bot] Handler 'start' completed in 15ms
+*)
+]}
+
+{2 Authorization Middleware}
+
+Restrict access to specific users:
+
+{[
+(* Only specific users *)
+let admin_mw = Middleware.only_users [
+  Telegram.Id.User.of_int 123456789L;
+  Telegram.Id.User.of_int 987654321L;
+]
+
+(* Require user present *)
+let require_user_mw = Middleware.require_user ()
+
+(* Require chat present *)
+let require_chat_mw = Middleware.require_chat ()
+
+(* Apply to routes *)
+let admin_routes =
+  router
+    ~middlewares:[admin_mw]
+    [
+      on (Event.command "ban") ban_handler;
+      on (Event.command "unban") unban_handler;
+    ]
+]}
+
+{2 Rate Limiting Middleware}
+
+Prevent spam and abuse:
+
+{[
+(* Simple in-memory rate limiting *)
+let rate_limit_mw = Middleware.rate_limit ~max_per_minute:10 ()
+
+(* Apply globally *)
+let routes =
+  router
+    ~middlewares:[rate_limit_mw]
+    all_routes
+
+(* Apply per-route *)
+let expensive_route =
+  on (Event.command "expensive") expensive_handler
+  |> with_middleware [Middleware.rate_limit ~max_per_minute:1 ()]
+]}
+
+{2 Context Enrichment Middleware}
+
+Transform context before handler:
+
+{[
+(* Add user language *)
+let enrich_language db =
+  Middleware.enrich (fun ctx ->
+    match Ctx.user ctx with
+    | None -> ctx
+    | Some user ->
+        let user_id = Telegram.Id.User.to_int user.id in
+        let lang = get_user_language db user_id in
+        Ctx.session_set ctx language_key lang;
+        ctx
+  )
+
+(* Add permissions *)
+let enrich_permissions db =
+  Middleware.enrich (fun ctx ->
+    match Ctx.user ctx with
+    | None -> ctx
+    | Some user ->
+        let user_id = Telegram.Id.User.to_int user.id in
+        let perms = get_user_permissions db user_id in
+        Ctx.session_set ctx permissions_key perms;
+        ctx
+  )
+]}
+
+{2 Session Middleware}
+
+Enable session storage:
+
+{[
+(* In-memory sessions *)
+module Store = Tg.Session.Memory_store
+let store = Store.create ()
+
+let session_mw = Middleware.with_session (module Store) store
+
+(* Use in routes *)
+let routes =
+  router
+    ~middlewares:[session_mw]
+    [
+      on (Event.command "count") (fun _args ctx ->
+        let count = Ctx.session_get_or ctx counter_key ~default:0 in
+        Ctx.session_set ctx counter_key (count + 1);
+        Ctx.reply ctx (Printf.sprintf "Count: %d" (count + 1))
+      );
+    ]
+]}
+
+{1 Middleware Composition}
+
+{2 Combining Middleware}
+
+Combine multiple middleware into one:
+
+{[
+(* Using combine *)
+let common_mw = Middleware.combine [
+  Middleware.logging ();
+  Middleware.require_user ();
+  Middleware.rate_limit ~max_per_minute:20 ();
+]
+
+(* Using >> operator *)
+let common_mw =
+  Middleware.logging ()
+  >> Middleware.require_user ()
+  >> Middleware.rate_limit ~max_per_minute:20 ()
+
+(* Apply to routes *)
+let routes = router ~middlewares:[common_mw] all_routes
+]}
+
+{2 Layered Middleware}
+
+Apply different middleware at different levels:
+
+{[
+(* Global middleware (all routes) *)
+let global_mw = [
+  Middleware.logging ();
+  Middleware.require_user ();
+]
+
+(* Admin middleware (admin routes) *)
+let admin_mw = [
+  Middleware.only_users [admin_user_id];
+]
+
+(* Expensive operation middleware *)
+let expensive_mw = [
+  Middleware.rate_limit ~max_per_minute:1 ();
+]
+
+(* Build routes *)
+let routes =
+  router
+    ~middlewares:global_mw
+    [
+      (* Public routes *)
+      on (Event.command "start") start_handler;
+      on (Event.command "help") help_handler;
+
+      (* Admin routes *)
+      on (Event.command "stats") stats_handler
+      |> with_middleware admin_mw;
+
+      on (Event.command "broadcast") broadcast_handler
+      |> with_middleware admin_mw;
+
+      (* Expensive route *)
+      on (Event.command "generate") generate_handler
+      |> with_middleware expensive_mw;
+    ]
+]}
+
+{2 Conditional Middleware}
+
+Apply middleware based on conditions:
+
+{[
+(* Apply rate limiting only in groups *)
+let conditional_rate_limit ctx =
+  let msg = Ctx.message ctx in
+  match msg.chat.chat_type with
+  | `Group | `Supergroup ->
+      (* Group chat - apply rate limit *)
+      Middleware.rate_limit ~max_per_minute:5 ()
+  | _ ->
+      (* Private chat - no limit *)
+      Middleware.make "noop"
+
+(* Dynamic middleware based on user *)
+let dynamic_middleware db ctx =
+  match Ctx.user ctx with
+  | Some user ->
+      let user_id = Telegram.Id.User.to_int user.id in
+      if is_premium_user db user_id then
+        Middleware.rate_limit ~max_per_minute:100 ()
+      else
+        Middleware.rate_limit ~max_per_minute:10 ()
+  | None ->
+      Middleware.require_user ()
+]}
+
+{1 Advanced Patterns}
+
+{2 Request/Response Middleware}
+
+Transform requests and responses:
+
+{[
+(* Request transformation *)
+let normalize_input =
+  Middleware.make
+    ~before:(fun ctx ->
+      let msg = Ctx.message ctx in
+      match msg.text with
+      | Some text ->
+          (* Normalize text (trim, lowercase) *)
+          let normalized = String.trim (String.lowercase_ascii text) in
+          (* Store normalized version *)
+          Ctx.session_set ctx normalized_text_key normalized;
+          Ok ctx
+      | None ->
+          Ok ctx
+    )
+    "normalize_input"
+
+(* Response transformation *)
+let format_response =
+  Middleware.make
+    ~after:(fun ctx ->
+      (* Could transform response format *)
+      (* Add footer, format, etc. *)
+      ()
+    )
+    "format_response"
+]}
+
+{2 Authentication Middleware}
+
+Complex authentication flows:
+
+{[
+(* API key authentication *)
+let api_key_auth valid_keys =
+  Middleware.make
+    ~before:(fun ctx ->
+      let msg = Ctx.message ctx in
+      match msg.text with
+      | Some text when String.starts_with ~prefix:"/auth " text ->
+          let key = String.sub text 6 (String.length text - 6) in
+          if List.mem key valid_keys then (
+            (* Store authenticated flag *)
+            Ctx.session_set ctx authenticated_key true;
+            Ok ctx
+          ) else
+            Error "Invalid API key"
+      | _ ->
+          (* Check if already authenticated *)
+          if Ctx.session_get_or ctx authenticated_key ~default:false then
+            Ok ctx
+          else
+            let* _ = Ctx.reply ctx "Authentication required. Use /auth <key>" in
+            Error "Not authenticated"
+    )
+    "api_key_auth"
+
+(* JWT-style token auth *)
+let token_auth verify_token =
+  Middleware.make
+    ~before:(fun ctx ->
+      match Ctx.session_get ctx token_key with
+      | Some token when verify_token token ->
+          (* Token valid *)
+          Ok ctx
+      | Some _ ->
+          (* Token expired or invalid *)
+          Ctx.session_delete ctx token_key;
+          Error "Token expired"
+      | None ->
+          (* No token *)
+          let* _ = Ctx.reply ctx "Please login first with /login" in
+          Error "No token"
+    )
+    "token_auth"
+]}
+
+{2 Authorization Middleware}
+
+Role-based and permission-based authorization:
+
+{[
+(* Role-based access *)
+type role = User | Moderator | Admin
+
+let require_role db required_role =
+  Middleware.make
+    ~before:(fun ctx ->
+      match Ctx.user ctx with
+      | None -> Error "No user"
+      | Some user ->
+          let user_id = Telegram.Id.User.to_int user.id in
+          let user_role = get_user_role db user_id in
+          if role_level user_role >= role_level required_role then
+            Ok ctx
+          else
+            let* _ = Ctx.reply ctx "Insufficient permissions" in
+            Error "Insufficient role"
+    )
+    (Printf.sprintf "require_role:%s" (role_to_string required_role))
+
+(* Permission-based access *)
+let require_permission db permission =
+  Middleware.make
+    ~before:(fun ctx ->
+      match Ctx.user ctx with
+      | None -> Error "No user"
+      | Some user ->
+          let user_id = Telegram.Id.User.to_int user.id in
+          if has_permission db user_id permission then
+            Ok ctx
+          else
+            let* _ = Ctx.reply ctx
+              (Printf.sprintf "You don't have permission: %s" permission)
+            in
+            Error "Permission denied"
+    )
+    (Printf.sprintf "require_perm:%s" permission)
+
+(* Usage *)
+let admin_routes =
+  [
+    on (Event.command "ban") ban_handler
+    |> with_middleware [require_permission db "user.ban"];
+
+    on (Event.command "delete") delete_handler
+    |> with_middleware [require_permission db "message.delete"];
+
+    on (Event.command "config") config_handler
+    |> with_middleware [require_role db Admin];
+  ]
+]}
+
+{2 Rate Limiting Strategies}
+
+Advanced rate limiting patterns:
+
+{[
+(* Per-user rate limiting with sliding window *)
+module RateLimiter = struct
+  type t = {
+    window_seconds : int;
+    max_requests : int;
+    requests : (int64, float list) Hashtbl.t;
+  }
+
+  let create ~window_seconds ~max_requests = {
+    window_seconds;
+    max_requests;
+    requests = Hashtbl.create 100;
+  }
+
+  let check limiter user_id =
+    let now = Unix.time () in
+    let cutoff = now -. float_of_int limiter.window_seconds in
+
+    let recent_requests =
+      match Hashtbl.find_opt limiter.requests user_id with
+      | None -> []
+      | Some timestamps ->
+          List.filter (fun t -> t > cutoff) timestamps
+    in
+
+    if List.length recent_requests >= limiter.max_requests then
+      false
+    else (
+      Hashtbl.replace limiter.requests user_id (now :: recent_requests);
+      true
+    )
+end
+
+let rate_limit_middleware limiter =
+  Middleware.make
+    ~before:(fun ctx ->
+      match Ctx.user ctx with
+      | None -> Ok ctx
+      | Some user ->
+          let user_id = Telegram.Id.User.to_int user.id in
+          if RateLimiter.check limiter user_id then
+            Ok ctx
+          else
+            let* _ = Ctx.reply ctx "Rate limit exceeded. Please try again later." in
+            Error "Rate limited"
+    )
+    "rate_limit"
+
+(* Token bucket rate limiting *)
+module TokenBucket = struct
+  type t = {
+    capacity : int;
+    refill_rate : float;  (* tokens per second *)
+    mutable tokens : float;
+    mutable last_refill : float;
+  }
+
+  let create ~capacity ~refill_rate = {
+    capacity;
+    refill_rate;
+    tokens = float_of_int capacity;
+    last_refill = Unix.time ();
+  }
+
+  let try_consume bucket =
+    let now = Unix.time () in
+    let elapsed = now -. bucket.last_refill in
+    let new_tokens = min
+      (float_of_int bucket.capacity)
+      (bucket.tokens +. (elapsed *. bucket.refill_rate))
+    in
+    bucket.tokens <- new_tokens;
+    bucket.last_refill <- now;
+
+    if bucket.tokens >= 1.0 then (
+      bucket.tokens <- bucket.tokens -. 1.0;
+      true
+    ) else
+      false
+end
+]}
+
+{2 Caching Middleware}
+
+Cache responses for expensive operations:
+
+{[
+module Cache = struct
+  type 'a t = {
+    store : (string, 'a * float) Hashtbl.t;
+    ttl : float;
+  }
+
+  let create ~ttl = {
+    store = Hashtbl.create 100;
+    ttl;
+  }
+
+  let get cache key =
+    match Hashtbl.find_opt cache.store key with
+    | Some (value, timestamp) ->
+        if Unix.time () -. timestamp < cache.ttl then
+          Some value
+        else (
+          Hashtbl.remove cache.store key;
+          None
+        )
+    | None -> None
+
+  let set cache key value =
+    Hashtbl.replace cache.store key (value, Unix.time ())
+end
+
+let caching_middleware cache make_key =
+  Middleware.make
+    ~before:(fun ctx ->
+      let key = make_key ctx in
+      match Cache.get cache key with
+      | Some cached_response ->
+          (* Return cached response *)
+          let* _ = Ctx.reply ctx cached_response in
+          Error "cached"  (* Skip handler *)
+      | None ->
+          (* Store key for after hook *)
+          Ctx.session_set ctx cache_key_session key;
+          Ok ctx
+    )
+    ~after:(fun ctx ->
+      (* Cache the response *)
+      match Ctx.session_get ctx cache_key_session with
+      | Some key ->
+          (* Get response somehow and cache it *)
+          ()
+      | None -> ()
+    )
+    "caching"
+]}
+
+{1 Error Handling}
+
+{2 Global Error Handler}
+
+Handle all errors at router level:
+
+{[
+let global_error_handler ctx exn =
+  (* Log error *)
+  Printf.eprintf "[ERROR] %s\n" (Printexc.to_string exn);
+
+  (* Send user-friendly message *)
+  let* _ = Ctx.reply ctx
+    "An error occurred. Our team has been notified."
+  in
+
+  (* Notify admins *)
+  notify_admins_of_error ctx exn;
+  ()
+
+let routes =
+  router
+    ~on_error:global_error_handler
+    ~middlewares:[logging_mw]
+    all_routes
+]}
+
+{2 Error Recovery Middleware}
+
+Recover from specific errors:
+
+{[
+let error_recovery_middleware =
+  Middleware.make
+    ~on_error:(fun ctx exn ->
+      match exn with
+      | Database_error msg ->
+          Printf.eprintf "DB error: %s\n" msg;
+          let* _ = Ctx.reply ctx "Database temporarily unavailable" in
+          ()
+
+      | Timeout_error ->
+          Printf.eprintf "Timeout\n";
+          let* _ = Ctx.reply ctx "Request timed out. Please try again." in
+          ()
+
+      | _ ->
+          Printf.eprintf "Unknown error: %s\n" (Printexc.to_string exn);
+          let* _ = Ctx.reply ctx "An error occurred" in
+          ()
+    )
+    "error_recovery"
+]}
+
+{1 Best Practices}
+
+{2 Middleware Design}
+
+- {b Single responsibility}: Each middleware does one thing well
+- {b Composability}: Design for easy composition with other middleware
+- {b Error handling}: Always handle errors gracefully
+- {b Performance}: Keep middleware fast (runs on every request)
+
+{2 Ordering}
+
+Order matters! Apply middleware in logical sequence:
+
+{[
+(* Good order *)
+let routes = router ~middlewares:[
+  logging_mw;           (* 1. Log everything *)
+  require_user_mw;      (* 2. Ensure user present *)
+  auth_mw;              (* 3. Check authentication *)
+  rate_limit_mw;        (* 4. Rate limit authenticated users *)
+  enrich_context_mw;    (* 5. Add user data *)
+] routes
+
+(* Bad order *)
+let routes = router ~middlewares:[
+  enrich_context_mw;    (* ✗ Enriches before auth check *)
+  rate_limit_mw;        (* ✗ Limits before knowing user *)
+  auth_mw;              (* ✗ Auth after rate limit *)
+  require_user_mw;      (* ✗ User check after auth *)
+  logging_mw;           (* ✗ Logging last (misses failures) *)
+] routes
+]}
+
+{2 Testing}
+
+Test middleware independently:
+
+{[
+(* Test middleware *)
+let test_auth_middleware () =
+  let mw = auth_middleware in
+
+  (* Create test context *)
+  let ctx = create_test_context () in
+
+  (* Test successful auth *)
+  match Middleware.run_before mw ctx with
+  | Ok ctx' -> assert (ctx' = ctx)
+  | Error _ -> assert false
+
+  (* Test failed auth *)
+  let ctx_no_auth = create_test_context ~authenticated:false () in
+  match Middleware.run_before mw ctx_no_auth with
+  | Ok _ -> assert false
+  | Error msg -> assert (msg = "Not authenticated")
+]}
+
+{1 Complete Example: Production Bot}
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+open Tg.Bot
+
+(* Configuration *)
+let admin_ids = [123456789L; 987654321L]
+let rate_limit_per_minute = 20
+
+(* Custom middleware *)
+let audit_logging db =
+  Middleware.make
+    ~before:(fun ctx ->
+      match Ctx.user ctx with
+      | Some user ->
+          let user_id = Telegram.Id.User.to_int user.id in
+          Database.log db "request_start" user_id;
+          Ok ctx
+      | None -> Ok ctx
+    )
+    ~after:(fun ctx ->
+      match Ctx.user ctx with
+      | Some user ->
+          let user_id = Telegram.Id.User.to_int user.id in
+          Database.log db "request_end" user_id
+      | None -> ()
+    )
+    "audit_logging"
+
+let metrics =
+  let total = ref 0 in
+  let errors = ref 0 in
+  Middleware.make
+    ~after:(fun _ -> incr total)
+    ~on_error:(fun _ _ -> incr errors)
+    "metrics"
+
+(* Build routes *)
+let routes db =
+  (* Session store *)
+  module Store = Session.Memory_store in
+  let store = Store.create () in
+
+  (* Common middleware *)
+  let common_mw = [
+    Middleware.logging ~prefix:"[MyBot]" ();
+    Middleware.require_user ();
+    Middleware.rate_limit ~max_per_minute:rate_limit_per_minute ();
+    Middleware.with_session (module Store) store;
+    audit_logging db;
+    metrics;
+  ] in
+
+  (* Admin middleware *)
+  let admin_mw = [
+    Middleware.only_users (List.map Telegram.Id.User.of_int admin_ids);
+  ] in
+
+  router
+    ~middlewares:common_mw
+    ~on_error:ErrorHandler.log_and_reply ()
+    [
+      (* Public routes *)
+      on (Event.command "start") start_handler;
+      on (Event.command "help") help_handler;
+      on (Event.command "info") info_handler;
+
+      (* Admin routes *)
+      on (Event.command "stats") stats_handler
+      |> with_middleware admin_mw;
+
+      on (Event.command "broadcast") broadcast_handler
+      |> with_middleware admin_mw;
+
+      on (Event.command "ban") ban_handler
+      |> with_middleware admin_mw;
+    ]
+
+(* Main *)
+let () =
+  Eio_main.run @@ fun env ->
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token () in
+  let db = Database.connect () in
+  run_polling ~env ~client (routes db)
+]}
+
+{1 See Also}
+
+- {{!Tg.Bot.Middleware}Middleware Module} - Complete middleware API reference
+- {{!page-command_dsl}Command DSL} - Using middleware with Bot DSL
+- {{!page-state_machines}State Machines} - Session middleware for stateful bots
+- {{!Tg.Bot.ErrorHandler}ErrorHandler Module} - Built-in error handlers
+- {{!page-development_workflow}Development Workflow} - Testing middleware

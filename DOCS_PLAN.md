@@ -10,10 +10,11 @@
 
 ## Progress Tracker
 
-**Overall Completion: 11/30 tasks (37%)**
+**Overall Completion: 12/30 tasks (40%)**
 
 **Phase 1 — Getting Started Guide: COMPLETE (5/5 tasks) ✓**
 **Phase 2 — API Fundamentals: COMPLETE (6/6 tasks) ✓**
+**Phase 3 — Advanced Patterns: IN PROGRESS (2/7 tasks) ✓**
 
 ---
 
@@ -162,11 +163,19 @@ Sophisticated patterns for production bots.
   - Best practices (state design, session management, error handling, performance) ✓
   - Complete example (registration bot with full FSM) ✓
 
-- [ ] Task 3.2: Middleware architecture
-  - Request/response middleware
-  - Authentication and authorization
-  - Rate limiting
-  - Logging middleware
+- [x] Task 3.2: Middleware architecture — COMPLETED: docs/middleware_architecture.mld
+  - Middleware basics (execution order, hooks model, composition) ✓
+  - Custom middleware (before/after/error hooks, context transformation) ✓
+  - Built-in middleware (logging, only_users, require_user, rate_limit, enrich, with_session) ✓
+  - Middleware composition (combine function, >> operator, chaining patterns) ✓
+  - Request/response transformation (context enrichment, request validation, response modification) ✓
+  - Authentication patterns (API key validation, JWT-style tokens, multi-scheme auth) ✓
+  - Authorization (role-based access control, permission-based access control) ✓
+  - Rate limiting (sliding window algorithm, token bucket algorithm) ✓
+  - Caching middleware (with TTL, cache invalidation) ✓
+  - Error handling (global error handlers, recovery middleware, error transformation) ✓
+  - Best practices (middleware design, ordering, performance, testing) ✓
+  - Complete production example (admin bot with layered middleware) ✓
 
 - [ ] Task 3.3: Error handling strategies
   - Result types and error propagation
