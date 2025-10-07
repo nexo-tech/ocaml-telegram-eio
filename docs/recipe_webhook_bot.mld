@@ -1,0 +1,832 @@
+{0 Recipe: Webhook Bot}
+
+A comprehensive cookbook for building production webhook-based bots with proper security, performance optimization, and graceful shutdown.
+
+{1 Overview}
+
+This recipe demonstrates how to build bots using webhooks instead of polling. Webhooks are push-based: Telegram sends updates to your server immediately, making them more efficient for production deployments.
+
+{b What you'll learn}:
+- Webhook setup and configuration
+- Polling vs webhooks tradeoffs
+- Security patterns (secret tokens, IP allowlisting)
+- Reverse proxy configuration (Nginx/TLS)
+- Graceful shutdown handling
+- Request validation
+- Production deployment patterns
+
+{b When to use webhooks}:
+- Production bots with high traffic
+- Bots requiring minimal latency
+- Cloud deployments (Kubernetes, Docker)
+- Serverless/cloud function deployments
+- Bots running on servers with static IPs
+
+{1 Basic Webhook Setup}
+
+{2 Minimal Webhook Server}
+
+Start a basic webhook server:
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+
+let () =
+  Eio_main.run @@ fun env ->
+
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token in
+
+  (* Define update handler *)
+  let handler update =
+    match update.Telegram_generated.Gen_types.Update.message with
+    | Some msg ->
+        Printf.printf "Message: %Ld\n" msg.message_id;
+        flush stdout
+    | None -> ()
+  in
+
+  (* Run webhook server *)
+  Tg.Webhook.run client
+    ~secret_token:"my-secret-token-123"
+    ~port:8443
+    ~path:"/webhook"
+    ~handler
+]}
+
+{2 Tell Telegram Where to Send Updates}
+
+After starting your webhook server, configure Telegram:
+
+{[
+(* Set webhook URL - do this once when starting your bot *)
+let setup_webhook client =
+  let url = "https://example.com:8443/webhook" in
+  let secret_token = "my-secret-token-123" in
+
+  (* Using direct API call *)
+  let open Telegram in
+  let request = Request.create
+    ~method_name:"setWebhook"
+    ~parameters:[
+      ("url", Param.string url);
+      ("secret_token", Param.string secret_token);
+      ("max_connections", Param.int 100);
+    ]
+    ()
+  in
+
+  match Api.call client request with
+  | Ok response ->
+      Printf.printf "Webhook set successfully\n"
+  | Error err ->
+      Printf.eprintf "Failed to set webhook: %s\n" (Error.to_string err)
+]}
+
+{2 Webhook Requirements}
+
+Telegram requires:
+- {b HTTPS}: Must use TLS (port 443, 80, 88, or 8443)
+- {b Valid certificate}: Self-signed OK for testing
+- {b Public URL}: Accessible from Telegram servers
+- {b POST endpoint}: Accepts JSON updates
+
+{1 Webhook vs Polling}
+
+{2 Comparison Table}
+
+{v
+Feature              | Polling              | Webhooks
+---------------------|----------------------|---------------------
+Latency              | 1-30 seconds         | <1 second
+Network efficiency   | Constant requests    | Only when updates arrive
+Server requirements  | Any environment      | Public IP + HTTPS
+Setup complexity     | Simple               | Requires TLS setup
+Development          | Easy local testing   | Need tunneling (ngrok)
+Production           | Higher resource use  | Lower resource use
+Deployment           | Flexible             | Needs static endpoint
+Cost (cloud)         | Higher (polling)     | Lower (event-driven)
+v}
+
+{2 When to Use Polling}
+
+Choose polling for:
+- {b Development}: Easy local testing without tunneling
+- {b Dynamic IPs}: No static IP or domain name
+- {b Simple deployment}: Quick setup without TLS
+- {b Low traffic}: Few updates per minute
+- {b Testing}: Rapid iteration and debugging
+
+{2 When to Use Webhooks}
+
+Choose webhooks for:
+- {b Production}: Efficient, scalable deployments
+- {b High traffic}: Many updates per second
+- {b Low latency}: Immediate update delivery
+- {b Cloud hosting}: AWS, GCP, Azure with load balancers
+- {b Cost optimization}: Pay per request, not constant polling
+- {b Serverless}: Cloud Functions, Lambda
+
+{1 Advanced Webhook Configuration}
+
+{2 Full Configuration Options}
+
+Configure all webhook parameters:
+
+{[
+let config = Tg.Webhook.make
+  ~port:8443
+  ~path:"/webhook"
+  ~secret_token:"my-secret-token-123"
+  ~max_connections:100
+  ~on_error:(fun err ->
+    Printf.eprintf "Error: %s\n" (Telegram.Error.to_string err))
+  ~ip_allowlist:Tg.Webhook.telegram_ip_ranges  (* Restrict to Telegram IPs *)
+  ()
+
+let () =
+  Eio_main.run @@ fun env ->
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token in
+
+  let handler update =
+    (* Process update *)
+    ()
+  in
+
+  Tg.Webhook.run_with_config client config ~handler
+]}
+
+{2 Configuration Parameters}
+
+{b port} (default: 8443):
+- Port to listen on
+- Telegram supports: 443, 80, 88, 8443
+- Common: 8443 for bot-specific port
+- Production: Often use 443 with reverse proxy
+
+{b path} (default: "/webhook"):
+- URL path for updates
+- Keep it secret (e.g., "/bot<random-token>")
+- Must match path in setWebhook URL
+
+{b secret_token} (highly recommended):
+- Secret string sent in X-Telegram-Bot-Api-Secret-Token header
+- Validates requests are from Telegram
+- Generate strong random token
+- Don't commit to version control
+
+{b max_connections} (default: 100, max: 100):
+- Maximum concurrent webhook connections
+- Higher = more concurrent updates
+- Lower = less resource usage
+- Telegram default: 40
+
+{b on_error}:
+- Callback for handling errors
+- Log errors for debugging
+- Optional error recovery
+
+{b ip_allowlist}:
+- Restrict requests to specific IPs
+- Use Tg.Webhook.telegram_ip_ranges for Telegram IPs
+- Additional security layer
+
+{1 Security Patterns}
+
+{2 Secret Token Validation}
+
+Always use secret tokens:
+
+{[
+(* Generate strong secret *)
+let generate_secret_token () =
+  (* In production: use cryptographic random *)
+  let random_bytes = Random.State.make_self_init () in
+  String.init 32 (fun _ ->
+    let n = Random.State.int random_bytes 62 in
+    if n < 26 then char_of_int (n + 65)       (* A-Z *)
+    else if n < 52 then char_of_int (n + 71)  (* a-z *)
+    else char_of_int (n - 4)                  (* 0-9 *)
+  )
+
+let secret_token = generate_secret_token ()
+
+(* Use in webhook config *)
+let config = Tg.Webhook.make
+  ~secret_token
+  ()
+]}
+
+{2 IP Allowlisting}
+
+Restrict to Telegram's IP ranges:
+
+{[
+(* Use built-in Telegram IP ranges *)
+let config = Tg.Webhook.make
+  ~port:8443
+  ~path:"/webhook"
+  ~secret_token:"my-secret"
+  ~ip_allowlist:Tg.Webhook.telegram_ip_ranges
+  ()
+
+(* Telegram's official IP ranges (as of 2024): *)
+(* - 149.154.160.0/20 *)
+(* - 91.108.4.0/22 *)
+]}
+
+{2 Custom Request Validation}
+
+Add custom validation logic:
+
+{[
+(* Rate limiting validator *)
+let rate_limit_table = Hashtbl.create 100
+
+let rate_limit_validator request =
+  let open Tg.Webhook in
+  let ip = request.client_addr in
+
+  (* Check rate limit *)
+  let now = Unix.time () in
+  match Hashtbl.find_opt rate_limit_table ip with
+  | Some (count, last_reset) ->
+      if now -. last_reset > 60.0 then begin
+        (* Reset after 1 minute *)
+        Hashtbl.replace rate_limit_table ip (1, now);
+        Accept
+      end else if count > 100 then begin
+        (* Too many requests *)
+        Reject (Printf.sprintf "Rate limit exceeded for IP %s" ip)
+      end else begin
+        Hashtbl.replace rate_limit_table ip (count + 1, last_reset);
+        Accept
+      end
+  | None ->
+      Hashtbl.add rate_limit_table ip (1, now);
+      Accept
+
+let config = Tg.Webhook.make
+  ~secret_token:"my-secret"
+  ~custom_validator:rate_limit_validator
+  ()
+]}
+
+{2 Request Header Validation}
+
+Extract and validate request headers:
+
+{[
+(* Validate custom headers *)
+let header_validator request =
+  let open Tg.Webhook in
+
+  (* Check for required custom header *)
+  match List.assoc_opt "X-Custom-Auth" request.headers with
+  | Some token when token = "expected-value" ->
+      Accept
+  | Some _ ->
+      Reject "Invalid custom auth header"
+  | None ->
+      Reject "Missing custom auth header"
+
+let config = Tg.Webhook.make
+  ~secret_token:"telegram-secret"
+  ~custom_validator:header_validator
+  ()
+]}
+
+{1 Reverse Proxy Configuration}
+
+{2 Nginx with TLS Termination}
+
+Production setup with Nginx handling TLS:
+
+{v
+# /etc/nginx/sites-available/telegram-bot
+
+server {
+    listen 443 ssl http2;
+    server_name bot.example.com;
+
+    # TLS configuration
+    ssl_certificate /etc/letsencrypt/live/bot.example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/bot.example.com/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+
+    # Webhook endpoint
+    location /webhook {
+        # Forward to local webhook server
+        proxy_pass http://127.0.0.1:8080/webhook;
+
+        # Preserve headers
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Timeouts
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 30s;
+        proxy_read_timeout 30s;
+
+        # Disable buffering for webhooks
+        proxy_buffering off;
+    }
+}
+v}
+
+{2 Nginx with IP Allowlist}
+
+Add IP filtering at Nginx level:
+
+{v
+# Define Telegram IP ranges
+geo $telegram_ip {
+    default 0;
+    149.154.160.0/20 1;
+    91.108.4.0/22 1;
+}
+
+server {
+    listen 443 ssl;
+    server_name bot.example.com;
+
+    ssl_certificate /etc/ssl/certs/bot.crt;
+    ssl_certificate_key /etc/ssl/private/bot.key;
+
+    location /webhook {
+        # Block non-Telegram IPs
+        if ($telegram_ip = 0) {
+            return 403;
+        }
+
+        # Verify secret token
+        if ($http_x_telegram_bot_api_secret_token != "your-secret-token") {
+            return 403;
+        }
+
+        proxy_pass http://127.0.0.1:8080/webhook;
+    }
+}
+v}
+
+{2 Caddy (Simpler Alternative)}
+
+Caddy provides automatic HTTPS:
+
+{v
+# Caddyfile
+
+bot.example.com {
+    reverse_proxy /webhook localhost:8080 {
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+    }
+}
+v}
+
+{2 Application-Level IP Validation}
+
+Handle real client IP behind proxy:
+
+{[
+(* Extract real IP from proxy headers *)
+let extract_real_ip request =
+  let open Tg.Webhook in
+
+  (* Try X-Real-IP first *)
+  match List.assoc_opt "X-Real-IP" request.headers with
+  | Some ip -> ip
+  | None ->
+      (* Fallback to first X-Forwarded-For IP *)
+      match List.assoc_opt "X-Forwarded-For" request.headers with
+      | Some ips ->
+          (match String.split_on_char ',' ips with
+          | first :: _ -> String.trim first
+          | [] -> request.client_addr)
+      | None -> request.client_addr
+
+(* Validate against Telegram IPs *)
+let ip_validator request =
+  let real_ip = extract_real_ip request in
+  let open Tg.Webhook in
+
+  (* Check if IP is in Telegram ranges *)
+  let is_telegram_ip =
+    List.exists (fun range ->
+      Tg.Webhook.ip_in_range real_ip range
+    ) Tg.Webhook.telegram_ip_ranges
+  in
+
+  if is_telegram_ip then
+    Accept
+  else
+    Reject (Printf.sprintf "Invalid source IP: %s" real_ip)
+
+let config = Tg.Webhook.make
+  ~port:8080
+  ~secret_token:"my-secret"
+  ~custom_validator:ip_validator
+  ()
+]}
+
+{1 Graceful Shutdown}
+
+{2 Signal Handling with Switch}
+
+Implement graceful shutdown:
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+
+let () =
+  Eio_main.run @@ fun env ->
+  Eio.Switch.run @@ fun sw ->
+
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token in
+
+  (* Signal handler for graceful shutdown *)
+  let shutdown _ =
+    Printf.printf "Shutdown signal received, draining connections...\n";
+    flush stdout;
+    Eio.Switch.fail sw Exit
+  in
+
+  (* Register signal handlers *)
+  Sys.set_signal Sys.sigint (Sys.Signal_handle shutdown);
+  Sys.set_signal Sys.sigterm (Sys.Signal_handle shutdown);
+
+  let handler update =
+    (* Process update *)
+    ()
+  in
+
+  let config = Tg.Webhook.make
+    ~port:8443
+    ~path:"/webhook"
+    ~secret_token:"my-secret"
+    ()
+  in
+
+  (* Run webhook with switch for graceful shutdown *)
+  try
+    Printf.printf "Starting webhook on port 8443...\n";
+    flush stdout;
+    Tg.Webhook.run_with_config_and_switch client config sw ~handler;
+    Printf.printf "Webhook stopped gracefully\n"
+  with Exit ->
+    Printf.printf "Shutdown complete\n"
+]}
+
+{2 Shutdown with Timeout}
+
+Prevent slow handlers from blocking shutdown:
+
+{[
+let handler_with_timeout env update =
+  try
+    (* Timeout handler after 10 seconds *)
+    Eio.Time.with_timeout env#clock 10.0
+      (fun () -> process_update update)
+  with Eio.Time.Timeout ->
+    Printf.eprintf "Handler timeout for update %Ld\n"
+      update.update_id;
+    flush stderr
+
+let () =
+  Eio_main.run @@ fun env ->
+  Eio.Switch.run @@ fun sw ->
+
+  let client = Telegram.Client.create ~env ~token in
+
+  (* Shutdown signal *)
+  let shutdown _ =
+    Eio.Switch.fail sw Exit
+  in
+  Sys.set_signal Sys.sigint (Sys.Signal_handle shutdown);
+  Sys.set_signal Sys.sigterm (Sys.Signal_handle shutdown);
+
+  let config = Tg.Webhook.make ~port:8443 () in
+
+  try
+    Tg.Webhook.run_with_config_and_switch client config sw
+      ~handler:(handler_with_timeout env);
+    Printf.printf "Graceful shutdown complete\n"
+  with Exit ->
+    Printf.printf "Shutdown triggered\n"
+]}
+
+{2 Kubernetes Deployment}
+
+Configure for Kubernetes graceful shutdown:
+
+{v
+# deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: telegram-bot
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: telegram-bot
+    spec:
+      containers:
+      - name: bot
+        image: mybot:latest
+        ports:
+        - containerPort: 8443
+        env:
+        - name: TELEGRAM_BOT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: bot-secrets
+              key: token
+        - name: WEBHOOK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: bot-secrets
+              key: webhook-secret
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8443
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8443
+          initialDelaySeconds: 5
+          periodSeconds: 10
+      # Allow 60 seconds for graceful shutdown
+      terminationGracePeriodSeconds: 60
+v}
+
+{1 Complete Production Example}
+
+{2 Full-Featured Webhook Bot}
+
+Production-ready webhook bot with all features:
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+
+(* Configuration *)
+module Config = struct
+  let port = int_of_string (Sys.getenv_opt "WEBHOOK_PORT" |> Option.value ~default:"8443")
+  let path = Sys.getenv_opt "WEBHOOK_PATH" |> Option.value ~default:"/webhook"
+  let secret_token = Sys.getenv "WEBHOOK_SECRET"
+  let webhook_url = Sys.getenv "WEBHOOK_URL"
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN"
+end
+
+(* Metrics tracking *)
+module Metrics = struct
+  let updates_processed = ref 0L
+  let errors = ref 0L
+  let start_time = ref 0.0
+
+  let record_update () =
+    updates_processed := Int64.add !updates_processed 1L
+
+  let record_error () =
+    errors := Int64.add !errors 1L
+
+  let uptime () =
+    Unix.time () -. !start_time
+
+  let stats () =
+    Printf.sprintf
+      "Uptime: %.0fs | Updates: %Ld | Errors: %Ld"
+      (uptime ())
+      !updates_processed
+      !errors
+end
+
+(* Setup webhook with Telegram *)
+let setup_webhook client =
+  let open Telegram in
+  Printf.printf "Setting webhook to %s...\n" Config.webhook_url;
+  flush stdout;
+
+  let request = Request.create
+    ~method_name:"setWebhook"
+    ~parameters:[
+      ("url", Param.string Config.webhook_url);
+      ("secret_token", Param.string Config.secret_token);
+      ("max_connections", Param.int 100);
+      ("allowed_updates", Param.string_array
+        [|"message"; "callback_query"; "inline_query"|]);
+    ]
+    ()
+  in
+
+  match Api.call client request with
+  | Ok _ ->
+      Printf.printf "Webhook configured successfully\n";
+      flush stdout
+  | Error err ->
+      Printf.eprintf "Failed to set webhook: %s\n" (Error.to_string err);
+      flush stderr;
+      exit 1
+
+(* Update handler *)
+let handle_update update =
+  Metrics.record_update ();
+
+  match update.Telegram_generated.Gen_types.Update.message with
+  | Some msg ->
+      Printf.printf "Message %Ld from chat %Ld\n"
+        msg.message_id
+        msg.chat.id;
+      flush stdout
+  | None -> ()
+
+(* Error handler *)
+let on_error err =
+  Metrics.record_error ();
+  Printf.eprintf "Error: %s\n" (Telegram.Error.to_string err);
+  flush stderr
+
+(* Custom validator with rate limiting *)
+let rate_limiter = Hashtbl.create 100
+
+let custom_validator request =
+  let open Tg.Webhook in
+  let ip = request.client_addr in
+  let now = Unix.time () in
+
+  (* Rate limit: 100 requests per minute per IP *)
+  match Hashtbl.find_opt rate_limiter ip with
+  | Some (count, last_reset) ->
+      if now -. last_reset > 60.0 then begin
+        Hashtbl.replace rate_limiter ip (1, now);
+        Accept
+      end else if count > 100 then begin
+        Reject (Printf.sprintf "Rate limit for %s" ip)
+      end else begin
+        Hashtbl.replace rate_limiter ip (count + 1, last_reset);
+        Accept
+      end
+  | None ->
+      Hashtbl.add rate_limiter ip (1, now);
+      Accept
+
+(* Main *)
+let () =
+  Eio_main.run @@ fun env ->
+  Eio.Switch.run @@ fun sw ->
+
+  Metrics.start_time := Unix.time ();
+
+  (* Create client *)
+  let client = Telegram.Client.create ~env ~token:Config.token in
+
+  (* Setup webhook *)
+  setup_webhook client;
+
+  (* Signal handling *)
+  let shutdown _ =
+    Printf.printf "\nShutdown signal received\n";
+    Printf.printf "Stats: %s\n" (Metrics.stats ());
+    flush stdout;
+    Eio.Switch.fail sw Exit
+  in
+  Sys.set_signal Sys.sigint (Sys.Signal_handle shutdown);
+  Sys.set_signal Sys.sigterm (Sys.Signal_handle shutdown);
+
+  (* Webhook configuration *)
+  let config = Tg.Webhook.make
+    ~port:Config.port
+    ~path:Config.path
+    ~secret_token:Config.secret_token
+    ~max_connections:100
+    ~on_error
+    ~ip_allowlist:Tg.Webhook.telegram_ip_ranges
+    ~custom_validator
+    ()
+  in
+
+  (* Handler with timeout *)
+  let handler_with_timeout update =
+    try
+      Eio.Time.with_timeout env#clock 10.0
+        (fun () -> handle_update update)
+    with Eio.Time.Timeout ->
+      Printf.eprintf "Handler timeout\n";
+      flush stderr
+  in
+
+  (* Run webhook *)
+  try
+    Printf.printf "Starting webhook on port %d...\n" Config.port;
+    flush stdout;
+
+    Tg.Webhook.run_with_config_and_switch client config sw
+      ~handler:handler_with_timeout;
+
+    Printf.printf "Webhook stopped gracefully\n";
+    Printf.printf "Final stats: %s\n" (Metrics.stats ())
+  with Exit ->
+    Printf.printf "Shutdown complete\n"
+]}
+
+{1 Best Practices}
+
+{2 Security}
+
+- {b Always use secret token}: Generate strong random token
+- {b IP allowlist}: Use Telegram's IP ranges
+- {b HTTPS required}: Use valid TLS certificate
+- {b Hide webhook path}: Use random/secret path
+- {b Rate limiting}: Protect against abuse
+- {b Reverse proxy}: Nginx/Caddy for TLS termination
+
+{2 Performance}
+
+- {b Concurrent processing}: Let Eio handle concurrency
+- {b max_connections}: Tune based on server capacity
+- {b Handler timeouts}: Prevent slow requests blocking shutdown
+- {b Async operations}: Use Eio fibers for I/O
+- {b Connection pooling}: Reuse HTTP connections
+
+{2 Reliability}
+
+- {b Graceful shutdown}: Use Eio switches
+- {b Error handling}: Log and track errors
+- {b Health checks}: Implement liveness/readiness probes
+- {b Monitoring}: Track metrics (updates, errors, uptime)
+- {b Logging}: Structured logging for debugging
+
+{2 Deployment}
+
+- {b Environment variables}: Never hardcode secrets
+- {b Docker/Kubernetes}: Use orchestration for scaling
+- {b Load balancing}: Distribute across multiple instances
+- {b Auto-scaling}: Scale based on traffic
+- {b Blue-green deployment}: Zero-downtime updates
+
+{2 Development}
+
+- {b Local testing}: Use ngrok or localtunnel for HTTPS
+- {b Development mode}: Use polling for local development
+- {b Staging environment}: Test webhooks before production
+- {b Monitoring}: Set up logging and metrics early
+
+{1 Troubleshooting}
+
+{2 Webhook Not Receiving Updates}
+
+Check:
+1. Webhook URL is publicly accessible
+2. HTTPS is configured correctly
+3. Port is one of: 443, 80, 88, 8443
+4. Secret token matches in setWebhook and config
+5. Check Telegram's webhook info: getWebhookInfo
+
+{2 Certificate Issues}
+
+For self-signed certificates:
+{[
+(* Upload certificate when setting webhook *)
+let request = Request.create
+  ~method_name:"setWebhook"
+  ~parameters:[
+    ("url", Param.string url);
+    ("certificate", Param.file_upload cert_path);
+  ]
+  ()
+]}
+
+{2 IP Validation Failing}
+
+Behind reverse proxy:
+- Use X-Real-IP or X-Forwarded-For headers
+- Validate IP at application level
+- Check proxy configuration
+
+{2 Shutdown Taking Too Long}
+
+Solutions:
+- Add request timeouts to handlers
+- Lower max_connections
+- Set proxy timeouts
+- Implement handler cancellation
+
+{1 See Also}
+
+- {{!Tg.Webhook}Webhook Module} - Complete webhook API reference
+- {{!Tg.Polling}Polling Module} - Alternative to webhooks
+- {{!page-update_processing}Update Processing} - Detailed update handling guide
+- {{!page-concurrency_patterns}Concurrency Patterns} - Eio concurrency with webhooks
+- {{!page-error_handling}Error Handling} - Error recovery strategies

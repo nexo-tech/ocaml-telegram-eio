@@ -10,12 +10,12 @@
 
 ## Progress Tracker
 
-**Overall Completion: 22/30 tasks (73%)**
+**Overall Completion: 23/30 tasks (77%)**
 
 **Phase 1 — Getting Started Guide: COMPLETE (5/5 tasks) ✓**
 **Phase 2 — API Fundamentals: COMPLETE (6/6 tasks) ✓**
 **Phase 3 — Advanced Patterns: COMPLETE (7/7 tasks) ✓**
-**Phase 4 — Cookbook & Recipes: IN PROGRESS (5/12 tasks) ✓**
+**Phase 4 — Cookbook & Recipes: IN PROGRESS (6/12 tasks) ✓**
 
 ---
 
@@ -289,11 +289,15 @@ Real-world bot implementations with complete examples.
   - Complete production example (Wikipedia-style search bot with article database) ✓
   - Best practices (query processing, result design, caching strategy, pagination, error handling, security) ✓
 
-- [ ] Task 4.6: Webhook bot
-  - Webhook setup and configuration
-  - Webhook vs polling tradeoffs
-  - Webhook handler patterns
-  - Request validation
+- [x] Task 4.6: Webhook bot — COMPLETED: docs/recipe_webhook_bot.mld
+  - Webhook setup and configuration (basic setup, setWebhook, full config options) ✓
+  - Webhook vs polling tradeoffs (comparison table, when to use each) ✓
+  - Security patterns (secret token, IP allowlisting, custom validation, header validation) ✓
+  - Reverse proxy configuration (Nginx with TLS, IP allowlist, Caddy, real client IP extraction) ✓
+  - Graceful shutdown (signal handling with switch, timeout handling, Kubernetes deployment) ✓
+  - Request validation (IP validation, rate limiting, custom validators) ✓
+  - Complete production example (full-featured webhook bot with metrics, health checks, monitoring) ✓
+  - Best practices (security, performance, reliability, deployment, development, troubleshooting) ✓
 
 - [ ] Task 4.7: Poll and quiz bot
   - Creating polls
