@@ -167,6 +167,10 @@ See the {e examples/} directory for complete, runnable examples:
 - {{!page-bot_composition}Bot Composition} - Modular design, plugin architecture, handler composition, and code reusability
 - {{!page-testing_patterns}Testing Patterns} - Unit testing, mocking, integration testing, and property-based testing
 
+{2 Cookbook & Recipes}
+
+- {{!page-recipe_command_bot}Command Bot Recipe} - Multi-command bot with help system and admin commands
+
 {2 Migration}
 
 - {{!page-migration}Migration Guide} - Migrating from other libraries or Lwt/Async to Eio

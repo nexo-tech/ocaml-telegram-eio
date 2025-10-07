@@ -10,11 +10,12 @@
 
 ## Progress Tracker
 
-**Overall Completion: 17/30 tasks (57%)**
+**Overall Completion: 18/30 tasks (60%)**
 
 **Phase 1 — Getting Started Guide: COMPLETE (5/5 tasks) ✓**
 **Phase 2 — API Fundamentals: COMPLETE (6/6 tasks) ✓**
 **Phase 3 — Advanced Patterns: COMPLETE (7/7 tasks) ✓**
+**Phase 4 — Cookbook & Recipes: IN PROGRESS (1/12 tasks) ✓**
 
 ---
 
@@ -244,11 +245,14 @@ Sophisticated patterns for production bots.
 
 Real-world bot implementations with complete examples.
 
-- [ ] Task 4.1: Command bot recipe
-  - Multi-command bot structure
-  - Help system
-  - Command aliases
-  - Admin commands
+- [x] Task 4.1: Command bot recipe — COMPLETED: docs/recipe_command_bot.mld
+  - Multi-command bot structure (basic setup, multiple commands) ✓
+  - Automatic help system (command registry, dynamic help generation) ✓
+  - Command aliases (alias routing, alias resolution) ✓
+  - Admin commands (permission checks, admin-only routes, admin middleware) ✓
+  - Argument parsing (structured parsing, validation helpers) ✓
+  - Complete production example (full-featured bot with tracking and stats) ✓
+  - Best practices (command design, help system, admin commands, argument parsing) ✓
 
 - [ ] Task 4.2: Echo bot variations
   - Simple echo

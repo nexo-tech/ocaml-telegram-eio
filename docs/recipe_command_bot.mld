@@ -1,0 +1,785 @@
+{0 Recipe: Command Bot}
+
+Complete guide to building a multi-command bot with help system, command aliases, admin commands, and argument parsing.
+
+{1 Overview}
+
+Command bots are the most common type of Telegram bot. They respond to commands (messages starting with /) and provide various utilities and services. This recipe shows you how to build a robust, production-ready command bot.
+
+{2 What You'll Build}
+
+A versatile bot with:
+- Multiple commands with different purposes
+- Automatic help generation
+- Command aliases for convenience
+- Admin-only commands with permission checks
+- Argument parsing and validation
+- Error handling and user feedback
+
+{2 Prerequisites}
+
+- Basic understanding of {{!page-command_dsl}Command DSL}
+- Familiarity with {{!page-bot_composition}Bot Composition}
+- Knowledge of {{!page-middleware_architecture}Middleware}
+
+{1 Basic Command Bot}
+
+{2 Simple Command Structure}
+
+Start with a basic multi-command bot:
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+open Tg.Bot
+
+let () =
+  Eio_main.run @@ fun env ->
+
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token () in
+
+  (* Define commands *)
+  let routes = [
+    (* Start command *)
+    on (Event.command "start") (fun _args ctx ->
+      let* _ = Ctx.reply ctx
+        "👋 Welcome! I'm a command bot.\n\
+         Use /help to see available commands."
+      in
+      ()
+    );
+
+    (* Help command *)
+    on (Event.command "help") (fun _args ctx ->
+      let help_text =
+        "Available commands:\n\n\
+         /start - Get started\n\
+         /help - Show this help\n\
+         /echo <text> - Echo your message\n\
+         /time - Show current time\n\
+         /calc <expr> - Calculate expression"
+      in
+      let* _ = Ctx.reply ctx help_text in
+      ()
+    );
+
+    (* Echo command *)
+    on (Event.command "echo") (fun args ctx ->
+      let text = Args.join_rest args 0 in
+      if text = "" then
+        let* _ = Ctx.reply ctx "Usage: /echo <text>" in
+        ()
+      else
+        let* _ = Ctx.reply ctx text in
+        ()
+    );
+
+    (* Time command *)
+    on (Event.command "time") (fun _args ctx ->
+      let now = Unix.time () |> Unix.gmtime in
+      let time_str = Printf.sprintf "%04d-%02d-%02d %02d:%02d:%02d UTC"
+        (now.Unix.tm_year + 1900)
+        (now.Unix.tm_mon + 1)
+        now.Unix.tm_mday
+        now.Unix.tm_hour
+        now.Unix.tm_min
+        now.Unix.tm_sec
+      in
+      let* _ = Ctx.reply ctx ("⏰ " ^ time_str) in
+      ()
+    );
+  ] in
+
+  (* Run bot *)
+  run_polling ~env ~client routes
+]}
+
+{1 Automatic Help System}
+
+{2 Command Registry}
+
+Build a self-documenting command system:
+
+{[
+(* help_system.ml *)
+module Help_system = struct
+  type command_info = {
+    name : string;
+    aliases : string list;
+    description : string;
+    usage : string;
+    category : string;
+    admin_only : bool;
+  }
+
+  let commands : command_info list ref = ref []
+
+  let register cmd =
+    commands := cmd :: !commands
+
+  let find_command name =
+    List.find_opt (fun cmd ->
+      cmd.name = name || List.mem name cmd.aliases
+    ) !commands
+
+  let get_by_category category =
+    List.filter (fun cmd -> cmd.category = category) !commands
+
+  let get_user_commands () =
+    List.filter (fun cmd -> not cmd.admin_only) !commands
+
+  let get_admin_commands () =
+    List.filter (fun cmd -> cmd.admin_only) !commands
+
+  let format_command cmd =
+    let aliases =
+      if cmd.aliases = [] then ""
+      else " (aliases: " ^ String.concat ", " cmd.aliases ^ ")"
+    in
+    Printf.sprintf "/%s%s - %s\nUsage: %s"
+      cmd.name aliases cmd.description cmd.usage
+
+  let format_help_text ~is_admin () =
+    let user_cmds = get_user_commands () in
+    let admin_cmds = if is_admin then get_admin_commands () else [] in
+
+    let format_section title cmds =
+      if cmds = [] then ""
+      else
+        title ^ ":\n\n" ^
+        (cmds |> List.map format_command |> String.concat "\n\n")
+    in
+
+    let sections = [
+      format_section "📖 Available Commands" user_cmds;
+      format_section "🔧 Admin Commands" admin_cmds;
+    ] in
+
+    String.concat "\n\n" (List.filter (fun s -> s <> "") sections)
+end
+
+(* Register commands *)
+let () =
+  Help_system.register {
+    name = "start";
+    aliases = [];
+    description = "Start the bot and get welcome message";
+    usage = "/start";
+    category = "general";
+    admin_only = false;
+  };
+
+  Help_system.register {
+    name = "help";
+    aliases = ["h"];
+    description = "Show all available commands";
+    usage = "/help";
+    category = "general";
+    admin_only = false;
+  };
+
+  Help_system.register {
+    name = "echo";
+    aliases = ["e"; "repeat"];
+    description = "Echo back your message";
+    usage = "/echo <text>";
+    category = "utility";
+    admin_only = false;
+  };
+
+  Help_system.register {
+    name = "stats";
+    aliases = [];
+    description = "Show bot statistics";
+    usage = "/stats";
+    category = "info";
+    admin_only = true;
+  }
+]}
+
+{2 Dynamic Help Command}
+
+Generate help text automatically:
+
+{[
+let help_route =
+  on (Event.command "help") (fun args ctx ->
+    (* Check if user is admin *)
+    let is_admin = match Ctx.user ctx with
+      | Some user -> is_admin_user (Telegram.Id.User.to_int user.id)
+      | None -> false
+    in
+
+    match args with
+    | [] ->
+        (* Show all commands *)
+        let help_text = Help_system.format_help_text ~is_admin () in
+        let* _ = Ctx.reply ctx help_text in
+        ()
+
+    | [cmd_name] ->
+        (* Show specific command help *)
+        begin match Help_system.find_command cmd_name with
+        | Some cmd ->
+            let* _ = Ctx.reply ctx (Help_system.format_command cmd) in
+            ()
+        | None ->
+            let* _ = Ctx.reply ctx ("Unknown command: " ^ cmd_name) in
+            ()
+        end
+
+    | _ ->
+        let* _ = Ctx.reply ctx "Usage: /help [command]" in
+        ()
+  )
+]}
+
+{1 Command Aliases}
+
+{2 Alias Routing}
+
+Support multiple names for the same command:
+
+{[
+(* Create alias routes *)
+let create_command_with_aliases ~name ~aliases handler =
+  let main_route = on (Event.command name) handler in
+
+  let alias_routes =
+    aliases |> List.map (fun alias ->
+      on (Event.command alias) handler
+    )
+  in
+
+  main_route :: alias_routes
+
+(* Usage *)
+let echo_routes =
+  create_command_with_aliases
+    ~name:"echo"
+    ~aliases:["e"; "repeat"]
+    (fun args ctx ->
+      let text = Args.join_rest args 0 in
+      let* _ = Ctx.reply ctx text in
+      ()
+    )
+
+let all_routes =
+  echo_routes @
+  other_routes
+]}
+
+{2 Alias Resolution}
+
+{[
+module Alias_resolver = struct
+  let aliases = Hashtbl.create 16
+
+  let register ~alias ~target =
+    Hashtbl.add aliases alias target
+
+  let resolve command =
+    match Hashtbl.find_opt aliases command with
+    | Some target -> target
+    | None -> command
+end
+
+(* Register aliases *)
+let () =
+  Alias_resolver.register ~alias:"h" ~target:"help";
+  Alias_resolver.register ~alias:"e" ~target:"echo";
+  Alias_resolver.register ~alias:"s" ~target:"settings"
+
+(* Use in command handler *)
+let handle_command command args ctx =
+  let resolved = Alias_resolver.resolve command in
+  (* Handle resolved command *)
+  ()
+]}
+
+{1 Admin Commands}
+
+{2 Admin Permission Check}
+
+{[
+(* admin.ml *)
+module Admin = struct
+  (* Hardcoded admin list (in production, use database) *)
+  let admin_users = ref [
+    123456789L;  (* Replace with real admin user IDs *)
+    987654321L;
+  ]
+
+  let is_admin user_id =
+    List.mem user_id !admin_users
+
+  let add_admin user_id =
+    if not (is_admin user_id) then
+      admin_users := user_id :: !admin_users
+
+  let remove_admin user_id =
+    admin_users := List.filter ((<>) user_id) !admin_users
+
+  let require_admin handler =
+    fun args ctx ->
+      match Ctx.user ctx with
+      | Some user ->
+          let user_id = Telegram.Id.User.to_int user.id in
+          if is_admin user_id then
+            handler args ctx
+          else
+            let* _ = Ctx.reply ctx "⛔ Admin access required" in
+            ()
+      | None ->
+          let* _ = Ctx.reply ctx "⛔ User information not available" in
+          ()
+end
+]}
+
+{2 Admin Command Examples}
+
+{[
+(* Stats command - admin only *)
+let stats_route =
+  on (Event.command "stats")
+    (Admin.require_admin (fun _args ctx ->
+      let stats = gather_bot_stats () in
+      let text = Printf.sprintf
+        "📊 Bot Statistics\n\n\
+         Total users: %d\n\
+         Messages today: %d\n\
+         Commands executed: %d\n\
+         Uptime: %s"
+        stats.total_users
+        stats.messages_today
+        stats.commands_executed
+        (format_uptime stats.uptime_seconds)
+      in
+      let* _ = Ctx.reply ctx text in
+      ()
+    ))
+
+(* Broadcast command - admin only *)
+let broadcast_route =
+  on (Event.command "broadcast")
+    (Admin.require_admin (fun args ctx ->
+      let message = Args.join_rest args 0 in
+
+      if message = "" then
+        let* _ = Ctx.reply ctx "Usage: /broadcast <message>" in
+        ()
+      else
+        (* Send to all users *)
+        let user_ids = get_all_user_ids () in
+        let success_count = ref 0 in
+        let fail_count = ref 0 in
+
+        user_ids |> List.iter (fun user_id ->
+          let chat_id = Telegram.Id.Chat.of_user user_id in
+          match Telegram_generated.Gen_methods.send_message
+                  (Ctx.client ctx) ~chat_id ~text:message () with
+          | Ok _ -> incr success_count
+          | Error _ -> incr fail_count
+        );
+
+        let* _ = Ctx.reply ctx
+          (Printf.sprintf "📢 Broadcast sent to %d users (%d failed)"
+            !success_count !fail_count)
+        in
+        ()
+    ))
+
+(* Ban user command - admin only *)
+let ban_route =
+  on (Event.command "ban")
+    (Admin.require_admin (fun args ctx ->
+      match Args.expect_1 args with
+      | Some user_id_str ->
+          begin match Int64.of_string_opt user_id_str with
+          | Some user_id ->
+              ban_user user_id;
+              let* _ = Ctx.reply ctx ("🚫 Banned user " ^ user_id_str) in
+              ()
+          | None ->
+              let* _ = Ctx.reply ctx "Invalid user ID" in
+              ()
+          end
+      | None ->
+          let* _ = Ctx.reply ctx "Usage: /ban <user_id>" in
+          ()
+    ))
+]}
+
+{2 Admin Middleware}
+
+{[
+let admin_middleware =
+  Middleware.make
+    ~before:(fun ctx ->
+      match Ctx.user ctx with
+      | Some user ->
+          if Admin.is_admin (Telegram.Id.User.to_int user.id) then
+            Ok ctx
+          else
+            Error "Admin access required"
+      | None ->
+          Error "User info not available"
+    )
+    "require_admin"
+
+(* Apply to admin routes *)
+let admin_routes =
+  router
+    ~middlewares:[admin_middleware]
+    [
+      on (Event.command "stats") stats_handler;
+      on (Event.command "broadcast") broadcast_handler;
+      on (Event.command "ban") ban_handler;
+    ]
+]}
+
+{1 Argument Parsing}
+
+{2 Structured Argument Parsing}
+
+{[
+(* calc_command.ml - Calculator command *)
+module Calc_command = struct
+  type operation =
+    | Add of float * float
+    | Subtract of float * float
+    | Multiply of float * float
+    | Divide of float * float
+
+  let parse_args args =
+    match args with
+    | [a; "+"; b] ->
+        begin match Float.of_string_opt a, Float.of_string_opt b with
+        | Some x, Some y -> Ok (Add (x, y))
+        | _ -> Error "Invalid numbers"
+        end
+
+    | [a; "-"; b] ->
+        begin match Float.of_string_opt a, Float.of_string_opt b with
+        | Some x, Some y -> Ok (Subtract (x, y))
+        | _ -> Error "Invalid numbers"
+        end
+
+    | [a; "*"; b] ->
+        begin match Float.of_string_opt a, Float.of_string_opt b with
+        | Some x, Some y -> Ok (Multiply (x, y))
+        | _ -> Error "Invalid numbers"
+        end
+
+    | [a; "/"; b] ->
+        begin match Float.of_string_opt a, Float.of_string_opt b with
+        | Some x, Some y ->
+            if y = 0.0 then
+              Error "Division by zero"
+            else
+              Ok (Divide (x, y))
+        | _ -> Error "Invalid numbers"
+        end
+
+    | _ ->
+        Error "Usage: /calc <number> <op> <number>\nExample: /calc 5 + 3"
+
+  let execute = function
+    | Add (a, b) -> a +. b
+    | Subtract (a, b) -> a -. b
+    | Multiply (a, b) -> a *. b
+    | Divide (a, b) -> a /. b
+
+  let route =
+    on (Event.command "calc") (fun args ctx ->
+      match parse_args args with
+      | Ok operation ->
+          let result = execute operation in
+          let* _ = Ctx.reply ctx (string_of_float result) in
+          ()
+      | Error msg ->
+          let* _ = Ctx.reply ctx ("❌ " ^ msg) in
+          ()
+    )
+end
+]}
+
+{2 Validation Helpers}
+
+{[
+module Arg_validation = struct
+  let require_n n args ctx k =
+    if List.length args < n then
+      let* _ = Ctx.reply ctx
+        (Printf.sprintf "Expected at least %d arguments" n)
+      in
+      ()
+    else
+      k args ctx
+
+  let parse_int_arg arg ctx k =
+    match Args.parse_int arg with
+    | Some n -> k n ctx
+    | None ->
+        let* _ = Ctx.reply ctx ("Invalid number: " ^ arg) in
+        ()
+
+  let parse_user_id arg ctx k =
+    match Int64.of_string_opt arg with
+    | Some id -> k id ctx
+    | None ->
+        let* _ = Ctx.reply ctx "Invalid user ID" in
+        ()
+end
+
+(* Usage *)
+let repeat_route =
+  on (Event.command "repeat") (fun args ctx ->
+    Arg_validation.require_n 2 args ctx @@ fun args ctx ->
+
+    let count_str = List.hd args in
+    let text = Args.join_rest args 1 in
+
+    Arg_validation.parse_int_arg count_str ctx @@ fun count ctx ->
+
+    if count < 1 || count > 10 then
+      let* _ = Ctx.reply ctx "Count must be between 1 and 10" in
+      ()
+    else
+      let repeated = List.init count (fun _ -> text) |> String.concat "\n" in
+      let* _ = Ctx.reply ctx repeated in
+      ()
+  )
+]}
+
+{1 Complete Production Example}
+
+{2 Full-Featured Command Bot}
+
+{[
+(* main.ml - Complete command bot *)
+open Eio.Std
+open Ocaml_telegram_eio
+open Tg.Bot
+
+(* Bot state *)
+module State = struct
+  type t = {
+    mutable total_commands : int;
+    mutable user_count : int;
+    start_time : float;
+  }
+
+  let create () = {
+    total_commands = 0;
+    user_count = 0;
+    start_time = Unix.gettimeofday ();
+  }
+
+  let track_command state =
+    state.total_commands <- state.total_commands + 1
+
+  let stats state =
+    let uptime = Unix.gettimeofday () -. state.start_time in
+    (state.total_commands, state.user_count, uptime)
+end
+
+let state = State.create ()
+
+(* Command handlers *)
+module Commands = struct
+  let start = fun _args ctx ->
+    let* _ = Ctx.reply ctx
+      "👋 Welcome to CommandBot!\n\n\
+       I'm a feature-rich bot with multiple commands.\n\
+       Use /help to see what I can do."
+    in
+    ()
+
+  let help = fun args ctx ->
+    let is_admin = match Ctx.user ctx with
+      | Some user -> Admin.is_admin (Telegram.Id.User.to_int user.id)
+      | None -> false
+    in
+    let help_text = Help_system.format_help_text ~is_admin () in
+    let* _ = Ctx.reply ctx help_text in
+    ()
+
+  let echo = fun args ctx ->
+    let text = Args.join_rest args 0 in
+    if text = "" then
+      let* _ = Ctx.reply ctx "Usage: /echo <text>" in
+      ()
+    else
+      let* _ = Ctx.reply ctx text in
+      ()
+
+  let time = fun _args ctx ->
+    let now = Unix.time () |> Unix.gmtime in
+    let text = Printf.sprintf "⏰ %04d-%02d-%02d %02d:%02d:%02d UTC"
+      (now.Unix.tm_year + 1900) (now.Unix.tm_mon + 1) now.Unix.tm_mday
+      now.Unix.tm_hour now.Unix.tm_min now.Unix.tm_sec
+    in
+    let* _ = Ctx.reply ctx text in
+    ()
+
+  let about = fun _args ctx ->
+    let* _ = Ctx.reply ctx
+      "ℹ️ CommandBot v1.0\n\n\
+       A multi-command bot built with ocaml-telegram-eio.\n\
+       Source: github.com/example/commandbot"
+    in
+    ()
+
+  (* Admin commands *)
+  let stats = Admin.require_admin (fun _args ctx ->
+    let (cmds, users, uptime) = State.stats state in
+    let hours = int_of_float (uptime /. 3600.0) in
+    let text = Printf.sprintf
+      "📊 Bot Statistics\n\n\
+       Commands executed: %d\n\
+       Unique users: %d\n\
+       Uptime: %d hours"
+      cmds users hours
+    in
+    let* _ = Ctx.reply ctx text in
+    ()
+  )
+
+  let broadcast = Admin.require_admin (fun args ctx ->
+    let message = Args.join_rest args 0 in
+    if message = "" then
+      let* _ = Ctx.reply ctx "Usage: /broadcast <message>" in
+      ()
+    else
+      let* _ = Ctx.reply ctx "📢 Broadcasting..." in
+      (* Implementation: send to all users *)
+      ()
+  )
+end
+
+(* Register commands in help system *)
+let () =
+  List.iter Help_system.register [
+    { name = "start"; aliases = []; description = "Get started";
+      usage = "/start"; category = "general"; admin_only = false };
+    { name = "help"; aliases = ["h"]; description = "Show help";
+      usage = "/help [command]"; category = "general"; admin_only = false };
+    { name = "echo"; aliases = ["e"; "repeat"]; description = "Echo text";
+      usage = "/echo <text>"; category = "utility"; admin_only = false };
+    { name = "time"; aliases = []; description = "Show current time";
+      usage = "/time"; category = "utility"; admin_only = false };
+    { name = "calc"; aliases = []; description = "Calculate expression";
+      usage = "/calc <num> <op> <num>"; category = "utility"; admin_only = false };
+    { name = "about"; aliases = ["info"]; description = "About this bot";
+      usage = "/about"; category = "general"; admin_only = false };
+    { name = "stats"; aliases = []; description = "Show statistics";
+      usage = "/stats"; category = "admin"; admin_only = true };
+    { name = "broadcast"; aliases = []; description = "Broadcast message";
+      usage = "/broadcast <message>"; category = "admin"; admin_only = true };
+  ]
+
+(* Command tracking middleware *)
+let track_commands_middleware =
+  Middleware.make
+    ~before:(fun ctx ->
+      State.track_command state;
+      Ok ctx
+    )
+    "track_commands"
+
+(* Main bot setup *)
+let () =
+  Eio_main.run @@ fun env ->
+
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token () in
+
+  (* Print bot info *)
+  let () =
+    match Telegram_generated.Gen_methods.get_me client () with
+    | Ok me ->
+        Printf.printf "🤖 Bot started: @%s\n"
+          (Option.value me.username ~default:"unknown");
+        Printf.printf "📝 Registered %d commands\n"
+          (List.length !Help_system.commands);
+        flush stdout
+    | Error err ->
+        Printf.eprintf "Failed to start: %a\n" Telegram.Error.pp err;
+        exit 1
+  in
+
+  (* Define routes *)
+  let public_routes = [
+    on (Event.command "start") Commands.start;
+    on (Event.command "help") Commands.help;
+    on (Event.command "h") Commands.help;  (* Alias *)
+    on (Event.command "echo") Commands.echo;
+    on (Event.command "e") Commands.echo;  (* Alias *)
+    on (Event.command "time") Commands.time;
+    Calc_command.route;
+    on (Event.command "about") Commands.about;
+  ] in
+
+  let admin_routes = router
+    ~middlewares:[Admin.admin_middleware]
+    [
+      on (Event.command "stats") Commands.stats;
+      on (Event.command "broadcast") Commands.broadcast;
+    ]
+  in
+
+  let all_routes = router
+    ~middlewares:[track_commands_middleware]
+    ~on_error:ErrorHandler.(log_and_reply ())
+    (public_routes @ admin_routes)
+  in
+
+  (* Run bot *)
+  Printf.printf "✅ Polling for updates...\n";
+  flush stdout;
+  run_polling ~env ~client all_routes
+]}
+
+{1 Best Practices}
+
+{2 Command Design}
+
+- {b Keep commands simple}: One command = one task
+- {b Consistent naming}: Use clear, descriptive names
+- {b Provide help}: Every command should have usage info
+- {b Validate input}: Check arguments before processing
+- {b User feedback}: Always respond to the user
+
+{2 Help System}
+
+- {b Auto-generation}: Generate help from command registry
+- {b Categorization}: Group related commands
+- {b Examples}: Show usage examples
+- {b Context-aware}: Show admin commands only to admins
+- {b Searchable}: Support `/help <command>` for details
+
+{2 Admin Commands}
+
+- {b Permission checks}: Always verify admin status
+- {b Audit logging}: Log admin actions
+- {b Confirmation}: Require confirmation for destructive actions
+- {b Rate limiting}: Protect against abuse
+- {b Secure storage}: Never hardcode admin IDs in public code
+
+{2 Argument Parsing}
+
+- {b Type safety}: Parse to proper types early
+- {b Clear errors}: Tell users what went wrong
+- {b Validation}: Check ranges and constraints
+- {b Defaults}: Provide sensible defaults
+- {b Optional args}: Support flexible argument patterns
+
+{1 See Also}
+
+- {{!page-command_dsl}Command DSL} - Command routing and parsing
+- {{!page-bot_composition}Bot Composition} - Modular command organization
+- {{!page-middleware_architecture}Middleware} - Admin authentication
+- {{!page-error_handling}Error Handling} - Robust error handling
+- {{!Tg.Bot.Args} - Argument parsing utilities
