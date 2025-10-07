@@ -10,11 +10,11 @@
 
 ## Progress Tracker
 
-**Overall Completion: 16/30 tasks (53%)**
+**Overall Completion: 17/30 tasks (57%)**
 
 **Phase 1 — Getting Started Guide: COMPLETE (5/5 tasks) ✓**
 **Phase 2 — API Fundamentals: COMPLETE (6/6 tasks) ✓**
-**Phase 3 — Advanced Patterns: IN PROGRESS (6/7 tasks) ✓**
+**Phase 3 — Advanced Patterns: COMPLETE (7/7 tasks) ✓**
 
 ---
 
@@ -227,11 +227,16 @@ Sophisticated patterns for production bots.
   - Best practices (module organization, handler design, route composition, plugin development) ✓
   - Common patterns (command groups, state machine routes, fallback handlers) ✓
 
-- [ ] Task 3.7: Testing patterns
-  - Unit testing bot handlers
-  - Mocking Telegram API
-  - Integration testing
-  - Property-based testing
+- [x] Task 3.7: Testing patterns — COMPLETED: docs/testing_patterns.mld
+  - Testing strategy (testing pyramid, what to test) ✓
+  - Unit testing handlers (pure functions, handler logic, Args module) ✓
+  - Mocking Telegram API (mock client, mock update factory) ✓
+  - Integration testing (test environment setup, integration patterns, mock server testing) ✓
+  - Property-based testing (QCheck generators, property tests, state machine properties) ✓
+  - Test organization (file structure, Alcotest suite, fixtures and helpers) ✓
+  - Testing concurrent code (Eio fibers, rate limiting tests) ✓
+  - Best practices (test design, mock strategy, coverage, maintenance, performance) ✓
+  - Example test suites (complete handler tests, state machine tests) ✓
 
 ---
 

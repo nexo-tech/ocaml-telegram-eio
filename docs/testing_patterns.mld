@@ -1,0 +1,988 @@
+{0 Testing Patterns}
+
+Comprehensive guide to testing Telegram bots: unit testing handlers, mocking the Telegram API, integration testing, property-based testing, and test organization strategies.
+
+{1 Overview}
+
+Testing is essential for building reliable bots. The [ocaml_telegram_eio] library is designed for testability with:
+
+- {b Pure handlers}: Separate business logic from I/O
+- {b Dependency injection}: Pass clients and environment explicitly
+- {b Mockable API}: Test without real Telegram servers
+- {b Type safety}: Catch errors at compile time
+- {b Test utilities}: Helpers for common testing scenarios
+
+{2 When to Use This Guide}
+
+Use these testing patterns when you need to:
+
+- Verify bot logic works correctly
+- Test without making real API calls
+- Ensure changes don't break existing functionality
+- Validate edge cases and error handling
+- Test concurrent behavior
+- Automate quality assurance
+
+{1 Testing Strategy}
+
+{2 Testing Pyramid}
+
+{v
+        /\
+       /  \    E2E Tests (few)
+      /____\
+     /      \  Integration Tests (some)
+    /________\
+   /          \ Unit Tests (many)
+  /__________\
+v}
+
+- {b Unit tests}: Test individual functions and handlers
+- {b Integration tests}: Test components working together
+- {b End-to-end tests}: Test complete user flows (optional)
+
+{2 What to Test}
+
+{b Do test}:
+- Handler logic and business rules
+- Command argument parsing
+- State transitions
+- Error handling paths
+- Edge cases and validation
+
+{b Don't test}:
+- Telegram API implementation (trust the library)
+- Network reliability (out of your control)
+- Third-party libraries
+
+{1 Unit Testing Handlers}
+
+{2 Pure Function Handlers}
+
+Extract business logic into pure functions:
+
+{[
+(* business_logic.ml - Pure, testable logic *)
+module Business_logic = struct
+  type validation_error =
+    | Empty_name
+    | Name_too_long
+    | Invalid_email
+
+  let validate_name name =
+    if String.length name = 0 then
+      Error Empty_name
+    else if String.length name > 50 then
+      Error Name_too_long
+    else
+      Ok name
+
+  let validate_email email =
+    if String.contains email '@' then
+      Ok email
+    else
+      Error Invalid_email
+
+  let format_greeting name =
+    Printf.sprintf "Hello, %s! Welcome to our bot." name
+
+  let calculate_discount price is_premium =
+    if is_premium then
+      price *. 0.8  (* 20% discount *)
+    else
+      price
+end
+
+(* business_logic_test.ml - Unit tests *)
+let test_validate_name () =
+  Alcotest.(check (result string reject))
+    "valid name" (Ok "Alice")
+    (Business_logic.validate_name "Alice");
+
+  Alcotest.(check (result string reject))
+    "empty name" (Error Business_logic.Empty_name)
+    (Business_logic.validate_name "");
+
+  Alcotest.(check (result string reject))
+    "name too long" (Error Business_logic.Name_too_long)
+    (Business_logic.validate_name (String.make 51 'a'))
+
+let test_calculate_discount () =
+  Alcotest.(check (float 0.01))
+    "premium discount" 80.0
+    (Business_logic.calculate_discount 100.0 true);
+
+  Alcotest.(check (float 0.01))
+    "no discount" 100.0
+    (Business_logic.calculate_discount 100.0 false)
+]}
+
+{2 Testing Handler Logic}
+
+{[
+(* handlers.ml - Handlers using pure logic *)
+module Handlers = struct
+  open Tg.Bot
+
+  let register_handler args ctx =
+    match Args.expect_2 args with
+    | Some (name, email) ->
+        (* Validate inputs *)
+        begin match Business_logic.validate_name name with
+        | Error Empty_name ->
+            let* _ = Ctx.reply ctx "Name cannot be empty" in
+            ()
+        | Error Name_too_long ->
+            let* _ = Ctx.reply ctx "Name is too long (max 50 characters)" in
+            ()
+        | Ok valid_name ->
+            begin match Business_logic.validate_email email with
+            | Error Invalid_email ->
+                let* _ = Ctx.reply ctx "Invalid email address" in
+                ()
+            | Ok valid_email ->
+                (* Store registration *)
+                let greeting = Business_logic.format_greeting valid_name in
+                let* _ = Ctx.reply ctx greeting in
+                ()
+            end
+        end
+
+    | None ->
+        let* _ = Ctx.reply ctx "Usage: /register <name> <email>" in
+        ()
+end
+
+(* handlers_test.ml - Test handler logic separately *)
+let test_validate_registration_args () =
+  (* Test argument parsing *)
+  let args = ["Alice"; "alice@example.com"] in
+  match Bot.Args.expect_2 args with
+  | Some (name, email) ->
+      Alcotest.(check string) "name" "Alice" name;
+      Alcotest.(check string) "email" "alice@example.com" email
+  | None ->
+      Alcotest.fail "Expected 2 arguments"
+
+let test_registration_validation () =
+  (* Test validation without I/O *)
+  let valid = Business_logic.validate_name "Alice" in
+  Alcotest.(check (result string reject)) "valid name" (Ok "Alice") valid;
+
+  let invalid = Business_logic.validate_email "not-an-email" in
+  Alcotest.(check (result string reject)) "invalid email"
+    (Error Business_logic.Invalid_email) invalid
+]}
+
+{2 Testing Args Module}
+
+{[
+let test_args_parsing () =
+  (* Test expect_1 *)
+  Alcotest.(check (option string))
+    "expect_1 success" (Some "hello")
+    (Bot.Args.expect_1 ["hello"]);
+
+  Alcotest.(check (option string))
+    "expect_1 too many" None
+    (Bot.Args.expect_1 ["hello"; "world"]);
+
+  (* Test expect_2 *)
+  Alcotest.(check (option (pair string string)))
+    "expect_2 success" (Some ("a", "b"))
+    (Bot.Args.expect_2 ["a"; "b"]);
+
+  (* Test parse_int *)
+  Alcotest.(check (option int))
+    "parse_int success" (Some 42)
+    (Bot.Args.parse_int "42");
+
+  Alcotest.(check (option int))
+    "parse_int failure" None
+    (Bot.Args.parse_int "not-a-number");
+
+  (* Test join_rest *)
+  Alcotest.(check string)
+    "join_rest" "hello world test"
+    (Bot.Args.join_rest ["hello"; "world"; "test"] 0)
+]}
+
+{1 Mocking Telegram API}
+
+{2 Mock Client}
+
+Create a test double for the Telegram client:
+
+{[
+module Mock_client = struct
+  type call_record = {
+    method_name : string;
+    params : (string * Yojson.Safe.t) list;
+  }
+
+  type t = {
+    mutable calls : call_record list;
+    mutable responses : (string, Yojson.Safe.t) Hashtbl.t;
+  }
+
+  let create () = {
+    calls = [];
+    responses = Hashtbl.create 16;
+  }
+
+  let record_call client method_name params =
+    client.calls <- { method_name; params } :: client.calls
+
+  let set_response client method_name response =
+    Hashtbl.replace client.responses method_name response
+
+  let get_calls client = List.rev client.calls
+
+  let clear_calls client =
+    client.calls <- []
+
+  (* Implement call_method for testing *)
+  let call_method client ~method_name params =
+    record_call client method_name params;
+
+    match Hashtbl.find_opt client.responses method_name with
+    | Some response -> Ok response
+    | None ->
+        (* Default successful response *)
+        Ok (`Assoc ["ok", `Bool true; "result", `Null])
+end
+]}
+
+{2 Testing with Mock Client}
+
+{[
+let test_send_message_handler () =
+  (* Create mock client *)
+  let mock = Mock_client.create () in
+
+  (* Set up expected response *)
+  Mock_client.set_response mock "sendMessage"
+    (`Assoc [
+      "ok", `Bool true;
+      "result", `Assoc [
+        "message_id", `Int 123;
+        "chat", `Assoc ["id", `Int 456; "type", `String "private"];
+        "text", `String "Test message";
+      ]
+    ]);
+
+  (* Call handler logic (simplified - not using real context) *)
+  let chat_id = Telegram.Id.Chat.of_int 456L in
+  let params = [
+    ("chat_id", `Intlit "456");
+    ("text", `String "Test message");
+  ] in
+
+  let result = Mock_client.call_method mock ~method_name:"sendMessage" params in
+
+  (* Verify call was made *)
+  let calls = Mock_client.get_calls mock in
+  Alcotest.(check int) "one call made" 1 (List.length calls);
+
+  let call = List.hd calls in
+  Alcotest.(check string) "correct method" "sendMessage" call.method_name;
+
+  (* Verify response *)
+  Alcotest.(check bool) "call succeeded" true (Result.is_ok result)
+]}
+
+{2 Mock Update Factory}
+
+{[
+module Mock_updates = struct
+  open Telegram_generated.Gen_types
+
+  let make_user ~id ~first_name ?username () =
+    {
+      User.id;
+      is_bot = false;
+      first_name;
+      last_name = None;
+      username;
+      language_code = None;
+      is_premium = None;
+      added_to_attachment_menu = None;
+      can_join_groups = None;
+      can_read_all_group_messages = None;
+      supports_inline_queries = None;
+      can_connect_to_business = None;
+    }
+
+  let make_chat ~id ~type_ () =
+    {
+      Chat.id;
+      type_;
+      title = None;
+      username = None;
+      first_name = None;
+      last_name = None;
+      is_forum = None;
+      photo = None;
+      active_usernames = None;
+      available_reactions = None;
+      accent_color_id = None;
+      background_custom_emoji_id = None;
+      profile_accent_color_id = None;
+      profile_background_custom_emoji_id = None;
+      emoji_status_custom_emoji_id = None;
+      emoji_status_expiration_date = None;
+      bio = None;
+      has_private_forwards = None;
+      has_restricted_voice_and_video_messages = None;
+      join_to_send_messages = None;
+      join_by_request = None;
+      description = None;
+      invite_link = None;
+      pinned_message = None;
+      permissions = None;
+      slow_mode_delay = None;
+      unrestrict_boost_count = None;
+      message_auto_delete_time = None;
+      has_aggressive_anti_spam_enabled = None;
+      has_hidden_members = None;
+      has_protected_content = None;
+      has_visible_history = None;
+      sticker_set_name = None;
+      can_set_sticker_set = None;
+      custom_emoji_sticker_set_name = None;
+      linked_chat_id = None;
+      location = None;
+    }
+
+  let make_message ~message_id ~chat ?from ?text () =
+    {
+      Message.message_id;
+      message_thread_id = None;
+      from;
+      sender_chat = None;
+      sender_boost_count = None;
+      sender_business_bot = None;
+      date = 0L;
+      business_connection_id = None;
+      chat;
+      forward_origin = None;
+      is_topic_message = None;
+      is_automatic_forward = None;
+      reply_to_message = None;
+      external_reply = None;
+      quote = None;
+      reply_to_story = None;
+      via_bot = None;
+      edit_date = None;
+      has_protected_content = None;
+      is_from_offline = None;
+      media_group_id = None;
+      author_signature = None;
+      text;
+      entities = None;
+      link_preview_options = None;
+      animation = None;
+      audio = None;
+      document = None;
+      photo = None;
+      sticker = None;
+      story = None;
+      video = None;
+      video_note = None;
+      voice = None;
+      caption = None;
+      caption_entities = None;
+      has_media_spoiler = None;
+      contact = None;
+      dice = None;
+      game = None;
+      poll = None;
+      venue = None;
+      location = None;
+      new_chat_members = None;
+      left_chat_member = None;
+      new_chat_title = None;
+      new_chat_photo = None;
+      delete_chat_photo = None;
+      group_chat_created = None;
+      supergroup_chat_created = None;
+      channel_chat_created = None;
+      message_auto_delete_timer_changed = None;
+      migrate_to_chat_id = None;
+      migrate_from_chat_id = None;
+      pinned_message = None;
+      invoice = None;
+      successful_payment = None;
+      users_shared = None;
+      chat_shared = None;
+      connected_website = None;
+      write_access_allowed = None;
+      passport_data = None;
+      proximity_alert_triggered = None;
+      boost_added = None;
+      forum_topic_created = None;
+      forum_topic_edited = None;
+      forum_topic_closed = None;
+      forum_topic_reopened = None;
+      general_forum_topic_hidden = None;
+      general_forum_topic_unhidden = None;
+      giveaway_created = None;
+      giveaway = None;
+      giveaway_winners = None;
+      giveaway_completed = None;
+      video_chat_scheduled = None;
+      video_chat_started = None;
+      video_chat_ended = None;
+      video_chat_participants_invited = None;
+      web_app_data = None;
+      reply_markup = None;
+    }
+
+  let make_text_message ~message_id ~chat_id ~user_id ~text () =
+    let user = make_user ~id:user_id ~first_name:"Test User" () in
+    let chat = make_chat ~id:chat_id ~type_:"private" () in
+    make_message ~message_id ~chat ~from:user ~text:(Some text) ()
+
+  let make_command_message ~message_id ~chat_id ~user_id ~command ~args () =
+    let text = if args = "" then "/" ^ command else "/" ^ command ^ " " ^ args in
+    make_text_message ~message_id ~chat_id ~user_id ~text ()
+
+  let make_update ~update_id ?message () =
+    {
+      Update.update_id;
+      message;
+      edited_message = None;
+      channel_post = None;
+      edited_channel_post = None;
+      business_connection = None;
+      business_message = None;
+      edited_business_message = None;
+      deleted_business_messages = None;
+      message_reaction = None;
+      message_reaction_count = None;
+      inline_query = None;
+      chosen_inline_result = None;
+      callback_query = None;
+      shipping_query = None;
+      pre_checkout_query = None;
+      poll = None;
+      poll_answer = None;
+      my_chat_member = None;
+      chat_member = None;
+      chat_join_request = None;
+      chat_boost = None;
+      removed_chat_boost = None;
+    }
+end
+
+(* Usage in tests *)
+let test_command_handler () =
+  let message = Mock_updates.make_command_message
+    ~message_id:1
+    ~chat_id:123L
+    ~user_id:456L
+    ~command:"start"
+    ~args:""
+    ()
+  in
+
+  let update = Mock_updates.make_update ~update_id:1 ~message () in
+
+  (* Test that update has the expected structure *)
+  match update.Update.message with
+  | Some msg ->
+      Alcotest.(check (option string)) "command text"
+        (Some "/start") msg.Message.text
+  | None ->
+      Alcotest.fail "Expected message in update"
+]}
+
+{1 Integration Testing}
+
+{2 Test Environment Setup}
+
+{[
+(* test_env.ml - Shared test environment *)
+module Test_env = struct
+  let test_token =
+    match Sys.getenv_opt "TEST_BOT_TOKEN" with
+    | Some token -> token
+    | None -> "test_token_not_set"
+
+  let should_run_integration_tests () =
+    match Sys.getenv_opt "INTEGRATION_TESTS" with
+    | Some "1" | Some "true" -> true
+    | _ -> false
+
+  let skip_if_no_integration () =
+    if not (should_run_integration_tests ()) then
+      Alcotest.skip ()
+end
+]}
+
+{2 Integration Test Patterns}
+
+{[
+(* integration_test.ml *)
+let test_send_and_receive () =
+  Test_env.skip_if_no_integration ();
+
+  Eio_main.run @@ fun env ->
+  let client = Telegram.Client.create ~env ~token:Test_env.test_token () in
+
+  (* Test getMe *)
+  let me_result = Telegram_generated.Gen_methods.get_me client () in
+  Alcotest.(check bool) "getMe succeeds" true (Result.is_ok me_result);
+
+  match me_result with
+  | Ok me ->
+      Printf.printf "Bot username: @%s\n"
+        (Option.value me.username ~default:"unknown")
+  | Error err ->
+      Alcotest.failf "getMe failed: %a" Telegram.Error.pp err
+
+let test_polling_loop () =
+  Test_env.skip_if_no_integration ();
+
+  Eio_main.run @@ fun env ->
+  let client = Telegram.Client.create ~env ~token:Test_env.test_token () in
+
+  (* Test polling configuration *)
+  let config = Tg.Polling.make ~timeout:1 ~limit:10 () in
+
+  (* Run one iteration of polling (would need timeout in real test) *)
+  Alcotest.(check bool) "polling config created" true true
+]}
+
+{2 Mock Server Testing}
+
+{[
+(* Use telegram-test-api or similar mock server *)
+let test_with_mock_server () =
+  (* Requires docker compose with telegram-test-api *)
+  let mock_server_url = "http://localhost:9001" in
+
+  Eio_main.run @@ fun env ->
+  (* Create client pointing to mock server *)
+  let client = Telegram.Client.create
+    ~env
+    ~token:"test_token"
+    ~base_url:mock_server_url
+    ()
+  in
+
+  (* Make API calls that hit the mock server *)
+  let* result = Telegram_generated.Gen_methods.get_me client () in
+  Alcotest.(check bool) "mock getMe succeeds" true (Result.is_ok result)
+]}
+
+{1 Property-Based Testing}
+
+{2 QCheck Property Tests}
+
+{[
+open QCheck
+
+(* Generator for valid usernames *)
+let gen_username =
+  Gen.string_size ~gen:(Gen.char_range 'a' 'z') (Gen.int_range 5 20)
+
+(* Generator for message text *)
+let gen_message_text =
+  Gen.string_size Gen.printable (Gen.int_range 1 4096)
+
+(* Property: Formatting and unformatting should be identity *)
+let prop_format_roundtrip =
+  Test.make ~name:"format HTML roundtrip"
+    ~count:1000
+    gen_message_text
+    (fun text ->
+      let formatted = escape_html text in
+      let unformatted = unescape_html formatted in
+      text = unformatted
+    )
+
+(* Property: Valid names should pass validation *)
+let prop_valid_name_validates =
+  Test.make ~name:"valid names pass validation"
+    ~count:1000
+    (Gen.string_size ~gen:Gen.alpha (Gen.int_range 1 50))
+    (fun name ->
+      match Business_logic.validate_name name with
+      | Ok _ -> true
+      | Error _ -> false
+    )
+
+(* Property: Long names should fail validation *)
+let prop_long_name_fails =
+  Test.make ~name:"long names fail validation"
+    ~count:1000
+    (Gen.string_size Gen.alpha (Gen.int_range 51 100))
+    (fun name ->
+      match Business_logic.validate_name name with
+      | Error Business_logic.Name_too_long -> true
+      | _ -> false
+    )
+
+(* Property: Args parsing is consistent *)
+let prop_args_expect_n =
+  Test.make ~name:"expect_n is consistent"
+    ~count:1000
+    (Gen.list_size (Gen.int_range 0 10) Gen.string)
+    (fun args ->
+      let n = List.length args in
+      match n with
+      | 1 -> Option.is_some (Bot.Args.expect_1 args)
+      | 2 -> Option.is_some (Bot.Args.expect_2 args)
+      | 3 -> Option.is_some (Bot.Args.expect_3 args)
+      | _ -> true
+    )
+
+(* Run property tests *)
+let () =
+  QCheck_runner.run_tests [
+    prop_format_roundtrip;
+    prop_valid_name_validates;
+    prop_long_name_fails;
+    prop_args_expect_n;
+  ]
+]}
+
+{2 Property-Based State Machine Testing}
+
+{[
+(* Test state machine properties *)
+let gen_state =
+  Gen.oneofl [Idle; AwaitingName; AwaitingAge; Complete]
+
+let gen_input =
+  Gen.oneofl ["start"; "Alice"; "25"; "confirm"; "cancel"]
+
+let prop_state_machine_valid_transitions =
+  Test.make ~name:"state machine valid transitions"
+    ~count:1000
+    (Gen.pair gen_state gen_input)
+    (fun (state, input) ->
+      (* Property: transition should always return a valid state *)
+      match transition state input with
+      | Some next_state -> is_valid_state next_state
+      | None -> true  (* Invalid transitions are ok *)
+    )
+]}
+
+{1 Test Organization}
+
+{2 Test File Structure}
+
+{v
+test/
+├── unit/
+│   ├── business_logic_test.ml
+│   ├── handlers_test.ml
+│   ├── validation_test.ml
+│   └── utils_test.ml
+├── integration/
+│   ├── api_test.ml
+│   ├── polling_test.ml
+│   └── webhook_test.ml
+├── property/
+│   ├── format_test.ml
+│   └── state_machine_test.ml
+├── fixtures/
+│   ├── mock_updates.ml
+│   └── test_data.ml
+└── test_runner.ml
+v}
+
+{2 Alcotest Test Suite}
+
+{[
+(* test_runner.ml - Main test suite *)
+let () =
+  Alcotest.run "Bot Tests" [
+    (* Unit tests *)
+    "business_logic", [
+      Alcotest.test_case "validate name" `Quick test_validate_name;
+      Alcotest.test_case "validate email" `Quick test_validate_email;
+      Alcotest.test_case "calculate discount" `Quick test_calculate_discount;
+    ];
+
+    "args_parsing", [
+      Alcotest.test_case "parse int" `Quick test_parse_int;
+      Alcotest.test_case "parse bool" `Quick test_parse_bool;
+      Alcotest.test_case "expect_1" `Quick test_args_expect_1;
+      Alcotest.test_case "expect_2" `Quick test_args_expect_2;
+    ];
+
+    "handlers", [
+      Alcotest.test_case "register validation" `Quick test_registration_validation;
+      Alcotest.test_case "command parsing" `Quick test_command_parsing;
+    ];
+
+    (* Integration tests *)
+    "integration", [
+      Alcotest.test_case "send message" `Slow test_send_message;
+      Alcotest.test_case "polling" `Slow test_polling_loop;
+    ];
+  ]
+]}
+
+{2 Test Fixtures and Helpers}
+
+{[
+(* test_fixtures.ml - Reusable test data *)
+module Fixtures = struct
+  let sample_user_id = 123456L
+  let sample_chat_id = 789012L
+
+  let sample_update =
+    Mock_updates.make_update
+      ~update_id:1
+      ~message:(Mock_updates.make_text_message
+        ~message_id:1
+        ~chat_id:sample_chat_id
+        ~user_id:sample_user_id
+        ~text:"Hello"
+        ()
+      )
+      ()
+
+  let sample_command_update command args =
+    Mock_updates.make_update
+      ~update_id:1
+      ~message:(Mock_updates.make_command_message
+        ~message_id:1
+        ~chat_id:sample_chat_id
+        ~user_id:sample_user_id
+        ~command
+        ~args
+        ()
+      )
+      ()
+end
+
+(* test_helpers.ml - Test utilities *)
+module Test_helpers = struct
+  let assert_ok result =
+    match result with
+    | Ok value -> value
+    | Error err -> Alcotest.failf "Expected Ok, got Error: %s" err
+
+  let assert_error result =
+    match result with
+    | Ok _ -> Alcotest.fail "Expected Error, got Ok"
+    | Error err -> err
+
+  let with_mock_client f =
+    let mock = Mock_client.create () in
+    f mock;
+    Mock_client.clear_calls mock
+end
+]}
+
+{1 Testing Concurrent Code}
+
+{2 Testing Eio Fibers}
+
+{[
+let test_concurrent_handlers () =
+  Eio_main.run @@ fun env ->
+
+  (* Track which handlers ran *)
+  let ran = ref [] in
+  let mutex = Eio.Mutex.create () in
+
+  let record name =
+    Eio.Mutex.use_rw ~protect:true mutex (fun () ->
+      ran := name :: !ran
+    )
+  in
+
+  (* Run handlers concurrently *)
+  Eio.Switch.run @@ fun sw ->
+  Eio.Fiber.fork ~sw (fun () ->
+    record "handler1"
+  );
+  Eio.Fiber.fork ~sw (fun () ->
+    record "handler2"
+  );
+  Eio.Fiber.fork ~sw (fun () ->
+    record "handler3"
+  );
+
+  (* Verify all ran *)
+  Alcotest.(check int) "all handlers ran" 3 (List.length !ran);
+  Alcotest.(check bool) "handler1 ran" true (List.mem "handler1" !ran);
+  Alcotest.(check bool) "handler2 ran" true (List.mem "handler2" !ran);
+  Alcotest.(check bool) "handler3 ran" true (List.mem "handler3" !ran)
+]}
+
+{2 Testing Rate Limiting}
+
+{[
+let test_rate_limiter () =
+  let limiter = Rate_limiter.create ~max_per_minute:10 in
+  let user_id = 123L in
+
+  (* Should allow first 10 requests *)
+  for i = 1 to 10 do
+    let result = Rate_limiter.check_rate_limit limiter user_id in
+    Alcotest.(check bool)
+      (Printf.sprintf "request %d allowed" i)
+      true
+      (Result.is_ok result)
+  done;
+
+  (* 11th request should be rate limited *)
+  let result = Rate_limiter.check_rate_limit limiter user_id in
+  Alcotest.(check bool) "11th request blocked" true (Result.is_error result)
+]}
+
+{1 Best Practices}
+
+{2 Test Design}
+
+- {b Test behavior, not implementation}: Focus on what code does, not how
+- {b One assertion per test}: Each test should verify one thing
+- {b Arrange-Act-Assert}: Structure tests clearly
+- {b Descriptive names}: Test names should describe what they verify
+- {b Independent tests}: Tests shouldn't depend on each other
+
+{2 Mock Strategy}
+
+- {b Mock external dependencies}: Telegram API, databases, external services
+- {b Don't mock what you own}: Test your own code directly
+- {b Verify interactions}: Check that mocks are called correctly
+- {b Use realistic data}: Test with data similar to production
+- {b Test error paths}: Mock failures to test error handling
+
+{2 Test Coverage}
+
+- {b Cover happy paths}: Test normal, expected behavior
+- {b Cover error paths}: Test validation, errors, edge cases
+- {b Cover edge cases}: Empty inputs, maximum values, special characters
+- {b Cover concurrency}: Test thread safety, race conditions
+- {b Don't chase 100%}: Focus on critical paths
+
+{2 Test Maintenance}
+
+- {b Keep tests simple}: Tests should be easy to understand
+- {b Avoid test interdependence}: Each test should run independently
+- {b Use fixtures}: Share common test data
+- {b Refactor tests}: Keep tests clean like production code
+- {b Update tests with code}: Tests should evolve with features
+
+{2 Performance Testing}
+
+- {b Mark slow tests}: Use `\`Slow` tag for integration tests
+- {b Run fast tests often}: Unit tests should run in milliseconds
+- {b Separate test suites}: Unit tests separate from integration tests
+- {b Parallel execution}: Run independent tests concurrently
+- {b CI/CD optimization}: Fast tests in PR checks, slow tests nightly
+
+{1 Example Test Suites}
+
+{2 Complete Handler Test Suite}
+
+{[
+(* user_handler_test.ml *)
+module User_handler_test = struct
+  let test_register_valid_input () =
+    let args = ["Alice"; "alice@example.com"] in
+
+    (* Test argument parsing *)
+    match Bot.Args.expect_2 args with
+    | Some (name, email) ->
+        (* Test validation *)
+        let name_valid = Business_logic.validate_name name in
+        Alcotest.(check (result string reject)) "name valid" (Ok "Alice") name_valid;
+
+        let email_valid = Business_logic.validate_email email in
+        Alcotest.(check (result string reject)) "email valid" (Ok "alice@example.com") email_valid
+    | None ->
+        Alcotest.fail "Args parsing failed"
+
+  let test_register_empty_name () =
+    let args = [""; "alice@example.com"] in
+
+    match Bot.Args.expect_2 args with
+    | Some (name, _email) ->
+        let result = Business_logic.validate_name name in
+        Alcotest.(check (result string reject))
+          "empty name rejected"
+          (Error Business_logic.Empty_name)
+          result
+    | None ->
+        Alcotest.fail "Args parsing failed"
+
+  let test_register_invalid_email () =
+    let args = ["Alice"; "not-an-email"] in
+
+    match Bot.Args.expect_2 args with
+    | Some (_name, email) ->
+        let result = Business_logic.validate_email email in
+        Alcotest.(check (result string reject))
+          "invalid email rejected"
+          (Error Business_logic.Invalid_email)
+          result
+    | None ->
+        Alcotest.fail "Args parsing failed"
+
+  let tests = [
+    "valid input", `Quick, test_register_valid_input;
+    "empty name", `Quick, test_register_empty_name;
+    "invalid email", `Quick, test_register_invalid_email;
+  ]
+end
+]}
+
+{2 State Machine Test Suite}
+
+{[
+module State_machine_test = struct
+  let test_initial_state () =
+    let state = Idle in
+    Alcotest.(check bool) "starts in Idle" true (state = Idle)
+
+  let test_transition_to_awaiting_name () =
+    let next = transition Idle "register" in
+    match next with
+    | Some AwaitingName ->
+        Alcotest.(check bool) "transitions to AwaitingName" true true
+    | _ ->
+        Alcotest.fail "Expected transition to AwaitingName"
+
+  let test_invalid_transition () =
+    let next = transition Idle "unknown_input" in
+    Alcotest.(check (option reject)) "invalid transition returns None" None next
+
+  let test_complete_flow () =
+    (* Test full registration flow *)
+    let state1 = Option.get (transition Idle "register") in
+    Alcotest.(check bool) "step 1" true (state1 = AwaitingName);
+
+    let state2 = Option.get (transition state1 "Alice") in
+    Alcotest.(check bool) "step 2" true (state2 = AwaitingAge);
+
+    let state3 = Option.get (transition state2 "25") in
+    Alcotest.(check bool) "step 3" true (state3 = AwaitingConfirmation);
+
+    let state4 = Option.get (transition state3 "confirm") in
+    Alcotest.(check bool) "step 4" true (state4 = Complete)
+
+  let tests = [
+    "initial state", `Quick, test_initial_state;
+    "transition to awaiting name", `Quick, test_transition_to_awaiting_name;
+    "invalid transition", `Quick, test_invalid_transition;
+    "complete flow", `Quick, test_complete_flow;
+  ]
+end
+]}
+
+{1 See Also}
+
+- {{:https://github.com/mirage/alcotest}Alcotest} - OCaml testing framework
+- {{:https://github.com/c-cube/qcheck}QCheck} - Property-based testing
+- {{!page-development_workflow}Development Workflow} - Testing strategies
+- {{!page-error_handling}Error Handling} - Testing error paths
+- {{!page-concurrency_patterns}Concurrency Patterns} - Testing concurrent code
