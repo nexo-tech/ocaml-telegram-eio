@@ -133,11 +133,18 @@ Deep dive into the library's elegant functional API.
   - Best practices (data design, response timing, state management, security) ✓
   - Complete examples (shopping cart, form wizard, pagination) ✓
 
-- [x] Task 2.6: Media and files — COVERED in message_handling.mld
-  - Sending photos, videos, documents ✓
-  - File uploads and downloads ✓
-  - Media groups ✓
-  - InputFile abstraction ✓
+- [x] Task 2.6: Media and files — COMPLETED: docs/media_files.mld
+  - InputFile abstraction (file_id, URL, upload with three methods) ✓
+  - Sending photos (basic usage, captions, formatting, options, formats) ✓
+  - Sending videos (metadata, thumbnails, supported formats) ✓
+  - Sending documents (PDF, text files, archives, thumbnails, size limits) ✓
+  - Sending audio (music files, voice messages) ✓
+  - File upload with progress (tracking, size validation) ✓
+  - File downloads (get info, to string, to buffer, streaming, URL) ✓
+  - Media groups/albums (creating, multiple items, mixed photo/video, options, building from list) ✓
+  - Receiving files (handling photos, documents, videos) ✓
+  - Best practices (size management, format selection, error handling, performance, security) ✓
+  - Complete examples (photo gallery bot, file download bot, caching) ✓
 
 ---
 

@@ -1,0 +1,919 @@
+{0 Media and Files}
+
+A comprehensive guide to sending and receiving photos, videos, documents, and other media with your Telegram bot.
+
+{1 Overview}
+
+Telegram bots can send and receive various types of media files. This library provides elegant, type-safe APIs for all file operations with features like progress tracking, streaming uploads/downloads, and media group (album) support.
+
+{b Supported Media Types}:
+- Photos (JPEG, PNG, WebP)
+- Videos (MP4, MOV, AVI)
+- Documents (any file type)
+- Audio (MP3, M4A, voice messages)
+- Animations (GIFs)
+- Video notes (round videos)
+- Stickers
+
+{b Key Features}:
+- {b Three input methods}: File IDs, URLs, or local file uploads
+- {b Progress tracking}: Monitor upload/download progress
+- {b Streaming}: Handle large files without loading into memory
+- {b Media groups}: Send multiple photos/videos as albums
+- {b Type-safe}: InputFile abstraction prevents errors
+
+{1 InputFile Abstraction}
+
+{2 Overview}
+
+The {!Telegram.Input_file} module provides three ways to specify files:
+
+{[
+open Telegram
+
+(* 1. File ID - Reference existing file on Telegram *)
+let photo = Input_file.file_id "AgACAgIAAxkBAAIC..."
+
+(* 2. URL - Telegram downloads from URL *)
+let photo = Input_file.url "https://example.com/photo.jpg"
+
+(* 3. Upload - Upload local file *)
+let photo = Input_file.path "/path/to/photo.jpg"
+]}
+
+{2 File ID (Reuse Existing Files)}
+
+Reference files already on Telegram servers:
+
+{[
+(* Get file_id from previous message *)
+let handle_photo_message msg =
+  match msg.photo with
+  | Some (photo :: _) ->
+      let file_id = photo.file_id in
+
+      (* Reuse this file_id to send the same photo *)
+      let reusable = Input_file.file_id file_id in
+
+      (* Send to another chat *)
+      send_photo client ~chat_id:other_chat ~photo:reusable ()
+
+  | _ -> ()
+]}
+
+{b Advantages}:
+- Instant (no upload)
+- No bandwidth usage
+- Files never expire
+
+{b Use cases}:
+- Forwarding files between chats
+- Sending the same file multiple times
+- Caching frequently used files
+
+{2 URL (Remote Files)}
+
+Let Telegram download from a URL:
+
+{[
+(* Public image URL *)
+let photo = Input_file.url "https://example.com/image.jpg"
+
+send_photo client ~chat_id ~photo ()
+
+(* GIF from CDN *)
+let animation = Input_file.url "https://cdn.example.com/funny.gif"
+
+send_animation client ~chat_id ~animation ()
+]}
+
+{b Requirements}:
+- URL must be publicly accessible (no authentication)
+- Max file size: 5MB for photos, 20MB for others
+- Telegram's servers must be able to reach the URL
+
+{b Advantages}:
+- No upload from your server
+- Saves your bandwidth
+- Good for serving files from CDN
+
+{b Use cases}:
+- Public image galleries
+- Content from external APIs
+- CDN-hosted media
+
+{2 Upload (Local Files)}
+
+Upload files from your local filesystem:
+
+{[
+(* Simple upload - auto-detects filename and mime type *)
+let photo = Input_file.path "/photos/cat.jpg"
+
+(* Custom filename and mime type *)
+let document = Input_file.upload
+  ~filename:"report.pdf"
+  ~mime_type:"application/pdf"
+  "/tmp/generated_report.pdf"
+]}
+
+{b Path method}: Uses basename as filename, guesses MIME type
+
+{b Upload method}: Full control over filename and MIME type
+
+{1 Sending Photos}
+
+{2 Basic Usage}
+
+Send photos with various options:
+
+{[
+(* Simple photo *)
+let send_simple_photo client chat_id =
+  let photo = Input_file.path "/photos/cat.jpg" in
+  let* _ = Telegram_generated.Gen_methods.send_photo client
+    ~chat_id
+    ~photo
+    ()
+  in
+  Ok ()
+
+(* Photo with caption *)
+let send_with_caption client chat_id =
+  let photo = Input_file.path "/photos/cat.jpg" in
+  let* _ = Telegram_generated.Gen_methods.send_photo client
+    ~chat_id
+    ~photo
+    ~caption:"Here's a cute cat! 🐱"
+    ()
+  in
+  Ok ()
+
+(* Photo with HTML formatting *)
+let send_formatted client chat_id =
+  let photo = Input_file.path "/photos/cat.jpg" in
+  let caption = "<b>Cute Cat</b>\n<i>Photographed today</i>" in
+  let* _ = Telegram_generated.Gen_methods.send_photo client
+    ~chat_id
+    ~photo
+    ~caption
+    ~parse_mode:(Telegram.Parse_mode.html ())
+    ()
+  in
+  Ok ()
+]}
+
+{2 Photo Options}
+
+{[
+(* All options *)
+let send_photo_full client chat_id =
+  let photo = Input_file.path "/photos/cat.jpg" in
+  let* _ = Telegram_generated.Gen_methods.send_photo client
+    ~chat_id
+    ~photo
+    ~caption:"Check this out!"
+    ~parse_mode:(Telegram.Parse_mode.html ())
+    ~has_spoiler:true              (* Blur photo initially *)
+    ~disable_notification:true      (* Silent send *)
+    ~protect_content:true           (* Prevent forwarding *)
+    ~reply_to_message_id:msg_id    (* Reply to message *)
+    ()
+  in
+  Ok ()
+]}
+
+{2 Image Formats}
+
+Telegram supports:
+- JPEG (recommended for photos)
+- PNG (recommended for graphics)
+- WebP (animated stickers)
+
+{[
+(* Different formats *)
+let jpeg = Input_file.path "/photos/photo.jpg"
+let png = Input_file.path "/graphics/logo.png"
+let webp = Input_file.path "/stickers/animated.webp"
+]}
+
+{1 Sending Videos}
+
+{2 Basic Usage}
+
+Send video files:
+
+{[
+(* Simple video *)
+let send_simple_video client chat_id =
+  let video = Input_file.path "/videos/demo.mp4" in
+  let* _ = Telegram_generated.Gen_methods.send_video client
+    ~chat_id
+    ~video
+    ()
+  in
+  Ok ()
+
+(* Video with metadata *)
+let send_video_full client chat_id =
+  let video = Input_file.path "/videos/demo.mp4" in
+  let* _ = Telegram_generated.Gen_methods.send_video client
+    ~chat_id
+    ~video
+    ~caption:"Demo video"
+    ~duration:120                   (* Duration in seconds *)
+    ~width:1920                     (* Width in pixels *)
+    ~height:1080                    (* Height in pixels *)
+    ~supports_streaming:true        (* Enable streaming *)
+    ()
+  in
+  Ok ()
+]}
+
+{2 Video Thumbnails}
+
+Provide custom thumbnail for videos:
+
+{[
+let send_with_thumbnail client chat_id =
+  let video = Input_file.path "/videos/demo.mp4" in
+  let thumb = Input_file.path "/thumbnails/demo_thumb.jpg" in
+
+  let* _ = Telegram_generated.Gen_methods.send_video client
+    ~chat_id
+    ~video
+    ~thumbnail:thumb
+    ()
+  in
+  Ok ()
+]}
+
+{2 Supported Video Formats}
+
+- MP4 (recommended)
+- MOV
+- AVI
+- MKV
+
+Max size: 50 MB
+
+{1 Sending Documents}
+
+{2 Basic Usage}
+
+Send documents (any file type):
+
+{[
+(* PDF document *)
+let send_pdf client chat_id =
+  let doc = Input_file.upload
+    ~filename:"report.pdf"
+    ~mime_type:"application/pdf"
+    "/tmp/report.pdf"
+  in
+  let* _ = Telegram_generated.Gen_methods.send_document client
+    ~chat_id
+    ~document:doc
+    ~caption:"Monthly report"
+    ()
+  in
+  Ok ()
+
+(* Text file *)
+let send_text_file client chat_id =
+  let doc = Input_file.upload
+    ~filename:"data.txt"
+    ~mime_type:"text/plain"
+    "/tmp/data.txt"
+  in
+  let* _ = Telegram_generated.Gen_methods.send_document client
+    ~chat_id
+    ~document:doc
+    ()
+  in
+  Ok ()
+
+(* ZIP archive *)
+let send_archive client chat_id =
+  let doc = Input_file.upload
+    ~filename:"backup.zip"
+    ~mime_type:"application/zip"
+    "/backups/backup.zip"
+  in
+  let* _ = Telegram_generated.Gen_methods.send_document client
+    ~chat_id
+    ~document:doc
+    ()
+  in
+  Ok ()
+]}
+
+{2 Document Thumbnails}
+
+Provide thumbnails for document previews:
+
+{[
+let send_doc_with_thumb client chat_id =
+  let doc = Input_file.path "/documents/presentation.pptx" in
+  let thumb = Input_file.path "/thumbnails/presentation_thumb.jpg" in
+
+  let* _ = Telegram_generated.Gen_methods.send_document client
+    ~chat_id
+    ~document:doc
+    ~thumbnail:thumb
+    ()
+  in
+  Ok ()
+]}
+
+{2 File Size Limits}
+
+- Documents: 50 MB (normal bots)
+- Documents: 2000 MB (bot API with local server)
+
+{1 Sending Audio}
+
+{2 Audio Files}
+
+Send audio files (music):
+
+{[
+(* MP3 audio *)
+let send_audio client chat_id =
+  let audio = Input_file.path "/music/song.mp3" in
+  let* _ = Telegram_generated.Gen_methods.send_audio client
+    ~chat_id
+    ~audio
+    ~caption:"Great song!"
+    ~performer:"Artist Name"
+    ~title:"Song Title"
+    ~duration:180
+    ()
+  in
+  Ok ()
+]}
+
+{2 Voice Messages}
+
+Send voice messages (audio meant for instant playback):
+
+{[
+(* Voice message (OGG format) *)
+let send_voice client chat_id =
+  let voice = Input_file.path "/voice/recording.ogg" in
+  let* _ = Telegram_generated.Gen_methods.send_voice client
+    ~chat_id
+    ~voice
+    ~duration:10
+    ()
+  in
+  Ok ()
+]}
+
+{b Voice format}: OGG with OPUS codec
+
+{1 File Upload with Progress}
+
+{2 Progress Tracking}
+
+Monitor upload progress:
+
+{[
+open Tg.Upload
+
+(* Define progress callback *)
+let on_progress progress =
+  match progress.percent with
+  | Some pct ->
+      Printf.printf "\rUploading: %.1f%%" pct;
+      flush stdout
+  | None ->
+      Printf.printf "\rSent: %Ld bytes" progress.bytes_sent;
+      flush stdout
+
+(* Create multipart upload with progress *)
+let upload_with_progress client chat_id file_path =
+  let parts = [
+    Upload.string_part ~name:"chat_id" ~value:(Int64.to_string chat_id);
+    Upload.file_part ~name:"photo" ~path:file_path ();
+  ] in
+
+  let body = Upload.with_progress ~on_progress parts in
+
+  (* Use custom HTTP request with body *)
+  (* ... *)
+  ()
+]}
+
+{2 Size Validation}
+
+Validate file size before uploading:
+
+{[
+open Tg.Upload
+
+let upload_with_limits client chat_id file_path =
+  let parts = [
+    Upload.string_part ~name:"chat_id" ~value:(Int64.to_string chat_id);
+    Upload.file_part ~name:"photo" ~path:file_path ();
+  ] in
+
+  (* Check size against limits *)
+  match Upload.with_limits ~limits:Telegram.Limits.telegram_limits parts with
+  | Ok body ->
+      (* Size OK, proceed with upload *)
+      Printf.printf "Upload size: %Ld bytes\n"
+        (Upload.calculate_size parts);
+      (* ... *)
+      Ok ()
+
+  | Error msg ->
+      (* File too large *)
+      Printf.eprintf "Upload error: %s\n" msg;
+      Error (Telegram.Error.Invalid_parameter msg)
+]}
+
+{1 File Downloads}
+
+{2 Getting File Information}
+
+Get file info before downloading:
+
+{[
+open Tg.Download
+
+let get_file_info client file_id =
+  match Download.get_file client ~file_id with
+  | Ok info ->
+      Printf.printf "File ID: %s\n" info.file_id;
+      Printf.printf "Unique ID: %s\n" info.file_unique_id;
+      (match info.file_size with
+       | Some size -> Printf.printf "Size: %Ld bytes\n" size
+       | None -> ());
+      (match info.file_path with
+       | Some path -> Printf.printf "Path: %s\n" path
+       | None -> ());
+      Ok info
+
+  | Error err ->
+      Printf.eprintf "Error: %a\n" Telegram.Error.pp err;
+      Error err
+]}
+
+{2 Download to String}
+
+Download small files to memory:
+
+{[
+(* Download entire file to string *)
+let download_small_file client file_id =
+  match Tg.Download.get_and_download_string client ~file_id with
+  | Ok contents ->
+      Printf.printf "Downloaded %d bytes\n" (String.length contents);
+      (* Process contents *)
+      Ok contents
+
+  | Error err ->
+      Printf.eprintf "Download error: %a\n" Telegram.Error.pp err;
+      Error err
+]}
+
+{b Warning}: Loads entire file into memory. Only use for small files.
+
+{2 Download to Buffer}
+
+Download to buffer for better memory efficiency:
+
+{[
+(* Download to buffer *)
+let download_to_buffer client file_id =
+  let buf = Buffer.create 4096 in
+
+  match Tg.Download.get_and_download client ~file_id buf with
+  | Ok bytes_written ->
+      Printf.printf "Downloaded %Ld bytes\n" bytes_written;
+      let contents = Buffer.contents buf in
+      Ok contents
+
+  | Error err ->
+      Error err
+]}
+
+{2 Streaming Downloads}
+
+Download large files without loading into memory:
+
+{[
+(* Stream directly to file *)
+let download_to_file client file_id output_path =
+  (* Get file info first *)
+  match Tg.Download.get_file client ~file_id with
+  | Error err -> Error err
+  | Ok info ->
+      match info.file_path with
+      | None -> Error (Telegram.Error.Invalid_response "No file_path")
+      | Some file_path ->
+          (* Build download URL *)
+          let url = Tg.Download.download_url client ~file_path in
+
+          (* Download with Eio *)
+          let oc = open_out_bin output_path in
+          let buf = Buffer.create 4096 in
+
+          (try
+             let* _ = Tg.Download.to_buffer client ~file_path buf in
+             output_string oc (Buffer.contents buf);
+             close_out oc;
+             Printf.printf "Downloaded to: %s\n" output_path;
+             Ok ()
+           with exn ->
+             close_out oc;
+             raise exn)
+]}
+
+{2 Download URL}
+
+Get direct download URL:
+
+{[
+(* Build download URL *)
+let get_download_url client file_id =
+  match Tg.Download.get_file client ~file_id with
+  | Ok info ->
+      (match info.file_path with
+       | Some file_path ->
+           let url = Tg.Download.download_url client ~file_path in
+           Printf.printf "Download URL: %s\n" url;
+           Ok url
+       | None ->
+           Error (Telegram.Error.Invalid_response "No file_path"))
+
+  | Error err ->
+      Error err
+]}
+
+{b Note}: URLs expire after 1 hour
+
+{1 Media Groups (Albums)}
+
+{2 Creating Albums}
+
+Send multiple photos/videos as an album:
+
+{[
+open Tg.Album
+
+(* Create album with 2 photos *)
+let send_album client chat_id =
+  let album =
+    Album.create
+      (Album.photo
+         ~caption:"First photo"
+         (Input_file.path "/photos/photo1.jpg"))
+      (Album.photo
+         ~caption:"Second photo"
+         (Input_file.path "/photos/photo2.jpg"))
+    |> Album.build
+  in
+
+  match Album.send client ~chat_id album with
+  | Ok messages ->
+      Printf.printf "Sent album with %d photos\n" (List.length messages);
+      Ok ()
+  | Error err ->
+      Printf.eprintf "Error: %a\n" Telegram.Error.pp err;
+      Error err
+]}
+
+{2 Album with Multiple Items}
+
+Albums support 2-10 items:
+
+{[
+(* Album with 4 photos *)
+let send_large_album client chat_id =
+  let album =
+    Album.create
+      (Album.photo (Input_file.path "/photos/1.jpg"))
+      (Album.photo (Input_file.path "/photos/2.jpg"))
+    |> Album.add (Album.photo (Input_file.path "/photos/3.jpg"))
+    |> Album.add (Album.photo (Input_file.path "/photos/4.jpg"))
+    |> Album.build
+  in
+
+  Album.send client ~chat_id album
+]}
+
+{2 Mixed Photo/Video Albums}
+
+Combine photos and videos:
+
+{[
+(* Album with photos and videos *)
+let send_mixed_album client chat_id =
+  let album =
+    Album.create
+      (Album.photo
+         ~caption:"Photo 1"
+         (Input_file.path "/media/photo.jpg"))
+      (Album.video
+         ~caption:"Video 1"
+         ~duration:30
+         (Input_file.path "/media/video.mp4"))
+    |> Album.add (Album.photo (Input_file.path "/media/photo2.jpg"))
+    |> Album.build
+  in
+
+  Album.send client ~chat_id album
+]}
+
+{2 Album Options}
+
+Configure individual items in albums:
+
+{[
+(* Album with spoilers and formatting *)
+let send_fancy_album client chat_id =
+  let album =
+    Album.create
+      (Album.photo
+         ~caption:"<b>First</b>"
+         ~parse_mode:(Telegram.Parse_mode.html ())
+         ~has_spoiler:true           (* Blur this photo *)
+         (Input_file.path "/photos/secret.jpg"))
+      (Album.photo
+         ~caption:"<i>Second</i>"
+         ~parse_mode:(Telegram.Parse_mode.html ())
+         ~show_caption_above:true    (* Caption above photo *)
+         (Input_file.path "/photos/normal.jpg"))
+    |> Album.build
+  in
+
+  Album.send client ~chat_id album
+]}
+
+{2 Building from List}
+
+Create albums from dynamic lists:
+
+{[
+(* Build album from file list *)
+let send_album_from_files client chat_id file_paths =
+  let items =
+    List.mapi (fun i path ->
+      Album.photo
+        ~caption:(Printf.sprintf "Photo %d" (i + 1))
+        (Input_file.path path)
+    ) file_paths
+  in
+
+  match Album.of_list items with
+  | Ok album ->
+      Album.send client ~chat_id album
+
+  | Error msg ->
+      (* Error if < 2 or > 10 items *)
+      Printf.eprintf "Album error: %s\n" msg;
+      Error (Telegram.Error.Invalid_parameter msg)
+]}
+
+{1 Receiving Files}
+
+{2 Handling Photo Messages}
+
+Process incoming photos:
+
+{[
+let handle_photo_message msg =
+  match msg.photo with
+  | None -> ()
+  | Some [] -> ()
+  | Some photos ->
+      (* Photos are ordered by size, largest first *)
+      let largest = List.hd photos in
+      let file_id = largest.file_id in
+      let file_size = Option.value largest.file_size ~default:0L in
+
+      Printf.printf "Received photo: %s (%Ld bytes)\n" file_id file_size;
+
+      (* Download the photo *)
+      (match Tg.Download.get_and_download_string client ~file_id with
+       | Ok contents ->
+           (* Process photo data *)
+           Printf.printf "Downloaded %d bytes\n" (String.length contents)
+       | Error err ->
+           Printf.eprintf "Download error: %a\n" Telegram.Error.pp err)
+]}
+
+{2 Handling Document Messages}
+
+Process incoming documents:
+
+{[
+let handle_document_message msg =
+  match msg.document with
+  | None -> ()
+  | Some doc ->
+      let file_id = doc.file_id in
+      let file_name = Option.value doc.file_name ~default:"document" in
+      let file_size = Option.value doc.file_size ~default:0L in
+      let mime_type = Option.value doc.mime_type ~default:"unknown" in
+
+      Printf.printf "Received document: %s\n" file_name;
+      Printf.printf "  Type: %s\n" mime_type;
+      Printf.printf "  Size: %Ld bytes\n" file_size;
+
+      (* Download to file *)
+      let output_path = Printf.sprintf "/downloads/%s" file_name in
+      download_to_file client file_id output_path
+]}
+
+{2 Handling Video Messages}
+
+Process incoming videos:
+
+{[
+let handle_video_message msg =
+  match msg.video with
+  | None -> ()
+  | Some video ->
+      let file_id = video.file_id in
+      let duration = video.duration in
+      let width = video.width in
+      let height = video.height in
+
+      Printf.printf "Received video: %dx%d, %ds\n" width height duration;
+
+      (* Get thumbnail if available *)
+      (match video.thumbnail with
+       | Some thumb ->
+           let thumb_file_id = thumb.file_id in
+           Printf.printf "Has thumbnail: %s\n" thumb_file_id
+       | None ->
+           Printf.printf "No thumbnail\n")
+]}
+
+{1 Best Practices}
+
+{2 File Size Management}
+
+- {b Check sizes}: Validate before uploading
+- {b Use thumbnails}: Provide previews for large files
+- {b Compress}: Reduce file sizes when possible
+- {b Stream}: Use streaming for large files
+
+{[
+(* Check file size before upload *)
+let safe_upload file_path max_size =
+  let size = (Unix.stat file_path).st_size in
+  if size > max_size then
+    Error "File too large"
+  else
+    Ok (Input_file.path file_path)
+]}
+
+{2 File Format Selection}
+
+- {b Photos}: Use JPEG for photos, PNG for graphics
+- {b Videos}: Use MP4 for best compatibility
+- {b Documents}: Set correct MIME types
+- {b Audio}: Use MP3 for music, OGG for voice
+
+{2 Error Handling}
+
+- {b Validate input}: Check file exists and is readable
+- {b Handle timeouts}: Large uploads may timeout
+- {b Retry logic}: Implement retry for failed uploads
+- {b User feedback}: Show progress for large files
+
+{[
+let safe_send_photo client chat_id path =
+  if not (Sys.file_exists path) then
+    Error "File not found"
+  else
+    try
+      let photo = Input_file.path path in
+      Telegram_generated.Gen_methods.send_photo client ~chat_id ~photo ()
+    with exn ->
+      Error (Printf.sprintf "Upload failed: %s" (Printexc.to_string exn))
+]}
+
+{2 Performance}
+
+- {b Reuse file_ids}: Cache and reuse file IDs when possible
+- {b Use URLs}: Offload downloads to Telegram's servers
+- {b Concurrent uploads}: Upload multiple files in parallel
+- {b Cleanup temp files}: Delete temporary files after upload
+
+{[
+(* Cache file IDs *)
+let file_cache = Hashtbl.create 100
+
+let send_cached_photo client chat_id cache_key path =
+  match Hashtbl.find_opt file_cache cache_key with
+  | Some file_id ->
+      (* Use cached file_id *)
+      let photo = Input_file.file_id file_id in
+      Telegram_generated.Gen_methods.send_photo client ~chat_id ~photo ()
+
+  | None ->
+      (* Upload and cache *)
+      let photo = Input_file.path path in
+      match Telegram_generated.Gen_methods.send_photo client ~chat_id ~photo () with
+      | Ok msg ->
+          (match msg.photo with
+           | Some (p :: _) ->
+               Hashtbl.add file_cache cache_key p.file_id;
+               Ok msg
+           | _ -> Ok msg)
+      | Error _ as e -> e
+]}
+
+{2 Security}
+
+- {b Validate file types}: Check MIME types and extensions
+- {b Scan for malware}: Scan uploaded files
+- {b Limit sizes}: Enforce reasonable size limits
+- {b User permissions}: Check user can upload/download
+
+{1 Complete Examples}
+
+{2 Photo Gallery Bot}
+
+{[
+(* Send photo gallery with navigation *)
+let photos = [|
+  "/gallery/photo1.jpg";
+  "/gallery/photo2.jpg";
+  "/gallery/photo3.jpg";
+  "/gallery/photo4.jpg";
+|]
+
+let show_photo client chat_id index =
+  if index < 0 || index >= Array.length photos then
+    Error "Invalid index"
+  else
+    let photo = Input_file.path photos.(index) in
+    let caption = Printf.sprintf "Photo %d of %d" (index + 1) (Array.length photos) in
+
+    (* Create navigation keyboard *)
+    let keyboard =
+      let buttons = [
+        (if index > 0 then
+           [Tg.Keyboard.callback ~text:"← Previous" ~data:(Printf.sprintf "photo:%d" (index - 1))]
+         else []);
+        (if index < Array.length photos - 1 then
+           [Tg.Keyboard.callback ~text:"Next →" ~data:(Printf.sprintf "photo:%d" (index + 1))]
+         else []);
+      ] |> List.filter ((<>) []) in
+      Tg.Keyboard.inline buttons
+    in
+
+    Telegram_generated.Gen_methods.send_photo client
+      ~chat_id
+      ~photo
+      ~caption
+      ~reply_markup:keyboard
+      ()
+]}
+
+{2 File Download Bot}
+
+{[
+(* Download and process files *)
+let download_handler client msg =
+  let process_file file_id file_name =
+    Printf.printf "Downloading: %s\n" file_name;
+
+    match Tg.Download.get_and_download_string client ~file_id with
+    | Ok contents ->
+        Printf.printf "Processing %d bytes\n" (String.length contents);
+        (* Process file contents *)
+        Ok ()
+
+    | Error err ->
+        Printf.eprintf "Download error: %a\n" Telegram.Error.pp err;
+        Error err
+  in
+
+  match msg.document with
+  | Some doc ->
+      let file_name = Option.value doc.file_name ~default:"unknown" in
+      process_file doc.file_id file_name
+
+  | None ->
+      match msg.photo with
+      | Some (photo :: _) ->
+          process_file photo.file_id "photo.jpg"
+      | _ ->
+          Ok ()
+]}
+
+{1 See Also}
+
+- {{!page-message_handling}Message Handling} - Sending messages with media
+- {{!Tg.Upload}Upload Module} - Complete upload API reference
+- {{!Tg.Download}Download Module} - Complete download API reference
+- {{!Tg.Album}Album Module} - Media groups API reference
+- {{!Telegram.Input_file}InputFile Module} - File abstraction reference
+- {{!page-quick_start}Quick Start Tutorial} - Media handling examples
