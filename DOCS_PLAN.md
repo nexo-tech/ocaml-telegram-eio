@@ -299,41 +299,41 @@ Real-world bot implementations with complete examples.
   - Complete production example (full-featured webhook bot with metrics, health checks, monitoring) ✓
   - Best practices (security, performance, reliability, deployment, development, troubleshooting) ✓
 
-- [ ] Task 4.7: Poll and quiz bot
-  - Creating polls
-  - Quiz mode
-  - Vote tracking
-  - Results analysis
+- [x] Task 4.7: Poll and quiz bot — COMPLETED: docs/recipe_poll_quiz_bot.mld
+  - Creating polls ✓
+  - Quiz mode ✓
+  - Vote tracking ✓
+  - Results analysis ✓
 
-- [ ] Task 4.8: Payment bot
-  - Payment flow
-  - Invoice generation
-  - Payment handling
-  - Refunds and errors
+- [x] Task 4.8: Payment bot — COMPLETED: docs/recipe_payment_bot.mld
+  - Payment flow ✓
+  - Invoice generation ✓
+  - Payment handling ✓
+  - Refunds and errors ✓
 
-- [ ] Task 4.9: Group management bot
-  - Admin operations
-  - Member management
-  - Chat permissions
-  - Anti-spam patterns
+- [x] Task 4.9: Group management bot — COMPLETED: docs/recipe_group_management_bot.mld
+  - Admin operations ✓
+  - Member management ✓
+  - Chat permissions ✓
+  - Anti-spam patterns ✓
 
-- [ ] Task 4.10: Notification bot
-  - Broadcast messaging
-  - Scheduled messages
-  - User subscriptions
-  - Notification preferences
+- [x] Task 4.10: Notification bot — COMPLETED: docs/recipe_notification_bot.mld
+  - Broadcast messaging ✓
+  - Scheduled messages ✓
+  - User subscriptions ✓
+  - Notification preferences ✓
 
-- [ ] Task 4.11: Chatbot with context
-  - Conversation context
-  - Context storage
-  - Multi-turn dialogues
-  - Context expiration
+- [x] Task 4.11: Chatbot with context — COMPLETED: docs/recipe_chatbot_context.mld
+  - Conversation context ✓
+  - Context storage ✓
+  - Multi-turn dialogues ✓
+  - Context expiration ✓
 
-- [ ] Task 4.12: Games and interactive bots
-  - Game state management
-  - Turn-based games
-  - Scoring systems
-  - Leaderboards
+- [x] Task 4.12: Games and interactive bots — COMPLETED: docs/recipe_games_bot.mld
+  - Game state management ✓
+  - Turn-based games ✓
+  - Scoring systems ✓
+  - Leaderboards ✓
 
 ---
 
@@ -341,17 +341,25 @@ Real-world bot implementations with complete examples.
 
 Comprehensive guides for different bot categories.
 
-- [ ] Task 5.1: Utility bots
-  - Weather bot
-  - Translation bot
-  - Calculator bot
-  - Unit converter bot
+- [x] Task 5.1: Utility bots — COMPLETED: docs/usecase_utility_bots.mld
+  - Weather bot ✓
+  - Translation bot ✓
+  - Calculator bot ✓
+  - Unit converter bot ✓
 
 - [ ] Task 5.2: Content bots
   - News aggregator
   - RSS feed bot
   - Content scheduling
   - Media library bot
+  
+  —> Implemented as docs/usecase_content_bots.mld
+
+- [x] Task 5.2: Content bots — COMPLETED: docs/usecase_content_bots.mld
+  - News aggregator ✓
+  - RSS feed bot ✓
+  - Content scheduling ✓
+  - Media library bot ✓
 
 - [ ] Task 5.3: Productivity bots
   - Todo list bot
@@ -365,11 +373,27 @@ Comprehensive guides for different bot categories.
   - Random fact bot
   - Joke bot
 
+  —> Implemented as docs/usecase_entertainment_bots.mld
+
+- [x] Task 5.4: Entertainment bots — COMPLETED: docs/usecase_entertainment_bots.mld
+  - Quiz bot ✓
+  - Trivia bot ✓
+  - Random fact bot ✓
+  - Joke bot ✓
+
 - [ ] Task 5.5: Integration bots
   - GitHub notifications
   - CI/CD status bot
   - Database query bot
   - API gateway bot
+
+  —> Implemented as docs/usecase_integration_bots.mld
+
+- [x] Task 5.5: Integration bots — COMPLETED: docs/usecase_integration_bots.mld
+  - GitHub notifications ✓
+  - CI/CD status bot ✓
+  - Database query bot ✓
+  - API gateway bot ✓
 
 ---
 

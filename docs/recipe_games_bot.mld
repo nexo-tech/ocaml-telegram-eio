@@ -1,0 +1,287 @@
+{0 Recipe: Games and Interactive Bots}
+
+Build engaging, turn-based games with inline keyboards, robust game state, scoring, and leaderboards — all using the elegant Bot DSL and type-safe sessions.
+
+{1 Overview}
+
+What you'll learn:
+
+- Game state management with typed sessions and per-game locks
+- Turn-based gameplay using inline keyboards and callbacks
+- Scoring systems and persistent leaderboards
+- Rematch flow and game expiration
+
+Example: Tic-Tac-Toe (XO) for two players in a chat.
+
+{1 Game State Management}
+
+Represent the board and whose turn it is. Store per-game state in a typed session or a global store keyed by a [game_id]. Use a per-game mutex to prevent race conditions.
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+open Tg.Session
+
+type cell = Empty | X | O
+type board = cell array  (* length 9; indices 0..8 *)
+
+type player = Xp | Op
+
+type game_state = {
+  id : string;                 (* game id *)
+  chat : Telegram.Id.Chat.k Telegram.Id.t;
+  board : board;
+  turn : player;               (* whose turn *)
+  x_user : int64;              (* user id for X *)
+  o_user : int64;              (* user id for O *)
+  started_at : float;          (* Unix time *)
+  ttl_seconds : int;           (* expire stale games *)
+}
+
+let game_key : game_state Session.key = Session.make ~name:"ttt_game"
+
+let now () = Unix.gettimeofday ()
+let expired g = now () -. g.started_at > float_of_int g.ttl_seconds
+
+let new_board () = Array.make 9 Empty
+
+let new_game ~id ~chat ~x_user ~o_user =
+  { id; chat; board = new_board (); turn = Xp; x_user; o_user; started_at = now (); ttl_seconds = 1800 }
+
+(* Simple in-memory mutex per game_id *)
+module GameLocks = struct
+  let table : (string, Eio.Mutex.t) Hashtbl.t = Hashtbl.create 128
+  let get id = match Hashtbl.find_opt table id with Some m -> m | None -> let m = Eio.Mutex.create () in Hashtbl.replace table id m; m
+end
+]}
+
+{1 Turn-Based UI with Inline Keyboards}
+
+Render the board as a 3×3 grid of buttons. Each button encodes the game id and cell index in the callback data.
+
+{[
+let cell_text = function Empty -> "·" | X -> "❌" | O -> "⭕"
+
+let render_keyboard (g : game_state) =
+  let open Telegram_generated.Gen_types in
+  let rows =
+    List.init 3 (fun r ->
+      List.init 3 (fun c ->
+        let i = r * 3 + c in
+        let text = cell_text g.board.(i) in
+        Tg.Keyboard.callback ~text ~data:(Printf.sprintf "ttt:%s:%d" g.id i)
+      )
+    )
+  in
+  Tg.Keyboard.inline rows
+
+let board_text g =
+  let t = function Xp -> "❌ X" | Op -> "⭕ O" in
+  Printf.sprintf "Tic-Tac-Toe\nTurn: %s" (t g.turn)
+
+let post_board client (g : game_state) =
+  Telegram_generated.Gen_methods.send_message client
+    ~chat_id:g.chat ~text:(board_text g) ~reply_markup:(render_keyboard g) ()
+]}
+
+{1 Game Flow}
+
+{2 Start & Join}
+
+Create a new game and pick players. In groups, the creator is X, the next person to press Join is O.
+
+{[
+(* /ttt_new *)
+let ttt_new =
+  Tg.Bot.on (Tg.Bot.Event.command "ttt_new") (fun _args ctx ->
+    let client = Tg.Bot.Ctx.client ctx in
+    match Tg.Bot.Ctx.user ctx with
+    | None -> let* _ = Tg.Bot.Ctx.reply ctx "Start from a user message" in Ok ()
+    | Some u ->
+        let id = Uuidm.(to_string (v4_gen (Random.State.make_self_init ()) ())) in
+        let chat = Tg.Bot.Ctx.chat ctx in
+        let g = new_game ~id ~chat ~x_user:u.id ~o_user:(-1L) in
+        Tg.Bot.Ctx.session_set ctx game_key g;
+        let kb = Tg.Keyboard.inline [[ Tg.Keyboard.callback ~text:"Join as ⭕" ~data:("ttt:join:" ^ id) ]] in
+        let* _ = Telegram_generated.Gen_methods.send_message client ~chat_id:chat ~text:("Game " ^ id ^ ": waiting for ⭕") ~reply_markup:kb () in
+        Ok ()
+  )
+
+(* Handle join callback *)
+let on_join =
+  Tg.Bot.on (Tg.Bot.Event.callback "ttt:join:*") (fun data ctx ->
+    let client = Tg.Bot.Ctx.client ctx in
+    let chat = Tg.Bot.Ctx.chat ctx in
+    match Tg.Bot.Ctx.user ctx with
+    | None -> Ok ()
+    | Some u ->
+        let id = String.sub data 9 (String.length data - 9) in
+        match Tg.Bot.Ctx.session_get ctx game_key with
+        | Some g when g.id = id && g.o_user = -1L ->
+            let g' = { g with o_user = u.id } in
+            Tg.Bot.Ctx.session_set ctx game_key g';
+            let* _ = Tg.Bot.Ctx.edit ctx "Players set. Game starting!" in
+            let* _ = post_board client g' in
+            Ok ()
+        | _ -> let* _ = Tg.Bot.Ctx.answer ctx ~text:"Join failed or already started" in Ok ()
+  )
+]}
+
+{2 Moves}
+
+Validate move ownership and turn order, update board, check win/draw, and edit the message or post a new one.
+
+{[
+let win_lines = [|
+  [|0;1;2|]; [|3;4;5|]; [|6;7;8|];  (* rows *)
+  [|0;3;6|]; [|1;4;7|]; [|2;5;8|];  (* cols *)
+  [|0;4;8|]; [|2;4;6|];             (* diags *)
+|]
+
+let winner (b:board) : cell option =
+  let check a b c = match a,b,c with X,X,X -> Some X | O,O,O -> Some O | _ -> None in
+  let x = ref None in
+  for i=0 to Array.length win_lines - 1 do
+    let l = win_lines.(i) in
+    match check b.(l.(0)) b.(l.(1)) b.(l.(2)) with
+    | Some w -> x := Some w
+    | None -> ()
+  done; !x
+
+let board_full b = Array.for_all (fun = function Empty -> false | _ -> true) b |> not |> not
+
+let mark_of_player = function Xp -> X | Op -> O
+
+let handle_move client (g:game_state) user_id idx : (game_state * [ `Continue | `Win of cell | `Draw ]) option =
+  if idx < 0 || idx > 8 then None else
+  if g.o_user = -1L then None else
+  let expected = match g.turn with Xp -> g.x_user | Op -> g.o_user in
+  if Int64.compare user_id expected <> 0 then None else
+  match g.board.(idx) with
+  | X | O -> None
+  | Empty ->
+      g.board.(idx) <- mark_of_player g.turn;
+      match winner g.board with
+      | Some w -> Some (g, `Win w)
+      | None -> if board_full g.board then Some (g, `Draw)
+                else Some ({ g with turn = (match g.turn with Xp -> Op | Op -> Xp) }, `Continue)
+
+let on_move =
+  Tg.Bot.on (Tg.Bot.Event.callback "ttt:*") (fun data ctx ->
+    (* Data: ttt:<game_id>:<idx> or ttt:join:<id> handled elsewhere *)
+    if Astring.String.is_prefix ~affix:"ttt:join:" data then Ok () else
+    match String.split_on_char ':' data with
+    | ["ttt"; id; idx_str] ->
+        let client = Tg.Bot.Ctx.client ctx in
+        let chat = Tg.Bot.Ctx.chat ctx in
+        let user = match Tg.Bot.Ctx.user ctx with Some u -> u | None -> { id = -1L; is_bot=false; first_name=""; last_name=None; username=None; language_code=None; is_premium=None; added_to_attachment_menu=None; can_join_groups=None; can_read_all_group_messages=None; supports_inline_queries=None; can_connect_to_business=None; has_private_forwards=None; has_restricted_voice_and_video_messages=None; has_voice_and_video_chat=None; has_biography=None; has_business_intro=None; has_active_stories=None; has_private_calls=None; has_private_chats=None; unknown_fields = Telegram.Json_compat.Unknown_fields.create () } in
+        begin match Tg.Bot.Ctx.session_get ctx game_key with
+        | None -> let* _ = Tg.Bot.Ctx.answer ctx ~text:"No active game" in Ok ()
+        | Some g when g.id <> id -> let* _ = Tg.Bot.Ctx.answer ctx ~text:"Wrong game" in Ok ()
+        | Some g ->
+            let lock = GameLocks.get g.id in
+            Eio.Mutex.use_rw ~protect:true lock (fun () ->
+              match handle_move client g user.id (int_of_string idx_str) with
+              | None ->
+                  let* _ = Tg.Bot.Ctx.answer ctx ~text:"Invalid move" in Ok ()
+              | Some (g', `Continue) ->
+                  Tg.Bot.Ctx.session_set ctx game_key g';
+                  (match Tg.Bot.Ctx.message ctx with
+                   | Some msg -> ignore (Telegram_generated.Gen_methods.edit_message_text client ~chat_id:chat ~message_id:msg.message_id ~text:(board_text g') ~reply_markup:(render_keyboard g') ())
+                   | None -> ignore (post_board client g'));
+                  Ok ()
+              | Some (g', `Win w) ->
+                  Tg.Bot.Ctx.session_delete ctx game_key;
+                  let who = match w with X -> g'.x_user | O -> g'.o_user | Empty -> -1L in
+                  ignore (Telegram_generated.Gen_methods.send_message client ~chat_id:chat ~text:(Printf.sprintf "🏆 Winner: %Ld" who) ());
+                  Ok ()
+              | Some (g', `Draw) ->
+                  Tg.Bot.Ctx.session_delete ctx game_key;
+                  ignore (Telegram_generated.Gen_methods.send_message client ~chat_id:chat ~text:"🤝 Draw!" ());
+                  Ok ()
+            )
+        end
+    | _ -> Ok ()
+  )
+]}
+
+{1 Scoring Systems}
+
+Track wins/draws in a global scoreboard keyed by user_id. For production, persist to a database and periodically snapshot.
+
+{[
+module Scoreboard = struct
+  type entry = { wins:int; draws:int; losses:int }
+  let t : (int64, entry) Hashtbl.t = Hashtbl.create 1000
+
+  let get uid = match Hashtbl.find_opt t uid with Some e -> e | None -> { wins=0; draws=0; losses=0 }
+  let set uid e = Hashtbl.replace t uid e
+
+  let record_win ~winner ~loser =
+    let w = get winner in let l = get loser in
+    set winner { w with wins = w.wins + 1 };
+    set loser { l with losses = l.losses + 1 }
+
+  let record_draw ~x ~o =
+    let a = get x and b = get o in
+    set x { a with draws = a.draws + 1 };
+    set o { b with draws = b.draws + 1 }
+
+  let top_n n =
+    t |> Hashtbl.to_seq |> List.of_seq
+      |> List.sort (fun (_,a) (_,b) -> compare b.wins a.wins)
+      |> CCList.take n
+end
+
+(* /leaderboard *)
+let leaderboard_cmd =
+  Tg.Bot.on (Tg.Bot.Event.command "leaderboard") (fun _args ctx ->
+    let lines =
+      Scoreboard.top_n 10
+      |> List.mapi (fun i (uid, e) -> Printf.sprintf "%d) %Ld — W:%d D:%d L:%d" (i+1) uid e.wins e.draws e.losses)
+      |> String.concat "\n"
+    in
+    let* _ = Tg.Bot.Ctx.reply ctx (if lines = "" then "No games yet" else "🏆 Leaderboard\n" ^ lines) in
+    Ok ()
+  )
+]}
+
+Hook wins/draws from [on_move] outcomes and update the scoreboard there.
+
+{1 Rematch and Expiration}
+
+- {b Rematch}: offer a "Rematch" button after win/draw to quickly start a new game with roles swapped
+- {b Expiration}: treat games older than TTL as stale; delete session and disallow further moves
+
+{1 Putting It Together}
+
+{[
+let routes : Tg.Bot.route list = [ ttt_new; on_join; on_move; leaderboard_cmd ]
+
+let () =
+  Eio_main.run @@ fun env ->
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token in
+  let store = Tg.Session.Memory_store.create () in
+  let session_mw = Tg.Bot.Middleware.with_session (module Tg.Session.Memory_store) store in
+  let bot = Tg.Bot.router ~middlewares:[session_mw] routes in
+  let config = Tg.Polling.make ~allowed_updates:["message"; "callback_query"] () in
+  Tg.Polling.run_with_config client config ~handler:(Tg.Bot.handle bot)
+]
+
+{1 Best Practices}
+
+- {b Lock per game}: use a per-game mutex to serialize moves
+- {b Validate turns}: enforce turn order and player ownership
+- {b Keep state small}: store minimal info in session; persist long-lived data elsewhere
+- {b Idempotency}: handle duplicate callbacks (Telegram may resend)
+- {b Observability}: log game start/finish; store outcomes for analytics
+- {b Fair play}: add inactivity timers and auto-resign on timeout
+
+{1 See Also}
+
+- {{!page-state_machines}State Machines} — Complex game flows and transitions
+- {{!page-keyboard_api}Keyboard API} — Building grid UIs with inline buttons
+- {{!page-callback_queries}Callback Queries} — Handling move events
+- {{!page-session_management}Session Management} — Typed sessions and expiring stores
+

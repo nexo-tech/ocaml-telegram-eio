@@ -1,0 +1,258 @@
+{0 Recipe: Payment Bot}
+
+A comprehensive cookbook for building bots that sell products and subscriptions using Telegram Payments and Stars, with full payment flow handling, graceful error handling, and production patterns.
+
+{1 Overview}
+
+This guide shows how to:
+
+- Generate invoices (prices, currencies, tips) and share payment links
+- Handle shipping and pre-checkout queries
+- Confirm payments and fulfill orders
+- Work with Stars (refund star payments)
+- Design clean routes with the Bot DSL
+
+{b Payment flow}:
+1. Send invoice (or share invoice link)
+2. Handle optional shipping query and respond with options
+3. Approve or reject pre-checkout query
+4. Receive successful payment and fulfill
+
+{1 Invoice Generation}
+
+{2 Building Labeled Prices}
+
+Use {{!Telegram_generated.Gen_types.LabeledPrice}LabeledPrice} to define price components. Amounts are in the {b smallest currency unit} (e.g., cents).
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+
+let unknown () = Telegram.Json_compat.Unknown_fields.create ()
+
+let price ~label ~amount =
+  Telegram_generated.Gen_types.LabeledPrice.{
+    label; amount; unknown_fields = unknown ();
+  }
+
+let prices_example = [
+  price ~label:"Base" ~amount:1999L;   (* $19.99 *)
+  price ~label:"Tax" ~amount:199L;     (* $1.99  *)
+]
+]}
+
+{2 Sending an Invoice}
+
+Create and send an invoice with {{!Telegram_generated.Gen_methods.send_invoice}send_invoice}. Use a stable [payload] to correlate the order in your system.
+
+{[
+let send_basic_invoice client chat_id =
+  Telegram_generated.Gen_methods.send_invoice client
+    ~chat_id
+    ~title:"Pro Subscription"
+    ~description:"1-month access to premium features"
+    ~payload:"order-12345"              (* your internal order id *)
+    ~currency:"USD"
+    ~prices:prices_example
+    ~provider_token:"PROVIDER_TOKEN"    (* from your payment provider *)
+    ~max_tip_amount:1000L               (* $10.00 *)
+    ~suggested_tip_amounts:[100L; 300L; 500L; 1000L]
+    ~need_name:true
+    ~need_email:true
+    ()
+]}
+
+{2 Creating an Invoice Link}
+
+You can also generate a payment link with {{!Telegram_generated.Gen_methods.create_invoice_link}create_invoice_link} and send it as a regular message.
+
+{[
+let create_payment_link client =
+  Telegram_generated.Gen_methods.create_invoice_link client
+    ~title:"Pro Subscription"
+    ~description:"1-month access to premium features"
+    ~payload:"order-12345"
+    ~currency:"USD"
+    ~prices:prices_example
+    ~provider_token:"PROVIDER_TOKEN"
+    ()
+
+(* Usage: send as URL in a message *)
+let send_payment_link client chat_id =
+  match create_payment_link client with
+  | Ok url -> Telegram_generated.Gen_methods.send_message client ~chat_id ~text:("Pay here: " ^ url) ()
+  | Error e -> Error e
+]}
+
+{1 Shipping Queries}
+
+When [need_shipping_address = true] or [is_flexible = true], Telegram sends {{!Telegram_generated.Gen_types.ShippingQuery}ShippingQuery} after the user enters an address. Respond with {{!Telegram_generated.Gen_methods.answer_shipping_query}answer_shipping_query}.
+
+{2 Defining Shipping Options}
+
+{[
+let shipping_option ~id ~title ~amount =
+  let open Telegram_generated.Gen_types in
+  ShippingOption.{
+    id; title;
+    prices = [ LabeledPrice.{ label = title; amount; unknown_fields = unknown () } ];
+    unknown_fields = unknown ();
+  }
+
+let standard = shipping_option ~id:"standard" ~title:"Standard" ~amount:500L
+let express  = shipping_option ~id:"express"  ~title:"Express"  ~amount:1500L
+]}
+
+{2 Answering Shipping Queries}
+
+{[
+let handle_shipping_query client (q : Telegram_generated.Gen_types.ShippingQuery.t) =
+  (* Decide available options based on q.shipping_address *)
+  let options = [standard; express] in
+  Telegram_generated.Gen_methods.answer_shipping_query client
+    ~shipping_query_id:q.id
+    ~ok:true
+    ~shipping_options:options
+    ()
+
+let reject_shipping_query client q =
+  Telegram_generated.Gen_methods.answer_shipping_query client
+    ~shipping_query_id:q.id
+    ~ok:false
+    ~error_message:"We do not ship to this location"
+    ()
+]}
+
+{1 Pre-Checkout Queries}
+
+Before the payment is processed, Telegram sends a {{!Telegram_generated.Gen_types.PreCheckoutQuery}PreCheckoutQuery}. Approve or reject it using {{!Telegram_generated.Gen_methods.answer_pre_checkout_query}answer_pre_checkout_query}.
+
+{[
+let handle_pre_checkout client (pcq : Telegram_generated.Gen_types.PreCheckoutQuery.t) =
+  (* Validate inventory, price, and payload here *)
+  match pcq.invoice_payload with
+  | payload when payload = "order-12345" ->
+      Telegram_generated.Gen_methods.answer_pre_checkout_query client
+        ~pre_checkout_query_id:pcq.id ~ok:true ()
+  | _ ->
+      Telegram_generated.Gen_methods.answer_pre_checkout_query client
+        ~pre_checkout_query_id:pcq.id ~ok:false ~error_message:"Invalid payload" ()
+]}
+
+{1 Handling Successful Payments}
+
+Payments arrive as messages with {{!Telegram_generated.Gen_types.SuccessfulPayment}SuccessfulPayment} attached. Fulfill orders and store charge IDs.
+
+{[
+let handle_update (update : Telegram_generated.Gen_types.Update.t) =
+  match update.message with
+  | Some msg ->
+      (match msg.successful_payment with
+       | Some sp ->
+           let amount_cents = sp.total_amount in
+           let currency = sp.currency in
+           let order = sp.invoice_payload in
+           let provider_charge_id = sp.provider_payment_charge_id in
+           let telegram_charge_id = sp.telegram_payment_charge_id in
+           (* Mark the order as paid and deliver the product *)
+           Ok ()
+       | None -> Ok ())
+  | None -> Ok ()
+]}
+
+{1 Bot DSL Routes}
+
+Use the DSL to expose a command that issues invoices and handle payment-related updates via [Event.any].
+
+{[
+let routes : Tg.Bot.route list = [
+  (* /buy -> send invoice *)
+  Tg.Bot.on (Tg.Bot.Event.command "buy") (fun args ctx ->
+    let client = Tg.Bot.Ctx.client ctx in
+    let chat_id = Tg.Bot.Ctx.chat ctx in
+    match Telegram_generated.Gen_methods.send_invoice client
+            ~chat_id
+            ~title:"Pro Subscription"
+            ~description:"1-month access to premium features"
+            ~payload:"order-12345"
+            ~currency:"USD"
+            ~prices:prices_example
+            ~provider_token:"PROVIDER_TOKEN" () with
+    | Ok _ -> Ok ()
+    | Error _ ->
+        let* _ = Tg.Bot.Ctx.reply ctx "Could not create invoice. Try again later." in
+        Ok ()
+  );
+
+  (* Handle shipping_query and pre_checkout_query via Event.any *)
+  Tg.Bot.on Tg.Bot.Event.any (fun upd ctx ->
+    let client = Tg.Bot.Ctx.client ctx in
+    match upd.shipping_query, upd.pre_checkout_query with
+    | Some q, _ -> (match handle_shipping_query client q with Ok _ -> Ok () | Error _ -> Ok ())
+    | None, Some pcq -> (match handle_pre_checkout client pcq with Ok _ -> Ok () | Error _ -> Ok ())
+    | _ ->
+      (* Check for payment in messages *)
+      (match upd.message with
+       | Some msg when Option.is_some msg.successful_payment ->
+           (* Fulfill order as shown above *) Ok ()
+       | _ -> Ok ())
+  );
+]
+]}
+
+{1 Polling Configuration}
+
+Allow receiving payment-related updates:
+
+{[
+let () =
+  Eio_main.run @@ fun env ->
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token in
+  let bot = Tg.Bot.router (routes) in
+  let config = Tg.Polling.make ~allowed_updates:["message"; "shipping_query"; "pre_checkout_query"] () in
+  Tg.Polling.run_with_config client config ~handler:(Tg.Bot.handle bot)
+]}
+
+{1 Refunds and Errors}
+
+{2 Stars Refunds}
+
+If you accept Telegram Stars, you can initiate refunds with {{!Telegram_generated.Gen_methods.refund_star_payment}refund_star_payment}. You need the user and the [telegram_payment_charge_id] from a prior payment.
+
+{[
+let refund_stars client ~user_id ~telegram_payment_charge_id =
+  Telegram_generated.Gen_methods.refund_star_payment client ~user_id ~telegram_payment_charge_id ()
+]}
+
+{2 Provider Refunds}
+
+Classic payment provider refunds (e.g., Stripe) are typically managed through the provider’s API/dashboard. Telegram forwards payment events but does not expose a generic refund method for non-Stars payments.
+
+{2 Error Handling}
+
+- Shipping errors: answer with [~ok:false ~error_message]
+- Pre-checkout errors: answer with [~ok:false ~error_message]
+- Always log and classify {{!Telegram.Error}Api errors}; consider retries where appropriate
+- Validate payload and amounts before approving pre-checkout
+
+{1 Best Practices}
+
+- {b Stable payloads}: Use a deterministic [payload] to correlate orders
+- {b Idempotency}: Ensure order fulfillment is idempotent using charge IDs
+- {b Currency correctness}: Amounts are minor units (cents)
+- {b Shipping}: Decide options based on address; reject early when unavailable
+- {b Security}: Never trust client values; re-compute totals server-side where possible
+- {b Observability}: Log charge IDs and order mapping for audits
+
+{1 See Also}
+
+- {{!Telegram_generated.Gen_methods.send_invoice}send_invoice} — Send invoice
+- {{!Telegram_generated.Gen_methods.create_invoice_link}create_invoice_link} — Create shareable invoice link
+- {{!Telegram_generated.Gen_methods.answer_shipping_query}answer_shipping_query} — Respond to shipping queries
+- {{!Telegram_generated.Gen_methods.answer_pre_checkout_query}answer_pre_checkout_query} — Approve or reject payments
+- {{!Telegram_generated.Gen_methods.refund_star_payment}refund_star_payment} — Refund Stars
+- {{!Telegram_generated.Gen_types.LabeledPrice}LabeledPrice}, {{!Telegram_generated.Gen_types.ShippingOption}ShippingOption}
+- {{!Telegram_generated.Gen_types.OrderInfo}OrderInfo}, {{!Telegram_generated.Gen_types.SuccessfulPayment}SuccessfulPayment}
+- {{!page-update_processing}Update Processing} — Routing [shipping_query] and [pre_checkout_query]
+

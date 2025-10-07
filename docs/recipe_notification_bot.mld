@@ -1,0 +1,213 @@
+{0 Recipe: Notification Bot}
+
+Comprehensive patterns for building bots that send one-off and scheduled notifications, manage user subscriptions, and honor per-user notification preferences — using the elegant Bot DSL and Eio-native concurrency.
+
+{1 Overview}
+
+What you'll learn:
+
+- Broadcast messaging at scale with concurrency and rate limiting
+- Scheduling periodic messages and daily digests
+- Managing user subscriptions (subscribe/unsubscribe, topics)
+- Storing notification preferences and honoring quiet hours
+
+When to use it:
+- Announcements, alerts, reminders, release notes
+- Content feeds and digests (daily/weekly)
+- Threshold-based alerts from background workers
+
+{1 Subscriptions}
+
+Store subscribers (chat IDs) and opt-in state. This example uses an in-memory store; for production, persist to a database.
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+
+module Subscriptions = struct
+  type t = (string, unit) Hashtbl.t  (* chat_id as string -> subscribed *)
+
+  let create () = Hashtbl.create 1000
+
+  let add t (chat_id : Telegram.Id.Chat.k Telegram.Id.t) =
+    Hashtbl.replace t (Telegram.Id.to_string chat_id) ()
+
+  let remove t (chat_id : Telegram.Id.Chat.k Telegram.Id.t) =
+    Hashtbl.remove t (Telegram.Id.to_string chat_id)
+
+  let list t = Hashtbl.to_seq_keys t |> List.of_seq
+end
+
+let subs = Subscriptions.create ()
+]}
+
+{2 DSL Commands}
+
+Allow users to opt-in/opt-out via commands:
+
+{[
+(* /subscribe *)
+let subscribe_cmd =
+  Tg.Bot.on (Tg.Bot.Event.command "subscribe") (fun _args ctx ->
+    let chat = Tg.Bot.Ctx.chat ctx in
+    Subscriptions.add subs chat;
+    let* _ = Tg.Bot.Ctx.reply ctx "🔔 Subscribed to notifications!" in
+    Ok ()
+  )
+
+(* /unsubscribe *)
+let unsubscribe_cmd =
+  Tg.Bot.on (Tg.Bot.Event.command "unsubscribe") (fun _args ctx ->
+    let chat = Tg.Bot.Ctx.chat ctx in
+    Subscriptions.remove subs chat;
+    let* _ = Tg.Bot.Ctx.reply ctx "🔕 Unsubscribed from notifications." in
+    Ok ()
+  )
+]}
+
+{1 Broadcast Messaging}
+
+Send a message to many chats efficiently and responsibly. Combine concurrency with a simple throttle to respect Telegram rate limits. See {{!page-concurrency_patterns}Concurrency Patterns} for more advanced token-bucket examples.
+
+{[
+let broadcast_text client ~(text:string) ~(max_concurrency:int) ~(delay_between:float) =
+  let chat_keys = Subscriptions.list subs in
+  let total = List.length chat_keys in
+  let successes = ref 0 and failures = ref 0 in
+  let sem = Eio.Semaphore.make max_concurrency in
+  let clock = Eio.Stdenv.clock (Telegram.Client.env client) in
+
+  Eio.Switch.run @@ fun sw ->
+    List.iter (fun key ->
+      Eio.Semaphore.acquire sem;
+      Eio.Fiber.fork ~sw (fun () ->
+        Fun.protect ~finally:(fun () -> Eio.Semaphore.release sem) @@ fun () ->
+          let chat_id = Telegram.Id.Chat.of_string key in
+          match Telegram_generated.Gen_methods.send_message client ~chat_id ~text () with
+          | Ok _ -> incr successes
+          | Error _ -> incr failures;
+          (* Throttle per message to ~1/delay_between *)
+          if delay_between > 0. then Eio.Time.sleep clock delay_between
+      )
+    ) chat_keys;
+  (!successes, !failures, total)
+
+(* /broadcast <message...>  — typically admin-only *)
+let broadcast_cmd =
+  Tg.Bot.on (Tg.Bot.Event.command "broadcast") (fun args ctx ->
+    match args with
+    | [] -> let* _ = Tg.Bot.Ctx.reply ctx "Usage: /broadcast <message>" in Ok ()
+    | parts ->
+        let client = Tg.Bot.Ctx.client ctx in
+        let text = String.concat " " parts in
+        let (ok, fail, total) = broadcast_text client ~text ~max_concurrency:10 ~delay_between:0.05 in
+        let* _ = Tg.Bot.Ctx.reply ctx (Printf.sprintf "📢 Broadcast: %d/%d ok, %d failed" ok total fail) in
+        Ok ()
+  )
+]}
+
+{1 Scheduled Messages}
+
+Run background fibers to send notifications periodically or at specific times.
+
+{[
+(* Simple interval scheduler *)
+let rec schedule_every client ~chat_id ~seconds ~make_text =
+  let clock = Eio.Stdenv.clock (Telegram.Client.env client) in
+  let text = make_text () in
+  ignore (Telegram_generated.Gen_methods.send_message client ~chat_id ~text ());
+  Eio.Time.sleep clock seconds;
+  schedule_every client ~chat_id ~seconds ~make_text
+
+(* Daily digest at fixed interval (e.g., 24h). For precise time-of-day, compute next wakeup delta. *)
+let run_daily_digest client ~admin_chat =
+  let seconds = 24. *. 60. *. 60. in
+  schedule_every client ~chat_id:admin_chat ~seconds ~make_text:generate_digest
+
+(* Boot: run bot and scheduler in parallel *)
+let () =
+  Eio_main.run @@ fun env ->
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token in
+
+  Eio.Switch.run @@ fun sw ->
+    (* Background: daily digest to admins *)
+    Eio.Fiber.fork ~sw (fun () -> run_daily_digest client ~admin_chat:(Telegram.Id.Chat.of_string "@mychannel"));
+
+    (* Foreground: updates *)
+    let routes = [subscribe_cmd; unsubscribe_cmd; broadcast_cmd] in
+    Tg.Polling.run client ~handler:(Tg.Bot.handle (Tg.Bot.router routes))
+]
+
+{b Tips}:
+- Use a persistent job scheduler for reliability (cron, external worker), then post to bot via API
+- For precise time-of-day scheduling, compute next wakeup delta based on local TZ
+- Use {{!page-error_handling}Error Handling} retries for flaky sends
+
+{1 Notification Preferences}
+
+Store per-user prefs (e.g., topics, frequency, mute/quiet hours) with sessions or a DB. This example toggles a simple [mute] flag.
+
+{[
+type prefs = { mutable mute : bool }
+
+let prefs_key = Tg.Session.key "prefs"
+
+(* /prefs -> toggle mute *)
+let prefs_cmd =
+  Tg.Bot.on (Tg.Bot.Event.command "prefs") (fun _args ctx ->
+    let p = Tg.Bot.Ctx.session_get_or ctx prefs_key ~default:{ mute = false } in
+    let updated = { p with mute = not p.mute } in
+    Tg.Bot.Ctx.session_set ctx prefs_key updated;
+    let msg = if updated.mute then "🔕 Muted notifications" else "🔔 Notifications unmuted" in
+    let* _ = Tg.Bot.Ctx.reply ctx msg in
+    Ok ()
+  )
+
+let send_if_allowed client ctx chat_id text =
+  let p = Tg.Bot.Ctx.session_get_or ctx prefs_key ~default:{ mute = false } in
+  if p.mute then Ok ()
+  else Telegram_generated.Gen_methods.send_message client ~chat_id ~text () |> Result.map (fun _ -> ())
+]}
+
+Extend with:
+- {b Topics}: store [string list] of followed topics and filter notifications
+- {b Frequency}: immediate/hourly/daily digests
+- {b Quiet hours}: skip sends during [start, end), send later
+
+See also {{!page-session_management}Session Management} and {{!page-keyboard_api}Keyboard API} for richer preference UIs with inline toggles.
+
+{1 Putting It Together}
+
+{[
+let routes : Tg.Bot.route list = [
+  subscribe_cmd;
+  unsubscribe_cmd;
+  broadcast_cmd;
+  prefs_cmd;
+]
+
+let () =
+  Eio_main.run @@ fun env ->
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token in
+  let bot = Tg.Bot.router routes in
+  Tg.Polling.run client ~handler:(Tg.Bot.handle bot)
+]
+
+{1 Best Practices}
+
+- {b Respect limits}: throttle broadcasts; prefer batches and backoff on errors
+- {b Observe}: log success/failure counts, track recipients, add metrics
+- {b Idempotency}: deduplicate scheduled sends using content hashes or message IDs
+- {b Preference-first}: do not send if muted; honor quiet hours
+- {b Persistence}: keep subscribers and preferences in durable storage
+- {b Security}: restrict /broadcast to admins (see {{!page-middleware_architecture}Middleware})
+
+{1 See Also}
+
+- {{!page-concurrency_patterns}Concurrency Patterns} — Broadcast with rate limiting and background tasks
+- {{!page-session_management}Session Management} — Storing user preferences
+- {{!page-bot_composition}Bot Composition} — Modular routing and admin/feature modules
+- {{!Telegram_generated.Gen_methods.send_message}send_message} — Low-level API call used for sends
+

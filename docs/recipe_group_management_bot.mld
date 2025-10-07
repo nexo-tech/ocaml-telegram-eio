@@ -1,0 +1,307 @@
+{0 Recipe: Group Management Bot}
+
+Production-ready patterns for building admin bots that manage groups and supergroups: moderation commands, member management, permissions, and anti-spam.
+
+{1 Overview}
+
+This cookbook demonstrates:
+
+- Admin operations: ban/unban, restrict (mute), promote/demote, pins
+- Member management: approve/decline join requests, handle membership updates
+- Chat permissions: set default permissions; temporary restrictions
+- Anti-spam patterns: delete, mute, rate limit, CAPTCHA verification
+
+{b Update types} used:
+- {{!Telegram_generated.Gen_types.Update.chat_member}chat_member}: other member changed
+- {{!Telegram_generated.Gen_types.Update.my_chat_member}my_chat_member}: bot membership/rights changed
+- {{!Telegram_generated.Gen_types.Update.chat_join_request}chat_join_request}: pending join request
+
+See {{!page-update_processing}Update Processing} for routing strategies.
+
+{1 Admin Operations}
+
+{2 Ban / Unban}
+
+Use {{!Telegram_generated.Gen_methods.ban_chat_member}ban_chat_member} and {{!Telegram_generated.Gen_methods.unban_chat_member}unban_chat_member}. Ban by reply or explicit user ID.
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+
+let ban_by_reply (ctx : [ `Chat ] Tg.Bot.Ctx.t) ~minutes =
+  let client = Tg.Bot.Ctx.client ctx in
+  let chat_id = Tg.Bot.Ctx.chat ctx in
+  match (Tg.Bot.Ctx.message ctx).reply_to_message with
+  | None -> Tg.Bot.Ctx.reply ctx "Reply to a user's message to ban them"
+  | Some replied ->
+      (match replied.from with
+       | None -> Tg.Bot.Ctx.reply ctx "No user to ban"
+       | Some u ->
+           let until = Int64.(add (of_int (int_of_float (Unix.time ()))) (of_int (minutes * 60))) in
+           Telegram_generated.Gen_methods.ban_chat_member client
+             ~chat_id ~user_id:u.id ~until_date:until ~revoke_messages:true ())
+
+(* /ban <minutes> (reply to offender) *)
+let ban_cmd =
+  Tg.Bot.on (Tg.Bot.Event.command "ban") (fun args ctx ->
+    match Tg.Bot.Args.expect_1 args |> Option.bind Tg.Bot.Args.parse_int with
+    | None -> let* _ = Tg.Bot.Ctx.reply ctx "Usage: reply and /ban <minutes>" in Ok ()
+    | Some minutes ->
+        (match ban_by_reply ctx ~minutes with Ok _ -> Ok () | Error _ -> Ok ())
+  )
+
+(* /unban <user_id> *)
+let unban_cmd =
+  Tg.Bot.on (Tg.Bot.Event.command "unban") (fun args ctx ->
+    let client = Tg.Bot.Ctx.client ctx in
+    let chat_id = Tg.Bot.Ctx.chat ctx in
+    match Tg.Bot.Args.expect_1 args |> Option.bind (fun s -> Some (Int64.of_string s)) with
+    | None -> let* _ = Tg.Bot.Ctx.reply ctx "Usage: /unban <user_id>" in Ok ()
+    | Some user_id -> ignore (Telegram_generated.Gen_methods.unban_chat_member client ~chat_id ~user_id ~only_if_banned:true ()); Ok ()
+  )
+]}
+
+{2 Restrict (Mute) a Member}
+
+Restrict a member's permissions with {{!Telegram_generated.Gen_methods.restrict_chat_member}restrict_chat_member}. For a temporary mute, set [until_date].
+
+{[
+let mute_for_minutes (ctx : [ `Chat ] Tg.Bot.Ctx.t) user_id minutes =
+  let client = Tg.Bot.Ctx.client ctx in
+  let chat_id = Tg.Bot.Ctx.chat ctx in
+  let until_date = Int64.(add (of_int (int_of_float (Unix.time ()))) (of_int (minutes * 60))) in
+  let open Telegram_generated.Gen_types in
+  let perms = ChatPermissions.{
+    can_send_messages = Some false;
+    can_send_audios = None; can_send_documents = None; can_send_photos = None;
+    can_send_videos = None; can_send_video_notes = None; can_send_voice_notes = None;
+    can_send_polls = None; can_send_other_messages = None;
+    can_add_web_page_previews = None; can_change_info = None;
+    can_invite_users = None; can_pin_messages = None; can_manage_topics = None;
+    unknown_fields = Telegram.Json_compat.Unknown_fields.create (); } in
+  Telegram_generated.Gen_methods.restrict_chat_member client
+    ~chat_id ~user_id ~permissions:perms ~until_date ()
+
+(* /mute <user_id> <minutes> *)
+let mute_cmd =
+  Tg.Bot.on (Tg.Bot.Event.command "mute") (fun args ctx ->
+    match Tg.Bot.Args.expect_2 args with
+    | None -> let* _ = Tg.Bot.Ctx.reply ctx "Usage: /mute <user_id> <minutes>" in Ok ()
+    | Some (uid, mins) ->
+        match Int64.of_string_opt uid, int_of_string_opt mins with
+        | Some user_id, Some minutes -> ignore (mute_for_minutes ctx user_id minutes); Ok ()
+        | _ -> let* _ = Tg.Bot.Ctx.reply ctx "Invalid arguments" in Ok ()
+  )
+]}
+
+{2 Promote / Demote}
+
+Grant admin capabilities with {{!Telegram_generated.Gen_methods.promote_chat_member}promote_chat_member}. You can set fine-grained privileges.
+
+{[
+(* /promote <user_id> *)
+let promote_cmd =
+  Tg.Bot.on (Tg.Bot.Event.command "promote") (fun args ctx ->
+    let client = Tg.Bot.Ctx.client ctx in
+    let chat_id = Tg.Bot.Ctx.chat ctx in
+    match Tg.Bot.Args.expect_1 args |> Option.bind Int64.of_string_opt with
+    | None -> let* _ = Tg.Bot.Ctx.reply ctx "Usage: /promote <user_id>" in Ok ()
+    | Some user_id ->
+        ignore (Telegram_generated.Gen_methods.promote_chat_member client
+                  ~chat_id ~user_id
+                  ~can_delete_messages:true ~can_restrict_members:true
+                  ~can_manage_chat:true ~can_manage_topics:true ());
+        Ok ()
+  )
+]}
+
+{2 Pin / Unpin}
+
+{[
+(* /pin (reply to a message) *)
+let pin_cmd =
+  Tg.Bot.on (Tg.Bot.Event.command "pin") (fun _args ctx ->
+    let client = Tg.Bot.Ctx.client ctx in
+    let chat_id = Tg.Bot.Ctx.chat ctx in
+    match (Tg.Bot.Ctx.message ctx).reply_to_message with
+    | Some m -> ignore (Telegram_generated.Gen_methods.pin_chat_message client ~chat_id ~message_id:m.message_id ()); Ok ()
+    | None -> let* _ = Tg.Bot.Ctx.reply ctx "Reply to a message to pin it" in Ok ()
+  )
+]}
+
+{1 Member Management}
+
+{2 Join Requests}
+
+Handle {{!Telegram_generated.Gen_types.ChatJoinRequest}ChatJoinRequest} updates and approve/decline:
+
+{[
+let handle_join_request client (r : Telegram_generated.Gen_types.ChatJoinRequest.t) =
+  let chat_id = Telegram.Id.Chat.of_int r.chat.id in
+  let user_id = r.from.id in
+  (* Example policy: auto-approve if bio contains keyword *)
+  if Option.value ~default:"" r.bio |> String.lowercase_ascii |> String.contains 'o' then
+    Telegram_generated.Gen_methods.approve_chat_join_request client ~chat_id ~user_id ()
+  else
+    Telegram_generated.Gen_methods.decline_chat_join_request client ~chat_id ~user_id ()
+
+let join_routes = [
+  Tg.Bot.on Tg.Bot.Event.any (fun upd ctx ->
+    let client = Tg.Bot.Ctx.client ctx in
+    match upd.chat_join_request with
+    | Some r -> (match handle_join_request client r with Ok _ -> Ok () | Error _ -> Ok ())
+    | None -> Ok ()
+  );
+]
+]}
+
+{2 Membership Change Events}
+
+React to {{!Telegram_generated.Gen_types.Update.chat_member}chat_member} and {{!Telegram_generated.Gen_types.Update.my_chat_member}my_chat_member} to log/administer transitions.
+
+{[
+let audit_routes = [
+  Tg.Bot.on Tg.Bot.Event.any (fun upd _ctx ->
+    (match upd.chat_member with
+     | Some ch ->
+         let user = ch.new_chat_member.user in
+         let status = ch.new_chat_member.status in
+         Logs.info (fun m -> m "Member %Ld is now %s" user.id status); Ok ()
+     | None -> Ok ())
+  );
+  Tg.Bot.on Tg.Bot.Event.any (fun upd _ctx ->
+    (match upd.my_chat_member with
+     | Some ch -> Logs.info (fun m -> m "Bot status in chat %Ld: %s" ch.chat.id ch.new_chat_member.status); Ok ()
+     | None -> Ok ())
+  );
+]
+]}
+
+{1 Chat Permissions}
+
+{2 Set Default Permissions}
+
+Set chat-wide defaults with {{!Telegram_generated.Gen_methods.set_chat_permissions}set_chat_permissions}:
+
+{[
+let lock_down_chat client chat_id =
+  let open Telegram_generated.Gen_types in
+  let perms = ChatPermissions.{
+    can_send_messages = Some false;
+    can_send_audios = Some false;
+    can_send_documents = Some false;
+    can_send_photos = Some false;
+    can_send_videos = Some false;
+    can_send_video_notes = Some false;
+    can_send_voice_notes = Some false;
+    can_send_polls = Some false;
+    can_send_other_messages = Some false;
+    can_add_web_page_previews = Some false;
+    can_change_info = None; can_invite_users = None; can_pin_messages = None; can_manage_topics = None;
+    unknown_fields = Telegram.Json_compat.Unknown_fields.create (); } in
+  Telegram_generated.Gen_methods.set_chat_permissions client ~chat_id ~permissions:perms ()
+]}
+
+{1 Anti-Spam Patterns}
+
+{2 Delete + Warn}
+
+Detect spammy content (links, mentions, mass forwards) and delete with {{!Telegram_generated.Gen_methods.delete_message}delete_message}.
+
+{[
+let is_spam_message (msg : Telegram_generated.Gen_types.Message.t) : bool =
+  let open Telegram_generated.Gen_types in
+  (* Simple heuristics: link previews + many entities *)
+  let entity_count = match msg.entities with None -> 0 | Some es -> List.length es in
+  let has_link =
+    match msg.entities with
+    | Some es -> List.exists (fun (e:MessageEntity.t) -> String.equal e.type_ "url") es
+    | None -> false
+  in
+  entity_count > 5 || has_link
+
+let moderation_routes = [
+  Tg.Bot.on Tg.Bot.Event.any (fun upd ctx ->
+    let client = Tg.Bot.Ctx.client ctx in
+    match upd.message with
+    | Some msg when is_spam_message msg ->
+        let chat_id = Telegram.Id.Chat.of_int msg.chat.id in
+        ignore (Telegram_generated.Gen_methods.delete_message client ~chat_id ~message_id:msg.message_id ());
+        let* _ = Tg.Bot.Ctx.send ctx "Message removed. Please respect the rules." in
+        Ok ()
+    | _ -> Ok ()
+  );
+]
+]}
+
+{2 Rate Limit Middleware}
+
+Use {{!Tg.Bot.Middleware.rate_limit}Middleware.rate_limit} to curb floods:
+
+{[
+let middleware_stack = [ Tg.Bot.Middleware.rate_limit ~max_per_minute:20 () ]
+let bot = Tg.Bot.router ~middlewares:middleware_stack (ban_cmd :: unban_cmd :: mute_cmd :: promote_cmd :: pin_cmd :: join_routes @ audit_routes @ moderation_routes)
+]}
+
+{2 CAPTCHA Join Gate}
+
+Combine temporary restriction with an inline-button challenge. Unlock on correct response.
+
+{[
+(* On join: restrict user to read-only, ask them to press a button *)
+let captcha_key = Tg.Session.key "captcha"
+
+let challenge_user client chat_id user_id =
+  let open Telegram_generated.Gen_types in
+  let perms = ChatPermissions.{
+    can_send_messages = Some false; can_send_audios=None; can_send_documents=None; can_send_photos=None;
+    can_send_videos=None; can_send_video_notes=None; can_send_voice_notes=None; can_send_polls=None; can_send_other_messages=None;
+    can_add_web_page_previews=None; can_change_info=None; can_invite_users=None; can_pin_messages=None; can_manage_topics=None;
+    unknown_fields = Telegram.Json_compat.Unknown_fields.create (); } in
+  ignore (Telegram_generated.Gen_methods.restrict_chat_member client ~chat_id ~user_id ~permissions:perms ());
+  ()
+
+(* On callback "human:<user_id>": restore permissions *)
+let restore_user client chat_id user_id =
+  let open Telegram_generated.Gen_types in
+  let perms = ChatPermissions.{
+    can_send_messages = Some true; can_send_audios=None; can_send_documents=None; can_send_photos=None;
+    can_send_videos=None; can_send_video_notes=None; can_send_voice_notes=None; can_send_polls=None; can_send_other_messages=None;
+    can_add_web_page_previews=None; can_change_info=None; can_invite_users=None; can_pin_messages=None; can_manage_topics=None;
+    unknown_fields = Telegram.Json_compat.Unknown_fields.create (); } in
+  ignore (Telegram_generated.Gen_methods.restrict_chat_member client ~chat_id ~user_id ~permissions:perms ())
+]}
+
+{1 Polling Configuration}
+
+Enable membership-related updates:
+
+{[
+let () =
+  Eio_main.run @@ fun env ->
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token in
+  let bot = Tg.Bot.router (ban_cmd :: unban_cmd :: mute_cmd :: promote_cmd :: pin_cmd :: join_routes @ audit_routes @ moderation_routes) in
+  let config = Tg.Polling.make ~allowed_updates:["message"; "chat_member"; "my_chat_member"; "chat_join_request"] () in
+  Tg.Polling.run_with_config client config ~handler:(Tg.Bot.handle bot)
+]}
+
+{1 Best Practices}
+
+- {b Check privileges}: Verify the command issuer is admin before moderating (use {{!Telegram_generated.Gen_methods.get_chat_member}get_chat_member})
+- {b Idempotency}: Repeated actions should be safe (e.g., unban with [only_if_banned:true])
+- {b Temporary over permanent}: Prefer timed mutes before bans for false positives
+- {b Log audits}: Record moderator, target, action, reason
+- {b Backoff}: Avoid moderation loops on repeated edits/deletes
+- {b Privacy}: Avoid leaking internal user IDs in public messages
+
+{1 See Also}
+
+- {{!Telegram_generated.Gen_methods.ban_chat_member}ban_chat_member}, {{!Telegram_generated.Gen_methods.unban_chat_member}unban_chat_member}
+- {{!Telegram_generated.Gen_methods.restrict_chat_member}restrict_chat_member}, {{!Telegram_generated.Gen_methods.promote_chat_member}promote_chat_member}
+- {{!Telegram_generated.Gen_methods.set_chat_permissions}set_chat_permissions}, {{!Telegram_generated.Gen_methods.pin_chat_message}pin_chat_message}
+- {{!Telegram_generated.Gen_methods.approve_chat_join_request}approve_chat_join_request}, {{!Telegram_generated.Gen_methods.decline_chat_join_request}decline_chat_join_request}
+- {{!page-middleware_architecture}Middleware Architecture} — Rate limiting, authorization, logging
+- {{!page-keyboard_api}Keyboard API} — Inline buttons for verification
+- {{!page-update_processing}Update Processing} — Routing membership updates
+

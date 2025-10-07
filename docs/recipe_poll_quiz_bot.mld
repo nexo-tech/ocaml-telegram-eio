@@ -1,0 +1,390 @@
+{0 Recipe: Poll and Quiz Bot}
+
+A comprehensive cookbook for building bots that create polls and quizzes, track votes, analyze results, and present leaderboards using the elegant functional API and Bot DSL.
+
+{1 Overview}
+
+This recipe covers the full lifecycle of Telegram polls and quizzes:
+
+- Creating polls with multiple options
+- Enabling quiz mode with a single correct answer
+- Tracking votes (non-anonymous vs anonymous behavior)
+- Analyzing results and generating leaderboards
+- Timing and closing polls (open period and scheduled closing)
+- Stopping polls programmatically and announcing winners
+
+{b When to use polls vs inline keyboards}:
+- {b Polls/Quizzes}: Native UI, aggregated counts, automatic voting UX, optional anonymity
+- {b Inline keyboards}: Fully custom logic and state, fine-grained control, no native counting
+
+See also {{!page-keyboard_api}Keyboard API} for alternative quiz patterns using inline buttons.
+
+{1 Creating Polls}
+
+{2 Simple Poll}
+
+Create a basic poll with a question and options. Use {{!Telegram_generated.Gen_methods.send_poll}send_poll} and build options using {{!Telegram_generated.Gen_types.InputPollOption}InputPollOption}.
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+
+let unknown () = Telegram.Json_compat.Unknown_fields.create ()
+
+let poll_option (text : string) : Telegram_generated.Gen_types.InputPollOption.t =
+  Telegram_generated.Gen_types.InputPollOption.{
+    text;
+    text_parse_mode = None;
+    text_entities = None;
+    unknown_fields = unknown ();
+  }
+
+(* /poll OCaml|Haskell|Rust *)
+let create_simple_poll (ctx : [ `Chat ] Tg.Bot.Ctx.t) (args : string list) =
+  let client = Tg.Bot.Ctx.client ctx in
+  let chat_id = Tg.Bot.Ctx.chat ctx in
+
+  match args with
+  | [] ->
+      let* _ = Tg.Bot.Ctx.reply ctx "Usage: /poll <question>|<opt1>|<opt2>|..." in
+      Ok ()
+  | question_and_opts ->
+      let raw = String.concat " " question_and_opts in
+      let parts = String.split_on_char '|' raw in
+      match parts with
+      | question :: options when List.length options >= 2 ->
+          let options = List.map poll_option options in
+          let* _msg = Telegram_generated.Gen_methods.send_poll client
+            ~chat_id ~question ~options () in
+          Ok ()
+      | _ ->
+          let* _ = Tg.Bot.Ctx.reply ctx "Provide at least two options separated by |" in
+          Ok ()
+]
+
+{2 Multiple Answers}
+
+Enable voting for multiple options with [allows_multiple_answers:true]:
+
+{[
+let create_multi_poll (ctx : [ `Chat ] Tg.Bot.Ctx.t) (question : string) (opts : string list) =
+  let client = Tg.Bot.Ctx.client ctx in
+  let chat_id = Tg.Bot.Ctx.chat ctx in
+  let options = List.map poll_option opts in
+  Telegram_generated.Gen_methods.send_poll client
+    ~chat_id ~question ~options ~allows_multiple_answers:true ()
+]
+
+{2 Timed Polls}
+
+Control poll duration with [open_period] (in seconds) or set an absolute [close_date] (Unix time):
+
+{[
+(* 60-second poll *)
+let create_timed_poll ctx question opts =
+  let client = Tg.Bot.Ctx.client ctx in
+  let chat_id = Tg.Bot.Ctx.chat ctx in
+  Telegram_generated.Gen_methods.send_poll client
+    ~chat_id ~question
+    ~options:(List.map poll_option opts)
+    ~open_period:60L
+    ()
+
+(* Close at specific timestamp *)
+let create_poll_until ctx question opts close_ts =
+  let client = Tg.Bot.Ctx.client ctx in
+  let chat_id = Tg.Bot.Ctx.chat ctx in
+  Telegram_generated.Gen_methods.send_poll client
+    ~chat_id ~question
+    ~options:(List.map poll_option opts)
+    ~close_date:close_ts
+    ()
+]
+
+{1 Quiz Mode}
+
+Quizzes are polls with a single correct answer. Set [type_ = "quiz"] and [correct_option_id]. Optionally add an [explanation] with an optional [explanation_parse_mode] (e.g. "HTML").
+
+{[
+(* /quiz Which language has variants (sum types)?|Python|OCaml|Java *)
+let create_quiz (ctx : [ `Chat ] Tg.Bot.Ctx.t) (args : string list) =
+  let client = Tg.Bot.Ctx.client ctx in
+  let chat_id = Tg.Bot.Ctx.chat ctx in
+
+  match args with
+  | [] ->
+      let* _ = Tg.Bot.Ctx.reply ctx "Usage: /quiz <question>|<opt1>|<opt2>|..." in
+      Ok ()
+  | question_and_opts ->
+      let raw = String.concat " " question_and_opts in
+      let parts = String.split_on_char '|' raw in
+      match parts with
+      | question :: options when List.length options >= 2 ->
+          let options_values = List.map poll_option options in
+          (* Mark the 2nd option (index 1) as correct for demo *)
+          let correct_option_id = 1L in
+          let explanation = Some "<b>OCaml</b> supports algebraic data types (variants)." in
+          let* _msg = Telegram_generated.Gen_methods.send_poll client ~chat_id
+            ~question ~options:options_values
+            ~type_:"quiz"
+            ~correct_option_id
+            ~explanation
+            ~explanation_parse_mode:"HTML"
+            ~is_anonymous:false  (* track answers per user *)
+            () in
+          Ok ()
+      | _ ->
+          let* _ = Tg.Bot.Ctx.reply ctx "Provide at least two options separated by |" in
+          Ok ()
+]
+
+{b Notes}:
+- For quizzes, [correct_option_id] is zero-based index of the correct option.
+- Use [is_anonymous:false] if you need per-user tracking (see next section).
+- [explanation] appears to users after voting or when the quiz is closed.
+
+{1 Vote Tracking}
+
+Telegram provides two mechanisms:
+
+- {b poll_answer updates}: Per-user selections for non-anonymous polls. Use this for leaderboards.
+- {b poll updates}: Aggregated counts per option (works for anonymous and non-anonymous).
+
+Configure polling to include these updates: {{!Tg.Polling}Tg.Polling} with [~allowed_updates:["poll"; "poll_answer"]]. See {{!page-update_processing}Update Processing}.
+
+{2 Tracking Non-Anonymous Votes}
+
+Store a per-poll map of user -> selected option IDs. Each {{!Telegram_generated.Gen_types.PollAnswer}PollAnswer} contains the full list of selected options for that user (replace prior selection).
+
+{[
+module VoteTracker = struct
+  module UMap = Hashtbl.Make(struct type t = int64 let equal = Int64.equal let hash = Hashtbl.hash end)
+  module PMap = Hashtbl.Make(struct type t = string let equal = String.equal let hash = Hashtbl.hash end)
+
+  (* poll_id -> (user_id -> option_ids) *)
+  let by_poll : (int64 list UMap.t) PMap.t = PMap.create 32
+
+  let user_id_of_poll_answer (a : Telegram_generated.Gen_types.PollAnswer.t) : int64 option =
+    match a.user, a.voter_chat with
+    | Some u, _ -> Some u.id
+    | None, Some chat -> Some chat.id
+    | None, None -> None
+
+  let track (a : Telegram_generated.Gen_types.PollAnswer.t) =
+    match user_id_of_poll_answer a with
+    | None -> ()
+    | Some uid ->
+        let table =
+          match PMap.find_opt by_poll a.poll_id with
+          | Some t -> t | None -> let t = UMap.create 128 in PMap.add by_poll a.poll_id t; t
+        in
+        UMap.replace table uid a.option_ids
+
+  let aggregate_counts poll_id ~option_count : int array =
+    let counts = Array.make option_count 0 in
+    match PMap.find_opt by_poll poll_id with
+    | None -> counts
+    | Some t ->
+        UMap.iter (fun _user opts ->
+          List.iter (fun idx ->
+            let i = Int64.to_int idx in
+            if i >= 0 && i < option_count then counts.(i) <- counts.(i) + 1
+          ) opts
+        ) t; counts
+end
+]
+
+Integrate with the Bot DSL by listening to [Event.any] and matching on [update.poll_answer]:
+
+{[
+let routes : Tg.Bot.route list = [
+  Tg.Bot.on Tg.Bot.Event.any (fun update ctx ->
+    match update.Telegram_generated.Gen_types.Update.poll_answer with
+    | Some ans -> VoteTracker.track ans; Ok ()
+    | None -> Ok ()
+  );
+]
+]
+
+{2 Aggregating Anonymous Polls}
+
+For anonymous polls, you cannot track per-user votes. Instead, use {{!Telegram_generated.Gen_types.Poll}Poll} updates (and/or the final result from {{!Telegram_generated.Gen_methods.stop_poll}stop_poll}). Each poll update contains options with [voter_count].
+
+{[
+let handle_poll_aggregate (p : Telegram_generated.Gen_types.Poll.t) : (string * int) list =
+  List.map (fun (opt : Telegram_generated.Gen_types.PollOption.t) ->
+    (opt.text, Int64.to_int opt.voter_count)
+  ) p.options
+]
+
+{1 Stopping Polls and Getting Results}
+
+To finalize results and prevent further votes, stop the poll. You need [chat_id] and [message_id] of the poll message. Store these when creating the poll, keyed by [poll.id].
+
+{[
+type poll_meta = { chat_id : Telegram.Id.Chat.k Telegram.Id.t; message_id : int64 }
+
+let active_polls : (string, poll_meta) Hashtbl.t = Hashtbl.create 32
+
+(* When you send a poll, store mapping from poll.id to (chat_id, message_id) *)
+let store_poll (msg : Telegram_generated.Gen_types.Message.t) chat_id =
+  match msg.poll with
+  | Some p -> Hashtbl.replace active_polls p.id { chat_id; message_id = msg.message_id }
+  | None -> ()
+
+let stop_and_summarize (ctx : [ `Chat ] Tg.Bot.Ctx.t) (poll_id : string) =
+  let client = Tg.Bot.Ctx.client ctx in
+  match Hashtbl.find_opt active_polls poll_id with
+  | None -> Tg.Bot.Ctx.reply ctx "Unknown poll id"
+  | Some { chat_id; message_id } ->
+      match Telegram_generated.Gen_methods.stop_poll client ~chat_id ~message_id () with
+      | Error e -> Error e
+      | Ok poll ->
+          let results =
+            poll.options
+            |> List.mapi (fun i opt ->
+                 let count = Int64.to_int opt.voter_count in
+                 Printf.sprintf "%c) %s — %d"
+                   (Char.chr (65 + i)) opt.text count)
+            |> String.concat "\n"
+          in
+          Tg.Bot.Ctx.reply ctx ("📊 Final results:\n\n" ^ results)
+]
+
+{1 Putting It Together}
+
+{2 Routes}
+
+Define routes to create polls/quizzes and to track/stop them:
+
+{[
+let routes : Tg.Bot.route list = [
+  (* /poll question|opt1|opt2|... *)
+  Tg.Bot.on (Tg.Bot.Event.command "poll") (fun args ctx ->
+    let client = Tg.Bot.Ctx.client ctx in
+    let chat_id = Tg.Bot.Ctx.chat ctx in
+    (* Reuse logic from create_simple_poll; store meta when sending *)
+    let raw = String.concat " " args in
+    match String.split_on_char '|' raw with
+    | question :: options when List.length options >= 2 ->
+        let options = List.map poll_option options in
+        (match Telegram_generated.Gen_methods.send_poll client ~chat_id ~question ~options () with
+         | Ok msg -> store_poll msg chat_id; Ok ()
+         | Error _ -> Ok ())
+    | _ ->
+        let* _ = Tg.Bot.Ctx.reply ctx "Usage: /poll <question>|<opt1>|<opt2>|..." in
+        Ok ()
+  );
+
+  (* /quiz question|opt1|opt2|... (opt1 is correct for demo) *)
+  Tg.Bot.on (Tg.Bot.Event.command "quiz") (fun args ctx ->
+    let client = Tg.Bot.Ctx.client ctx in
+    let chat_id = Tg.Bot.Ctx.chat ctx in
+    let raw = String.concat " " args in
+    match String.split_on_char '|' raw with
+    | question :: options when List.length options >= 2 ->
+        let opts = List.map poll_option options in
+        let correct_option_id = 0L in
+        (match Telegram_generated.Gen_methods.send_poll client ~chat_id
+                 ~question ~options:opts ~type_:"quiz" ~correct_option_id ~is_anonymous:false () with
+         | Ok msg -> store_poll msg chat_id; Ok ()
+         | Error _ -> Ok ())
+    | _ ->
+        let* _ = Tg.Bot.Ctx.reply ctx "Usage: /quiz <question>|<opt1>|<opt2>|..." in
+        Ok ()
+  );
+
+  (* Track per-user answers for non-anonymous polls *)
+  Tg.Bot.on Tg.Bot.Event.any (fun update _ctx ->
+    match update.Telegram_generated.Gen_types.Update.poll_answer with
+    | Some ans -> VoteTracker.track ans; Ok ()
+    | None -> Ok ()
+  );
+
+  (* /results <poll_id> -> stop and show final results *)
+  Tg.Bot.on (Tg.Bot.Event.command "results") (fun args ctx ->
+    match args with
+    | [ poll_id ] ->
+        (match stop_and_summarize ctx poll_id with
+         | Ok _ -> Ok () | Error _ -> Ok ())
+    | _ ->
+        let* _ = Tg.Bot.Ctx.reply ctx "Usage: /results <poll_id>" in
+        Ok ()
+  );
+]
+]
+
+{2 Polling Configuration}
+
+Enable updates for polls and poll answers:
+
+{[
+let () =
+  Eio_main.run @@ fun env ->
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token in
+
+  let bot = Tg.Bot.router (routes) in
+
+  (* Receive poll and poll_answer updates *)
+  let polling = Tg.Polling.make ~allowed_updates:["message"; "poll"; "poll_answer"] () in
+  Tg.Polling.run_with_config client polling ~handler:(Tg.Bot.handle bot)
+]
+
+{1 Results Analysis}
+
+{2 Quiz Leaderboard}
+
+For quizzes ([type_ = "quiz"]) with [is_anonymous = false], compute a leaderboard from tracked answers. Example: 1 point per correct answer; first correct answers get highlighted.
+
+{[
+module Leaderboard = struct
+  type entry = { user_id : int64; score : int }
+
+  let score_quiz ~poll_id ~(correct_idx:int) : entry list =
+    let open VoteTracker in
+    match PMap.find_opt by_poll poll_id with
+    | None -> []
+    | Some table ->
+        let acc = ref [] in
+        UMap.iter (fun uid opts ->
+          let is_correct = List.exists (fun i -> Int64.to_int i = correct_idx) opts in
+          let score = if is_correct then 1 else 0 in
+          acc := { user_id = uid; score } :: !acc
+        ) table;
+        List.sort (fun a b -> Int.compare b.score a.score) !acc
+end
+]
+
+{2 Anonymous Poll Summary}
+
+Summarize counts directly from the final {{!Telegram_generated.Gen_types.Poll}Poll}:
+
+{[
+let summarize_final (p : Telegram_generated.Gen_types.Poll.t) : string =
+  p.options
+  |> List.mapi (fun i opt ->
+       Printf.sprintf "%c) %s — %Ld"
+         (Char.chr (65 + i)) opt.text opt.voter_count)
+  |> String.concat "\n"
+]
+
+{1 Best Practices}
+
+- {b Non-anonymous for leaderboards}: Set [is_anonymous:false] to get [poll_answer] updates
+- {b Close to finalize}: Use {{!Telegram_generated.Gen_methods.stop_poll}stop_poll} to finalize results and prevent late votes
+- {b Option count}: Keep options concise; prefer 2–6 clear choices
+- {b Open period}: Use [open_period] for short, timed polls (5–600 seconds)
+- {b Explanation}: For quizzes, set [explanation] and [explanation_parse_mode]
+- {b Error handling}: Always handle [Error] from API calls and inform users
+- {b Allowed updates}: Ensure ["poll"; "poll_answer"] are enabled when needed
+
+{1 See Also}
+
+- {{!Telegram_generated.Gen_methods.send_poll}send_poll} — Create poll/quiz messages
+- {{!Telegram_generated.Gen_methods.stop_poll}stop_poll} — Close a poll and get final {{!Telegram_generated.Gen_types.Poll}Poll}
+- {{!Telegram_generated.Gen_types.InputPollOption}InputPollOption} — Poll option input
+- {{!Telegram_generated.Gen_types.Poll}Poll} — Poll object with counts and metadata
+- {{!Telegram_generated.Gen_types.PollAnswer}PollAnswer} — Per-user selected options for non-anonymous polls
+- {{!page-update_processing}Update Processing} — Filtering updates and routing patterns
+- {{!page-keyboard_api}Keyboard API} — Alternative quiz via inline buttons

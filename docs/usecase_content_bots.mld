@@ -1,0 +1,309 @@
+{0 Use Case: Content Bots}
+
+Comprehensive patterns for content-centric bots: news aggregation, RSS subscriptions, scheduled digests, and media libraries. Built with the elegant Bot DSL, Eio-native concurrency, and robust HTTP utilities.
+
+{1 Overview}
+
+What you'll learn:
+
+- Aggregate multiple feeds and deduplicate items
+- Manage per-user RSS subscriptions and send updates
+- Schedule content delivery (daily/weekly digests)
+- Build a browsable media library with pagination and search
+
+Key modules:
+- {{!Tg.Bot}Bot DSL} — clean routing and handlers
+- {{!Telegram.Http.Cohttp_eio}HTTP Client} — external fetches
+- {{!page-concurrency_patterns}Concurrency Patterns} — background tasks, rate limiting
+- {{!page-session_management}Session Management} — user preferences and subscriptions
+
+{1 News Aggregator}
+
+Aggregate multiple RSS/Atom feeds into a unified item type and broadcast new items to subscribers.
+
+{2 Unified Item Type}
+
+{[
+type item = {
+  id : string;           (* GUID/link-based identifier *)
+  title : string;
+  url : string;
+  published : float;     (* Unix timestamp *)
+  source : string;       (* feed name *)
+}
+
+module Feed_store = struct
+  (* Dedup store: remember IDs we've seen recently to avoid duplicates *)
+  let seen : (string, float) Hashtbl.t = Hashtbl.create 10000
+  let ttl = 3. *. 24. *. 60. *. 60.  (* 3 days *)
+
+  let mark_seen id = Hashtbl.replace seen id (Unix.gettimeofday ())
+  let is_new id = not (Hashtbl.mem seen id)
+
+  let gc () =
+    let now = Unix.gettimeofday () in
+    Hashtbl.filter_map_inplace (fun _ t -> if now -. t > ttl then None else Some t) seen
+end
+]}
+
+{2 Minimal RSS Fetch}
+
+Use {{!Telegram.Http.Cohttp_eio}HTTP client}. Replace the naive parser with your preferred XML library.
+
+{[
+module Rss = struct
+  type feed = { title : string; items : item list }
+
+  let parse (_xml:string) ~source : (feed, string) result =
+    (* Placeholder parser: replace with an XML library like ezxmlm *)
+    Ok { title = source; items = [] }
+
+  let fetch ~url ~source =
+    let http = Telegram.Http.Cohttp_eio.v () in
+    match Telegram.Http.Cohttp_eio.call http ~meth:`GET ~url ~headers:[] ~body:Telegram.Http.Empty with
+    | Error e -> Error (Telegram.Error.to_string e)
+    | Ok resp when resp.status <> 200 -> Error (Printf.sprintf "HTTP %d" resp.status)
+    | Ok resp -> parse resp.body ~source
+end
+]}
+
+{2 Aggregation & Broadcast}
+
+{[
+open Ocaml_telegram_eio
+
+module Subscribers = struct
+  (* chat_id (string) -> unit *)
+  let t : (string, unit) Hashtbl.t = Hashtbl.create 1000
+  let add chat = Hashtbl.replace t (Telegram.Id.to_string chat) ()
+  let list () = Hashtbl.to_seq_keys t |> List.of_seq
+end
+
+let post_item client chat (i:item) =
+  let text = Printf.sprintf "📰 <b>%s</b>\n%s" i.title i.url in
+  Telegram_generated.Gen_methods.send_message client ~chat_id:chat ~text ~parse_mode:"HTML" ()
+
+let broadcast_items client (items:item list) =
+  let chats = Subscribers.list () in
+  Eio.Switch.run @@ fun sw ->
+    List.iter (fun key ->
+      Eio.Fiber.fork ~sw (fun () ->
+        let chat = Telegram.Id.Chat.of_string key in
+        List.iter (fun i -> ignore (post_item client chat i)) items
+      )
+    ) chats
+
+let aggregate_and_push client feeds =
+  let fetched =
+    feeds
+    |> List.filter_map (fun (source,url) -> match Rss.fetch ~url ~source with Ok f -> Some f | Error _ -> None)
+  in
+  let items = List.concat (List.map (fun f -> f.items) fetched) in
+  let new_items = List.filter (fun i -> Feed_store.is_new i.id) items in
+  List.iter (fun i -> Feed_store.mark_seen i.id) new_items;
+  if new_items <> [] then broadcast_items client new_items
+]}
+
+{2 Scheduler}
+
+Run aggregator periodically in a background fiber. See {{!page-concurrency_patterns}Periodic Tasks} for variants.
+
+{[
+let run_aggregator env client =
+  let clock = Eio.Stdenv.clock env in
+  let feeds = [
+    ("OCaml Discuss", "https://discuss.ocaml.org/latest.rss");
+    ("RealWorld OCaml", "https://realworldocaml.org/feeds/all.atom.xml");
+  ] in
+  while true do
+    Feed_store.gc ();
+    aggregate_and_push client feeds;
+    Eio.Time.sleep clock (15. *. 60.)  (* every 15 minutes *)
+  done
+]}
+
+{1 RSS Feed Bot}
+
+Users manage their own feed list: /rss add, /rss remove, /rss list; the bot polls feeds and sends new items per user.
+
+{2 Subscriptions per User}
+
+{[
+module Rss_subs = struct
+  (* user_id -> feed URLs *)
+  let t : (int64, string list) Hashtbl.t = Hashtbl.create 1000
+  let list uid = Hashtbl.find_opt t uid |> Option.value ~default:[]
+  let add uid url = Hashtbl.replace t uid (url :: list uid)
+  let remove uid url = Hashtbl.replace t uid (List.filter ((<>) url) (list uid))
+end
+]}
+
+{2 Commands}
+
+{[
+let rss_add =
+  Tg.Bot.on (Tg.Bot.Event.command "rss_add") (fun args ctx ->
+    match Tg.Bot.Ctx.user ctx, args with
+    | Some u, [url] -> Rss_subs.add u.id url; let* _ = Tg.Bot.Ctx.reply ctx "Added" in Ok ()
+    | _ -> let* _ = Tg.Bot.Ctx.reply ctx "Usage: /rss_add <url>" in Ok ()
+  )
+
+let rss_remove =
+  Tg.Bot.on (Tg.Bot.Event.command "rss_remove") (fun args ctx ->
+    match Tg.Bot.Ctx.user ctx, args with
+    | Some u, [url] -> Rss_subs.remove u.id url; let* _ = Tg.Bot.Ctx.reply ctx "Removed" in Ok ()
+    | _ -> let* _ = Tg.Bot.Ctx.reply ctx "Usage: /rss_remove <url>" in Ok ()
+  )
+
+let rss_list =
+  Tg.Bot.on (Tg.Bot.Event.command "rss_list") (fun _args ctx ->
+    match Tg.Bot.Ctx.user ctx with
+    | Some u ->
+        let feeds = Rss_subs.list u.id in
+        let text = if feeds = [] then "No feeds" else String.concat "\n" feeds in
+        let* _ = Tg.Bot.Ctx.reply ctx text in Ok ()
+    | None -> let* _ = Tg.Bot.Ctx.reply ctx "Only users can manage feeds" in Ok ()
+  )
+]}
+
+{2 Poll Feeds Per User}
+
+{[
+let poll_user_feeds client uid chat =
+  let urls = Rss_subs.list uid in
+  urls
+  |> List.iter (fun url ->
+      match Rss.fetch ~url ~source:url with
+      | Ok f ->
+          f.items
+          |> List.filter (fun i -> Feed_store.is_new (uid |> Int64.to_string ^ ":" ^ i.id))
+          |> List.iter (fun i ->
+              Feed_store.mark_seen (Int64.to_string uid ^ ":" ^ i.id);
+              ignore (Telegram_generated.Gen_methods.send_message client ~chat_id:chat ~text:(i.title ^ "\n" ^ i.url) ()))
+      | Error _ -> ())
+]}
+
+{1 Content Scheduling}
+
+Send digests on a schedule. Compute the next wakeup to deliver at a specific time of day.
+
+{[
+let seconds_until ~hour ~min =
+  let open Unix in
+  let now = time () |> localtime in
+  let target = { now with tm_hour = hour; tm_min = min; tm_sec = 0 } in
+  let now_ts = time () in
+  let target_ts = fst (mktime target) in
+  let delta = target_ts -. now_ts in
+  if delta >= 0. then delta else 24. *. 60. *. 60. +. delta
+
+let rec send_daily_digest env client chat_id hour min make =
+  let clock = Eio.Stdenv.clock env in
+  let delay = seconds_until ~hour ~min in
+  Eio.Time.sleep clock delay;
+  ignore (Telegram_generated.Gen_methods.send_message client ~chat_id ~text:(make ()) ());
+  send_daily_digest env client chat_id hour min make
+]}
+
+{1 Media Library Bot}
+
+Serve a curated set of media (images, documents, videos) with categories, search, and pagination.
+
+{2 Library and Search}
+
+{[
+type media_kind = Photo | Video | Document
+
+type media = {
+  id : string; title : string; tags : string list; kind : media_kind; file_id : string option; url : string option;
+}
+
+module Library = struct
+  let items : media list ref = ref []
+  let by_tag tag = List.filter (fun m -> List.exists (fun t -> String.lowercase_ascii t = String.lowercase_ascii tag) m.tags) !items
+  let search q = List.filter (fun m -> String.is_substring ~sub:(String.lowercase_ascii q) (String.lowercase_ascii m.title)) !items
+end
+
+let send_media client chat (m:media) =
+  match m.kind, m.file_id, m.url with
+  | Photo, Some fid, _ -> Telegram_generated.Gen_methods.send_photo client ~chat_id:chat ~photo:(`String fid) ()
+  | Photo, None, Some url -> Telegram_generated.Gen_methods.send_photo client ~chat_id:chat ~photo:(Telegram.Input_file.url url) ()
+  | Document, Some fid, _ -> Telegram_generated.Gen_methods.send_document client ~chat_id:chat ~document:(`String fid) ()
+  | Document, None, Some url -> Telegram_generated.Gen_methods.send_document client ~chat_id:chat ~document:(Telegram.Input_file.url url) ()
+  | Video, Some fid, _ -> Telegram_generated.Gen_methods.send_video client ~chat_id:chat ~video:(`String fid) ()
+  | Video, None, Some url -> Telegram_generated.Gen_methods.send_video client ~chat_id:chat ~video:(Telegram.Input_file.url url) ()
+  | _ -> Error (Telegram.Error.Decode_error "Missing media source")
+]}
+
+{2 Browsing UI}
+
+{[
+let page_size = 6
+
+let render_page (items:media list) ~offset =
+  let slice = items |> List.filteri (fun i _ -> i >= offset && i < offset + page_size) in
+  let rows =
+    slice
+    |> List.map (fun m -> [Tg.Keyboard.callback ~text:m.title ~data:("lib:open:" ^ m.id)])
+  in
+  let nav =
+    [ [Tg.Keyboard.callback ~text:"⟵ Prev" ~data:(Printf.sprintf "lib:page:%d" (max 0 (offset - page_size)));
+       Tg.Keyboard.callback ~text:"Next ⟶" ~data:(Printf.sprintf "lib:page:%d" (offset + page_size))] ]
+  in
+  Tg.Keyboard.inline (rows @ nav)
+
+let lib_routes = [
+  Tg.Bot.on (Tg.Bot.Event.command "library") (fun _args ctx ->
+    let kb = render_page !Library.items ~offset:0 in
+    let* _ = Tg.Bot.Ctx.reply ctx ~reply_markup:kb "📚 Media Library" in Ok ()
+  );
+
+  Tg.Bot.on (Tg.Bot.Event.callback "lib:page:*") (fun data ctx ->
+    let offset = int_of_string (String.sub data 9 (String.length data - 9)) in
+    let kb = render_page !Library.items ~offset in
+    let* _ = Tg.Bot.Ctx.edit ctx ~reply_markup:kb "📚 Media Library" in Ok ()
+  );
+
+  Tg.Bot.on (Tg.Bot.Event.callback "lib:open:*") (fun data ctx ->
+    let id = String.sub data 9 (String.length data - 9) in
+    match List.find_opt (fun m -> String.equal m.id id) !Library.items with
+    | None -> let* _ = Tg.Bot.Ctx.answer ctx ~text:"Missing media" in Ok ()
+    | Some m ->
+        (match Tg.Bot.Ctx.message ctx with
+         | Some msg -> ignore (send_media (Tg.Bot.Ctx.client ctx) (Telegram.Id.Chat.of_int msg.chat.id) m)
+         | None -> ());
+        Ok ()
+  );
+]
+]}
+
+{1 Putting It Together}
+
+{[
+let routes = [ rss_add; rss_remove; rss_list ] @ lib_routes
+
+let () =
+  Eio_main.run @@ fun env ->
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token in
+  Eio.Switch.run @@ fun sw ->
+    Eio.Fiber.fork ~sw (fun () -> run_aggregator env client);
+    Tg.Polling.run client ~handler:(Tg.Bot.handle (Tg.Bot.router routes))
+]
+
+{1 Best Practices}
+
+- {b Robust parsing}: Use proper XML/Atom parsers; be resilient to missing fields
+- {b Deduplication}: Track IDs to avoid duplicate sends; GC the cache
+- {b Rate limiting}: Throttle broadcasts and feed fetches (token bucket)
+- {b Caching}: Store Telegram file_id for media to avoid reupload costs
+- {b Preferences}: Allow users to choose topics and delivery windows
+- {b Observability}: Log fetch durations, items found, and send outcomes
+
+{1 See Also}
+
+- {{!Telegram.Http.Cohttp_eio}HTTP Client} — Fetch feeds and APIs
+- {{!page-notification_bot}Notification Bot} — Scheduling and broadcast patterns
+- {{!page-keyboard_api}Keyboard API} — Navigation and pagination UIs
+- {{!page-media_files}Media & Files} — Sending photos/videos/documents efficiently
+

@@ -1,0 +1,247 @@
+{0 Use Case: Integration Bots}
+
+Patterns for bots that connect your chat to external systems: GitHub notifications, CI/CD status, database queries, and API gateway commands. Built with the elegant Bot DSL, Eio-native HTTP, and production-grade webhook/server patterns.
+
+{1 Overview}
+
+What you'll build:
+
+- GitHub notifications via webhooks with secret verification
+- CI/CD status bot that polls or handles provider webhooks
+- Database query bot with safe whitelists and formatted results
+- API gateway bot that proxies commands to internal APIs
+
+Key docs:
+- {{!page-recipe_webhook_bot}Webhook Bot} — Secure production webhooks
+- {{!Telegram.Http.Cohttp_eio}HTTP Client} — Outbound HTTP calls
+- {{!page-error_handling}Error Handling} — Retries and graceful failure
+- {{!page-middleware_architecture}Middleware} — AuthZ, rate limiting, logging
+
+{1 GitHub Notifications}
+
+Receive repository events via GitHub webhooks and post formatted messages into chats.
+
+{2 Webhook Setup}
+
+- In GitHub: Settings → Webhooks → Add webhook
+- Payload URL: `https://your.domain/webhook/github`
+- Content type: application/json
+- Secret: generated string (store as `GITHUB_WEBHOOK_SECRET`)
+
+{2 Minimal Handler}
+
+Use {{!Tg.Webhook}Tg.Webhook} to run a small HTTP server; verify the `X-Hub-Signature-256` HMAC and select events.
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+
+module Github = struct
+  type event = Push | PullRequest | Issue | Unknown of string
+
+  let event_of_headers headers =
+    match List.assoc_opt "x-github-event" headers with
+    | Some "push" -> Push
+    | Some "pull_request" -> PullRequest
+    | Some "issues" -> Issue
+    | Some s -> Unknown s
+    | None -> Unknown ""
+
+  (* Placeholder: compute and verify HMAC-SHA256 with SECRET over body.
+     Use your preferred crypto library; on failure, reject. *)
+  let verify_signature ~secret ~headers ~body =
+    match List.assoc_opt "x-hub-signature-256" headers with
+    | None -> false
+    | Some _sig ->
+        (* Compute hmac = "sha256=" ^ Hex(hmac_sha256(secret, body)) and compare timing-safe. *)
+        true
+
+  let format_message ~event ~payload =
+    match event with
+    | Push ->
+        (* Extract pusher/name/ref/commits from payload JSON as needed *)
+        "⬆️ New push to repository"
+    | PullRequest -> "🔀 Pull request event"
+    | Issue -> "🐛 Issue event"
+    | Unknown s -> "📣 GitHub: " ^ s
+end
+
+let run_github_webhook env client chat =
+  let secret = Sys.getenv "GITHUB_WEBHOOK_SECRET" in
+  Tg.Webhook.run ~env ~addr:(`Tcp ("0.0.0.0", 8443)) ~secret_token:"unused" ~routes:[
+    ("/webhook/github", fun _req ->
+      fun ~headers ~body ->
+        let event = Github.event_of_headers headers in
+        if not (Github.verify_signature ~secret ~headers ~body) then `Forbidden "Invalid signature" else (
+          let text = Github.format_message ~event ~payload:body in
+          ignore (Telegram_generated.Gen_methods.send_message client ~chat_id:chat ~text ());
+          `Ok "ok")
+    )
+  ]
+]}
+
+{b Notes}:
+- Use a real HMAC implementation with timing-safe compare
+- Optionally filter repos/branches and enrich messages with links
+- Consider per-chat routing for multi-repo setups
+
+{1 CI/CD Status Bot}
+
+Two modes:
+
+- {b Polling}: bot periodically queries CI provider for latest build of a branch
+- {b Webhook}: provider posts build events; bot formats and sends updates
+
+{2 Polling Status}
+
+{[
+module Ci = struct
+  type status = Queued | Running | Passed | Failed | Canceled
+
+  let fetch_latest ~api_url ~token ~project ~branch =
+    let http = Telegram.Http.Cohttp_eio.v () in
+    let url = Printf.sprintf "%s/status?project=%s&branch=%s" api_url project branch in
+    let headers = ["Authorization", ("Bearer " ^ token)] in
+    match Telegram.Http.Cohttp_eio.call http ~meth:`GET ~url ~headers ~body:Telegram.Http.Empty with
+    | Error _ -> Error "http error"
+    | Ok resp when resp.status <> 200 -> Error (Printf.sprintf "HTTP %d" resp.status)
+    | Ok resp ->
+        (* Parse JSON status; map provider values to status type *)
+        Ok Passed
+end
+
+let ci_poll_loop env client chat project branch =
+  let api_url = Sys.getenv "CI_API_URL" in
+  let token = Sys.getenv "CI_API_TOKEN" in
+  let clock = Eio.Stdenv.clock env in
+  let rec loop last =
+    match Ci.fetch_latest ~api_url ~token ~project ~branch with
+    | Ok s when Some s <> last ->
+        let* _ = Telegram_generated.Gen_methods.send_message client ~chat_id:chat ~text:("CI: " ^ (match s with Queued->"Queued"|Running->"Running"|Passed->"Passed"|Failed->"Failed"|Canceled->"Canceled")) () in
+        Eio.Time.sleep clock 60.;
+        loop (Some s)
+    | _ -> Eio.Time.sleep clock 60.; loop last
+  in loop None
+]}
+
+{2 Command Trigger}
+
+{[
+let ci_watch_cmd =
+  Tg.Bot.on (Tg.Bot.Event.command "ci_watch") (fun args ctx ->
+    match args with
+    | [project; branch] ->
+        Eio.Fiber.fork (fun () -> ci_poll_loop (Tg.Bot.Ctx.env ctx) (Tg.Bot.Ctx.client ctx) (Tg.Bot.Ctx.chat ctx) project branch);
+        let* _ = Tg.Bot.Ctx.reply ctx "Started CI watch" in Ok ()
+    | _ -> let* _ = Tg.Bot.Ctx.reply ctx "Usage: /ci_watch <project> <branch>" in Ok ()
+  )
+]}
+
+{1 Database Query Bot}
+
+Expose a small set of {b whitelisted} queries. Avoid arbitrary SQL. Use timeouts and redact errors.
+
+{2 Safe Query Layer}
+
+{[
+module Db = struct
+  type row = (string * string) list
+  type result = row list
+
+  (* Replace these with your actual DB calls *)
+  let run query params : (result, string) result =
+    match query, params with
+    | "user_by_id", [id] -> Ok [ ["id", id; "name", "Alice"] ]
+    | "recent_orders", [] -> Ok [ ["id","42"; "total","19.99" ] ]
+    | _ -> Error "Unknown query"
+end
+
+let allowed_queries = ["user_by_id"; "recent_orders"]
+
+let format_table (rows:Db.result) =
+  rows
+  |> List.map (fun r -> r |> List.map (fun (k,v) -> k ^ ": " ^ v) |> String.concat ", ")
+  |> String.concat "\n"
+
+let db_cmd =
+  Tg.Bot.on (Tg.Bot.Event.command "db") (fun args ctx ->
+    match args with
+    | q :: params when List.mem q allowed_queries ->
+        (match Db.run q params with
+         | Ok rows -> let* _ = Tg.Bot.Ctx.reply ctx (if rows=[] then "(empty)" else format_table rows) in Ok ()
+         | Error _ -> let* _ = Tg.Bot.Ctx.reply ctx "Query failed" in Ok ())
+    | _ -> let* _ = Tg.Bot.Ctx.reply ctx ("Usage: /db <query> [params...]\nAllowed: " ^ String.concat ", " allowed_queries) in Ok ()
+  )
+]}
+
+{b Notes}:
+- Add {{!Tg.Bot.Middleware.require_user}require_user}, ACLs, and rate limits
+- For long results, send as document or paginate
+- Consider per-chat scoped sandboxes
+
+{1 API Gateway Bot}
+
+Map commands to backend REST endpoints with authentication and structured errors.
+
+{2 Client Helper}
+
+{[
+module Backend = struct
+  let call_json ~path ~token ~payload =
+    let http = Telegram.Http.Cohttp_eio.v () in
+    let url = (Sys.getenv_opt "BACKEND_BASE" |> Option.value ~default:"https://api.example.com") ^ path in
+    let headers = ["Content-Type","application/json"; "Authorization", ("Bearer " ^ token)] in
+    let body = Telegram.Http.String (Yojson.Safe.to_string payload) in
+    match Telegram.Http.Cohttp_eio.call http ~meth:`POST ~url ~headers ~body with
+    | Error e -> Error (Telegram.Error.to_string e)
+    | Ok resp when resp.status / 100 <> 2 -> Error (Printf.sprintf "HTTP %d" resp.status)
+    | Ok resp -> Ok resp.body
+end
+]}
+
+{2 Commands}
+
+{[
+let create_issue_cmd =
+  Tg.Bot.on (Tg.Bot.Event.command "create_issue") (fun args ctx ->
+    match args with
+    | title :: desc ->
+        let token = Sys.getenv "BACKEND_TOKEN" in
+        let payload = `Assoc ["title", `String title; "description", `String (String.concat " " desc)] in
+        (match Backend.call_json ~path:"/issues" ~token ~payload with
+         | Ok _ -> let* _ = Tg.Bot.Ctx.reply ctx "✅ Issue created" in Ok ()
+         | Error msg -> let* _ = Tg.Bot.Ctx.reply ctx ("Issue creation failed: " ^ msg) in Ok ())
+    | _ -> let* _ = Tg.Bot.Ctx.reply ctx "Usage: /create_issue <title> <desc...>" in Ok ()
+  )
+]}
+
+{1 Putting It Together}
+
+{[
+let routes = [ ci_watch_cmd; db_cmd; create_issue_cmd ]
+
+let () =
+  Eio_main.run @@ fun env ->
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token in
+  (* Optionally: run GitHub webhook listener in background fiber *)
+  Eio.Fiber.fork (fun () -> run_github_webhook env client (Telegram.Id.Chat.of_string "@mychannel"));
+  Tg.Polling.run client ~handler:(Tg.Bot.handle (Tg.Bot.router routes))
+]
+
+{1 Best Practices}
+
+- {b Secrets}: read from env/secret manager; never echo to users
+- {b AuthZ}: restrict integration commands to admins or approved users
+- {b Timeouts}: wrap HTTP and DB calls; retry with backoff for flaky networks
+- {b Observability}: log outgoing requests and incoming webhook events
+- {b Idempotency}: deduplicate webhook deliveries using event IDs
+- {b Privacy}: redact sensitive data from public chats; prefer DMs where appropriate
+
+{1 See Also}
+
+- {{!page-recipe_webhook_bot}Webhook Bot} — Full production setup, proxies, security, shutdown
+- {{!page-notification_bot}Notification Bot} — Scheduling and broadcast patterns for CI updates
+- {{!Telegram.Http.Cohttp_eio}HTTP Client} — Outbound requests with Eio
+- {{!page-middleware_architecture}Middleware} — Auth, rate limiting, logging
+

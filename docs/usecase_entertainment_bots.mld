@@ -1,0 +1,264 @@
+{0 Use Case: Entertainment Bots}
+
+Fun, engaging bots built with the elegant Bot DSL: quizzes, trivia, random facts, and jokes. This guide shows robust patterns for question banks, multiple-choice flows with inline keyboards, score tracking, and optionally fetching content from public APIs.
+
+{1 Overview}
+
+What you'll build:
+
+- Quiz bot with multiple-choice questions, scoring, and a leaderboard
+- Trivia bot that fetches questions from an API (with offline fallback)
+- Random fact and joke bots with safe defaults
+- Clean, idempotent handlers and resilient HTTP usage
+
+Key modules:
+- {{!Tg.Bot}Bot DSL}, {{!Tg.Keyboard}Keyboard API} — Multi-choice flows via inline keyboards
+- {{!Tg.Session}Session} — Per-user quiz state and scores
+- {{!Telegram.Http.Cohttp_eio}HTTP Client} — Optional external content
+- {{!page-error_handling}Error Handling} — Retries and friendly failure paths
+- See also {{!page-recipe_poll_quiz_bot}Poll & Quiz Bot} for Telegram-native quiz polls
+
+{1 Quiz Bot}
+
+Local question bank with inline buttons, session-scoped scoring, and a simple leaderboard.
+
+{2 Question Model}
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+open Tg.Session
+
+type question = {
+  id : string;
+  text : string;
+  options : string list;  (* length >= 2 *)
+  correct : int;          (* zero-based index *)
+}
+
+let bank : question list = [
+  { id="q1"; text="Which language has algebraic data types?"; options=["Java"; "OCaml"; "Go"]; correct=1 };
+  { id="q2"; text="What is 2 + 2?"; options=["3"; "4"; "5"]; correct=1 };
+  { id="q3"; text="Capital of France?"; options=["Berlin"; "Madrid"; "Paris"]; correct=2 };
+]
+
+let pick_random () = List.nth bank (Random.int (List.length bank))
+]}
+
+{2 Session State}
+
+{[
+type quiz_state = {
+  qid : string;
+  correct : int;
+  asked : int;
+  score : int;
+  started_at : float;
+}
+
+let quiz_key : quiz_state Session.key = Session.make ~name:"quiz_state"
+
+let start_state (q:question) = { qid=q.id; correct=q.correct; asked=0; score=0; started_at=Unix.gettimeofday () }
+]}
+
+{2 UI Helpers}
+
+{[
+let render_question (q:question) =
+  let rows =
+    List.mapi (fun i opt ->
+      [Tg.Keyboard.callback ~text:(Printf.sprintf "%c) %s" (Char.chr (65+i)) opt)
+         ~data:(Printf.sprintf "quiz:ans:%s:%d" q.id i)]) q.options
+  in
+  Tg.Keyboard.inline rows
+
+let send_question client chat_id (q:question) =
+  let kb = render_question q in
+  Telegram_generated.Gen_methods.send_message client
+    ~chat_id ~text:("❓ " ^ q.text) ~reply_markup:kb ()
+]}
+
+{2 Routes}
+
+{[
+(* /quiz — Start or continue a session *)
+let quiz_start =
+  Tg.Bot.on (Tg.Bot.Event.command "quiz") (fun _args ctx ->
+    let client = Tg.Bot.Ctx.client ctx in
+    let chat = Tg.Bot.Ctx.chat ctx in
+    let q = pick_random () in
+    Tg.Bot.Ctx.session_set ctx quiz_key (start_state q);
+    ignore (send_question client chat q);
+    Ok ()
+  )
+
+(* Answer callbacks: quiz:ans:<qid>:<idx> *)
+let quiz_answer =
+  Tg.Bot.on (Tg.Bot.Event.callback "quiz:ans:*") (fun data ctx ->
+    let client = Tg.Bot.Ctx.client ctx in
+    let chat_id =
+      match Tg.Bot.Ctx.message ctx with
+      | Some m -> Telegram.Id.Chat.of_int m.chat.id | None -> Tg.Bot.Ctx.chat ctx
+    in
+    match String.split_on_char ':' data with
+    | ["quiz"; "ans"; qid; idx_str] ->
+        let idx = int_of_string idx_str in
+        (match Tg.Bot.Ctx.session_get ctx quiz_key with
+         | None -> let* _ = Tg.Bot.Ctx.answer ctx ~text:"Start with /quiz" in Ok ()
+         | Some s when s.qid <> qid -> let* _ = Tg.Bot.Ctx.answer ctx ~text:"Out-of-date question" in Ok ()
+         | Some s ->
+            let asked = s.asked + 1 in
+            let score = if idx = s.correct then s.score + 1 else s.score in
+            let feedback = if idx = s.correct then "✅ Correct!" else "✗ Incorrect." in
+            let* _ = Tg.Bot.Ctx.answer ctx ~text:feedback in
+            (* Next question *)
+            let q = pick_random () in
+            Tg.Bot.Ctx.session_set ctx quiz_key { s with qid=q.id; correct=q.correct; asked; score };
+            ignore (send_question client chat_id q);
+            Ok ())
+    | _ -> Ok ()
+  )
+
+(* /score — Show current session score *)
+let quiz_score =
+  Tg.Bot.on (Tg.Bot.Event.command "score") (fun _args ctx ->
+    match Tg.Bot.Ctx.session_get ctx quiz_key with
+    | None -> let* _ = Tg.Bot.Ctx.reply ctx "No active quiz. Use /quiz to start." in Ok ()
+    | Some s -> let* _ = Tg.Bot.Ctx.reply ctx (Printf.sprintf "Score: %d/%d" s.score s.asked) in Ok ()
+  )
+]}
+
+{1 Trivia Bot}
+
+Fetch trivia questions from an external API with a robust fallback. Adapt the JSON parsing to your provider.
+
+{2 Fetch Helper}
+
+{[
+module Trivia = struct
+  type t = { q : string; options : string list; correct : int }
+
+  let parse body : (t, string) result =
+    (* Example parser; adapt to your API's schema *)
+    let open Yojson.Safe.Util in
+    try
+      let j = Yojson.Safe.from_string body in
+      let q = j |> member "question" |> to_string in
+      let a = j |> member "answers" |> to_list |> List.map to_string in
+      let correct = j |> member "correct" |> to_int in
+      Ok { q; options=a; correct }
+    with _ -> Error "Decode error"
+
+  let fetch ~url =
+    let http = Telegram.Http.Cohttp_eio.v () in
+    match Telegram.Http.Cohttp_eio.call http ~meth:`GET ~url ~headers:[] ~body:Telegram.Http.Empty with
+    | Error e -> Error (Telegram.Error.to_string e)
+    | Ok resp when resp.status <> 200 -> Error (Printf.sprintf "HTTP %d" resp.status)
+    | Ok resp -> parse resp.body
+end
+]}
+
+{2 Command: /trivia}
+
+{[
+let trivia_cmd ~url =
+  Tg.Bot.on (Tg.Bot.Event.command "trivia") (fun _args ctx ->
+    let client = Tg.Bot.Ctx.client ctx in
+    let chat = Tg.Bot.Ctx.chat ctx in
+    match Trivia.fetch ~url with
+    | Ok { q; options; correct } ->
+        let id = Uuidm.(to_string (v4_gen (Random.State.make_self_init ()) ())) in
+        let question = { id; text=q; options; correct } in
+        Tg.Bot.Ctx.session_set ctx quiz_key (start_state question);
+        ignore (send_question client chat question);
+        Ok ()
+    | Error _ ->
+        (* Fallback: use local question bank *)
+        let question = pick_random () in
+        Tg.Bot.Ctx.session_set ctx quiz_key (start_state question);
+        ignore (send_question client chat question);
+        Ok ()
+  )
+]}
+
+{1 Random Fact Bot}
+
+Provide quick facts from a local list, with an optional HTTP source. Keep it snappy.
+
+{[
+let facts = [
+  "OCaml compiles to efficient native code";
+  "Telegram bots can run via long polling or webhooks";
+  "Eio provides direct-style concurrency for OCaml 5";
+]
+
+let fact_cmd =
+  Tg.Bot.on (Tg.Bot.Event.command "fact") (fun _args ctx ->
+    let f = List.nth facts (Random.int (List.length facts)) in
+    let* _ = Tg.Bot.Ctx.reply ctx ("🤓 " ^ f) in
+    Ok ()
+  )
+]}
+
+{1 Joke Bot}
+
+Return a short joke with a friendly fallback.
+
+{[
+module Joke = struct
+  let fetch ~url =
+    let http = Telegram.Http.Cohttp_eio.v () in
+    match Telegram.Http.Cohttp_eio.call http ~meth:`GET ~url ~headers:["Accept","application/json"] ~body:Telegram.Http.Empty with
+    | Error _ -> None
+    | Ok resp when resp.status <> 200 -> None
+    | Ok resp ->
+        let open Yojson.Safe.Util in
+        try Some (Yojson.Safe.from_string resp.body |> member "joke" |> to_string)
+        with _ -> None
+end
+
+let joke_cmd ~url =
+  Tg.Bot.on (Tg.Bot.Event.command "joke") (fun _args ctx ->
+    match Joke.fetch ~url with
+    | Some j -> let* _ = Tg.Bot.Ctx.reply ctx ("😄 " ^ j) in Ok ()
+    | None -> let* _ = Tg.Bot.Ctx.reply ctx "😄 Why did the bot cross the wire? To get to the other side-effect." in Ok ()
+  )
+]
+
+{1 Putting It Together}
+
+{[
+let routes ~trivia_url ~joke_url = [
+  quiz_start; quiz_answer; quiz_score;
+  trivia_cmd ~url:trivia_url;
+  fact_cmd; joke_cmd ~url:joke_url;
+]
+
+let () =
+  Eio_main.run @@ fun env ->
+  Random.self_init ();
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token in
+  let store = Tg.Session.Memory_store.create () in
+  let session_mw = Tg.Bot.Middleware.with_session (module Tg.Session.Memory_store) store in
+  let trivia_url = Sys.getenv_opt "TRIVIA_URL" |> Option.value ~default:"https://example.com/trivia" in
+  let joke_url = Sys.getenv_opt "JOKE_URL" |> Option.value ~default:"https://icanhazdadjoke.com/" in
+  let bot = Tg.Bot.router ~middlewares:[session_mw] (routes ~trivia_url ~joke_url) in
+  Tg.Polling.run client ~handler:(Tg.Bot.handle bot)
+]
+
+{1 Best Practices}
+
+- {b Keep it fast}: pre-warm random pools; fall back to local content on API errors
+- {b Idempotency}: handle duplicate callbacks; detect stale question IDs
+- {b Scoring}: store scores in sessions or a DB; add a global leaderboard
+- {b Moderation}: filter content, avoid NSFW providers for default commands
+- {b UX}: use inline buttons for clarity; keep options short; provide /score
+
+{1 See Also}
+
+- {{!page-recipe_poll_quiz_bot}Poll & Quiz Bot} — Using Telegram-native quiz messages
+- {{!page-keyboard_api}Keyboard API} — Inline buttons and layouts
+- {{!page-session_management}Session Management} — Storing per-user score/state
+- {{!Telegram.Http.Cohttp_eio}HTTP Client} — Fetching trivia/jokes via HTTP
+

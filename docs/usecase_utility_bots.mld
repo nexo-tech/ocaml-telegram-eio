@@ -1,0 +1,289 @@
+{0 Use Case: Utility Bots}
+
+Practical, production-ready patterns for common utility bots built with the elegant Bot DSL: Weather, Translation, Calculator, and Unit Converter. Each example highlights clean routing, error handling, and optional session-based preferences.
+
+{1 Weather Bot}
+
+Get current weather for a city using an external HTTP API.
+
+{2 HTTP Fetch Helper}
+
+Use {{!Telegram.Http.Cohttp_eio}Telegram.Http.Cohttp_eio} to call external APIs. Structure parsers to be robust to missing fields.
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+
+module Weather = struct
+  type t = { temp_c : float; description : string }
+
+  let parse (body:string) : (t, string) result =
+    let open Yojson.Safe.Util in
+    try
+      let j = Yojson.Safe.from_string body in
+      (* Adjust these paths to match your chosen API *)
+      let temp_c = j |> member "current" |> member "temp_c" |> to_float in
+      let description =
+        match j |> member "current" |> member "condition" |> member "text" with
+        | `String s -> s | _ -> ""
+      in
+      Ok { temp_c; description }
+    with _ -> Error "Decode error"
+
+  let fetch ~env ~api_url ~api_key ~city =
+    let http = Telegram.Http.Cohttp_eio.v () in
+    let url = Printf.sprintf "%s?key=%s&q=%s" api_url api_key (Uri.pct_encode ~component:`Userinfo city) in
+    match Telegram.Http.Cohttp_eio.call http ~meth:`GET ~url ~headers:[] ~body:Telegram.Http.Empty with
+    | Error e -> Error (Printf.sprintf "HTTP error: %s" (Telegram.Error.to_string e))
+    | Ok resp when resp.status <> 200 -> Error (Printf.sprintf "Bad status: %d" resp.status)
+    | Ok resp -> parse resp.body
+end
+]}
+
+{2 Command: /weather <city>}
+
+{[
+let weather_cmd ~api_url ~api_key =
+  Tg.Bot.on (Tg.Bot.Event.command "weather") (fun args ctx ->
+    match args with
+    | [] -> let* _ = Tg.Bot.Ctx.reply ctx "Usage: /weather <city>" in Ok ()
+    | city_parts ->
+        let city = String.concat " " city_parts in
+        let env = Tg.Bot.Ctx.env ctx in
+        begin match Weather.fetch ~env ~api_url ~api_key ~city with
+        | Ok { temp_c; description } ->
+            let* _ = Tg.Bot.Ctx.reply ctx (Printf.sprintf "🌤️ %s: %.1f°C (%s)" city temp_c description) in
+            Ok ()
+        | Error msg ->
+            let* _ = Tg.Bot.Ctx.reply ctx ("Weather unavailable: " ^ msg) in
+            Ok ()
+        end
+  )
+]
+
+{2 Unit Preference (C/F)}
+
+Persist a per-user preference using sessions.
+
+{[
+open Tg.Session
+
+let use_fahrenheit_key : bool Session.key = Session.make ~name:"use_fahrenheit"
+
+let format_temp ctx temp_c =
+  let use_f = Tg.Bot.Ctx.session_get_or ctx use_fahrenheit_key ~default:false in
+  if use_f then Printf.sprintf "%.1f°F" (temp_c *. 9. /. 5. +. 32.)
+  else Printf.sprintf "%.1f°C" temp_c
+
+let units_cmd =
+  Tg.Bot.on (Tg.Bot.Event.command "units") (fun _args ctx ->
+    let prev = Tg.Bot.Ctx.session_get_or ctx use_fahrenheit_key ~default:false in
+    Tg.Bot.Ctx.session_set ctx use_fahrenheit_key (not prev);
+    let* _ = Tg.Bot.Ctx.reply ctx (if not prev then "🌡️ Now using Fahrenheit" else "🌡️ Now using Celsius") in
+    Ok ()
+  )
+]
+
+{1 Translation Bot}
+
+Translate text with an external API. The example assumes a generic JSON interface — adapt to your provider.
+
+{2 Translate Helper}
+
+{[
+module Translate = struct
+  let call ~text ~source ~target ~api_url ~api_key =
+    let http = Telegram.Http.Cohttp_eio.v () in
+    let body = Yojson.Safe.to_string (`Assoc [
+      ("q", `String text);
+      ("source", `String source);
+      ("target", `String target);
+      ("format", `String "text");
+      ("api_key", `String api_key);
+    ]) in
+    match Telegram.Http.Cohttp_eio.call http ~meth:`POST ~url:api_url
+            ~headers:["Content-Type","application/json"]
+            ~body:(Telegram.Http.String body) with
+    | Error e -> Error (Telegram.Error.to_string e)
+    | Ok resp when resp.status <> 200 -> Error (Printf.sprintf "Bad status: %d" resp.status)
+    | Ok resp ->
+        let open Yojson.Safe.Util in
+        try
+          let j = Yojson.Safe.from_string resp.body in
+          let translated = j |> member "translatedText" |> to_string in
+          Ok translated
+        with _ -> Error "Decode error"
+end
+]}
+
+{2 Command: /t <src>:<dst> <text...>}
+
+{[
+let translate_cmd ~api_url ~api_key =
+  Tg.Bot.on (Tg.Bot.Event.command "t") (fun args ctx ->
+    match args with
+    | srcdst :: rest when List.length rest > 0 ->
+        (match String.split_on_char ':' srcdst with
+         | [src; dst] ->
+             let text = String.concat " " rest in
+             (match Translate.call ~text ~source:src ~target:dst ~api_url ~api_key with
+              | Ok out -> let* _ = Tg.Bot.Ctx.reply ctx ("🗣️ " ^ out) in Ok ()
+              | Error msg -> let* _ = Tg.Bot.Ctx.reply ctx ("Translation failed: " ^ msg) in Ok ())
+         | _ -> let* _ = Tg.Bot.Ctx.reply ctx "Usage: /t <src>:<dst> <text>" in Ok ())
+    | _ -> let* _ = Tg.Bot.Ctx.reply ctx "Usage: /t <src>:<dst> <text>" in Ok ()
+  )
+]
+
+{1 Calculator Bot}
+
+Evaluate arithmetic expressions safely. This minimal recursive-descent parser supports +, -, *, / and parentheses for integers/floats.
+
+{[
+module Calc = struct
+  exception E
+  type tokens = TFloat of float | TPlus | TMinus | TMul | TDiv | TLp | TRp
+
+  let tokenize s =
+    let buf = Buffer.create 16 in
+    let flush acc = if Buffer.length buf > 0 then (let f = float_of_string (Buffer.contents buf) in Buffer.clear buf; TFloat f :: acc) else acc in
+    let rec go i acc =
+      if i = String.length s then List.rev (flush acc) else
+      match s.[i] with
+      | ' ' | '\t' -> go (i+1) acc
+      | '+' -> go (i+1) (flush (TPlus::acc))
+      | '-' -> go (i+1) (flush (TMinus::acc))
+      | '*' -> go (i+1) (flush (TMul::acc))
+      | '/' -> go (i+1) (flush (TDiv::acc))
+      | '(' -> go (i+1) (flush (TLp::acc))
+      | ')' -> go (i+1) (flush (TRp::acc))
+      | c -> Buffer.add_char buf c; go (i+1) acc
+    in go 0 []
+
+  let rec parse_expr i ts =
+    let v1,i = parse_term i ts in
+    let rec loop v i =
+      if i >= List.length ts then v,i else
+      match List.nth ts i with
+      | TPlus -> let v2,i' = parse_term (i+1) ts in loop (v +. v2) i'
+      | TMinus -> let v2,i' = parse_term (i+1) ts in loop (v -. v2) i'
+      | _ -> v,i
+    in loop v1 i
+  and parse_term i ts =
+    let v1,i = parse_factor i ts in
+    let rec loop v i =
+      if i >= List.length ts then v,i else
+      match List.nth ts i with
+      | TMul -> let v2,i' = parse_factor (i+1) ts in loop (v *. v2) i'
+      | TDiv -> let v2,i' = parse_factor (i+1) ts in loop (v /. v2) i'
+      | _ -> v,i
+    in loop v1 i
+  and parse_factor i ts =
+    if i >= List.length ts then raise E;
+    match List.nth ts i with
+    | TFloat f -> f, i+1
+    | TMinus -> let v,i' = parse_factor (i+1) ts in (-.v), i'
+    | TLp -> let v,i' = parse_expr (i+1) ts in (match List.nth ts i' with TRp -> v,i'+1 | _ -> raise E)
+    | _ -> raise E
+
+  let eval s =
+    try let ts = tokenize s in let v,_ = parse_expr 0 ts in Ok v with _ -> Error "Invalid expression"
+end
+
+let calc_cmd =
+  Tg.Bot.on (Tg.Bot.Event.command "calc") (fun args ctx ->
+    match args with
+    | [] -> let* _ = Tg.Bot.Ctx.reply ctx "Usage: /calc <expr>" in Ok ()
+    | parts ->
+        let expr = String.concat " " parts in
+        match Calc.eval expr with
+        | Ok v -> let* _ = Tg.Bot.Ctx.reply ctx (Printf.sprintf "🧮 %s = %g" expr v) in Ok ()
+        | Error msg -> let* _ = Tg.Bot.Ctx.reply ctx ("Error: " ^ msg) in Ok ()
+  )
+]
+
+{1 Unit Converter Bot}
+
+Convert common units and allow users to set a preferred unit system.
+
+{[
+module Units = struct
+  let km_of_mi mi = mi *. 1.60934
+  let mi_of_km km = km /. 1.60934
+  let c_of_f f = (f -. 32.) *. 5. /. 9.
+  let f_of_c c = (c *. 9. /. 5.) +. 32.
+  let kg_of_lb lb = lb *. 0.45359237
+  let lb_of_kg kg = kg /. 0.45359237
+end
+
+let convert_cmd =
+  Tg.Bot.on (Tg.Bot.Event.command "convert") (fun args ctx ->
+    match args with
+    | [value; from_u; to_u] ->
+        (match float_of_string_opt value with
+         | None -> let* _ = Tg.Bot.Ctx.reply ctx "Value must be a number" in Ok ()
+         | Some v ->
+             let res =
+               match String.lowercase_ascii from_u, String.lowercase_ascii to_u with
+               | "km","mi" -> Some (Units.mi_of_km v, "mi")
+               | "mi","km" -> Some (Units.km_of_mi v, "km")
+               | "c","f" -> Some (Units.f_of_c v, "°F")
+               | "f","c" -> Some (Units.c_of_f v, "°C")
+               | "kg","lb" -> Some (Units.lb_of_kg v, "lb")
+               | "lb","kg" -> Some (Units.kg_of_lb v, "kg")
+               | _ -> None
+             in
+             match res with
+             | Some (out, unit) -> let* _ = Tg.Bot.Ctx.reply ctx (Printf.sprintf "↔️ %.4g %s" out unit) in Ok ()
+             | None -> let* _ = Tg.Bot.Ctx.reply ctx "Unknown units. Try: km<->mi, C<->F, kg<->lb" in Ok ())
+    | _ -> let* _ = Tg.Bot.Ctx.reply ctx "Usage: /convert <value> <from> <to>" in Ok ()
+  )
+]
+
+{1 Putting It Together}
+
+Combine routes and run with polling. Provide API settings via environment variables.
+
+{[
+let () =
+  Eio_main.run @@ fun env ->
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let weather_api_url = Sys.getenv_opt "WEATHER_API_URL" |> Option.value ~default:"https://api.weatherapi.com/v1/current.json" in
+  let weather_api_key = Sys.getenv "WEATHER_API_KEY" in
+  let translate_api_url = Sys.getenv_opt "TRANSLATE_API_URL" |> Option.value ~default:"https://example.com/translate" in
+  let translate_api_key = Sys.getenv "TRANSLATE_API_KEY" in
+
+  let client = Telegram.Client.create ~env ~token in
+
+  let session_mw =
+    let store = Tg.Session.Memory_store.create () in
+    Tg.Bot.Middleware.with_session (module Tg.Session.Memory_store) store
+  in
+
+  let routes = [
+    units_cmd;
+    weather_cmd ~api_url:weather_api_url ~api_key:weather_api_key;
+    translate_cmd ~api_url:translate_api_url ~api_key:translate_api_key;
+    calc_cmd;
+    convert_cmd;
+  ] in
+
+  let bot = Tg.Bot.router ~middlewares:[session_mw] routes in
+  Tg.Polling.run client ~handler:(Tg.Bot.handle bot)
+]
+
+{1 Best Practices}
+
+- {b Timeouts and retries}: wrap HTTP calls with retries and timeouts (see {{!page-error_handling}Error Handling})
+- {b Configuration}: pass API tokens via environment variables or a config file
+- {b Input validation}: sanitize user input, handle unexpected characters
+- {b Rate limiting}: to avoid provider throttling and user spam
+- {b Caching}: cache frequent responses (e.g., last weather for a city)
+- {b Localization}: adjust language and units per user preferences
+
+{1 See Also}
+
+- {{!Telegram.Http.Cohttp_eio}HTTP Client} — External API calls over Eio
+- {{!page-command_dsl}Command DSL} — Commands and argument parsing
+- {{!page-session_management}Session Management} — Per-user preferences (units, language)
+- {{!page-error_handling}Error Handling} — Retries and resilience for network calls
+

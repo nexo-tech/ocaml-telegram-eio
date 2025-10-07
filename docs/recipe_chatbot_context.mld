@@ -1,0 +1,276 @@
+{0 Recipe: Chatbot With Context}
+
+A comprehensive guide to building multi-turn contextual chatbots: maintain conversation state across messages, store per-user context, design robust flows, and expire context safely — all with the elegant Bot DSL and type-safe sessions.
+
+{1 Overview}
+
+What you'll build:
+
+- Multi-step conversation (profile setup wizard)
+- Context storage (recent messages, last intent)
+- Mixed input (text + buttons) with graceful fallbacks
+- Context expiration (TTL) and cancellation
+
+Key modules:
+- {{!Tg.Session}Session} for typed per-user state
+- {{!Tg.Bot}Bot DSL} for routing and helpers
+- {{!page-state_machines}State Machines} for complex flows
+
+{1 Enabling Sessions}
+
+Use a session store and middleware so handlers can access per-user state. See {{!page-session_management}Session Management} for custom stores.
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+
+module Store = Tg.Session.Memory_store
+
+let () =
+  Eio_main.run @@ fun env ->
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token in
+
+  let store = Store.create () in
+  let session_mw = Tg.Bot.Middleware.with_session (module Store) store in
+
+  let routes = (* defined below *) [] in
+  let bot = Tg.Bot.router ~middlewares:[session_mw] routes in
+  Tg.Polling.run client ~handler:(Tg.Bot.handle bot)
+]}
+
+{1 Conversation Context}
+
+Represent conversational context as a typed state. Store a step, data gathered so far, and optional expiration.
+
+{[
+open Tg.Session
+
+type profile = {
+  name : string option;
+  email : string option;
+  tz : string option;
+}
+
+type step =
+  | Idle
+  | AskName
+  | AskEmail of { name : string }
+  | AskTz of { name : string; email : string }
+  | Confirm of { name : string; email : string; tz : string }
+
+type ctx_state = {
+  step : step;
+  data : profile;
+  started_at : float;      (* Unix timestamp *)
+  ttl_seconds : int;       (* expire after this many seconds *)
+}
+
+let state_key : ctx_state Session.key = Session.make ~name:"profile_wizard"
+
+let now () = Unix.gettimeofday ()
+
+let expired (s : ctx_state) =
+  now () -. s.started_at > float_of_int s.ttl_seconds
+
+let begin_flow () = {
+  step = AskName;
+  data = { name=None; email=None; tz=None };
+  started_at = now ();
+  ttl_seconds = 900; (* 15 minutes *)
+}
+]}
+
+{1 Multi‑Turn Dialogue}
+
+The flow asks for name → email → timezone, then shows a confirmation keyboard.
+
+{2 Start Command}
+
+{[
+(* /start_profile *)
+let start_profile =
+  Tg.Bot.on (Tg.Bot.Event.command "start_profile") (fun _args ctx ->
+    let s = begin_flow () in
+    Tg.Bot.Ctx.session_set ctx state_key s;
+    let* _ = Tg.Bot.Ctx.reply ctx "👋 Let's set up your profile. What is your name?" in
+    Ok ()
+  )
+]}
+
+{2 Text Handling}
+
+Interpret text based on the current step. Reset if expired.
+
+{[
+let on_text =
+  Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
+    let s = Tg.Bot.Ctx.session_get_or ctx state_key ~default:{ step=Idle; data={name=None; email=None; tz=None}; started_at=0.; ttl_seconds=0 } in
+
+    (* Expiration check *)
+    if (match s.step with Idle -> false | _ -> expired s) then (
+      Tg.Bot.Ctx.session_delete ctx state_key;
+      let* _ = Tg.Bot.Ctx.reply ctx "⏳ Session expired. Send /start_profile to begin again." in
+      Ok ()
+    ) else
+
+    match s.step with
+    | Idle -> Ok ()  (* ignore random text when idle *)
+
+    | AskName ->
+        let name = String.trim text in
+        let s' = { s with step = AskEmail { name }; data = { s.data with name = Some name } } in
+        Tg.Bot.Ctx.session_set ctx state_key s';
+        let* _ = Tg.Bot.Ctx.reply ctx "Great! What's your email?" in
+        Ok ()
+
+    | AskEmail { name } ->
+        let email = String.trim text in
+        let s' = { s with step = AskTz { name; email }; data = { s.data with email = Some email } } in
+        Tg.Bot.Ctx.session_set ctx state_key s';
+        let* _ = Tg.Bot.Ctx.reply ctx "And your timezone (e.g., UTC, CET, PST)?" in
+        Ok ()
+
+    | AskTz { name; email } ->
+        let tz = String.uppercase_ascii (String.trim text) in
+        let s' = { s with step = Confirm { name; email; tz }; data = { s.data with tz = Some tz } } in
+        Tg.Bot.Ctx.session_set ctx state_key s';
+        (* Show confirmation keyboard *)
+        let kb = Tg.Keyboard.inline [
+          [ Tg.Keyboard.callback ~text:"✅ Confirm" ~data:"profile:confirm" ];
+          [ Tg.Keyboard.callback ~text:"✏️ Restart" ~data:"profile:restart" ];
+          [ Tg.Keyboard.callback ~text:"✖️ Cancel" ~data:"profile:cancel" ];
+        ] in
+        let text = Printf.sprintf "Confirm your profile:\nName: %s\nEmail: %s\nTZ: %s"
+          name email tz in
+        let* _ = Tg.Bot.Ctx.reply ctx ~reply_markup:kb text in
+        Ok ()
+
+    | Confirm _ ->
+        let* _ = Tg.Bot.Ctx.reply ctx "Please use the buttons to confirm or edit." in
+        Ok ()
+  )
+]}
+
+{2 Callback Buttons}
+
+Handle confirmation and cancellation via callbacks.
+
+{[
+let on_callbacks = [
+  Tg.Bot.on (Tg.Bot.Event.callback "profile:confirm") (fun _data ctx ->
+    match Tg.Bot.Ctx.session_get ctx state_key with
+    | Some { step = Confirm { name; email; tz }; _ } ->
+        (* Persist profile to DB here *)
+        Tg.Bot.Ctx.session_delete ctx state_key;
+        let* _ = Tg.Bot.Ctx.edit ctx "✅ Saved! Profile updated." in
+        Ok ()
+    | _ -> let* _ = Tg.Bot.Ctx.edit ctx "Session expired or invalid." in Ok ()
+  );
+
+  Tg.Bot.on (Tg.Bot.Event.callback "profile:restart") (fun _data ctx ->
+    Tg.Bot.Ctx.session_set ctx state_key (begin_flow ());
+    let* _ = Tg.Bot.Ctx.edit ctx "🔁 Restarted. What's your name?" in
+    Ok ()
+  );
+
+  Tg.Bot.on (Tg.Bot.Event.callback "profile:cancel") (fun _data ctx ->
+    Tg.Bot.Ctx.session_delete ctx state_key;
+    let* _ = Tg.Bot.Ctx.edit ctx "❌ Cancelled." in
+    Ok ()
+  );
+]
+]}
+
+{1 Context Storage}
+
+Capture lightweight history to answer follow-ups. Keep it bounded to avoid memory growth.
+
+{[
+type history_item =
+  | Said of string
+  | Answered of string
+
+let history_key : history_item list Session.key =
+  Session.make ~name:"recent_history"
+
+let push_history ctx item =
+  let h = Tg.Bot.Ctx.session_get_or ctx history_key ~default:[] in
+  let h' = item :: h |> List.truncate 20 in
+  Tg.Bot.Ctx.session_set ctx history_key h'
+
+(* Extend on_text to push into history *)
+(* ... *)
+]}
+
+Use recent history to resolve pronouns or ellipses ("same email as before"), or to provide contextual help.
+
+{1 Cancellation and Fallback}
+
+Provide a /cancel command and a fallback when users send unrelated input mid-flow.
+
+{[
+let cancel_cmd =
+  Tg.Bot.on (Tg.Bot.Event.command "cancel") (fun _args ctx ->
+    if Tg.Bot.Ctx.session_exists ctx state_key then (
+      Tg.Bot.Ctx.session_delete ctx state_key;
+      let* _ = Tg.Bot.Ctx.reply ctx "🛑 Cancelled current action." in Ok ()
+    ) else (
+      let* _ = Tg.Bot.Ctx.reply ctx "Nothing to cancel." in Ok ()
+    )
+  )
+
+let fallback_route =
+  Tg.Bot.on Tg.Bot.Event.message (fun _msg ctx ->
+    let s = Tg.Bot.Ctx.session_get_or ctx state_key ~default:{ step=Idle; data={name=None; email=None; tz=None}; started_at=0.; ttl_seconds=0 } in
+    match s.step with
+    | Idle -> Ok ()
+    | _ -> let* _ = Tg.Bot.Ctx.reply ctx "You're in the profile setup. Send /cancel to abort." in Ok ()
+  )
+]}
+
+{1 Putting It Together}
+
+{[
+let routes : Tg.Bot.route list =
+  [ start_profile; on_text; cancel_cmd ] @ on_callbacks @ [ fallback_route ]
+
+let () =
+  Eio_main.run @@ fun env ->
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token in
+  let store = Tg.Session.Memory_store.create () in
+  let session_mw = Tg.Bot.Middleware.with_session (module Tg.Session.Memory_store) store in
+  let bot = Tg.Bot.router ~middlewares:[session_mw] routes in
+  Tg.Polling.run client ~handler:(Tg.Bot.handle bot)
+]
+
+{1 Expiration Strategies}
+
+- {b Rolling TTL}: refresh [started_at] on each step; expire after inactivity
+- {b Absolute TTL}: fixed deadline per flow (e.g., 15 minutes)
+- {b Store-level TTL}: use an expiring session store (see {{!page-session_management}Session Management})
+
+{1 Advanced Patterns}
+
+- {b Nested flows}: push/pop flow stacks in session
+- {b Interruptions}: temporarily switch flows (e.g., quick confirm), then resume
+- {b Multi-channel}: continue DM in private chat for sensitive data
+- {b Validation}: validate at each step; on error, stay in the same step
+- {b Idempotency}: re-ask current question after unexpected input or restart
+
+{1 Best Practices}
+
+- Keep state minimal and typed; store only what you need
+- Set TTLs to avoid zombie sessions; always handle expiration
+- Provide /cancel and clear next steps to users
+- Use keyboards to reduce input ambiguity in later steps
+- Persist final data to a durable store and clear session state
+
+{1 See Also}
+
+- {{!page-session_management}Session Management} — Stores, TTL, typed keys
+- {{!page-state_machines}State Machines} — Designing flows and transitions
+- {{!page-callback_queries}Callback Queries} — Inline buttons for confirmations
+- {{!page-keyboard_api}Keyboard API} — Building confirm/edit/cancel UIs
+

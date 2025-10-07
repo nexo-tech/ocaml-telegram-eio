@@ -175,6 +175,19 @@ See the {e examples/} directory for complete, runnable examples:
 - {{!page-recipe_file_bot}File Handling Bot} - Document uploads, image processing, downloads, and multi-file albums
 - {{!page-recipe_inline_bot}Inline Query Bot} - Inline search, rich results, caching, and inline keyboards
 - {{!page-recipe_webhook_bot}Webhook Bot} - Production webhooks with security, reverse proxy, and graceful shutdown
+- {{!page-recipe_poll_quiz_bot}Poll & Quiz Bot} - Native polls, quiz mode, vote tracking, and results analysis
+- {{!page-recipe_payment_bot}Payment Bot} - Invoices, shipping and pre-checkout, successful payments, and Stars refunds
+- {{!page-recipe_group_management_bot}Group Management Bot} - Admin operations, permissions, join requests, and anti-spam patterns
+- {{!page-recipe_notification_bot}Notification Bot} - Broadcasts, scheduling, subscriptions, and user preferences
+- {{!page-recipe_chatbot_context}Chatbot With Context} - Multi-turn dialogues, context storage, and expiration
+ - {{!page-recipe_games_bot}Games & Interactive Bots} - Turn-based games, scoring systems, and leaderboards
+
+{2 Bot Types & Use Cases}
+
+- {{!page-usecase_utility_bots}Utility Bots} - Weather, translation, calculator, and unit converter
+ - {{!page-usecase_content_bots}Content Bots} - News aggregation, RSS subscriptions, scheduling, and media libraries
+ - {{!page-usecase_entertainment_bots}Entertainment Bots} - Quizzes, trivia, random facts, and jokes
+ - {{!page-usecase_integration_bots}Integration Bots} - GitHub notifications, CI/CD status, DB queries, and API gateway
 
 {2 Migration}
 
