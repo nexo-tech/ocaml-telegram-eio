@@ -10,7 +10,7 @@
 
 ## Progress Tracker
 
-**Overall Completion: 1/30 tasks (3%)**
+**Overall Completion: 2/30 tasks (7%)**
 
 ---
 
@@ -28,11 +28,13 @@ Foundation documentation for developers new to the library.
   - Troubleshooting guide ✓
   - Security best practices ✓
 
-- [ ] Task 1.2: Core concepts overview
-  - Bot lifecycle and initialization
-  - Update handling model
-  - Eio concurrency primitives
-  - Error handling philosophy
+- [x] Task 1.2: Core concepts overview — COMPLETED: docs/core_concepts.mld
+  - Bot lifecycle and initialization (4 phases explained) ✓
+  - Update handling model (low-level + DSL patterns) ✓
+  - Eio concurrency primitives (fibers, promises, semaphores, timeouts) ✓
+  - Error handling philosophy (Result types, retryable errors, recovery patterns) ✓
+  - Update processing strategies (sequential, concurrent, rate-limited) ✓
+  - Design patterns and best practices ✓
 
 - [ ] Task 1.3: Quick start tutorial
   - Echo bot walkthrough (line by line)

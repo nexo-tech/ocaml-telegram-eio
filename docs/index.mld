@@ -143,6 +143,7 @@ See the {e examples/} directory for complete, runnable examples:
 {2 Guides}
 
 - {{!page-getting_started}Getting Started} - Installation, setup, and your first bot
+- {{!page-core_concepts}Core Concepts} - Bot lifecycle, update handling, Eio concurrency, and error handling
 - {{!page-migration}Migration Guide} - Migrating from other libraries or Lwt/Async to Eio
 - {{!page-faq}FAQ} - Frequently asked questions and troubleshooting
 

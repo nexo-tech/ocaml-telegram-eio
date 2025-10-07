@@ -1,0 +1,802 @@
+{0 Core Concepts}
+
+This guide explains the fundamental concepts behind [ocaml_telegram_eio]'s elegant functional API. Understanding these concepts will help you build sophisticated bots with minimal boilerplate.
+
+{1 Bot Lifecycle}
+
+{2 The Lifecycle Phases}
+
+Every bot follows a predictable lifecycle:
+
+{v
+┌─────────────────┐
+│ 1. Initialize   │  Create Eio runtime and bot client
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│ 2. Start        │  Begin polling or start webhook server
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│ 3. Handle       │  Process incoming updates in a loop
+└────────┬────────┘
+         │
+┌────────▼────────┐
+│ 4. Shutdown     │  Cleanup resources gracefully
+└─────────────────┘
+v}
+
+{2 Phase 1: Initialization}
+
+Create the Eio runtime and HTTP client:
+
+{[
+(* Entry point with Eio runtime *)
+let () =
+  Eio_main.run @@ fun env ->
+
+  (* Load configuration *)
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+
+  (* Create HTTP client *)
+  let client = Telegram.Client.create ~env ~token () in
+
+  (* Initialize bot state *)
+  let state = init_state () in
+
+  (* Continue to start phase... *)
+]}
+
+{b Key points}:
+- [Eio_main.run] creates the event loop
+- [env] provides system resources (network, clock, filesystem)
+- [Client.create] sets up HTTPS connection to Telegram API
+- All async operations happen within this context
+
+{2 Phase 2: Starting the Bot}
+
+Choose between long polling or webhooks:
+
+{3 Long Polling (Recommended for Development)}
+
+{[
+(* Simple polling *)
+Tg.Polling.run client ~handler:handle_update
+
+(* Configured polling *)
+let config = Tg.Polling.make
+  ~timeout:30                    (* Wait 30s for updates *)
+  ~limit:100                     (* Get up to 100 updates *)
+  ~allowed_updates:["message"; "callback_query"]
+  ~on_error:(fun err ->
+    Eio.traceln "Error: %a" Telegram.Error.pp err
+  )
+  ()
+in
+Tg.Polling.run_with_config client config ~handler:handle_update
+]}
+
+{3 Webhooks (Recommended for Production)}
+
+{[
+(* Set webhook URL *)
+let webhook_url = "https://example.com/bot" in
+let* () = Telegram_generated.Gen_methods.set_webhook
+  client ~url:webhook_url () in
+
+(* Start webhook server *)
+Tg.Webhook.run client
+  ~port:8443
+  ~secret_token:"your-secret"
+  ~handler:handle_update
+]}
+
+{2 Phase 3: Handling Updates}
+
+Process updates with pattern matching:
+
+{[
+let handle_update update =
+  match update with
+  | { Telegram_generated.Gen_types.Update.message = Some msg; _ } ->
+      handle_message msg
+  | { callback_query = Some cb; _ } ->
+      handle_callback cb
+  | { inline_query = Some iq; _ } ->
+      handle_inline_query iq
+  | _ ->
+      Ok ()  (* Ignore unknown update types *)
+]}
+
+{2 Phase 4: Graceful Shutdown}
+
+Eio handles cleanup automatically:
+
+{[
+Eio_main.run @@ fun env ->
+  Eio.Switch.run @@ fun sw ->
+
+  (* Register cleanup handlers *)
+  Eio.Switch.on_release sw (fun () ->
+    Eio.traceln "Shutting down gracefully..."
+  );
+
+  (* Bot runs here *)
+  Tg.Polling.run client ~handler:handle_update
+
+  (* When Ctrl-C or error occurs, cleanup runs automatically *)
+]}
+
+{1 Update Handling Model}
+
+{2 What is an Update?}
+
+An [Update] is any event from Telegram:
+
+{[
+type update = {
+  update_id : int64;                      (* Unique ID *)
+  message : Message.t option;             (* New message *)
+  edited_message : Message.t option;      (* Edited message *)
+  channel_post : Message.t option;        (* Channel post *)
+  edited_channel_post : Message.t option;
+  callback_query : CallbackQuery.t option; (* Button click *)
+  inline_query : InlineQuery.t option;    (* Inline search *)
+  (* ... and more *)
+}
+]}
+
+{2 Low-Level Update Handling}
+
+Direct pattern matching:
+
+{[
+let handle_update update =
+  match update.message with
+  | Some msg ->
+      (* Got a message *)
+      let chat_id = msg.chat.id in
+      let text = Option.value msg.text ~default:"" in
+
+      (* Check if it's a command *)
+      if String.starts_with ~prefix:"/" text then
+        handle_command chat_id text
+      else
+        handle_text chat_id text
+
+  | None ->
+      (* Not a message, check other update types *)
+      match update.callback_query with
+      | Some cb -> handle_callback cb
+      | None -> Ok ()  (* Ignore *)
+]}
+
+{2 High-Level DSL Pattern}
+
+The {{!Tg.Bot}Bot DSL} provides elegant routing:
+
+{[
+open Tg.Bot
+
+let bot client =
+  Bot.make client
+  |> Bot.command "start" (fun ctx _args ->
+      ctx#reply "👋 Welcome! Use /help for available commands."
+    )
+  |> Bot.command "echo" (fun ctx args ->
+      let text = Args.join_rest args 0 in
+      ctx#reply text
+    )
+  |> Bot.on Event.text (fun ctx text ->
+      ctx#reply ("You said: " ^ text)
+    )
+  |> Bot.on Event.callback (fun ctx data ->
+      ctx#answer_callback "Button clicked!" ;
+      ctx#reply ("You clicked: " ^ data)
+    )
+  |> Bot.on Event.inline_query (fun ctx query ->
+      (* Handle inline search *)
+      ctx#answer_inline_query []
+    )
+]}
+
+{b Key advantages}:
+- Declarative routing instead of nested pattern matching
+- Type-safe handlers with proper contexts
+- Automatic command parsing
+- Session management built-in
+
+{2 Event Composition}
+
+Combine event patterns:
+
+{[
+(* Match text AND specific chat *)
+let private_text =
+  Event.(text & when_ any (fun update ->
+    match update.message with
+    | Some msg -> msg.chat.type_ = "private"
+    | None -> false
+  ))
+
+bot |> Bot.on private_text (fun ctx text ->
+  ctx#reply "Private message received"
+)
+
+(* Match callback data with pattern *)
+let button_pattern prefix =
+  Event.(when_ callback (fun data ->
+    String.starts_with ~prefix data
+  ))
+
+bot |> Bot.on (button_pattern "menu:") (fun ctx data ->
+  handle_menu_click ctx data
+)
+]}
+
+{2 Update Processing Strategies}
+
+{3 Sequential Processing}
+
+Process updates one at a time (simple, predictable):
+
+{[
+let rec poll_loop client offset =
+  let* updates = fetch_updates client offset in
+  List.iter (fun update ->
+    match handle_update update with
+    | Ok () -> ()
+    | Error err -> log_error err
+  ) updates ;
+  let new_offset = calculate_offset updates in
+  poll_loop client new_offset
+]}
+
+{3 Concurrent Processing}
+
+Handle multiple updates simultaneously:
+
+{[
+let handle_updates_concurrent client updates =
+  Eio.Switch.run @@ fun sw ->
+  updates |> List.iter (fun update ->
+    Eio.Fiber.fork ~sw (fun () ->
+      match handle_update update with
+      | Ok () -> ()
+      | Error err -> log_error err
+    )
+  )
+  (* Switch waits for all fibers to complete *)
+]}
+
+{3 Rate-Limited Processing}
+
+Use a semaphore to limit concurrency:
+
+{[
+let handle_with_rate_limit client max_concurrent updates =
+  let semaphore = Eio.Semaphore.make max_concurrent in
+
+  Eio.Switch.run @@ fun sw ->
+  updates |> List.iter (fun update ->
+    Eio.Fiber.fork ~sw (fun () ->
+      Eio.Semaphore.acquire semaphore ;
+      Fun.protect
+        ~finally:(fun () -> Eio.Semaphore.release semaphore)
+        (fun () ->
+          match handle_update update with
+          | Ok () -> ()
+          | Error err -> log_error err
+        )
+    )
+  )
+]}
+
+{1 Eio Concurrency Primitives}
+
+{2 Why Eio?}
+
+Eio provides {b structured concurrency} with effect handlers:
+
+- No monads ([Promise.t], [Lwt.t], etc.)
+- Direct-style code (looks synchronous, runs asynchronously)
+- Automatic resource cleanup
+- Cancellation and timeouts built-in
+- Type-safe, compile-time guarantees
+
+{2 Fibers: Lightweight Concurrency}
+
+Spawn concurrent tasks:
+
+{[
+Eio.Switch.run @@ fun sw ->
+
+  (* Start background task *)
+  Eio.Fiber.fork ~sw (fun () ->
+    send_periodic_notifications client
+  ) ;
+
+  (* Start another task *)
+  Eio.Fiber.fork ~sw (fun () ->
+    cleanup_expired_sessions ()
+  ) ;
+
+  (* Main task *)
+  Tg.Polling.run client ~handler:handle_update
+
+(* All fibers are cancelled and cleaned up here *)
+]}
+
+{b Key points}:
+- [Switch] manages the lifetime of all fibers
+- When switch exits, all fibers are cancelled
+- Exceptions in any fiber cancel the entire switch
+- No leaked resources or zombie tasks
+
+{2 Promises: Async Values}
+
+Work with async results:
+
+{[
+let send_and_verify client chat_id text =
+  (* Send message asynchronously *)
+  let promise = Eio.Promise.create () in
+
+  Eio.Fiber.fork ~sw (fun () ->
+    let* msg = send_message client chat_id text in
+    Eio.Promise.resolve promise msg
+  ) ;
+
+  (* Wait for result *)
+  Eio.Promise.await promise
+]}
+
+{2 Semaphores: Rate Limiting}
+
+Control concurrent access:
+
+{[
+(* Limit to 30 requests per second (Telegram's limit) *)
+let rate_limiter = Eio.Semaphore.make 30 in
+
+let send_with_rate_limit client req =
+  Eio.Semaphore.acquire rate_limiter ;
+  Fun.protect
+    ~finally:(fun () -> Eio.Semaphore.release rate_limiter)
+    (fun () -> Telegram.Api.call client req)
+]}
+
+{2 Timeouts}
+
+Add time limits to operations:
+
+{[
+(* Timeout after 5 seconds *)
+Eio.Time.with_timeout env#clock 5.0 (fun () ->
+  (* This operation must complete in 5 seconds *)
+  Telegram_generated.Gen_methods.send_message
+    client ~chat_id ~text ()
+)
+|> function
+| Some result -> result
+| None -> Error Telegram.Error.Timeout
+]}
+
+{2 Parallel Processing}
+
+Run operations in parallel:
+
+{[
+(* Send multiple messages concurrently *)
+let send_broadcast client chat_ids text =
+  Eio.Switch.run @@ fun sw ->
+
+  (* Create promise for each chat *)
+  let promises =
+    chat_ids |> List.map (fun chat_id ->
+      let promise = Eio.Promise.create () in
+
+      Eio.Fiber.fork ~sw (fun () ->
+        let result = send_message client chat_id text in
+        Eio.Promise.resolve promise result
+      ) ;
+
+      promise
+    )
+  in
+
+  (* Wait for all to complete *)
+  promises |> List.map Eio.Promise.await
+]}
+
+{2 Mutex: Safe State Management}
+
+Protect shared state:
+
+{[
+type bot_state = {
+  mutable user_count : int ;
+  mutable message_count : int ;
+  mutex : Eio.Mutex.t ;
+}
+
+let increment_stats state =
+  Eio.Mutex.lock state.mutex ;
+  Fun.protect
+    ~finally:(fun () -> Eio.Mutex.unlock state.mutex)
+    (fun () ->
+      state.user_count <- state.user_count + 1 ;
+      state.message_count <- state.message_count + 1
+    )
+]}
+
+{2 Streams: Update Pipelines}
+
+Process updates as streams:
+
+{[
+(* Create update stream *)
+let update_stream, push_update = Eio.Stream.create 100 in
+
+(* Producer: fetch updates *)
+Eio.Fiber.fork ~sw (fun () ->
+  while true do
+    let* updates = fetch_updates client in
+    List.iter (Eio.Stream.add update_stream) updates
+  done
+) ;
+
+(* Consumer: process updates *)
+Eio.Fiber.fork ~sw (fun () ->
+  while true do
+    let update = Eio.Stream.take update_stream in
+    handle_update update
+  done
+)
+]}
+
+{1 Error Handling Philosophy}
+
+{2 The Error Type}
+
+All errors are typed and inspectable:
+
+{[
+type error =
+  | Http_error of int * string
+  | Api_error of { code : int; description : string; ... }
+  | Decode_error of string
+  | Timeout
+  | Canceled
+  | Not_implemented of string
+]}
+
+{2 Result-Based Error Handling}
+
+APIs return [Result.t] instead of raising exceptions:
+
+{[
+val send_message :
+  client -> chat_id -> text:string ->
+  (Message.t, Error.t) result
+]}
+
+Use [let*] syntax for clean error propagation:
+
+{[
+let handle_command ctx args =
+  (* If any step fails, entire function returns Error *)
+  let* user = get_user ctx in
+  let* permissions = check_permissions user in
+  let* message = send_reply ctx "Processing..." in
+  let* result = process_command args in
+  let* edited = edit_message ctx message result in
+  Ok edited
+]}
+
+{2 Retryable vs Non-Retryable Errors}
+
+Classify errors to decide retry strategy:
+
+{[
+let handle_with_retry client request =
+  match Telegram.Api.call client request with
+  | Ok result ->
+      result
+
+  | Error err when Telegram.Error.is_retryable err ->
+      (* Network issue, rate limit, server error *)
+      Eio.traceln "Retryable error, will retry: %a"
+        Telegram.Error.pp err ;
+      retry_with_backoff client request
+
+  | Error err ->
+      (* Invalid parameters, forbidden access *)
+      Eio.traceln "Permanent error, cannot retry: %a"
+        Telegram.Error.pp err ;
+      handle_permanent_failure err
+]}
+
+{b Retryable errors}:
+- [Http_error (502, _)] - Bad Gateway
+- [Http_error (503, _)] - Service Unavailable
+- [Http_error (429, _)] - Too Many Requests
+- [Timeout] - Network timeout
+
+{b Non-retryable errors}:
+- [Api_error { code = 400; ... }] - Bad Request (invalid params)
+- [Api_error { code = 403; ... }] - Forbidden (bot blocked)
+- [Api_error { code = 404; ... }] - Not Found (chat doesn't exist)
+- [Decode_error _] - Invalid response format
+
+{2 Rate Limit Handling}
+
+Respect Telegram's rate limits automatically:
+
+{[
+let send_with_rate_limit client req =
+  match Telegram.Api.call client req with
+  | Ok result -> Ok result
+
+  | Error (Api_error { code = 429; _ } as err) ->
+      (* Extract retry_after from error *)
+      let wait_seconds =
+        Telegram.Error.retry_after err
+        |> Option.value ~default:5
+      in
+
+      Eio.traceln "Rate limited, waiting %d seconds" wait_seconds ;
+      Eio.Time.sleep env#clock (float_of_int wait_seconds) ;
+
+      (* Retry the request *)
+      Telegram.Api.call client req
+
+  | Error err -> Error err
+]}
+
+The library provides {{!Telegram.Retry}automatic retry logic}:
+
+{[
+(* Retry with exponential backoff *)
+let* result = Telegram.Retry.with_retry
+  ~max_attempts:3
+  ~initial_delay:1.0
+  ~max_delay:30.0
+  (fun () -> Telegram.Api.call client request)
+in
+result
+]}
+
+{2 Error Recovery Patterns}
+
+{3 Fallback Values}
+
+Provide defaults for non-critical failures:
+
+{[
+let get_user_name user =
+  match user.username with
+  | Some username -> Ok username
+  | None ->
+      (* Fallback to first name *)
+      Ok user.first_name
+]}
+
+{3 Graceful Degradation}
+
+Continue with reduced functionality:
+
+{[
+let send_with_preview client chat_id text url =
+  (* Try to send with link preview *)
+  match send_message client chat_id text ~link_preview:url with
+  | Ok msg -> Ok msg
+  | Error err ->
+      (* Fallback: send without preview *)
+      Eio.traceln "Failed to fetch preview, sending plain text" ;
+      send_message client chat_id text
+]}
+
+{3 Error Notification}
+
+Inform users of issues:
+
+{[
+let handle_payment_error ctx err =
+  match err with
+  | Api_error { code = 400; description } ->
+      ctx#reply ("❌ Payment failed: " ^ description)
+
+  | Timeout ->
+      ctx#reply "⏱️ Payment processor timeout. Please try again."
+
+  | _ ->
+      ctx#reply "❌ An error occurred. Please contact support."
+]}
+
+{2 Logging and Debugging}
+
+{3 Structured Logging}
+
+{[
+let handle_update update =
+  Eio.traceln "@[<v>Update %Ld:@,%a@]"
+    update.update_id
+    pp_update update ;
+
+  match handle_logic update with
+  | Ok () ->
+      Eio.traceln "✓ Update %Ld processed" update.update_id ;
+      Ok ()
+  | Error err ->
+      Eio.traceln "✗ Update %Ld failed: %a"
+        update.update_id
+        Telegram.Error.pp err ;
+      Error err
+]}
+
+{3 Error Metrics}
+
+Track error rates:
+
+{[
+type metrics = {
+  mutable total_updates : int ;
+  mutable successful : int ;
+  mutable failed : int ;
+  mutable retried : int ;
+}
+
+let track_result metrics = function
+  | Ok () ->
+      metrics.successful <- metrics.successful + 1
+  | Error err when Telegram.Error.is_retryable err ->
+      metrics.retried <- metrics.retried + 1
+  | Error _ ->
+      metrics.failed <- metrics.failed + 1
+]}
+
+{1 Design Patterns}
+
+{2 Separation of Concerns}
+
+Organize code into layers:
+
+{v
+┌─────────────────────────────────┐
+│  Handlers (business logic)      │  What to do
+├─────────────────────────────────┤
+│  Routing (Bot DSL)               │  When to do it
+├─────────────────────────────────┤
+│  API Client (Telegram methods)  │  How to do it
+├─────────────────────────────────┤
+│  HTTP (Eio networking)           │  Communication
+└─────────────────────────────────┘
+v}
+
+{[
+(* Layer 1: Pure business logic *)
+module Logic = struct
+  let process_command text =
+    (* No Telegram-specific code *)
+    match parse_command text with
+    | "add", [a; b] -> Ok (int_of_string a + int_of_string b)
+    | _ -> Error "Invalid command"
+end
+
+(* Layer 2: Telegram handlers *)
+module Handlers = struct
+  let handle_command ctx args =
+    let text = Args.join_rest args 0 in
+    match Logic.process_command text with
+    | Ok result -> ctx#reply (string_of_int result)
+    | Error msg -> ctx#reply ("Error: " ^ msg)
+end
+
+(* Layer 3: Bot routing *)
+let bot client =
+  Bot.make client
+  |> Bot.command "calc" Handlers.handle_command
+]}
+
+{2 Context Pattern}
+
+Pass bot context through handlers:
+
+{[
+type bot_context = {
+  client : Telegram.Client.t ;
+  config : config ;
+  state : bot_state ;
+  env : Eio_unix.Stdenv.base ;
+}
+
+let handle_update ctx update =
+  (* Access everything via context *)
+  let* user = fetch_user ctx.state update in
+  let* result = process_with_config ctx.config user in
+  send_response ctx.client result
+]}
+
+{2 Builder Pattern}
+
+Compose complex requests fluently:
+
+{[
+let message =
+  Message.builder ()
+  |> Message.text "Hello, world!"
+  |> Message.parse_mode `HTML
+  |> Message.disable_preview true
+  |> Message.reply_to msg_id
+  |> Message.keyboard (Keyboard.inline [
+      [button "👍 Like" "like"];
+      [button "❤️ Love" "love"]
+    ])
+  |> Message.build
+in
+send client chat_id message
+]}
+
+{1 Best Practices}
+
+{2 Always Use Result Types}
+
+{[
+(* ❌ Bad: Using exceptions *)
+let get_user_id msg =
+  if msg.from = None then
+    failwith "No user"
+  else
+    Option.get msg.from
+
+(* ✅ Good: Using Result *)
+let get_user_id msg =
+  match msg.from with
+  | Some user -> Ok user.id
+  | None -> Error "Message has no sender"
+]}
+
+{2 Leverage Type Safety}
+
+{[
+(* ❌ Bad: Mixing ID types *)
+let chat_id : int64 = user_id  (* Type error! *)
+
+(* ✅ Good: Phantom types prevent mixing *)
+let chat_id : Id.Chat.k Id.t = ...
+let user_id : Id.User.k Id.t = ...
+(* Cannot mix these types *)
+]}
+
+{2 Clean Resource Management}
+
+{[
+(* ✅ Good: Switch handles cleanup *)
+Eio.Switch.run @@ fun sw ->
+  let file = open_file sw "data.txt" in
+  (* File closed automatically on exit *)
+  process_file file
+]}
+
+{2 Explicit Error Handling}
+
+{[
+(* ❌ Bad: Ignoring errors *)
+let _ = send_message client chat_id text
+
+(* ✅ Good: Handling all cases *)
+match send_message client chat_id text with
+| Ok msg -> log_success msg.message_id
+| Error err -> log_error err
+]}
+
+{1 Next Steps}
+
+Now that you understand the core concepts:
+
+- {{!page-getting_started}Getting Started} - Build your first bot
+- {{!Tg.Bot}Bot DSL} - High-level routing API
+- {{!Telegram.Api}API Methods} - All available methods
+- {{!Tg.Polling}Polling} - Long polling configuration
+- {{!Tg.Webhook}Webhook} - Webhook server setup
