@@ -1,4 +1,4 @@
-# ocaml-telegram-eio
+# ocaml_telegram_eio
 
 [![OCaml](https://img.shields.io/badge/OCaml-5.1%2B-orange.svg)](https://ocaml.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -177,3 +177,4 @@ Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for gui
 - [Telegram Bot API Documentation](https://core.telegram.org/bots/api)
 - [Eio Documentation](https://github.com/ocaml-multicore/eio)
 - [OCaml Effects](https://v2.ocaml.org/manual/effects.html)
+
