@@ -10,12 +10,12 @@
 
 ## Progress Tracker
 
-**Overall Completion: 21/30 tasks (70%)**
+**Overall Completion: 22/30 tasks (73%)**
 
 **Phase 1 — Getting Started Guide: COMPLETE (5/5 tasks) ✓**
 **Phase 2 — API Fundamentals: COMPLETE (6/6 tasks) ✓**
 **Phase 3 — Advanced Patterns: COMPLETE (7/7 tasks) ✓**
-**Phase 4 — Cookbook & Recipes: IN PROGRESS (4/12 tasks) ✓**
+**Phase 4 — Cookbook & Recipes: IN PROGRESS (5/12 tasks) ✓**
 
 ---
 
@@ -279,11 +279,15 @@ Real-world bot implementations with complete examples.
   - Complete production example (file management bot with upload, download, storage quotas) ✓
   - Best practices (validation, download strategy, upload optimization, performance, security) ✓
 
-- [ ] Task 4.5: Inline query bot
-  - Inline search
-  - Result caching
-  - Rich inline results
-  - Inline keyboard integration
+- [x] Task 4.5: Inline query bot — COMPLETED: docs/recipe_inline_bot.mld
+  - Inline search (basic query handling, rich inline results with articles/photos/GIFs) ✓
+  - Result caching (server-side with cache_time, client-side result cache, personal caching) ✓
+  - Rich inline results (article, photo, GIF, cached results with file_id) ✓
+  - Inline keyboard integration (buttons with URLs, switch inline query buttons) ✓
+  - Pagination (offset-based pagination, lazy loading pattern) ✓
+  - Location-based results (venue results, location-aware search) ✓
+  - Complete production example (Wikipedia-style search bot with article database) ✓
+  - Best practices (query processing, result design, caching strategy, pagination, error handling, security) ✓
 
 - [ ] Task 4.6: Webhook bot
   - Webhook setup and configuration

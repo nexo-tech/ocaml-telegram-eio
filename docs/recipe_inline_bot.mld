@@ -1,0 +1,921 @@
+{0 Recipe: Inline Query Bot}
+
+A comprehensive cookbook for building inline query bots that provide search results, rich content, and interactive experiences directly from any chat using inline mode.
+
+{1 Overview}
+
+This recipe demonstrates how to build bots that respond to inline queries. Users can type [@yourbotname query] in any chat to search and share content without switching to a private chat with your bot.
+
+{b What you'll learn}:
+- Handling inline queries
+- Creating rich inline results (articles, photos, videos)
+- Result caching for performance
+- Inline keyboard integration
+- Pagination for large result sets
+- Location-based inline results
+
+{b When to use inline query bots}:
+- Search and content discovery
+- Quick information lookup
+- Sharing content across chats
+- Location-based services
+- Interactive tools and utilities
+
+{1 Basic Inline Query Handling}
+
+{2 Simple Inline Query Response}
+
+Handle inline queries and return basic results:
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+
+(* Handle inline query *)
+let handle_inline_query client iq =
+  let query_text = iq.Telegram_generated.Gen_types.InlineQuery.query in
+
+  (* Create a simple article result *)
+  let result =
+    let open Telegram_generated.Gen_types in
+
+    let input_content = InputTextMessageContent.{
+      message_text = Printf.sprintf "You searched for: %s" query_text;
+      parse_mode = None;
+      entities = None;
+      link_preview_options = None;
+      unknown_fields = Telegram.Json_compat.Unknown_fields.create ();
+    } in
+
+    InlineQueryResultArticle.{
+      type_ = "article";
+      id = "result_1";
+      title = "Echo Search";
+      input_message_content = InputTextMessageContent input_content;
+      reply_markup = None;
+      description = Some ("Echo: " ^ query_text);
+      url = None;
+      thumbnail_url = None;
+      thumbnail_width = None;
+      thumbnail_height = None;
+      unknown_fields = Telegram.Json_compat.Unknown_fields.create ();
+    }
+  in
+
+  (* Answer the inline query *)
+  Telegram_generated.Gen_methods.answer_inline_query client
+    ~inline_query_id:iq.id
+    ~results:[InlineQueryResult.InlineQueryResultArticle result]
+    ()
+
+(* Bot routes *)
+let routes client = [
+  Tg.Bot.on Tg.Bot.Event.inline_query (fun iq ctx ->
+    match handle_inline_query client iq with
+    | Ok _ -> Ok ()
+    | Error _ -> Ok ()
+  );
+]
+]}
+
+{2 With Bot DSL}
+
+Cleaner inline query handling with the Bot DSL:
+
+{[
+let routes client = [
+  Tg.Bot.on Tg.Bot.Event.inline_query (fun iq ctx ->
+    let query = iq.query in
+
+    if String.length query = 0 then
+      (* Empty query - show defaults *)
+      let* _ = answer_inline_query client iq [] in
+      Ok ()
+    else
+      (* Search and return results *)
+      let results = search_content query in
+      let* _ = answer_inline_query client iq results in
+      Ok ()
+  );
+]
+]}
+
+{1 Rich Inline Results}
+
+{2 Article Results}
+
+Create article results with titles, descriptions, and rich content:
+
+{[
+(* Create article result *)
+let create_article ~id ~title ~description ~text =
+  let open Telegram_generated.Gen_types in
+
+  let input_content = InputTextMessageContent.{
+    message_text = text;
+    parse_mode = Some "HTML";
+    entities = None;
+    link_preview_options = None;
+    unknown_fields = Telegram.Json_compat.Unknown_fields.create ();
+  } in
+
+  InlineQueryResultArticle.{
+    type_ = "article";
+    id;
+    title;
+    input_message_content = InputTextMessageContent input_content;
+    reply_markup = None;
+    description = Some description;
+    url = None;
+    thumbnail_url = None;
+    thumbnail_width = None;
+    thumbnail_height = None;
+    unknown_fields = Telegram.Json_compat.Unknown_fields.create ();
+  }
+
+(* Example: Wikipedia-style search *)
+let search_articles query =
+  [
+    create_article
+      ~id:"1"
+      ~title:"OCaml Programming Language"
+      ~description:"General-purpose programming language"
+      ~text:"<b>OCaml</b> is a general-purpose, multi-paradigm programming language.";
+
+    create_article
+      ~id:"2"
+      ~title:"Functional Programming"
+      ~description:"Programming paradigm"
+      ~text:"<b>Functional programming</b> is a programming paradigm...";
+  ]
+  |> List.map (fun article ->
+      Telegram_generated.Gen_types.InlineQueryResult.InlineQueryResultArticle article)
+]}
+
+{2 Photo Results}
+
+Create photo results from URLs:
+
+{[
+(* Create photo result *)
+let create_photo ~id ~photo_url ~thumbnail_url ~caption =
+  let open Telegram_generated.Gen_types in
+
+  InlineQueryResultPhoto.{
+    type_ = "photo";
+    id;
+    photo_url;
+    thumbnail_url;
+    photo_width = None;
+    photo_height = None;
+    title = None;
+    description = None;
+    caption = Some caption;
+    parse_mode = Some "HTML";
+    caption_entities = None;
+    show_caption_above_media = None;
+    reply_markup = None;
+    input_message_content = None;
+    unknown_fields = Telegram.Json_compat.Unknown_fields.create ();
+  }
+
+(* Example: Image search *)
+let search_images query =
+  [
+    create_photo
+      ~id:"img_1"
+      ~photo_url:"https://example.com/photo1.jpg"
+      ~thumbnail_url:"https://example.com/thumb1.jpg"
+      ~caption:"Beautiful sunset 🌅";
+
+    create_photo
+      ~id:"img_2"
+      ~photo_url:"https://example.com/photo2.jpg"
+      ~thumbnail_url:"https://example.com/thumb2.jpg"
+      ~caption:"Mountain landscape 🏔️";
+  ]
+  |> List.map (fun photo ->
+      Telegram_generated.Gen_types.InlineQueryResult.InlineQueryResultPhoto photo)
+]}
+
+{2 GIF Results}
+
+Animated GIF results:
+
+{[
+(* Create GIF result *)
+let create_gif ~id ~gif_url ~thumbnail_url ~title =
+  let open Telegram_generated.Gen_types in
+
+  InlineQueryResultGif.{
+    type_ = "gif";
+    id;
+    gif_url;
+    thumbnail_url;
+    gif_width = None;
+    gif_height = None;
+    gif_duration = None;
+    thumbnail_mime_type = Some "image/jpeg";
+    title = Some title;
+    caption = None;
+    parse_mode = None;
+    caption_entities = None;
+    show_caption_above_media = None;
+    reply_markup = None;
+    input_message_content = None;
+    unknown_fields = Telegram.Json_compat.Unknown_fields.create ();
+  }
+
+(* Example: GIF search *)
+let search_gifs query =
+  [
+    create_gif
+      ~id:"gif_1"
+      ~gif_url:"https://example.com/animation.gif"
+      ~thumbnail_url:"https://example.com/animation_thumb.jpg"
+      ~title:"Funny cat";
+  ]
+  |> List.map (fun gif ->
+      Telegram_generated.Gen_types.InlineQueryResult.InlineQueryResultGif gif)
+]}
+
+{2 Cached Results}
+
+Use cached media with file IDs for faster responses:
+
+{[
+(* Create cached photo result *)
+let create_cached_photo ~id ~file_id ~caption =
+  let open Telegram_generated.Gen_types in
+
+  InlineQueryResultCachedPhoto.{
+    type_ = "photo";
+    id;
+    photo_file_id = file_id;
+    title = None;
+    description = None;
+    caption = Some caption;
+    parse_mode = Some "HTML";
+    caption_entities = None;
+    show_caption_above_media = None;
+    reply_markup = None;
+    input_message_content = None;
+    unknown_fields = Telegram.Json_compat.Unknown_fields.create ();
+  }
+
+(* Photo cache *)
+let photo_cache = Hashtbl.create 100
+
+(* Use cached or upload *)
+let get_or_cache_photo client chat_id path key =
+  match Hashtbl.find_opt photo_cache key with
+  | Some file_id ->
+      Ok file_id
+  | None ->
+      (* Upload and cache *)
+      let photo = Telegram.Input_file.path path in
+      match Telegram_generated.Gen_methods.send_photo client
+              ~chat_id ~photo () with
+      | Ok msg ->
+          (match msg.photo with
+          | Some (largest :: _) ->
+              Hashtbl.add photo_cache key largest.file_id;
+              Ok largest.file_id
+          | _ -> Error "No photo in response")
+      | Error e -> Error "Upload failed"
+]}
+
+{1 Result Caching}
+
+{2 Server-Side Caching}
+
+Control how long Telegram caches your results:
+
+{[
+(* Cache for 10 minutes *)
+let answer_with_cache client iq results =
+  Telegram_generated.Gen_methods.answer_inline_query client
+    ~inline_query_id:iq.id
+    ~results
+    ~cache_time:600L  (* 10 minutes *)
+    ()
+
+(* No caching - always fresh results *)
+let answer_no_cache client iq results =
+  Telegram_generated.Gen_methods.answer_inline_query client
+    ~inline_query_id:iq.id
+    ~results
+    ~cache_time:0L  (* No cache *)
+    ()
+
+(* Personal caching - per user *)
+let answer_personal client iq results =
+  Telegram_generated.Gen_methods.answer_inline_query client
+    ~inline_query_id:iq.id
+    ~results
+    ~cache_time:300L
+    ~is_personal:true  (* Cache per user *)
+    ()
+]}
+
+{2 Client-Side Result Cache}
+
+Cache search results in your bot to reduce computation:
+
+{[
+(* Result cache *)
+module ResultCache = struct
+  type cache_entry = {
+    results : Telegram_generated.Gen_types.InlineQueryResult.t list;
+    timestamp : float;
+  }
+
+  let cache = Hashtbl.create 1000
+  let ttl = 300.0  (* 5 minutes *)
+
+  let get query =
+    match Hashtbl.find_opt cache query with
+    | Some entry ->
+        if Unix.time () -. entry.timestamp < ttl then
+          Some entry.results
+        else
+          (Hashtbl.remove cache query; None)
+    | None -> None
+
+  let set query results =
+    let entry = {
+      results;
+      timestamp = Unix.time ();
+    } in
+    Hashtbl.replace cache query entry
+
+  let clear () =
+    Hashtbl.clear cache
+end
+
+(* Use cache *)
+let handle_inline_query client iq =
+  let query = iq.query in
+
+  match ResultCache.get query with
+  | Some cached_results ->
+      (* Use cached results *)
+      answer_inline_query client iq cached_results
+
+  | None ->
+      (* Compute fresh results *)
+      let results = compute_results query in
+      ResultCache.set query results;
+      answer_inline_query client iq results
+]}
+
+{1 Inline Keyboard Integration}
+
+{2 Article with Inline Buttons}
+
+Add interactive buttons to inline results:
+
+{[
+(* Create keyboard *)
+let create_result_keyboard url =
+  let open Telegram_generated.Gen_types in
+
+  InlineKeyboardMarkup.{
+    inline_keyboard = [[
+      InlineKeyboardButton.{
+        text = "Open Website";
+        url = Some url;
+        callback_data = None;
+        web_app = None;
+        login_url = None;
+        switch_inline_query = None;
+        switch_inline_query_current_chat = None;
+        switch_inline_query_chosen_chat = None;
+        copy_text = None;
+        callback_game = None;
+        pay = None;
+        unknown_fields = Telegram.Json_compat.Unknown_fields.create ();
+      };
+      InlineKeyboardButton.{
+        text = "Share";
+        url = None;
+        callback_data = None;
+        web_app = None;
+        login_url = None;
+        switch_inline_query = Some "";  (* Share in another chat *)
+        switch_inline_query_current_chat = None;
+        switch_inline_query_chosen_chat = None;
+        copy_text = None;
+        callback_game = None;
+        pay = None;
+        unknown_fields = Telegram.Json_compat.Unknown_fields.create ();
+      };
+    ]];
+    unknown_fields = Telegram.Json_compat.Unknown_fields.create ();
+  }
+
+(* Article with keyboard *)
+let create_article_with_keyboard ~id ~title ~text ~url =
+  let open Telegram_generated.Gen_types in
+
+  let input_content = InputTextMessageContent.{
+    message_text = text;
+    parse_mode = Some "HTML";
+    entities = None;
+    link_preview_options = None;
+    unknown_fields = Telegram.Json_compat.Unknown_fields.create ();
+  } in
+
+  InlineQueryResultArticle.{
+    type_ = "article";
+    id;
+    title;
+    input_message_content = InputTextMessageContent input_content;
+    reply_markup = Some (create_result_keyboard url);
+    description = None;
+    url = Some url;
+    thumbnail_url = None;
+    thumbnail_width = None;
+    thumbnail_height = None;
+    unknown_fields = Telegram.Json_compat.Unknown_fields.create ();
+  }
+]}
+
+{2 Switch Inline Query Buttons}
+
+Buttons that trigger new inline queries:
+
+{[
+(* Button that continues search in another chat *)
+let create_share_keyboard query =
+  let open Telegram_generated.Gen_types in
+
+  InlineKeyboardMarkup.{
+    inline_keyboard = [[
+      InlineKeyboardButton.{
+        text = "Share in another chat";
+        url = None;
+        callback_data = None;
+        web_app = None;
+        login_url = None;
+        switch_inline_query = Some query;  (* Pre-fill with current query *)
+        switch_inline_query_current_chat = None;
+        switch_inline_query_chosen_chat = None;
+        copy_text = None;
+        callback_game = None;
+        pay = None;
+        unknown_fields = Telegram.Json_compat.Unknown_fields.create ();
+      };
+      InlineKeyboardButton.{
+        text = "Search again here";
+        url = None;
+        callback_data = None;
+        web_app = None;
+        login_url = None;
+        switch_inline_query = None;
+        switch_inline_query_current_chat = Some "";  (* New search in current chat *)
+        switch_inline_query_chosen_chat = None;
+        copy_text = None;
+        callback_game = None;
+        pay = None;
+        unknown_fields = Telegram.Json_compat.Unknown_fields.create ();
+      };
+    ]];
+    unknown_fields = Telegram.Json_compat.Unknown_fields.create ();
+  }
+]}
+
+{1 Pagination}
+
+{2 Offset-Based Pagination}
+
+Handle large result sets with pagination:
+
+{[
+(* Paginated search *)
+let handle_paginated_query client iq all_results =
+  let page_size = 50 in  (* Max 50 results per response *)
+
+  (* Parse offset *)
+  let offset =
+    if String.length iq.offset = 0 then
+      0
+    else
+      int_of_string_opt iq.offset |> Option.value ~default:0
+  in
+
+  (* Get page of results *)
+  let total = List.length all_results in
+  let start = offset in
+  let end_ = min (offset + page_size) total in
+
+  let page_results =
+    all_results
+    |> List.filteri (fun i _ -> i >= start && i < end_)
+  in
+
+  (* Calculate next offset *)
+  let next_offset =
+    if end_ < total then
+      Some (string_of_int end_)
+    else
+      None
+  in
+
+  (* Answer with pagination *)
+  Telegram_generated.Gen_methods.answer_inline_query client
+    ~inline_query_id:iq.id
+    ~results:page_results
+    ?next_offset
+    ()
+
+(* Usage *)
+let routes client = [
+  Tg.Bot.on Tg.Bot.Event.inline_query (fun iq ctx ->
+    let all_results = search_all iq.query in
+    match handle_paginated_query client iq all_results with
+    | Ok _ -> Ok ()
+    | Error _ -> Ok ()
+  );
+]
+]}
+
+{2 Lazy Loading Pattern}
+
+Load results on demand:
+
+{[
+(* Search with pagination *)
+module PaginatedSearch = struct
+  let page_size = 50
+
+  (* Get page of results *)
+  let get_page query offset =
+    (* In real implementation: database query with LIMIT/OFFSET *)
+    let all_results = database_search query in
+    let start = offset in
+    let end_ = min (offset + page_size) (List.length all_results) in
+    List.filteri (fun i _ -> i >= start && i < end_) all_results
+
+  (* Check if more results available *)
+  let has_more query offset =
+    let total_count = database_count query in
+    offset + page_size < total_count
+
+  (* Handle query with lazy loading *)
+  let handle_query client iq =
+    let query = iq.query in
+    let offset = int_of_string_opt iq.offset |> Option.value ~default:0 in
+
+    let results = get_page query offset in
+    let next_offset =
+      if has_more query offset then
+        Some (string_of_int (offset + page_size))
+      else
+        None
+    in
+
+    Telegram_generated.Gen_methods.answer_inline_query client
+      ~inline_query_id:iq.id
+      ~results
+      ?next_offset
+      ()
+end
+]}
+
+{1 Location-Based Results}
+
+{2 Venue Results}
+
+Return location-based results:
+
+{[
+(* Create venue result *)
+let create_venue ~id ~latitude ~longitude ~title ~address =
+  let open Telegram_generated.Gen_types in
+
+  let input_content = InputVenueMessageContent.{
+    latitude;
+    longitude;
+    title;
+    address;
+    foursquare_id = None;
+    foursquare_type = None;
+    google_place_id = None;
+    google_place_type = None;
+    unknown_fields = Telegram.Json_compat.Unknown_fields.create ();
+  } in
+
+  InlineQueryResultVenue.{
+    type_ = "venue";
+    id;
+    latitude;
+    longitude;
+    title;
+    address;
+    foursquare_id = None;
+    foursquare_type = None;
+    google_place_id = None;
+    google_place_type = None;
+    reply_markup = None;
+    input_message_content = Some (InputVenueMessageContent input_content);
+    thumbnail_url = None;
+    thumbnail_width = None;
+    thumbnail_height = None;
+    unknown_fields = Telegram.Json_compat.Unknown_fields.create ();
+  }
+
+(* Search nearby venues *)
+let search_nearby_venues lat lon query =
+  (* In real implementation: use geospatial database query *)
+  [
+    create_venue
+      ~id:"venue_1"
+      ~latitude:lat
+      ~longitude:lon
+      ~title:"Coffee Shop"
+      ~address:"123 Main St";
+  ]
+  |> List.map (fun venue ->
+      Telegram_generated.Gen_types.InlineQueryResult.InlineQueryResultVenue venue)
+]}
+
+{2 Location-Aware Search}
+
+Use user location for contextual results:
+
+{[
+let handle_location_query client iq =
+  match iq.location with
+  | Some location ->
+      (* User shared location *)
+      let lat = location.latitude in
+      let lon = location.longitude in
+      let results = search_nearby_venues lat lon iq.query in
+
+      Telegram_generated.Gen_methods.answer_inline_query client
+        ~inline_query_id:iq.id
+        ~results
+        ~cache_time:60L  (* Short cache for location-based *)
+        ~is_personal:true
+        ()
+
+  | None ->
+      (* No location - return generic results *)
+      let results = search_generic iq.query in
+
+      Telegram_generated.Gen_methods.answer_inline_query client
+        ~inline_query_id:iq.id
+        ~results
+        ()
+]}
+
+{1 Complete Production Example}
+
+{2 Wikipedia-Style Search Bot}
+
+A complete inline bot for searching and sharing articles:
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+
+(* Article database *)
+type article = {
+  id : int;
+  title : string;
+  summary : string;
+  content : string;
+  url : string;
+  thumbnail : string option;
+}
+
+(* Sample articles *)
+let articles = [
+  { id = 1;
+    title = "OCaml Programming Language";
+    summary = "OCaml is a general-purpose, multi-paradigm programming language.";
+    content = "<b>OCaml</b> is a general-purpose programming language with an emphasis on expressiveness and safety.";
+    url = "https://ocaml.org";
+    thumbnail = Some "https://ocaml.org/logo.png";
+  };
+  { id = 2;
+    title = "Functional Programming";
+    summary = "Programming paradigm based on mathematical functions.";
+    content = "<b>Functional programming</b> is a programming paradigm where programs are constructed by applying and composing functions.";
+    url = "https://en.wikipedia.org/wiki/Functional_programming";
+    thumbnail = None;
+  };
+]
+
+(* Search articles *)
+let search_articles query =
+  if String.length query < 2 then
+    articles  (* Return all for short queries *)
+  else
+    let query_lower = String.lowercase_ascii query in
+    List.filter (fun article ->
+      String.contains (String.lowercase_ascii article.title) query_lower ||
+      String.contains (String.lowercase_ascii article.summary) query_lower
+    ) articles
+
+(* Create inline keyboard for article *)
+let create_article_keyboard url =
+  let open Telegram_generated.Gen_types in
+
+  InlineKeyboardMarkup.{
+    inline_keyboard = [[
+      InlineKeyboardButton.{
+        text = "Read Full Article";
+        url = Some url;
+        callback_data = None;
+        web_app = None;
+        login_url = None;
+        switch_inline_query = None;
+        switch_inline_query_current_chat = None;
+        switch_inline_query_chosen_chat = None;
+        copy_text = None;
+        callback_game = None;
+        pay = None;
+        unknown_fields = Telegram.Json_compat.Unknown_fields.create ();
+      };
+      InlineKeyboardButton.{
+        text = "Share";
+        url = None;
+        callback_data = None;
+        web_app = None;
+        login_url = None;
+        switch_inline_query = Some "";
+        switch_inline_query_current_chat = None;
+        switch_inline_query_chosen_chat = None;
+        copy_text = None;
+        callback_game = None;
+        pay = None;
+        unknown_fields = Telegram.Json_compat.Unknown_fields.create ();
+      };
+    ]];
+    unknown_fields = Telegram.Json_compat.Unknown_fields.create ();
+  }
+
+(* Convert article to inline result *)
+let article_to_result article =
+  let open Telegram_generated.Gen_types in
+
+  let input_content = InputTextMessageContent.{
+    message_text = article.content;
+    parse_mode = Some "HTML";
+    entities = None;
+    link_preview_options = None;
+    unknown_fields = Telegram.Json_compat.Unknown_fields.create ();
+  } in
+
+  let result = InlineQueryResultArticle.{
+    type_ = "article";
+    id = string_of_int article.id;
+    title = article.title;
+    input_message_content = InputTextMessageContent input_content;
+    reply_markup = Some (create_article_keyboard article.url);
+    description = Some article.summary;
+    url = Some article.url;
+    thumbnail_url = article.thumbnail;
+    thumbnail_width = None;
+    thumbnail_height = None;
+    unknown_fields = Telegram.Json_compat.Unknown_fields.create ();
+  } in
+
+  InlineQueryResult.InlineQueryResultArticle result
+
+(* Handle inline query *)
+let handle_inline_query client iq =
+  let query = iq.Telegram_generated.Gen_types.InlineQuery.query in
+
+  (* Search articles *)
+  let matching_articles = search_articles query in
+
+  (* Convert to inline results *)
+  let results = List.map article_to_result matching_articles in
+
+  (* Answer with caching *)
+  Telegram_generated.Gen_methods.answer_inline_query client
+    ~inline_query_id:iq.id
+    ~results
+    ~cache_time:300L  (* Cache for 5 minutes *)
+    ~is_personal:false  (* Same results for all users *)
+    ()
+
+(* Bot routes *)
+let routes client = [
+  (* Start command *)
+  Tg.Bot.on (Tg.Bot.Event.command "start") (fun _args ctx ->
+    let* _ = Tg.Bot.Ctx.reply ctx
+      "📚 Wikipedia-Style Search Bot\n\n\
+       Use inline mode to search articles:\n\
+       Type @yourbotname <query> in any chat!"
+    in
+    Ok ()
+  );
+
+  (* Inline query handler *)
+  Tg.Bot.on Tg.Bot.Event.inline_query (fun iq ctx ->
+    match handle_inline_query client iq with
+    | Ok _ -> Ok ()
+    | Error _ ->
+        (* Send empty result on error *)
+        let* _ = Telegram_generated.Gen_methods.answer_inline_query client
+          ~inline_query_id:iq.id
+          ~results:[]
+          ()
+        in
+        Ok ()
+  );
+]
+
+(* Main bot *)
+let () =
+  Eio_main.run @@ fun env ->
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token in
+
+  (* Create bot *)
+  let bot = Tg.Bot.router (routes client) in
+
+  (* Run polling *)
+  Tg.Polling.run client (Tg.Bot.handle bot)
+]}
+
+{1 Best Practices}
+
+{2 Query Processing}
+
+- {b Empty queries}: Return default/popular results for empty queries
+- {b Short queries}: Consider minimum query length (2-3 chars)
+- {b Query normalization}: Lowercase, trim, handle special characters
+- {b Fuzzy matching}: Consider typo tolerance for better UX
+- {b Performance}: Keep search fast (<500ms for good UX)
+
+{2 Result Design}
+
+- {b Unique IDs}: Use stable, unique IDs for each result
+- {b Title length}: Keep titles under 30 characters
+- {b Description}: Add helpful descriptions (under 80 chars)
+- {b Thumbnails}: Include thumbnails for visual appeal
+- {b Relevance}: Order results by relevance to query
+
+{2 Caching Strategy}
+
+- {b Static content}: Long cache time (600-3600s)
+- {b Dynamic content}: Short cache time (60-300s)
+- {b User-specific}: Use `is_personal:true`
+- {b Location-based}: Short cache + personal
+- {b Client cache}: Cache computed results in your bot
+
+{3 Cache Time Guidelines}
+
+{[
+(* Static content - 1 hour *)
+~cache_time:3600L
+
+(* Semi-static - 10 minutes *)
+~cache_time:600L
+
+(* Dynamic - 5 minutes *)
+~cache_time:300L
+
+(* Real-time - 1 minute *)
+~cache_time:60L
+
+(* No cache *)
+~cache_time:0L
+]}
+
+{2 Pagination}
+
+- {b Page size}: Use 20-50 results per page
+- {b Total limit}: Consider maximum total results (500-1000)
+- {b Lazy loading}: Only compute results when needed
+- {b Performance}: Don't load all results upfront
+- {b User experience}: Provide smooth scrolling
+
+{2 Error Handling}
+
+- {b Always answer}: Never leave queries unanswered
+- {b Empty results}: Return empty list, not error
+- {b Timeouts}: Set reasonable timeout for searches
+- {b Fallback}: Provide default results on error
+- {b Logging}: Log errors for debugging
+
+{2 Security}
+
+- {b Input validation}: Sanitize query strings
+- {b Rate limiting}: Prevent abuse with too many queries
+- {b Content filtering}: Filter inappropriate content
+- {b URL validation}: Validate external URLs in results
+- {b User permissions}: Check user access rights
+
+{1 See Also}
+
+- {{!Telegram_generated.Gen_types.InlineQuery}InlineQuery} - Inline query type
+- {{!Telegram_generated.Gen_types.InlineQueryResult}InlineQueryResult} - Result types
+- {{!Telegram_generated.Gen_methods.answer_inline_query}answer_inline_query} - API method
+- {{!Tg.Bot.Event}Bot Events} - Inline query event handling
+- {{!page-keyboard_api}Keyboard API} - Inline keyboards in results

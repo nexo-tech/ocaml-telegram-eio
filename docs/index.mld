@@ -173,6 +173,7 @@ See the {e examples/} directory for complete, runnable examples:
 - {{!page-recipe_echo_bot}Echo Bot Variations} - Simple to sophisticated echo bots with formatting and transformations
 - {{!page-recipe_keyboard_bot}Keyboard Bot Patterns} - Interactive menus, multi-level navigation, and keyboard state management
 - {{!page-recipe_file_bot}File Handling Bot} - Document uploads, image processing, downloads, and multi-file albums
+- {{!page-recipe_inline_bot}Inline Query Bot} - Inline search, rich results, caching, and inline keyboards
 
 {2 Migration}
 
