@@ -1,0 +1,1109 @@
+{0 Keyboard API}
+
+A comprehensive guide to building interactive bot interfaces with reply keyboards and inline keyboards.
+
+{1 Overview}
+
+Keyboards are the primary way users interact with your bot. This library provides an elegant, boilerplate-free API for creating both reply keyboards and inline keyboards with powerful layout helpers and common patterns.
+
+{b Key Features}:
+- {b Zero Boilerplate}: Clean, functional API without markup complexity
+- {b Layout Helpers}: Grid, vertical, horizontal layouts with single function calls
+- {b Common Patterns}: Pre-built yes/no, confirmation, pagination keyboards
+- {b Type-Safe}: Compile-time guarantees for button structure
+- {b Composable}: Mix and match buttons and layouts
+- {b Production-Ready}: Battle-tested patterns for real-world bots
+
+{1 Keyboard Types}
+
+Telegram supports two types of keyboards:
+
+{b Reply Keyboards}:
+- Replace the user's system keyboard
+- Send text messages when pressed
+- Persistent until removed or changed
+- Best for: Main menus, primary actions, text input shortcuts
+
+{b Inline Keyboards}:
+- Appear below messages
+- Send callback queries when pressed
+- Can open URLs or trigger actions
+- Best for: Contextual actions, confirmations, interactive menus
+
+{1 Inline Keyboards}
+
+{2 Basic Usage}
+
+Create inline keyboards with callback buttons:
+
+{[
+open Ocaml_telegram_eio
+
+(* Simple inline keyboard with one button *)
+let keyboard =
+  Tg.Keyboard.inline [
+    [Tg.Keyboard.callback ~text:"Click me!" ~data:"button_clicked"]
+  ]
+
+(* Send message with keyboard *)
+let send_with_keyboard client chat_id =
+  let request = Telegram.Api.send_message
+    ~chat_id
+    ~text:"Choose an option:"
+    ~reply_markup:keyboard
+    ()
+  in
+  Telegram.Api.call client request
+]}
+
+{2 Inline Button Types}
+
+{b Callback Buttons}:
+
+Send callback queries to your bot:
+
+{[
+(* Basic callback button *)
+let button = Tg.Keyboard.callback ~text:"Click" ~data:"action"
+
+(* With structured data *)
+let button = Tg.Keyboard.callback
+  ~text:"Delete"
+  ~data:"delete:123"  (* Can encode item ID, action, etc. *)
+]}
+
+{b URL Buttons}:
+
+Open URLs in the user's browser:
+
+{[
+(* External link *)
+let button = Tg.Keyboard.url
+  ~text:"Visit Website"
+  ~url:"https://example.com"
+
+(* Deep link to another bot *)
+let button = Tg.Keyboard.url
+  ~text:"Open App"
+  ~url:"tg://resolve?domain=mybot&start=123"
+]}
+
+{2 Multi-Button Keyboards}
+
+Create keyboards with multiple buttons in rows:
+
+{[
+(* Two buttons in one row *)
+let keyboard =
+  Tg.Keyboard.inline [
+    [
+      Tg.Keyboard.callback ~text:"Yes" ~data:"yes";
+      Tg.Keyboard.callback ~text:"No" ~data:"no";
+    ]
+  ]
+
+(* Multiple rows *)
+let keyboard =
+  Tg.Keyboard.inline [
+    (* Row 1 *)
+    [Tg.Keyboard.callback ~text:"Option 1" ~data:"opt1"];
+    (* Row 2 *)
+    [Tg.Keyboard.callback ~text:"Option 2" ~data:"opt2"];
+    (* Row 3 *)
+    [Tg.Keyboard.callback ~text:"Option 3" ~data:"opt3"];
+  ]
+
+(* Mixed layout *)
+let keyboard =
+  Tg.Keyboard.inline [
+    (* Row 1: Two buttons *)
+    [
+      Tg.Keyboard.callback ~text:"Edit" ~data:"edit";
+      Tg.Keyboard.callback ~text:"Delete" ~data:"delete";
+    ];
+    (* Row 2: One button *)
+    [Tg.Keyboard.callback ~text:"Share" ~data:"share"];
+    (* Row 3: Back button *)
+    [Tg.Keyboard.callback ~text:"← Back" ~data:"back"];
+  ]
+]}
+
+{2 Layout Helpers}
+
+Use layout helpers for common arrangements:
+
+{[
+open Tg.Keyboard.Layout
+
+(* Vertical layout (one button per row) *)
+let buttons = [
+  Tg.Keyboard.callback ~text:"Option 1" ~data:"1";
+  Tg.Keyboard.callback ~text:"Option 2" ~data:"2";
+  Tg.Keyboard.callback ~text:"Option 3" ~data:"3";
+] in
+let keyboard = Tg.Keyboard.inline (vertical buttons)
+
+(* Horizontal layout (all buttons in one row) *)
+let buttons = [
+  Tg.Keyboard.callback ~text:"←" ~data:"prev";
+  Tg.Keyboard.callback ~text:"→" ~data:"next";
+] in
+let keyboard = Tg.Keyboard.inline (horizontal buttons)
+
+(* Grid layout (n columns) *)
+let buttons =
+  List.init 9 (fun i ->
+    let n = i + 1 in
+    Tg.Keyboard.callback ~text:(string_of_int n) ~data:(string_of_int n)
+  )
+in
+let keyboard = Tg.Keyboard.inline (grid ~columns:3 buttons)
+(* Creates 3x3 grid:
+   1 2 3
+   4 5 6
+   7 8 9 *)
+
+(* Single row *)
+let buttons = [...] in
+let keyboard = Tg.Keyboard.inline (row buttons)
+
+(* Multiple explicit rows *)
+let keyboard = Tg.Keyboard.inline (rows [
+  [button1; button2];
+  [button3; button4];
+  [button5];
+])
+]}
+
+{2 Common Patterns}
+
+Pre-built keyboard patterns for common use cases:
+
+{[
+open Tg.Keyboard.Patterns
+
+(* Yes/No keyboard *)
+let keyboard = yes_no
+  ~yes_data:"confirm"
+  ~no_data:"cancel"
+  ()
+
+(* Custom text *)
+let keyboard = yes_no
+  ~yes_text:"✓ Confirm"
+  ~no_text:"✗ Cancel"
+  ~yes_data:"confirm"
+  ~no_data:"cancel"
+  ()
+
+(* Confirmation keyboard *)
+let keyboard = confirm
+  ~confirm_text:"Delete"
+  ~cancel_text:"Keep"
+  ~confirm_data:"delete:123"
+  ~cancel_data:"cancel"
+  ()
+
+(* Pagination keyboard *)
+let keyboard = pagination
+  ~prev_data:"page:1"
+  ~next_data:"page:3"
+  ~current_page:2
+  ~total_pages:5
+  ()
+(* Smart behavior:
+   - Hides prev on first page
+   - Hides next on last page
+   - Shows both in middle *)
+
+(* Number pad (0-9) *)
+let keyboard = number_grid ~callback_prefix:"num" ()
+(* Creates:
+   1 2 3
+   4 5 6
+   7 8 9
+     0    *)
+
+(* Menu with back button *)
+let menu_buttons = [
+  Tg.Keyboard.callback ~text:"Settings" ~data:"settings";
+  Tg.Keyboard.callback ~text:"Profile" ~data:"profile";
+  Tg.Keyboard.callback ~text:"Help" ~data:"help";
+] in
+let keyboard = menu_with_back
+  ~back_text:"← Main Menu"
+  ~back_data:"main"
+  menu_buttons
+]}
+
+{2 Dynamic Keyboard Generation}
+
+Generate keyboards programmatically:
+
+{[
+(* Generate buttons from data *)
+let create_item_keyboard items =
+  let buttons =
+    List.map (fun item ->
+      Tg.Keyboard.callback
+        ~text:item.name
+        ~data:(Printf.sprintf "item:%d" item.id)
+    ) items
+  in
+  Tg.Keyboard.inline (Tg.Keyboard.Layout.vertical buttons)
+
+(* Pagination with data *)
+let create_paginated_list items page page_size =
+  let start_idx = page * page_size in
+  let end_idx = min (start_idx + page_size) (List.length items) in
+  let page_items = List.filteri (fun i _ ->
+    i >= start_idx && i < end_idx
+  ) items in
+
+  let item_buttons =
+    List.map (fun item ->
+      [Tg.Keyboard.callback ~text:item.name ~data:item.data]
+    ) page_items
+  in
+
+  let has_prev = page > 0 in
+  let has_next = end_idx < List.length items in
+
+  let nav_buttons =
+    match has_prev, has_next with
+    | true, true ->
+        [[
+          Tg.Keyboard.callback ~text:"←" ~data:(Printf.sprintf "page:%d" (page - 1));
+          Tg.Keyboard.callback ~text:"→" ~data:(Printf.sprintf "page:%d" (page + 1));
+        ]]
+    | true, false ->
+        [[Tg.Keyboard.callback ~text:"←" ~data:(Printf.sprintf "page:%d" (page - 1))]]
+    | false, true ->
+        [[Tg.Keyboard.callback ~text:"→" ~data:(Printf.sprintf "page:%d" (page + 1))]]
+    | false, false ->
+        []
+  in
+
+  Tg.Keyboard.inline (item_buttons @ nav_buttons)
+
+(* Conditional buttons *)
+let create_post_keyboard ~is_owner ~is_liked =
+  let buttons = [
+    [
+      Tg.Keyboard.callback
+        ~text:(if is_liked then "♥ Unlike" else "♡ Like")
+        ~data:"like";
+      Tg.Keyboard.callback ~text:"Share" ~data:"share";
+    ];
+  ] in
+
+  let buttons =
+    if is_owner then
+      buttons @ [[
+        Tg.Keyboard.callback ~text:"Edit" ~data:"edit";
+        Tg.Keyboard.callback ~text:"Delete" ~data:"delete";
+      ]]
+    else
+      buttons
+  in
+
+  Tg.Keyboard.inline buttons
+]}
+
+{2 Handling Callback Queries}
+
+Respond to inline keyboard button presses:
+
+{[
+(* Low-level handling *)
+let handle_update update =
+  match update.callback_query with
+  | None -> ()
+  | Some query ->
+      let data = Option.value query.data ~default:"" in
+
+      (* Answer the callback (remove loading state) *)
+      let* _ = Telegram_generated.Gen_methods.answer_callback_query
+        client
+        ~callback_query_id:query.id
+        ~text:"Processing..."
+        ()
+      in
+
+      (* Process the callback *)
+      match data with
+      | "yes" ->
+          (* Handle yes *)
+          let* _ = send_message "You clicked Yes" in
+          ()
+      | "no" ->
+          (* Handle no *)
+          let* _ = send_message "You clicked No" in
+          ()
+      | _ ->
+          ()
+
+(* With Bot DSL *)
+let routes = [
+  (* Handle "yes" callback *)
+  Tg.Bot.on (Tg.Bot.Event.callback "yes") (fun _data ctx ->
+    let* _ = Tg.Bot.Ctx.edit ctx "You confirmed!" in
+    ()
+  );
+
+  (* Handle "no" callback *)
+  Tg.Bot.on (Tg.Bot.Event.callback "no") (fun _data ctx ->
+    let* _ = Tg.Bot.Ctx.edit ctx "You cancelled." in
+    ()
+  );
+
+  (* Handle pagination *)
+  Tg.Bot.on (Tg.Bot.Event.callback "page:*") (fun data ctx ->
+    (* Parse page number from data *)
+    let page = int_of_string (String.sub data 5 (String.length data - 5)) in
+    let keyboard = create_page_keyboard page in
+    let* _ = Tg.Bot.Ctx.edit ctx "Page updated" in
+    (* Update keyboard... *)
+    ()
+  );
+]
+]}
+
+{2 Editing Keyboards}
+
+Update inline keyboards after they're sent:
+
+{[
+(* Edit message and keyboard *)
+let edit_keyboard client chat_id message_id new_keyboard =
+  let request = Telegram.Api.edit_message_reply_markup
+    ~chat_id
+    ~message_id
+    ~reply_markup:new_keyboard
+    ()
+  in
+  Telegram.Api.call client request
+
+(* Change keyboard based on callback *)
+let handle_like_callback client query =
+  let is_liked = (* toggle like state *) in
+  let new_keyboard = create_post_keyboard ~is_owner:false ~is_liked in
+
+  (* Edit the keyboard *)
+  match query.message with
+  | Some msg ->
+      let chat_id = Telegram.Id.Chat.of_int msg.chat.id in
+      edit_keyboard client chat_id msg.message_id new_keyboard
+  | None ->
+      Ok ()
+]}
+
+{1 Reply Keyboards}
+
+{2 Basic Usage}
+
+Create reply keyboards that replace the system keyboard:
+
+{[
+(* Simple reply keyboard *)
+let keyboard = Tg.Keyboard.reply [
+  ["Option 1"; "Option 2"];
+  ["Option 3"];
+]
+
+(* Send with message *)
+let send_with_reply_keyboard client chat_id =
+  let request = Telegram.Api.send_message
+    ~chat_id
+    ~text:"Choose an option:"
+    ~reply_markup:keyboard
+    ()
+  in
+  Telegram.Api.call client request
+]}
+
+{2 Keyboard Options}
+
+Configure reply keyboard behavior:
+
+{[
+(* Resize keyboard (recommended) *)
+let keyboard = Tg.Keyboard.reply
+  ~resize:true  (* Fit keyboard to button sizes *)
+  [["Yes"; "No"]]
+
+(* One-time keyboard (hide after use) *)
+let keyboard = Tg.Keyboard.reply
+  ~resize:true
+  ~one_time:true  (* Hide after button press *)
+  [["Confirm"]]
+
+(* Selective keyboard (show to specific users) *)
+let keyboard = Tg.Keyboard.reply
+  ~resize:true
+  ~selective:true  (* Only show to mentioned users *)
+  [["Admin"; "Moderator"]]
+]}
+
+{2 Reply Keyboard Layouts}
+
+Use layout helpers with reply keyboards:
+
+{[
+open Tg.Keyboard.Layout
+
+(* Vertical menu *)
+let buttons = ["Settings"; "Profile"; "Help"; "Logout"] in
+let keyboard = Tg.Keyboard.reply (vertical buttons)
+
+(* Grid menu *)
+let buttons = ["1"; "2"; "3"; "4"; "5"; "6"; "7"; "8"; "9"; "0"] in
+let keyboard = Tg.Keyboard.reply (grid ~columns:3 buttons)
+
+(* Custom layout *)
+let keyboard = Tg.Keyboard.reply [
+  (* Row 1: Main actions *)
+  ["📊 Stats"; "⚙️ Settings"];
+  (* Row 2: Secondary actions *)
+  ["❓ Help"; "🚪 Logout"];
+]
+]}
+
+{2 Removing Keyboards}
+
+Remove reply keyboards when no longer needed:
+
+{[
+(* Remove keyboard *)
+let remove_keyboard = Tg.Keyboard.remove ()
+
+(* Send message without keyboard *)
+let remove_keyboard client chat_id =
+  let request = Telegram.Api.send_message
+    ~chat_id
+    ~text:"Keyboard removed"
+    ~reply_markup:remove_keyboard
+    ()
+  in
+  Telegram.Api.call client request
+
+(* Remove selectively *)
+let remove_keyboard = Tg.Keyboard.remove ~selective:true ()
+]}
+
+{2 Force Reply}
+
+Force users to reply to a message:
+
+{[
+(* Force reply *)
+let force = Tg.Keyboard.force_reply ()
+
+let ask_question client chat_id =
+  let request = Telegram.Api.send_message
+    ~chat_id
+    ~text:"What's your name?"
+    ~reply_markup:force
+    ()
+  in
+  Telegram.Api.call client request
+
+(* Selective force reply *)
+let force = Tg.Keyboard.force_reply ~selective:true ()
+]}
+
+{2 Handling Reply Keyboard Messages}
+
+Process text messages from reply keyboards:
+
+{[
+(* Low-level handling *)
+let handle_message msg =
+  match msg.text with
+  | Some "Settings" ->
+      show_settings ()
+  | Some "Profile" ->
+      show_profile ()
+  | Some "Help" ->
+      show_help ()
+  | _ ->
+      ()
+
+(* With Bot DSL *)
+let routes = [
+  (* Handle specific text *)
+  Tg.Bot.on
+    (Tg.Bot.Event.text |> Tg.Bot.Event.when_ (fun t -> t = "Settings"))
+    (fun _text ctx ->
+      let* _ = Tg.Bot.Ctx.reply ctx "Opening settings..." in
+      ()
+    );
+
+  (* Pattern matching *)
+  Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
+    match text with
+    | "Settings" ->
+        let* _ = Tg.Bot.Ctx.reply ctx "Settings menu" in
+        ()
+    | "Profile" ->
+        let* _ = Tg.Bot.Ctx.reply ctx "Your profile" in
+        ()
+    | "Help" ->
+        let* _ = Tg.Bot.Ctx.reply ctx "Help information" in
+        ()
+    | _ ->
+        let* _ = Tg.Bot.Ctx.reply ctx "Unknown option" in
+        ()
+  );
+]
+]}
+
+{1 Keyboard Composition}
+
+{2 Building Complex Keyboards}
+
+Compose keyboards from smaller parts:
+
+{[
+(* Reusable button builders *)
+let back_button = Tg.Keyboard.callback ~text:"← Back" ~data:"back"
+let cancel_button = Tg.Keyboard.callback ~text:"✗ Cancel" ~data:"cancel"
+
+(* Compose keyboards *)
+let menu_keyboard items =
+  let item_rows =
+    List.map (fun item ->
+      [Tg.Keyboard.callback ~text:item.name ~data:item.data]
+    ) items
+  in
+  let back_row = [back_button] in
+  Tg.Keyboard.inline (item_rows @ [back_row])
+
+(* Multi-section keyboards *)
+let settings_keyboard user =
+  let profile_section = [
+    [Tg.Keyboard.callback ~text:"Edit Name" ~data:"edit:name"];
+    [Tg.Keyboard.callback ~text:"Edit Bio" ~data:"edit:bio"];
+  ] in
+
+  let notification_section = [
+    [Tg.Keyboard.callback ~text:"Notifications" ~data:"notifications"];
+  ] in
+
+  let admin_section =
+    if user.is_admin then
+      [[Tg.Keyboard.callback ~text:"⚙️ Admin Panel" ~data:"admin"]]
+    else
+      []
+  in
+
+  let footer = [[back_button]] in
+
+  Tg.Keyboard.inline (
+    profile_section @
+    notification_section @
+    admin_section @
+    footer
+  )
+]}
+
+{2 State-Based Keyboards}
+
+Generate keyboards based on state:
+
+{[
+(* Shopping cart keyboard *)
+let cart_keyboard cart =
+  let item_buttons =
+    List.map (fun item ->
+      [
+        Tg.Keyboard.callback
+          ~text:(Printf.sprintf "%s ($%.2f)" item.name item.price)
+          ~data:(Printf.sprintf "view:%d" item.id);
+        Tg.Keyboard.callback ~text:"🗑" ~data:(Printf.sprintf "remove:%d" item.id);
+      ]
+    ) cart.items
+  in
+
+  let checkout_button =
+    if List.length cart.items > 0 then
+      [[Tg.Keyboard.callback ~text:"💳 Checkout" ~data:"checkout"]]
+    else
+      []
+  in
+
+  Tg.Keyboard.inline (item_buttons @ checkout_button)
+
+(* Multi-step form keyboard *)
+type form_step = Name | Email | Phone | Confirm
+
+let form_keyboard current_step form_data =
+  match current_step with
+  | Name ->
+      Tg.Keyboard.inline [
+        [Tg.Keyboard.callback ~text:"Enter Name" ~data:"input:name"];
+        [cancel_button];
+      ]
+
+  | Email ->
+      Tg.Keyboard.inline [
+        [Tg.Keyboard.callback ~text:"Skip Email" ~data:"skip:email"];
+        [back_button; cancel_button];
+      ]
+
+  | Phone ->
+      Tg.Keyboard.inline [
+        [Tg.Keyboard.callback ~text:"Skip Phone" ~data:"skip:phone"];
+        [back_button; cancel_button];
+      ]
+
+  | Confirm ->
+      let summary = Printf.sprintf "Name: %s\nEmail: %s"
+        form_data.name
+        (Option.value form_data.email ~default:"(not provided)")
+      in
+      Tg.Keyboard.inline [
+        [
+          Tg.Keyboard.callback ~text:"✓ Submit" ~data:"submit";
+          Tg.Keyboard.callback ~text:"✗ Cancel" ~data:"cancel";
+        ];
+        [Tg.Keyboard.callback ~text:"← Edit" ~data:"edit"];
+      ]
+]}
+
+{2 Conditional Button Display}
+
+Show/hide buttons based on conditions:
+
+{[
+let post_actions_keyboard post user =
+  let base_actions = [
+    [
+      Tg.Keyboard.callback
+        ~text:(if post.liked_by_user then "♥ Unlike" else "♡ Like")
+        ~data:(Printf.sprintf "like:%d" post.id);
+      Tg.Keyboard.callback ~text:"💬 Comment" ~data:(Printf.sprintf "comment:%d" post.id);
+    ];
+  ] in
+
+  let owner_actions =
+    if post.author_id = user.id then
+      [[
+        Tg.Keyboard.callback ~text:"✏️ Edit" ~data:(Printf.sprintf "edit:%d" post.id);
+        Tg.Keyboard.callback ~text:"🗑 Delete" ~data:(Printf.sprintf "delete:%d" post.id);
+      ]]
+    else
+      []
+  in
+
+  let admin_actions =
+    if user.is_admin && post.author_id <> user.id then
+      [[
+        Tg.Keyboard.callback ~text:"⚠️ Report" ~data:(Printf.sprintf "report:%d" post.id);
+        Tg.Keyboard.callback ~text:"🚫 Remove" ~data:(Printf.sprintf "remove:%d" post.id);
+      ]]
+    else
+      []
+  in
+
+  Tg.Keyboard.inline (base_actions @ owner_actions @ admin_actions)
+]}
+
+{1 Complete Examples}
+
+{2 Menu Navigation System}
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+
+(* Menu states *)
+type menu =
+  | Main
+  | Settings
+  | Profile
+  | Help
+
+(* Generate keyboard for menu *)
+let menu_keyboard = function
+  | Main ->
+      Tg.Keyboard.inline [
+        [Tg.Keyboard.callback ~text:"⚙️ Settings" ~data:"menu:settings"];
+        [Tg.Keyboard.callback ~text:"👤 Profile" ~data:"menu:profile"];
+        [Tg.Keyboard.callback ~text:"❓ Help" ~data:"menu:help"];
+      ]
+
+  | Settings ->
+      Tg.Keyboard.inline [
+        [Tg.Keyboard.callback ~text:"🔔 Notifications" ~data:"settings:notifications"];
+        [Tg.Keyboard.callback ~text:"🌐 Language" ~data:"settings:language"];
+        [Tg.Keyboard.callback ~text:"🔒 Privacy" ~data:"settings:privacy"];
+        [Tg.Keyboard.callback ~text:"← Back" ~data:"menu:main"];
+      ]
+
+  | Profile ->
+      Tg.Keyboard.inline [
+        [Tg.Keyboard.callback ~text:"✏️ Edit Name" ~data:"profile:name"];
+        [Tg.Keyboard.callback ~text:"📝 Edit Bio" ~data:"profile:bio"];
+        [Tg.Keyboard.callback ~text:"🖼 Change Photo" ~data:"profile:photo"];
+        [Tg.Keyboard.callback ~text:"← Back" ~data:"menu:main"];
+      ]
+
+  | Help ->
+      Tg.Keyboard.inline [
+        [Tg.Keyboard.callback ~text:"📚 Documentation" ~data:"help:docs"];
+        [Tg.Keyboard.callback ~text:"💬 Contact Support" ~data:"help:support"];
+        [Tg.Keyboard.callback ~text:"← Back" ~data:"menu:main"];
+      ]
+
+(* Menu text *)
+let menu_text = function
+  | Main -> "📱 Main Menu\n\nChoose an option:"
+  | Settings -> "⚙️ Settings\n\nConfigure your preferences:"
+  | Profile -> "👤 Profile\n\nManage your profile:"
+  | Help -> "❓ Help\n\nHow can we help you?"
+
+(* Handle menu navigation *)
+let handle_menu_callback client query menu =
+  let text = menu_text menu in
+  let keyboard = menu_keyboard menu in
+
+  match query.message with
+  | Some msg ->
+      let chat_id = Telegram.Id.Chat.of_int msg.chat.id in
+      let* _ = Telegram_generated.Gen_methods.edit_message_text client
+        ~chat_id
+        ~message_id:msg.message_id
+        ~text
+        ~reply_markup:keyboard
+        ()
+      in
+      (* Answer callback *)
+      Telegram_generated.Gen_methods.answer_callback_query client
+        ~callback_query_id:query.id
+        ()
+  | None ->
+      Ok ()
+
+(* Bot routes *)
+let routes client = [
+  (* Start command shows main menu *)
+  Tg.Bot.on (Tg.Bot.Event.command "start") (fun _args ctx ->
+    let keyboard = menu_keyboard Main in
+    let* _ = Tg.Bot.Ctx.reply ctx (menu_text Main) in
+    ()
+  );
+
+  (* Handle menu navigation *)
+  Tg.Bot.on (Tg.Bot.Event.callback "menu:main") (fun _data ctx ->
+    (* Navigate to main menu *)
+    ()
+  );
+
+  Tg.Bot.on (Tg.Bot.Event.callback "menu:settings") (fun _data ctx ->
+    (* Navigate to settings *)
+    ()
+  );
+
+  Tg.Bot.on (Tg.Bot.Event.callback "menu:profile") (fun _data ctx ->
+    (* Navigate to profile *)
+    ()
+  );
+
+  Tg.Bot.on (Tg.Bot.Event.callback "menu:help") (fun _data ctx ->
+    (* Navigate to help *)
+    ()
+  );
+]
+]}
+
+{2 Pagination Example}
+
+{[
+(* Paginated list *)
+let show_page client chat_id page items_per_page all_items =
+  let total_items = List.length all_items in
+  let total_pages = (total_items + items_per_page - 1) / items_per_page in
+
+  (* Get items for current page *)
+  let start_idx = page * items_per_page in
+  let end_idx = min (start_idx + items_per_page) total_items in
+  let page_items = List.filteri (fun i _ ->
+    i >= start_idx && i < end_idx
+  ) all_items in
+
+  (* Create item buttons *)
+  let item_rows =
+    List.map (fun item ->
+      [Tg.Keyboard.callback ~text:item.name ~data:(Printf.sprintf "item:%d" item.id)]
+    ) page_items
+  in
+
+  (* Create navigation *)
+  let nav_buttons =
+    if page = 0 && page = total_pages - 1 then
+      (* Single page, no navigation *)
+      []
+    else if page = 0 then
+      (* First page *)
+      [[Tg.Keyboard.callback ~text:"Next →" ~data:(Printf.sprintf "page:%d" (page + 1))]]
+    else if page = total_pages - 1 then
+      (* Last page *)
+      [[Tg.Keyboard.callback ~text:"← Previous" ~data:(Printf.sprintf "page:%d" (page - 1))]]
+    else
+      (* Middle page *)
+      [[
+        Tg.Keyboard.callback ~text:"← Previous" ~data:(Printf.sprintf "page:%d" (page - 1));
+        Tg.Keyboard.callback ~text:"Next →" ~data:(Printf.sprintf "page:%d" (page + 1));
+      ]]
+  in
+
+  let keyboard = Tg.Keyboard.inline (item_rows @ nav_buttons) in
+
+  let text = Printf.sprintf "Page %d of %d" (page + 1) total_pages in
+
+  let request = Telegram.Api.send_message
+    ~chat_id
+    ~text
+    ~reply_markup:keyboard
+    ()
+  in
+  Telegram.Api.call client request
+]}
+
+{2 Confirmation Dialog}
+
+{[
+(* Ask for confirmation before action *)
+let confirm_delete client chat_id item_id =
+  let text = "Are you sure you want to delete this item?\nThis action cannot be undone." in
+  let keyboard = Tg.Keyboard.Patterns.confirm
+    ~confirm_text:"🗑 Delete"
+    ~cancel_text:"✗ Cancel"
+    ~confirm_data:(Printf.sprintf "delete_confirmed:%d" item_id)
+    ~cancel_data:"delete_cancelled"
+    ()
+  in
+
+  let request = Telegram.Api.send_message
+    ~chat_id
+    ~text
+    ~reply_markup:keyboard
+    ()
+  in
+  Telegram.Api.call client request
+
+(* Handle confirmation *)
+let routes = [
+  Tg.Bot.on (Tg.Bot.Event.callback "delete_confirmed:*") (fun data ctx ->
+    (* Extract item ID from data *)
+    let item_id = (* parse from data *) in
+
+    (* Perform deletion *)
+    delete_item item_id;
+
+    let* _ = Tg.Bot.Ctx.edit ctx "✓ Item deleted successfully" in
+    ()
+  );
+
+  Tg.Bot.on (Tg.Bot.Event.callback "delete_cancelled") (fun _data ctx ->
+    let* _ = Tg.Bot.Ctx.edit ctx "Deletion cancelled" in
+    ()
+  );
+]
+]}
+
+{2 Dynamic Quiz Keyboard}
+
+{[
+(* Quiz question with multiple choice *)
+type quiz_question = {
+  id : int;
+  question : string;
+  options : string list;
+  correct_answer : int;
+}
+
+let show_quiz_question client chat_id question =
+  let text = Printf.sprintf "Question %d:\n%s" question.id question.question in
+
+  (* Create buttons for each option *)
+  let option_buttons =
+    List.mapi (fun i option ->
+      [Tg.Keyboard.callback
+         ~text:(Printf.sprintf "%c) %s" (Char.chr (65 + i)) option)
+         ~data:(Printf.sprintf "answer:%d:%d" question.id i)]
+    ) question.options
+  in
+
+  let keyboard = Tg.Keyboard.inline option_buttons in
+
+  let request = Telegram.Api.send_message
+    ~chat_id
+    ~text
+    ~reply_markup:keyboard
+    ()
+  in
+  Telegram.Api.call client request
+
+(* Handle answer *)
+let handle_quiz_answer client query question_id answer_idx =
+  let question = get_question question_id in
+
+  let is_correct = answer_idx = question.correct_answer in
+  let result_text =
+    if is_correct then
+      "✓ Correct! Well done."
+    else
+      Printf.sprintf "✗ Incorrect. The correct answer was: %s"
+        (List.nth question.options question.correct_answer)
+  in
+
+  (* Update keyboard to show result *)
+  let result_keyboard = Tg.Keyboard.inline [
+    [Tg.Keyboard.callback ~text:"Next Question →" ~data:"next_question"];
+  ] in
+
+  match query.message with
+  | Some msg ->
+      let chat_id = Telegram.Id.Chat.of_int msg.chat.id in
+      Telegram_generated.Gen_methods.edit_message_text client
+        ~chat_id
+        ~message_id:msg.message_id
+        ~text:result_text
+        ~reply_markup:result_keyboard
+        ()
+  | None ->
+      Ok ()
+]}
+
+{1 Best Practices}
+
+{2 Button Text}
+
+- {b Keep it short}: 1-3 words per button
+- {b Use emojis}: Visual indicators improve UX (⚙️ 🔔 ❓)
+- {b Be clear}: Users should understand what the button does
+- {b Consistent style}: Use similar patterns throughout your bot
+
+{[
+(* Good *)
+let button = Tg.Keyboard.callback ~text:"✓ Confirm" ~data:"confirm"
+
+(* Bad: Too verbose *)
+let button = Tg.Keyboard.callback
+  ~text:"Click here to confirm your selection"
+  ~data:"confirm"
+]}
+
+{2 Callback Data}
+
+- {b Structure data}: Use prefixes for routing ([action:id], [page:n])
+- {b Keep it short}: Max 64 bytes for callback_data
+- {b URL encode}: If data contains special characters
+- {b Document format}: Make data parsing predictable
+
+{[
+(* Good: Structured *)
+let button = Tg.Keyboard.callback
+  ~text:"Delete"
+  ~data:"delete:123"  (* action:id format *)
+
+(* Good: Multiple fields *)
+let button = Tg.Keyboard.callback
+  ~text:"Edit"
+  ~data:"edit:post:456"  (* action:type:id format *)
+
+(* Bad: Unstructured *)
+let button = Tg.Keyboard.callback
+  ~text:"Delete"
+  ~data:"delete item 123"  (* Hard to parse reliably *)
+]}
+
+{2 Keyboard Layout}
+
+- {b 1-2 buttons per row}: Most readable
+- {b Max 3-4 buttons per row}: For compact layouts
+- {b Logical grouping}: Group related actions together
+- {b Important actions first}: Primary action in top-left
+- {b Back/Cancel at bottom}: Navigation at the end
+
+{[
+(* Good: Logical layout *)
+Tg.Keyboard.inline [
+  (* Primary actions *)
+  [Tg.Keyboard.callback ~text:"Edit" ~data:"edit"];
+  [Tg.Keyboard.callback ~text:"Share" ~data:"share"];
+  (* Destructive action separated *)
+  [Tg.Keyboard.callback ~text:"🗑 Delete" ~data:"delete"];
+  (* Navigation *)
+  [Tg.Keyboard.callback ~text:"← Back" ~data:"back"];
+]
+]}
+
+{2 Reply vs Inline}
+
+{b Use Reply Keyboards for}:
+- Main menus (persistent navigation)
+- Text shortcuts (templates, emojis)
+- Primary bot actions
+- Simple yes/no choices
+
+{b Use Inline Keyboards for}:
+- Contextual actions (per-message actions)
+- Confirmations
+- Pagination
+- Settings toggles
+- URL buttons
+
+{2 Performance}
+
+- {b Cache keyboards}: Reuse keyboard objects when possible
+- {b Lazy generation}: Generate only when needed
+- {b Limit buttons}: Max 8-10 buttons for good UX
+- {b Paginate long lists}: Don't send 100 buttons at once
+
+{[
+(* Good: Cache static keyboards *)
+let main_menu_keyboard =
+  Tg.Keyboard.inline [
+    [Tg.Keyboard.callback ~text:"Settings" ~data:"settings"];
+    [Tg.Keyboard.callback ~text:"Help" ~data:"help"];
+  ]
+
+(* Reuse across messages *)
+let show_menu () =
+  send_message ~reply_markup:main_menu_keyboard "Menu"
+]}
+
+{2 Error Handling}
+
+- {b Always answer callbacks}: Prevents loading indicator
+- {b Handle missing data}: Gracefully handle parse errors
+- {b Timeout protection}: Don't let callbacks hang forever
+- {b User feedback}: Tell user what happened
+
+{[
+(* Good: Always answer callback *)
+let handle_callback client query =
+  try
+    process_callback query;
+    Telegram_generated.Gen_methods.answer_callback_query client
+      ~callback_query_id:query.id
+      ~text:"Done!"
+      ()
+  with exn ->
+    (* Answer even on error *)
+    Telegram_generated.Gen_methods.answer_callback_query client
+      ~callback_query_id:query.id
+      ~text:"An error occurred"
+      ()
+]}
+
+{1 See Also}
+
+- {{!page-command_dsl}Command DSL} - Handling callback queries with Bot DSL
+- {{!page-message_handling}Message Handling} - Sending messages with keyboards
+- {{!Tg.Keyboard}Keyboard Module} - Complete Keyboard API reference
+- {{!page-quick_start}Quick Start Tutorial} - Interactive keyboard tutorial
+- {{!page-development_workflow}Development Workflow} - Testing keyboard interactions

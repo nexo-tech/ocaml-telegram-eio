@@ -10,7 +10,7 @@
 
 ## Progress Tracker
 
-**Overall Completion: 8/30 tasks (27%)**
+**Overall Completion: 9/30 tasks (30%)**
 
 **Phase 1 — Getting Started Guide: COMPLETE (5/5 tasks) ✓**
 
@@ -109,11 +109,16 @@ Deep dive into the library's elegant functional API.
   - Best practices (development vs production, error handling, performance, security) ✓
   - Complete production examples (polling and webhook bots) ✓
 
-- [ ] Task 2.4: Keyboard API
-  - Reply keyboards (boilerplate-free builders)
-  - Inline keyboards
-  - Keyboard layouts and composition
-  - Dynamic keyboard generation
+- [x] Task 2.4: Keyboard API — COMPLETED: docs/keyboard_api.mld
+  - Inline keyboards (callback buttons, URL buttons, multi-button layouts) ✓
+  - Reply keyboards (basic usage, options, layouts, removal, force reply) ✓
+  - Layout helpers (vertical, horizontal, grid, row, rows) ✓
+  - Common patterns (yes/no, confirmation, pagination, number pad, menu with back) ✓
+  - Dynamic keyboard generation (from data, conditional buttons, state-based) ✓
+  - Keyboard composition (complex keyboards, multi-section, reusable parts) ✓
+  - Handling callbacks (low-level and Bot DSL, editing keyboards) ✓
+  - Complete examples (menu navigation, pagination, confirmation, quiz) ✓
+  - Best practices (button text, callback data, layout, reply vs inline, performance, error handling) ✓
 
 - [ ] Task 2.5: Callback queries
   - Callback data encoding

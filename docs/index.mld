@@ -153,6 +153,7 @@ See the {e examples/} directory for complete, runnable examples:
 - {{!page-message_handling}Message Handling} - Message types, pattern matching, formatting, and composition
 - {{!page-command_dsl}Command DSL} - Command routing, argument parsing, middleware, and bot composition
 - {{!page-update_processing}Update Processing} - Long polling, webhooks, filtering, and concurrent processing
+- {{!page-keyboard_api}Keyboard API} - Reply keyboards, inline keyboards, layouts, and interactive patterns
 
 {2 Migration}
 
