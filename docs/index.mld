@@ -157,6 +157,10 @@ See the {e examples/} directory for complete, runnable examples:
 - {{!page-callback_queries}Callback Queries} - Handling button presses, data encoding, and state management
 - {{!page-media_files}Media and Files} - Photos, videos, documents, uploads, downloads, and albums
 
+{2 Advanced Patterns}
+
+- {{!page-state_machines}State Machines} - Conversation flows, FSM patterns, and multi-step interactions
+
 {2 Migration}
 
 - {{!page-migration}Migration Guide} - Migrating from other libraries or Lwt/Async to Eio

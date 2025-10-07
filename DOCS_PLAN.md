@@ -10,7 +10,7 @@
 
 ## Progress Tracker
 
-**Overall Completion: 10/30 tasks (33%)**
+**Overall Completion: 11/30 tasks (37%)**
 
 **Phase 1 — Getting Started Guide: COMPLETE (5/5 tasks) ✓**
 **Phase 2 — API Fundamentals: COMPLETE (6/6 tasks) ✓**
@@ -152,11 +152,15 @@ Deep dive into the library's elegant functional API.
 
 Sophisticated patterns for production bots.
 
-- [ ] Task 3.1: State machines
-  - Conversation flows
-  - FSM implementation patterns
-  - State persistence
-  - Multi-step interactions
+- [x] Task 3.1: State machines — COMPLETED: docs/state_machines.mld
+  - Session management (typed sessions, session stores, session middleware) ✓
+  - Simple state machines (enum-based states, state with embedded data) ✓
+  - Finite state machine pattern (FSM type definition, transitions with actions) ✓
+  - Conversation flows (linear flows, branching flows, looping flows) ✓
+  - State persistence (database, JSON serialization, TTL and expiration) ✓
+  - Multi-step interactions (wizard pattern, form with validation) ✓
+  - Best practices (state design, session management, error handling, performance) ✓
+  - Complete example (registration bot with full FSM) ✓
 
 - [ ] Task 3.2: Middleware architecture
   - Request/response middleware

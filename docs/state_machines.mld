@@ -1,0 +1,1017 @@
+{0 State Machines}
+
+A comprehensive guide to building stateful bots with conversation flows, finite state machines, and multi-step interactions.
+
+{1 Overview}
+
+State machines enable bots to maintain context across multiple user interactions. Instead of treating each message independently, you can build conversational flows, wizards, forms, and complex multi-step processes.
+
+{b Key Concepts}:
+- {b State}: Current position in conversation flow
+- {b Transitions}: Moving between states based on input
+- {b Persistence}: Storing state between interactions
+- {b Context}: Data collected during the flow
+
+{b Use Cases}:
+- Multi-step forms (registration, surveys)
+- Wizards (configuration, setup)
+- Conversational interfaces (order placement, booking)
+- Games (turn-based, interactive stories)
+- Admin workflows (approval processes)
+
+{1 Session Management}
+
+{2 Typed Sessions}
+
+The {!Tg.Session} module provides type-safe session storage:
+
+{[
+open Tg.Session
+
+(* Define session keys with types *)
+let name_key : string key = make ~name:"user_name"
+let age_key : int key = make ~name:"user_age"
+let subscribed_key : bool key = make ~name:"subscribed"
+
+(* Get session *)
+let session = empty
+
+(* Set values *)
+set session name_key "Alice";
+set session age_key 25;
+set session subscribed_key true
+
+(* Get values *)
+match get session name_key with
+| Some name -> Printf.printf "Name: %s\n" name
+| None -> Printf.printf "No name set\n"
+
+(* Get with default *)
+let age = get_or session age_key ~default:0
+]}
+
+{2 Session Stores}
+
+Store sessions persistently:
+
+{[
+(* In-memory store *)
+module Store = Tg.Session.Memory_store
+
+let store = Store.create ()
+
+(* Get user session *)
+let user_session = Store.get_session store ~user_id:123456L
+
+(* Modify session *)
+Tg.Session.set user_session name_key "Bob";
+
+(* Save session *)
+Store.set_session store ~user_id:123456L user_session
+
+(* Delete session *)
+Store.delete_session store ~user_id:123456L
+]}
+
+{2 Session Middleware}
+
+Integrate sessions with Bot DSL:
+
+{[
+open Tg.Bot
+
+(* Create store *)
+module Store = Tg.Session.Memory_store
+let store = Store.create ()
+
+(* Session middleware *)
+let session_mw = Middleware.with_session (module Store) store
+
+(* Use in routes *)
+let routes =
+  router
+    ~middlewares:[session_mw]
+    [
+      on (Event.command "start") (fun _args ctx ->
+        (* Access session via context *)
+        Ctx.session_set ctx name_key "Alice";
+
+        let name = Ctx.session_get_or ctx name_key ~default:"Guest" in
+        let* _ = Ctx.reply ctx (Printf.sprintf "Hello, %s!" name) in
+        ()
+      );
+    ]
+]}
+
+{1 Simple State Machines}
+
+{2 Enum-Based States}
+
+Use variants for state representation:
+
+{[
+type state =
+  | Idle
+  | AwaitingName
+  | AwaitingAge
+  | AwaitingConfirmation
+  | Complete
+
+let state_key : state Tg.Session.key =
+  Tg.Session.make ~name:"registration_state"
+
+let handle_message ctx text =
+  let current_state = Ctx.session_get_or ctx state_key ~default:Idle in
+
+  match current_state with
+  | Idle ->
+      (* Start registration *)
+      Ctx.session_set ctx state_key AwaitingName;
+      Ctx.reply ctx "What's your name?"
+
+  | AwaitingName ->
+      (* Save name, move to age *)
+      Ctx.session_set ctx name_key text;
+      Ctx.session_set ctx state_key AwaitingAge;
+      Ctx.reply ctx "How old are you?"
+
+  | AwaitingAge ->
+      (match int_of_string_opt text with
+       | Some age ->
+           Ctx.session_set ctx age_key age;
+           Ctx.session_set ctx state_key AwaitingConfirmation;
+
+           let name = Ctx.session_get_or ctx name_key ~default:"" in
+           let msg = Printf.sprintf "Name: %s\nAge: %d\n\nConfirm? (yes/no)" name age in
+           Ctx.reply ctx msg
+
+       | None ->
+           Ctx.reply ctx "Please enter a valid age")
+
+  | AwaitingConfirmation ->
+      (match String.lowercase_ascii text with
+       | "yes" ->
+           Ctx.session_set ctx state_key Complete;
+           Ctx.reply ctx "Registration complete!"
+
+       | "no" ->
+           Ctx.session_set ctx state_key Idle;
+           Ctx.session_clear ctx;
+           Ctx.reply ctx "Registration cancelled"
+
+       | _ ->
+           Ctx.reply ctx "Please answer yes or no")
+
+  | Complete ->
+      Ctx.reply ctx "You're already registered!"
+]}
+
+{2 State with Data}
+
+Embed data in state variants:
+
+{[
+type form_state =
+  | Start
+  | CollectingName
+  | CollectingAge of { name : string }
+  | CollectingCity of { name : string; age : int }
+  | Confirming of { name : string; age : int; city : string }
+  | Finished
+
+let state_key : form_state Tg.Session.key =
+  Tg.Session.make ~name:"form_state"
+
+let handle_input ctx text =
+  let state = Ctx.session_get_or ctx state_key ~default:Start in
+
+  match state with
+  | Start ->
+      Ctx.session_set ctx state_key CollectingName;
+      Ctx.reply ctx "What's your name?"
+
+  | CollectingName ->
+      Ctx.session_set ctx state_key (CollectingAge { name = text });
+      Ctx.reply ctx "How old are you?"
+
+  | CollectingAge { name } ->
+      (match int_of_string_opt text with
+       | Some age ->
+           Ctx.session_set ctx state_key (CollectingCity { name; age });
+           Ctx.reply ctx "Which city do you live in?"
+       | None ->
+           Ctx.reply ctx "Please enter a valid age")
+
+  | CollectingCity { name; age } ->
+      let state = Confirming { name; age; city = text } in
+      Ctx.session_set ctx state_key state;
+
+      let msg = Printf.sprintf
+        "Please confirm:\nName: %s\nAge: %d\nCity: %s\n\n(yes/no)"
+        name age text
+      in
+      Ctx.reply ctx msg
+
+  | Confirming data ->
+      (match String.lowercase_ascii text with
+       | "yes" ->
+           (* Save data *)
+           save_to_database data;
+           Ctx.session_set ctx state_key Finished;
+           Ctx.reply ctx "Thank you! Data saved."
+
+       | "no" ->
+           Ctx.session_set ctx state_key Start;
+           Ctx.reply ctx "Let's start over. What's your name?"
+
+       | _ ->
+           Ctx.reply ctx "Please answer yes or no")
+
+  | Finished ->
+      Ctx.reply ctx "You've already completed the form!"
+]}
+
+{1 Finite State Machine Pattern}
+
+{2 FSM Type Definition}
+
+Define FSM with explicit transitions:
+
+{[
+(* States *)
+type state =
+  | Initial
+  | Menu
+  | ViewingItem of int
+  | Cart
+  | Checkout
+  | PaymentPending
+  | Complete
+
+(* Events *)
+type event =
+  | StartCmd
+  | MenuCmd
+  | ViewItem of int
+  | AddToCart of int
+  | CheckoutCmd
+  | PaymentReceived
+  | CancelCmd
+
+(* State machine *)
+type fsm = {
+  current_state : state;
+  cart : (int * int) list;  (* (item_id, quantity) *)
+}
+
+(* Transition function *)
+let transition fsm event =
+  match fsm.current_state, event with
+  | Initial, StartCmd ->
+      Some { fsm with current_state = Menu }
+
+  | Menu, ViewItem id ->
+      Some { fsm with current_state = ViewingItem id }
+
+  | ViewingItem _, AddToCart id ->
+      let cart = add_to_cart fsm.cart id in
+      Some { current_state = Cart; cart }
+
+  | Cart, CheckoutCmd ->
+      if fsm.cart = [] then
+        None  (* Invalid transition *)
+      else
+        Some { fsm with current_state = Checkout }
+
+  | Checkout, PaymentReceived ->
+      Some { fsm with current_state = PaymentPending }
+
+  | PaymentPending, PaymentReceived ->
+      Some { fsm with current_state = Complete; cart = [] }
+
+  | _, CancelCmd ->
+      Some { current_state = Initial; cart = [] }
+
+  | _, _ ->
+      None  (* Invalid transition *)
+]}
+
+{2 FSM with Actions}
+
+Add actions to state transitions:
+
+{[
+type action =
+  | SendMessage of string
+  | SendKeyboard of string * Tg.Keyboard.inline_keyboard_markup
+  | UpdateDatabase
+  | ProcessPayment
+  | NoAction
+
+let transition_with_action fsm event =
+  match fsm.current_state, event with
+  | Initial, StartCmd ->
+      let next_fsm = { fsm with current_state = Menu } in
+      let keyboard = create_menu_keyboard () in
+      (next_fsm, SendKeyboard ("Welcome! Choose an option:", keyboard))
+
+  | Menu, ViewItem id ->
+      let next_fsm = { fsm with current_state = ViewingItem id } in
+      let item = get_item id in
+      let msg = Printf.sprintf "%s\nPrice: $%.2f" item.name item.price in
+      let keyboard = item_keyboard id in
+      (next_fsm, SendKeyboard (msg, keyboard))
+
+  | ViewingItem _, AddToCart id ->
+      let cart = add_to_cart fsm.cart id in
+      let next_fsm = { current_state = Cart; cart } in
+      (next_fsm, SendMessage "Added to cart!")
+
+  | Cart, CheckoutCmd ->
+      if fsm.cart = [] then
+        (fsm, SendMessage "Cart is empty")
+      else
+        let next_fsm = { fsm with current_state = Checkout } in
+        (next_fsm, ProcessPayment)
+
+  | _, _ ->
+      (fsm, NoAction)
+
+(* Execute FSM *)
+let execute_fsm ctx fsm event =
+  let (next_fsm, action) = transition_with_action fsm event in
+
+  (* Perform action *)
+  let* _ = match action with
+    | SendMessage msg ->
+        Ctx.reply ctx msg
+    | SendKeyboard (msg, keyboard) ->
+        Ctx.reply ctx msg ~reply_markup:keyboard
+    | UpdateDatabase ->
+        save_fsm_to_db next_fsm;
+        Ok ()
+    | ProcessPayment ->
+        initiate_payment ctx next_fsm.cart
+    | NoAction ->
+        Ok ()
+  in
+
+  (* Save FSM state *)
+  Ctx.session_set ctx fsm_key next_fsm;
+  ()
+]}
+
+{1 Conversation Flows}
+
+{2 Linear Flows}
+
+Sequential steps with no branching:
+
+{[
+type flow_step =
+  | Step1_Name
+  | Step2_Email
+  | Step3_Phone
+  | Step4_Complete
+
+let flow_key : flow_step Tg.Session.key =
+  Tg.Session.make ~name:"onboarding_flow"
+
+let run_flow ctx text =
+  let step = Ctx.session_get_or ctx flow_key ~default:Step1_Name in
+
+  match step with
+  | Step1_Name ->
+      (* Validate and save name *)
+      if String.length text < 2 then
+        Ctx.reply ctx "Name must be at least 2 characters"
+      else (
+        Ctx.session_set ctx name_key text;
+        Ctx.session_set ctx flow_key Step2_Email;
+        Ctx.reply ctx "Great! What's your email?"
+      )
+
+  | Step2_Email ->
+      (* Validate email *)
+      if not (String.contains text '@') then
+        Ctx.reply ctx "Please enter a valid email"
+      else (
+        Ctx.session_set ctx email_key text;
+        Ctx.session_set ctx flow_key Step3_Phone;
+        Ctx.reply ctx "What's your phone number?"
+      )
+
+  | Step3_Phone ->
+      (* Save phone *)
+      Ctx.session_set ctx phone_key text;
+      Ctx.session_set ctx flow_key Step4_Complete;
+
+      let name = Ctx.session_get_or ctx name_key ~default:"" in
+      let email = Ctx.session_get_or ctx email_key ~default:"" in
+      let msg = Printf.sprintf
+        "Onboarding complete!\n\nName: %s\nEmail: %s\nPhone: %s"
+        name email text
+      in
+      Ctx.reply ctx msg
+
+  | Step4_Complete ->
+      Ctx.reply ctx "You've already completed onboarding!"
+]}
+
+{2 Branching Flows}
+
+Flows with conditional paths:
+
+{[
+type support_flow =
+  | Start
+  | SelectCategory
+  | TechnicalIssue
+  | BillingQuestion
+  | GeneralInquiry
+  | CollectingDetails of { category : string }
+  | AwaitingResponse
+
+let handle_support ctx text =
+  let state = Ctx.session_get_or ctx support_key ~default:Start in
+
+  match state with
+  | Start ->
+      Ctx.session_set ctx support_key SelectCategory;
+      let keyboard = Tg.Keyboard.inline [
+        [Tg.Keyboard.callback ~text:"Technical Issue" ~data:"cat:tech"];
+        [Tg.Keyboard.callback ~text:"Billing Question" ~data:"cat:billing"];
+        [Tg.Keyboard.callback ~text:"General Inquiry" ~data:"cat:general"];
+      ] in
+      Ctx.reply ctx "How can we help you?" ~reply_markup:keyboard
+
+  | SelectCategory ->
+      (* Handled via callback, not text *)
+      ()
+
+  | TechnicalIssue ->
+      Ctx.session_set ctx support_key (CollectingDetails { category = "tech" });
+      Ctx.reply ctx "Please describe the technical issue:"
+
+  | BillingQuestion ->
+      Ctx.session_set ctx support_key (CollectingDetails { category = "billing" });
+      Ctx.reply ctx "What's your billing question?"
+
+  | GeneralInquiry ->
+      Ctx.session_set ctx support_key (CollectingDetails { category = "general" });
+      Ctx.reply ctx "How can we help you?"
+
+  | CollectingDetails { category } ->
+      (* Save inquiry *)
+      create_support_ticket category text;
+      Ctx.session_set ctx support_key AwaitingResponse;
+      Ctx.reply ctx "Thank you! We'll get back to you soon."
+
+  | AwaitingResponse ->
+      Ctx.reply ctx "We're working on your request!"
+
+(* Handle category selection callback *)
+let handle_category_callback ctx data =
+  match String.split_on_char ':' data with
+  | ["cat"; "tech"] ->
+      Ctx.session_set ctx support_key TechnicalIssue;
+      Ctx.edit ctx "Please describe the technical issue:"
+
+  | ["cat"; "billing"] ->
+      Ctx.session_set ctx support_key BillingQuestion;
+      Ctx.edit ctx "What's your billing question?"
+
+  | ["cat"; "general"] ->
+      Ctx.session_set ctx support_key GeneralInquiry;
+      Ctx.edit ctx "How can we help you?"
+
+  | _ -> ()
+]}
+
+{2 Looping Flows}
+
+Flows that repeat until completion:
+
+{[
+type quiz_state =
+  | NotStarted
+  | Question of { current : int; score : int }
+  | Finished of { total_score : int }
+
+let questions = [|
+  { question = "What is 2+2?"; answer = "4" };
+  { question = "Capital of France?"; answer = "Paris" };
+  { question = "Color of sky?"; answer = "Blue" };
+|]
+
+let handle_quiz ctx text =
+  let state = Ctx.session_get_or ctx quiz_key ~default:NotStarted in
+
+  match state with
+  | NotStarted ->
+      Ctx.session_set ctx quiz_key (Question { current = 0; score = 0 });
+      Ctx.reply ctx questions.(0).question
+
+  | Question { current; score } ->
+      (* Check answer *)
+      let correct = (String.lowercase_ascii text =
+                     String.lowercase_ascii questions.(current).answer) in
+      let new_score = if correct then score + 1 else score in
+
+      (* Move to next question *)
+      let next = current + 1 in
+      if next >= Array.length questions then (
+        (* Quiz complete *)
+        Ctx.session_set ctx quiz_key (Finished { total_score = new_score });
+        let msg = Printf.sprintf "Quiz complete!\nScore: %d/%d"
+          new_score (Array.length questions)
+        in
+        Ctx.reply ctx msg
+      ) else (
+        (* Next question *)
+        Ctx.session_set ctx quiz_key (Question { current = next; score = new_score });
+        let feedback = if correct then "✓ Correct!" else "✗ Wrong" in
+        let msg = Printf.sprintf "%s\n\n%s" feedback questions.(next).question in
+        Ctx.reply ctx msg
+      )
+
+  | Finished { total_score } ->
+      let msg = Printf.sprintf "Quiz already completed. Score: %d/%d"
+        total_score (Array.length questions)
+      in
+      Ctx.reply ctx msg
+]}
+
+{1 State Persistence}
+
+{2 Database Persistence}
+
+Store state in database:
+
+{[
+(* State serialization *)
+let serialize_state state =
+  Marshal.to_string state []
+
+let deserialize_state s =
+  Marshal.from_string s 0
+
+(* Save to database *)
+let save_state db user_id state =
+  let data = serialize_state state in
+  Database.execute db
+    "INSERT INTO user_states (user_id, state, updated_at)
+     VALUES (?, ?, ?)
+     ON CONFLICT (user_id) DO UPDATE
+     SET state = excluded.state,
+         updated_at = excluded.updated_at"
+    [user_id; data; Unix.time ()]
+
+(* Load from database *)
+let load_state db user_id default_state =
+  match Database.query_one db
+    "SELECT state FROM user_states WHERE user_id = ?"
+    [user_id]
+  with
+  | Some data -> deserialize_state data
+  | None -> default_state
+
+(* Use in handler *)
+let handle_message db ctx text =
+  let user_id = (* extract from ctx *) in
+  let state = load_state db user_id Start in
+
+  (* Process state machine *)
+  let next_state = process_input state text in
+
+  (* Save new state *)
+  save_state db user_id next_state;
+  ()
+]}
+
+{2 JSON Persistence}
+
+Store state as JSON for portability:
+
+{[
+open Yojson.Safe
+
+(* State to JSON *)
+let state_to_json = function
+  | Start -> `String "start"
+  | AwaitingName -> `String "awaiting_name"
+  | AwaitingAge { name } ->
+      `Assoc [("state", `String "awaiting_age"); ("name", `String name)]
+  | Complete { name; age } ->
+      `Assoc [
+        ("state", `String "complete");
+        ("name", `String name);
+        ("age", `Int age);
+      ]
+
+(* JSON to state *)
+let json_to_state json =
+  match json with
+  | `String "start" -> Start
+  | `String "awaiting_name" -> AwaitingName
+  | `Assoc fields ->
+      (match List.assoc "state" fields with
+       | `String "awaiting_age" ->
+           let name = Util.to_string (List.assoc "name" fields) in
+           AwaitingAge { name }
+       | `String "complete" ->
+           let name = Util.to_string (List.assoc "name" fields) in
+           let age = Util.to_int (List.assoc "age" fields) in
+           Complete { name; age }
+       | _ -> Start)
+  | _ -> Start
+
+(* Save/load *)
+let save_state_json db user_id state =
+  let json = state_to_json state in
+  Database.execute db
+    "UPDATE users SET state = ? WHERE id = ?"
+    [to_string json; user_id]
+
+let load_state_json db user_id =
+  match Database.query_one db
+    "SELECT state FROM users WHERE id = ?"
+    [user_id]
+  with
+  | Some json_str -> json_to_state (from_string json_str)
+  | None -> Start
+]}
+
+{2 TTL and Expiration}
+
+Expire old states automatically:
+
+{[
+(* Store with TTL *)
+let save_state_with_ttl db user_id state ttl_seconds =
+  let expires_at = Unix.time () +. float_of_int ttl_seconds in
+  let data = serialize_state state in
+  Database.execute db
+    "INSERT INTO user_states (user_id, state, expires_at)
+     VALUES (?, ?, ?)
+     ON CONFLICT (user_id) DO UPDATE
+     SET state = excluded.state,
+         expires_at = excluded.expires_at"
+    [user_id; data; expires_at]
+
+(* Load with expiration check *)
+let load_state_with_ttl db user_id default_state =
+  match Database.query_one db
+    "SELECT state, expires_at FROM user_states
+     WHERE user_id = ? AND expires_at > ?"
+    [user_id; Unix.time ()]
+  with
+  | Some (data, _) -> deserialize_state data
+  | None ->
+      (* Expired or missing *)
+      Database.execute db
+        "DELETE FROM user_states WHERE user_id = ?"
+        [user_id];
+      default_state
+
+(* Cleanup expired states *)
+let cleanup_expired_states db =
+  Database.execute db
+    "DELETE FROM user_states WHERE expires_at < ?"
+    [Unix.time ()]
+]}
+
+{1 Multi-Step Interactions}
+
+{2 Wizard Pattern}
+
+Step-by-step configuration:
+
+{[
+type wizard_step =
+  | Welcome
+  | ConfigureDatabase of { db_type : string option }
+  | ConfigureAuth of { db_type : string; auth_method : string option }
+  | Review of { db_type : string; auth_method : string }
+  | Complete
+
+let run_wizard ctx text =
+  let step = Ctx.session_get_or ctx wizard_key ~default:Welcome in
+
+  match step with
+  | Welcome ->
+      let keyboard = Tg.Keyboard.inline [
+        [Tg.Keyboard.callback ~text:"Start Setup" ~data:"wizard:start"];
+      ] in
+      Ctx.reply ctx "Welcome to the setup wizard!" ~reply_markup:keyboard
+
+  | ConfigureDatabase _ ->
+      (* Show database options *)
+      let keyboard = Tg.Keyboard.inline [
+        [Tg.Keyboard.callback ~text:"PostgreSQL" ~data:"db:postgres"];
+        [Tg.Keyboard.callback ~text:"MySQL" ~data:"db:mysql"];
+        [Tg.Keyboard.callback ~text:"SQLite" ~data:"db:sqlite"];
+      ] in
+      Ctx.reply ctx "Choose database type:" ~reply_markup:keyboard
+
+  | ConfigureAuth { db_type; _ } ->
+      let keyboard = Tg.Keyboard.inline [
+        [Tg.Keyboard.callback ~text:"OAuth" ~data:"auth:oauth"];
+        [Tg.Keyboard.callback ~text:"JWT" ~data:"auth:jwt"];
+        [Tg.Keyboard.callback ~text:"Session" ~data:"auth:session"];
+      ] in
+      Ctx.reply ctx "Choose authentication method:" ~reply_markup:keyboard
+
+  | Review { db_type; auth_method } ->
+      let summary = Printf.sprintf
+        "Configuration:\n• Database: %s\n• Auth: %s\n\nConfirm?"
+        db_type auth_method
+      in
+      let keyboard = Tg.Keyboard.inline [
+        [Tg.Keyboard.callback ~text:"✓ Confirm" ~data:"wizard:confirm"];
+        [Tg.Keyboard.callback ~text:"✗ Cancel" ~data:"wizard:cancel"];
+      ] in
+      Ctx.reply ctx summary ~reply_markup:keyboard
+
+  | Complete ->
+      Ctx.reply ctx "Setup complete! ✓"
+]}
+
+{2 Form with Validation}
+
+Multi-field form with validation:
+
+{[
+type form_field = Name | Email | Phone | Terms
+
+type form_data = {
+  name : string option;
+  email : string option;
+  phone : string option;
+  terms_accepted : bool;
+}
+
+type form_state = {
+  current_field : form_field;
+  data : form_data;
+  errors : string list;
+}
+
+let validate_email email =
+  String.contains email '@' && String.contains email '.'
+
+let validate_phone phone =
+  String.length phone >= 10 &&
+  String.for_all (fun c -> c >= '0' && c <= '9' || c = '+') phone
+
+let handle_form_input ctx text =
+  let state = Ctx.session_get_or ctx form_state_key ~default:{
+    current_field = Name;
+    data = { name = None; email = None; phone = None; terms_accepted = false };
+    errors = [];
+  } in
+
+  match state.current_field with
+  | Name ->
+      if String.length text < 2 then (
+        let state = { state with errors = ["Name too short"] } in
+        Ctx.session_set ctx form_state_key state;
+        Ctx.reply ctx "Name must be at least 2 characters"
+      ) else (
+        let data = { state.data with name = Some text } in
+        let state = { current_field = Email; data; errors = [] } in
+        Ctx.session_set ctx form_state_key state;
+        Ctx.reply ctx "Enter your email:"
+      )
+
+  | Email ->
+      if not (validate_email text) then (
+        let state = { state with errors = ["Invalid email"] } in
+        Ctx.session_set ctx form_state_key state;
+        Ctx.reply ctx "Please enter a valid email address"
+      ) else (
+        let data = { state.data with email = Some text } in
+        let state = { current_field = Phone; data; errors = [] } in
+        Ctx.session_set ctx form_state_key state;
+        Ctx.reply ctx "Enter your phone number:"
+      )
+
+  | Phone ->
+      if not (validate_phone text) then (
+        let state = { state with errors = ["Invalid phone"] } in
+        Ctx.session_set ctx form_state_key state;
+        Ctx.reply ctx "Please enter a valid phone number"
+      ) else (
+        let data = { state.data with phone = Some text } in
+        let state = { current_field = Terms; data; errors = [] } in
+        Ctx.session_set ctx form_state_key state;
+
+        let keyboard = Tg.Keyboard.inline [
+          [Tg.Keyboard.callback ~text:"I Accept" ~data:"form:accept_terms"];
+          [Tg.Keyboard.callback ~text:"Cancel" ~data:"form:cancel"];
+        ] in
+        Ctx.reply ctx "Do you accept the terms?" ~reply_markup:keyboard
+      )
+
+  | Terms ->
+      (* Handled via callback *)
+      ()
+]}
+
+{1 Best Practices}
+
+{2 State Design}
+
+- {b Keep states simple}: Avoid too many states
+- {b Use types}: Leverage OCaml's type system
+- {b Document transitions}: Make valid transitions clear
+- {b Handle invalid input}: Gracefully handle unexpected input
+
+{2 Session Management}
+
+- {b Set TTL}: Expire old sessions automatically
+- {b Clear on completion}: Clean up after flows complete
+- {b Validate state}: Check state validity on load
+- {b Provide escape}: Allow users to cancel/restart
+
+{[
+(* Provide cancel command *)
+let handle_cancel ctx =
+  Ctx.session_clear ctx;
+  Ctx.reply ctx "Operation cancelled"
+
+(* Add to all flows *)
+let routes = [
+  on (Event.command "cancel") (fun _args ctx -> handle_cancel ctx);
+  (* ... other routes ... *)
+]
+]}
+
+{2 Error Handling}
+
+- {b Validate transitions}: Check if transition is valid
+- {b Handle missing state}: Provide defaults
+- {b Recovery}: Allow restarting from any point
+- {b User feedback}: Explain what went wrong
+
+{2 Performance}
+
+- {b Lazy loading}: Load state only when needed
+- {b Batch updates}: Update multiple fields at once
+- {b Index database}: Index user_id and timestamps
+- {b Clean up}: Remove expired states regularly
+
+{1 Complete Example: Registration Bot}
+
+{[
+open Eio.Std
+open Ocaml_telegram_eio
+open Tg.Bot
+
+(* States *)
+type reg_state =
+  | Initial
+  | CollectingName
+  | CollectingEmail of { name : string }
+  | CollectingAge of { name : string; email : string }
+  | Confirming of { name : string; email : string; age : int }
+  | Registered
+
+(* Session keys *)
+let state_key : reg_state Session.key = Session.make ~name:"reg_state"
+
+(* Validation *)
+let validate_email email =
+  String.contains email '@'
+
+let validate_age age_str =
+  match int_of_string_opt age_str with
+  | Some age when age > 0 && age < 120 -> Some age
+  | _ -> None
+
+(* Handlers *)
+let start_registration ctx =
+  Ctx.session_set ctx state_key CollectingName;
+  let* _ = Ctx.reply ctx "Let's get you registered!\n\nWhat's your name?" in
+  ()
+
+let handle_text_input ctx text =
+  let state = Ctx.session_get_or ctx state_key ~default:Initial in
+
+  match state with
+  | Initial ->
+      let* _ = Ctx.reply ctx "Use /register to start registration" in
+      ()
+
+  | CollectingName ->
+      if String.length text < 2 then
+        Ctx.reply ctx "Name must be at least 2 characters"
+      else (
+        Ctx.session_set ctx state_key (CollectingEmail { name = text });
+        Ctx.reply ctx "Great! What's your email?"
+      )
+
+  | CollectingEmail { name } ->
+      if not (validate_email text) then
+        Ctx.reply ctx "Please enter a valid email address"
+      else (
+        Ctx.session_set ctx state_key (CollectingAge { name; email = text });
+        Ctx.reply ctx "How old are you?"
+      )
+
+  | CollectingAge { name; email } ->
+      (match validate_age text with
+       | None ->
+           Ctx.reply ctx "Please enter a valid age (1-119)"
+       | Some age ->
+           Ctx.session_set ctx state_key (Confirming { name; email; age });
+           let summary = Printf.sprintf
+             "Please confirm:\n• Name: %s\n• Email: %s\n• Age: %d"
+             name email age
+           in
+           let keyboard = Tg.Keyboard.inline [
+             [
+               Tg.Keyboard.callback ~text:"✓ Confirm" ~data:"reg:confirm";
+               Tg.Keyboard.callback ~text:"✗ Cancel" ~data:"reg:cancel";
+             ];
+           ] in
+           Ctx.reply ctx summary ~reply_markup:keyboard
+      )
+
+  | Confirming _ ->
+      let* _ = Ctx.reply ctx "Please use the buttons to confirm or cancel" in
+      ()
+
+  | Registered ->
+      let* _ = Ctx.reply ctx "You're already registered!" in
+      ()
+
+let handle_confirm_callback ctx =
+  let state = Ctx.session_get_or ctx state_key ~default:Initial in
+
+  match state with
+  | Confirming { name; email; age } ->
+      (* Save to database *)
+      save_registration name email age;
+
+      Ctx.session_set ctx state_key Registered;
+      Ctx.edit ctx "✓ Registration complete! Welcome aboard."
+
+  | _ ->
+      Ctx.edit ctx "Invalid state"
+
+let handle_cancel_callback ctx =
+  Ctx.session_clear ctx;
+  Ctx.edit ctx "Registration cancelled"
+
+(* Routes *)
+let routes =
+  let module Store = Session.Memory_store in
+  let store = Store.create () in
+
+  router
+    ~middlewares:[
+      Middleware.with_session (module Store) store;
+      Middleware.logging ();
+    ]
+    [
+      on (Event.command "start") (fun _args ctx ->
+        Ctx.reply ctx "Welcome! Use /register to sign up"
+      );
+
+      on (Event.command "register") (fun _args ctx ->
+        start_registration ctx
+      );
+
+      on (Event.command "cancel") (fun _args ctx ->
+        Ctx.session_clear ctx;
+        Ctx.reply ctx "Cancelled"
+      );
+
+      on Event.text (fun text ctx ->
+        handle_text_input ctx text
+      );
+
+      on (Event.callback "reg:confirm") (fun _data ctx ->
+        handle_confirm_callback ctx
+      );
+
+      on (Event.callback "reg:cancel") (fun _data ctx ->
+        handle_cancel_callback ctx
+      );
+    ]
+
+let () =
+  Eio_main.run @@ fun env ->
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let client = Telegram.Client.create ~env ~token () in
+  run_polling ~env ~client routes
+]}
+
+{1 See Also}
+
+- {{!Tg.Session}Session Module} - Complete session API reference
+- {{!page-callback_queries}Callback Queries} - Interactive state transitions
+- {{!page-command_dsl}Command DSL} - Building conversational interfaces
+- {{!page-quick_start}Quick Start Tutorial} - Stateful bot examples
+- {{!page-development_workflow}Development Workflow} - Testing state machines
