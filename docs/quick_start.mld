@@ -1,0 +1,916 @@
+{0 Quick Start Tutorial}
+
+This hands-on tutorial will teach you how to build Telegram bots using the elegant [ocaml_telegram_eio] DSL and API. You'll build several increasingly sophisticated bots, learning the key patterns along the way.
+
+{1 Prerequisites}
+
+Before starting, ensure you have:
+- Completed {{!page-getting_started}Getting Started} (OCaml 5, library installed, bot token)
+- Read {{!page-core_concepts}Core Concepts} (understanding of bot lifecycle)
+- A code editor ready
+
+{1 Tutorial 1: Echo Bot}
+
+Let's build a bot that echoes back everything you send it. This introduces the fundamental pattern for all bots.
+
+{2 Step 1: Create the Project}
+
+{[
+mkdir echo_tutorial && cd echo_tutorial
+
+# Create dune-project
+cat > dune-project << 'EOF'
+(lang dune 3.0)
+(name echo_tutorial)
+EOF
+
+# Create bin directory
+mkdir bin
+
+# Create dune file for executable
+cat > bin/dune << 'EOF'
+(executable
+ (name echo_bot)
+ (libraries eio_main ocaml_telegram_eio.telegram ocaml_telegram_eio.tg))
+EOF
+]}
+
+{2 Step 2: The Minimal Bot}
+
+Create [bin/echo_bot.ml]:
+
+{[
+(* 1. Import libraries *)
+open Eio.Std
+
+let () =
+  (* 2. Get bot token *)
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+
+  (* 3. Start Eio runtime *)
+  Eio_main.run @@ fun env ->
+
+  (* 4. Create HTTP client *)
+  let client = Telegram.Client.create ~env ~token () in
+
+  (* 5. Define update handler *)
+  let handle_update update =
+    match update with
+    | { Telegram_generated.Gen_types.Update.message = Some msg; _ } ->
+        (* Extract chat ID and text *)
+        let chat_id = Telegram.Id.Chat.of_int msg.Message.chat.Chat.id in
+        let text = Option.value msg.Message.text ~default:"" in
+
+        (* Echo back *)
+        let* _response = Telegram_generated.Gen_methods.send_message
+          client ~chat_id ~text () in
+        Ok ()
+
+    | _ -> Ok ()  (* Ignore non-message updates *)
+  in
+
+  (* 6. Start polling *)
+  Tg.Polling.run client ~handler:handle_update
+]}
+
+{2 Step 3: Understanding Each Line}
+
+Let's break down what each part does:
+
+{3 Imports}
+
+{[
+open Eio.Std
+]}
+
+Opens Eio's standard library, giving you access to [let*] syntax for Result handling.
+
+{3 Token Retrieval}
+
+{[
+let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+]}
+
+Loads your bot token from environment. In production, add error handling:
+
+{[
+let token =
+  match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
+  | Some t -> t
+  | None -> failwith "TELEGRAM_BOT_TOKEN not set"
+in
+]}
+
+{3 Eio Runtime}
+
+{[
+Eio_main.run @@ fun env ->
+]}
+
+- Starts the event loop
+- [env] contains system resources (network, clock, filesystem)
+- All async code runs inside this
+
+{3 Client Creation}
+
+{[
+let client = Telegram.Client.create ~env ~token () in
+]}
+
+Creates an HTTPS client for Telegram API:
+- [~env] provides network access
+- [~token] authenticates your bot
+- Returns a [client] value you pass to all API calls
+
+{3 Update Handler}
+
+{[
+let handle_update update =
+  match update with
+  | { Telegram_generated.Gen_types.Update.message = Some msg; _ } ->
+      (* Handle message *)
+  | _ -> Ok ()
+]}
+
+Pattern match on update structure:
+- [message = Some msg] means we got a text message
+- [_] at the end catches all other updates
+- Always return [Ok ()] or [Error err]
+
+{3 Extracting Data}
+
+{[
+let chat_id = Telegram.Id.Chat.of_int msg.Message.chat.Chat.id in
+let text = Option.value msg.Message.text ~default:"" in
+]}
+
+- [chat_id]: Where to send the reply (phantom type for safety)
+- [text]: The message content (optional, might be photo/sticker/etc.)
+
+{3 API Call}
+
+{[
+let* _response = Telegram_generated.Gen_methods.send_message
+  client ~chat_id ~text () in
+Ok ()
+]}
+
+- [send_message] returns [Result.t]
+- [let*] propagates errors automatically
+- If it fails, the function returns [Error], not [Ok ()]
+
+{3 Starting Polling}
+
+{[
+Tg.Polling.run client ~handler:handle_update
+]}
+
+Starts the bot loop:
+1. Fetches updates from Telegram
+2. Calls [handle_update] for each one
+3. Manages offsets automatically
+4. Handles network errors with retry
+5. Blocks forever (until Ctrl-C)
+
+{2 Step 4: Run It!}
+
+{[
+# Build
+dune build
+
+# Run
+export TELEGRAM_BOT_TOKEN="your_token_here"
+dune exec bin/echo_bot.exe
+]}
+
+Send a message to your bot - it echoes back!
+
+{1 Tutorial 2: Command Bot}
+
+Now let's add command handling to make an interactive bot.
+
+{2 Adding Commands}
+
+Modify [bin/echo_bot.ml]:
+
+{[
+let handle_update update =
+  match update with
+  | { Telegram_generated.Gen_types.Update.message = Some msg; _ } ->
+      let chat_id = Telegram.Id.Chat.of_int msg.Message.chat.Chat.id in
+      let text = Option.value msg.Message.text ~default:"" in
+
+      (* Check if it's a command *)
+      let reply_text =
+        if String.starts_with ~prefix:"/" text then
+          (* Parse command *)
+          match String.split_on_char ' ' text with
+          | "/start" :: _ ->
+              "👋 Welcome! I can:\n\
+               /start - Show this message\n\
+               /help - Get help\n\
+               /echo <text> - Echo your text\n\
+               /add <a> <b> - Add two numbers"
+
+          | "/help" :: _ ->
+              "Send me /echo followed by text, or /add with two numbers!"
+
+          | "/echo" :: rest ->
+              (* Join remaining words *)
+              String.concat " " rest
+
+          | "/add" :: a :: b :: _ ->
+              (* Try to parse as integers *)
+              (match int_of_string_opt a, int_of_string_opt b with
+               | Some x, Some y ->
+                   Printf.sprintf "%d + %d = %d" x y (x + y)
+               | _ ->
+                   "❌ Please provide two numbers: /add 5 3")
+
+          | "/add" :: _ ->
+              "❌ Usage: /add <number1> <number2>"
+
+          | cmd :: _ ->
+              Printf.sprintf "❌ Unknown command: %s\nTry /help" cmd
+
+          | [] ->
+              "❌ Empty command"
+        else
+          (* Regular text - echo it *)
+          "You said: " ^ text
+      in
+
+      (* Send reply *)
+      let* _response = Telegram_generated.Gen_methods.send_message
+        client ~chat_id ~text:reply_text () in
+      Ok ()
+
+  | _ -> Ok ()
+]}
+
+{2 Pattern Matching Commands}
+
+Key technique: pattern match on split command:
+
+{[
+match String.split_on_char ' ' text with
+| "/start" :: _ -> (* No args needed *)
+| "/echo" :: rest -> (* rest is the args *)
+| "/add" :: a :: b :: _ -> (* Extract exactly 2 args *)
+| cmd :: _ -> (* Unknown command *)
+| [] -> (* Empty *)
+]}
+
+{2 Argument Parsing}
+
+For numbers:
+
+{[
+match int_of_string_opt a, int_of_string_opt b with
+| Some x, Some y -> (* Both parsed successfully *)
+| _ -> (* At least one failed *)
+]}
+
+For text:
+
+{[
+let text_args = String.concat " " rest in
+]}
+
+{1 Tutorial 3: Using the Bot DSL}
+
+The low-level API is verbose. Let's use the high-level {{!Tg.Bot}Bot DSL} for cleaner code.
+
+{2 Bot DSL Version}
+
+Create [bin/dsl_bot.ml]:
+
+{[
+open Eio.Std
+open Tg.Bot
+
+let () =
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+
+  Eio_main.run @@ fun env ->
+
+  let client = Telegram.Client.create ~env ~token () in
+
+  (* Build bot with DSL *)
+  let bot =
+    Bot.make client
+    |> Bot.command "start" (fun ctx _args ->
+        ctx#reply "👋 Welcome! Use /help for commands."
+      )
+    |> Bot.command "help" (fun ctx _args ->
+        ctx#reply "Available commands:\n\
+                   /echo <text> - Echo text\n\
+                   /add <a> <b> - Add numbers\n\
+                   /upper <text> - Uppercase"
+      )
+    |> Bot.command "echo" (fun ctx args ->
+        let text = Args.join_rest args 0 in
+        ctx#reply text
+      )
+    |> Bot.command "add" (fun ctx args ->
+        match Args.expect_2 args with
+        | Some (a, b) ->
+            (match Args.parse_int a, Args.parse_int b with
+             | Some x, Some y ->
+                 ctx#reply (Printf.sprintf "%d + %d = %d" x y (x + y))
+             | _ ->
+                 ctx#reply "❌ Both arguments must be numbers")
+        | None ->
+            ctx#reply "❌ Usage: /add <num1> <num2>"
+      )
+    |> Bot.command "upper" (fun ctx args ->
+        let text = Args.join_rest args 0 in
+        ctx#reply (String.uppercase_ascii text)
+      )
+    |> Bot.on Event.text (fun ctx text ->
+        ctx#reply ("You said: " ^ text)
+      )
+  in
+
+  (* Run bot *)
+  Bot.run bot
+]}
+
+{2 Key DSL Features}
+
+{3 Command Routing}
+
+{[
+Bot.command "start" (fun ctx _args -> ...)
+]}
+
+- Matches [/start] automatically
+- [ctx] is the bot context (has [#reply] method)
+- [args] is command arguments as [string list]
+
+{3 Argument Helpers}
+
+{[
+Args.join_rest args 0    (* Join all args from index 0 *)
+Args.expect_2 args       (* Get exactly 2 args *)
+Args.parse_int "42"      (* Parse int safely *)
+]}
+
+See {{!Tg.Bot.Args}Args module} for all helpers.
+
+{3 Event Routing}
+
+{[
+Bot.on Event.text (fun ctx text -> ...)
+]}
+
+Handles any text that didn't match a command.
+
+{3 Context Methods}
+
+{[
+ctx#reply "Text"                          (* Send message *)
+ctx#reply_with_markup "Text" keyboard     (* With keyboard *)
+ctx#get session_key                       (* Get session data *)
+ctx#set session_key value                 (* Save session data *)
+]}
+
+{1 Tutorial 4: Interactive Keyboards}
+
+Add buttons users can click.
+
+{2 Inline Keyboards}
+
+Buttons that appear below messages:
+
+{[
+open Tg.Keyboard
+
+let bot =
+  Bot.make client
+  |> Bot.command "menu" (fun ctx _args ->
+      (* Create inline keyboard *)
+      let keyboard = inline [
+        [ callback ~text:"Option 1" ~data:"opt1"
+        ; callback ~text:"Option 2" ~data:"opt2" ];
+        [ callback ~text:"Cancel" ~data:"cancel" ]
+      ] in
+
+      ctx#reply_with_markup "Choose an option:" keyboard
+    )
+  |> Bot.on Event.callback (fun ctx data ->
+      (* Handle button click *)
+      let response = match data with
+        | "opt1" -> "You chose option 1!"
+        | "opt2" -> "You chose option 2!"
+        | "cancel" -> "Cancelled."
+        | _ -> "Unknown option"
+      in
+
+      (* Answer callback (removes loading state) *)
+      let* () = ctx#answer_callback ~text:(Some "Clicked!") () in
+
+      (* Send response *)
+      ctx#reply response
+    )
+]}
+
+{2 Keyboard Layouts}
+
+Use {{!Tg.Keyboard.Layout}Layout} helpers:
+
+{[
+(* Vertical layout *)
+let keyboard = inline (Layout.vertical [
+  callback ~text:"Button 1" ~data:"b1";
+  callback ~text:"Button 2" ~data:"b2";
+  callback ~text:"Button 3" ~data:"b3";
+]) in
+
+(* Grid layout (2 columns) *)
+let keyboard = inline (Layout.grid ~columns:2 [
+  callback ~text:"A" ~data:"a";
+  callback ~text:"B" ~data:"b";
+  callback ~text:"C" ~data:"c";
+  callback ~text:"D" ~data:"d";
+]) in
+(* Results in:
+   [A] [B]
+   [C] [D]
+*)
+
+(* Horizontal layout *)
+let keyboard = inline (Layout.horizontal [
+  callback ~text:"1" ~data:"1";
+  callback ~text:"2" ~data:"2";
+  callback ~text:"3" ~data:"3";
+]) in
+(* Results in: [1] [2] [3] *)
+]}
+
+{2 Reply Keyboards}
+
+Buttons that appear on the keyboard:
+
+{[
+open Tg.Keyboard
+
+let bot =
+  Bot.make client
+  |> Bot.command "start" (fun ctx _args ->
+      (* Create reply keyboard *)
+      let keyboard = reply [
+        [ "🍕 Pizza"; "🍔 Burger" ];
+        [ "🥗 Salad"; "🍜 Soup" ];
+        [ "❌ Cancel" ]
+      ] in
+
+      ctx#reply_with_markup "What would you like?" keyboard
+    )
+  |> Bot.on Event.text (fun ctx text ->
+      match text with
+      | "🍕 Pizza" -> ctx#reply "Great choice! Pizza coming up! 🍕"
+      | "🍔 Burger" -> ctx#reply "One burger! 🍔"
+      | "🥗 Salad" -> ctx#reply "Healthy! 🥗"
+      | "🍜 Soup" -> ctx#reply "Warm soup! 🍜"
+      | "❌ Cancel" ->
+          (* Remove keyboard *)
+          let keyboard = remove () in
+          ctx#reply_with_markup "Cancelled. Keyboard removed." keyboard
+      | _ ->
+          ctx#reply ("Unknown option: " ^ text)
+    )
+]}
+
+{2 URL Buttons}
+
+Open links directly:
+
+{[
+let keyboard = inline [
+  [ url ~text:"📖 Documentation" ~url:"https://example.com/docs" ];
+  [ url ~text:"💬 Support" ~url:"https://t.me/support_channel" ];
+] in
+
+ctx#reply_with_markup "Learn more:" keyboard
+]}
+
+{1 Tutorial 5: Sending Media}
+
+Send photos, documents, and other media.
+
+{2 Sending Photos}
+
+{[
+let bot =
+  Bot.make client
+  |> Bot.command "photo" (fun ctx _args ->
+      (* From URL *)
+      let photo = Telegram.Input_file.url "https://example.com/image.jpg" in
+      let* _msg = Telegram_generated.Gen_methods.send_photo
+        ctx#client ~chat_id:ctx#chat_id ~photo () in
+
+      Ok ()
+    )
+  |> Bot.command "local_photo" (fun ctx _args ->
+      (* From local file *)
+      let photo = Telegram.Input_file.file "path/to/photo.jpg" in
+      let* _msg = Telegram_generated.Gen_methods.send_photo
+        ctx#client ~chat_id:ctx#chat_id ~photo ~caption:"Look!" () in
+
+      Ok ()
+    )
+]}
+
+{2 Sending Documents}
+
+{[
+Bot.command "pdf" (fun ctx _args ->
+  let document = Telegram.Input_file.file "report.pdf" in
+  let* _msg = Telegram_generated.Gen_methods.send_document
+    ctx#client
+    ~chat_id:ctx#chat_id
+    ~document
+    ~caption:"Here's your report"
+    () in
+
+  Ok ()
+)
+]}
+
+{2 Media Groups (Albums)}
+
+Send multiple photos as an album:
+
+{[
+open Tg.Album
+
+Bot.command "album" (fun ctx _args ->
+  let album = Album.make [
+    Album.photo (Telegram.Input_file.url "https://example.com/1.jpg");
+    Album.photo (Telegram.Input_file.url "https://example.com/2.jpg");
+    Album.photo (Telegram.Input_file.url "https://example.com/3.jpg");
+  ] in
+
+  let* _msgs = Album.send ctx#client ctx#chat_id album in
+  Ok ()
+)
+]}
+
+{1 Tutorial 6: Message Formatting}
+
+Make your messages beautiful with formatting.
+
+{2 HTML Formatting}
+
+{[
+open Telegram.Parse_mode
+
+Bot.command "html" (fun ctx _args ->
+  let text =
+    "<b>Bold text</b>\n\
+     <i>Italic text</i>\n\
+     <u>Underlined</u>\n\
+     <s>Strikethrough</s>\n\
+     <code>code</code>\n\
+     <pre>preformatted</pre>\n\
+     <a href=\"https://example.com\">Link</a>"
+  in
+
+  let* _msg = Telegram_generated.Gen_methods.send_message
+    ctx#client
+    ~chat_id:ctx#chat_id
+    ~text
+    ~parse_mode:html
+    () in
+
+  Ok ()
+)
+]}
+
+{2 Markdown Formatting}
+
+{[
+Bot.command "markdown" (fun ctx _args ->
+  let text =
+    "*Bold text*\n\
+     _Italic text_\n\
+     `code`\n\
+     ```ocaml\n\
+     let x = 42\n\
+     ```\n\
+     [Link](https://example.com)"
+  in
+
+  let* _msg = Telegram_generated.Gen_methods.send_message
+    ctx#client
+    ~chat_id:ctx#chat_id
+    ~text
+    ~parse_mode:markdown
+    () in
+
+  Ok ()
+)
+]}
+
+{2 Disable Link Previews}
+
+{[
+Bot.command "link" (fun ctx _args ->
+  let text = "Check this out: https://example.com" in
+
+  let* _msg = Telegram_generated.Gen_methods.send_message
+    ctx#client
+    ~chat_id:ctx#chat_id
+    ~text
+    ~disable_web_page_preview:true  (* No preview *)
+    () in
+
+  Ok ()
+)
+]}
+
+{1 Tutorial 7: Processing User Input}
+
+Handle different types of updates beyond text.
+
+{2 Photo Messages}
+
+{[
+Bot.on Event.message (fun ctx msg ->
+  match msg.Telegram_generated.Gen_types.Message.photo with
+  | Some photos ->
+      (* photos is an array, get largest *)
+      let largest = List.hd (List.rev photos) in
+      let file_id = largest.PhotoSize.file_id in
+
+      ctx#reply (Printf.sprintf "Nice photo! File ID: %s" file_id)
+
+  | None ->
+      Ok ()  (* Not a photo *)
+)
+]}
+
+{2 Document Downloads}
+
+{[
+open Tg.Download
+
+Bot.on Event.message (fun ctx msg ->
+  match msg.Telegram_generated.Gen_types.Message.document with
+  | Some doc ->
+      (* Download the document *)
+      let* file_path = Download.file ctx#client doc.Document.file_id in
+
+      (* Save to disk *)
+      let* () = Download.save_to file_path "downloads/document.pdf" in
+
+      ctx#reply "Document downloaded!"
+
+  | None ->
+      Ok ()
+)
+]}
+
+{2 Location Messages}
+
+{[
+Bot.on Event.message (fun ctx msg ->
+  match msg.Telegram_generated.Gen_types.Message.location with
+  | Some location ->
+      let lat = location.Location.latitude in
+      let lon = location.Location.longitude in
+
+      ctx#reply (Printf.sprintf "Your location: %.6f, %.6f" lat lon)
+
+  | None ->
+      Ok ()
+)
+]}
+
+{1 Tutorial 8: Error Handling}
+
+Handle errors gracefully in production bots.
+
+{2 Basic Error Handling}
+
+{[
+let handle_command ctx args =
+  match process_args args with
+  | Ok result ->
+      ctx#reply (format_result result)
+  | Error msg ->
+      ctx#reply ("❌ Error: " ^ msg)
+]}
+
+{2 With Retry Logic}
+
+{[
+open Telegram.Retry
+
+Bot.command "retry" (fun ctx _args ->
+  (* Retry on failure *)
+  let* result = with_retry
+    ~max_attempts:3
+    ~initial_delay:1.0
+    (fun () ->
+      Telegram_generated.Gen_methods.send_message
+        ctx#client ~chat_id:ctx#chat_id ~text:"Hello" ()
+    )
+  in
+
+  match result with
+  | Ok msg -> ctx#reply "Sent successfully!"
+  | Error err ->
+      ctx#reply (Printf.sprintf "Failed after 3 attempts: %s"
+        (Format.asprintf "%a" Telegram.Error.pp err))
+)
+]}
+
+{2 Logging Errors}
+
+{[
+let handle_update update =
+  match process_update update with
+  | Ok () ->
+      Eio.traceln "✓ Update %Ld processed" update.update_id;
+      Ok ()
+  | Error err ->
+      Eio.traceln "✗ Update %Ld failed: %a"
+        update.update_id
+        Telegram.Error.pp err;
+      Error err
+]}
+
+{1 Tutorial 9: Stateful Bots}
+
+Maintain user sessions and state.
+
+{2 Simple State with Hashtable}
+
+{[
+let user_states : (int64, string) Hashtbl.t = Hashtbl.create 100
+
+Bot.command "start_quiz" (fun ctx _args ->
+  let user_id = ctx#user_id in
+  Hashtbl.replace user_states user_id "question_1";
+  ctx#reply "What is 2+2?"
+)
+
+|> Bot.on Event.text (fun ctx text ->
+  let user_id = ctx#user_id in
+  match Hashtbl.find_opt user_states user_id with
+  | Some "question_1" when text = "4" ->
+      Hashtbl.replace user_states user_id "question_2";
+      ctx#reply "Correct! What is the capital of France?"
+
+  | Some "question_2" when String.lowercase_ascii text = "paris" ->
+      Hashtbl.remove user_states user_id;
+      ctx#reply "🎉 Perfect! Quiz complete!"
+
+  | Some _ ->
+      ctx#reply "❌ Wrong answer. Try again!"
+
+  | None ->
+      ctx#reply "Use /start_quiz to begin"
+)
+]}
+
+{2 Type-Safe Sessions}
+
+{[
+open Tg.Session
+
+type quiz_state = {
+  current_question : int;
+  score : int;
+}
+
+let quiz_key = Session.key "quiz"
+
+Bot.command "quiz" (fun ctx _args ->
+  let state = { current_question = 1; score = 0 } in
+  let* () = ctx#set quiz_key state in
+  ctx#reply "Question 1: What is 2+2?"
+)
+
+|> Bot.on Event.text (fun ctx text ->
+  let* state_opt = ctx#get quiz_key in
+  match state_opt with
+  | Some state when state.current_question = 1 && text = "4" ->
+      let new_state = { state with
+        current_question = 2;
+        score = state.score + 1
+      } in
+      let* () = ctx#set quiz_key new_state in
+      ctx#reply "Correct! Question 2: What is 5*5?"
+
+  | Some state ->
+      ctx#reply (Printf.sprintf "Score: %d/2" state.score)
+
+  | None ->
+      ctx#reply "Start with /quiz"
+)
+]}
+
+{1 Common Patterns}
+
+{2 Admin-Only Commands}
+
+{[
+let admin_ids = [12345678L; 87654321L]
+
+let is_admin user_id =
+  List.mem user_id admin_ids
+
+Bot.command "admin" (fun ctx _args ->
+  if is_admin ctx#user_id then
+    ctx#reply "🔒 Admin panel..."
+  else
+    ctx#reply "❌ Unauthorized"
+)
+]}
+
+{2 Rate Limiting Per User}
+
+{[
+let last_request : (int64, float) Hashtbl.t = Hashtbl.create 100
+
+let rate_limit user_id min_seconds =
+  let now = Unix.time () in
+  match Hashtbl.find_opt last_request user_id with
+  | Some last when now -. last < min_seconds ->
+      false  (* Too soon *)
+  | _ ->
+      Hashtbl.replace last_request user_id now;
+      true  (* Allowed *)
+
+Bot.command "api_call" (fun ctx _args ->
+  if rate_limit ctx#user_id 5.0 then
+    (* Allow request *)
+    ctx#reply "Processing..."
+  else
+    ctx#reply "⏱️ Please wait before trying again"
+)
+]}
+
+{2 Broadcasting Messages}
+
+{[
+let broadcast_to_users client user_ids message =
+  Eio.Switch.run @@ fun sw ->
+  user_ids |> List.iter (fun user_id ->
+    Eio.Fiber.fork ~sw (fun () ->
+      let chat_id = Telegram.Id.Chat.of_int64 user_id in
+      match Telegram_generated.Gen_methods.send_message
+        client ~chat_id ~text:message () with
+      | Ok _ ->
+          Eio.traceln "✓ Sent to %Ld" user_id
+      | Error err ->
+          Eio.traceln "✗ Failed to send to %Ld: %a"
+            user_id Telegram.Error.pp err
+    )
+  )
+]}
+
+{1 Next Steps}
+
+Congratulations! You now know how to:
+
+- ✅ Build bots with the low-level API
+- ✅ Use the elegant Bot DSL for cleaner code
+- ✅ Handle commands and arguments
+- ✅ Create interactive keyboards
+- ✅ Send and receive media
+- ✅ Format messages beautifully
+- ✅ Handle errors gracefully
+- ✅ Maintain user state and sessions
+
+{2 Continue Learning}
+
+- {{!page-core_concepts}Core Concepts} - Deep dive into architecture
+- {{!Tg.Bot}Bot Module} - Full DSL API reference
+- {{!Tg.Keyboard}Keyboard Module} - All keyboard options
+- {{!Telegram.Api}API Methods} - Complete method reference
+- [examples/] directory - More complete examples
+
+{2 Build Something!}
+
+Try building:
+- A weather bot that fetches forecasts
+- A reminder bot with scheduling
+- A quiz bot with multiple questions
+- A translation bot using an API
+- A file converter bot
+
+{2 Production Checklist}
+
+Before deploying:
+- [ ] Error handling on all API calls
+- [ ] Logging for debugging
+- [ ] Rate limiting to prevent abuse
+- [ ] Input validation and sanitization
+- [ ] Graceful shutdown handling
+- [ ] Webhook instead of polling (if high traffic)
+- [ ] Database for persistent state
+- [ ] Monitoring and health checks
