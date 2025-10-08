@@ -28,7 +28,7 @@ opam install ocaml_telegram_eio
 
 ```ocaml
 let () =
-  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  let token = Sys.getenv "<TELEGRAM_BOT_TOKEN>" in
 
   Eio_main.run @@ fun env ->
   let client = Telegram.Client.create ~env ~token () in
