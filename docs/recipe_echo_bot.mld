@@ -26,10 +26,6 @@ Echo bots are the "Hello World" of Telegram bots. They demonstrate core concepts
 The simplest possible echo bot:
 
 {[
-open Eio.Std
-open Ocaml_telegram_eio
-open Tg.Bot
-
 let () =
   Eio_main.run @@ fun env ->
 
@@ -38,13 +34,13 @@ let () =
 
   let routes = [
     (* Echo all text messages *)
-    on Event.text (fun text ctx ->
-      let* _ = Ctx.reply ctx text in
+    Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
+      let _ = Tg.Bot.Ctx.reply ctx text in
       ()
     );
   ] in
 
-  run_polling ~env ~client routes
+  Tg.Bot.run_polling ~env ~client routes
 ]}
 
 {2 Echo with Command Support}
@@ -54,8 +50,8 @@ Add commands while echoing other messages:
 {[
 let routes = [
   (* Start command *)
-  on (Event.command "start") (fun _args ctx ->
-    let* _ = Ctx.reply ctx
+  Tg.Bot.on (Tg.Bot.Event.command "start") (fun _args ctx ->
+    let _ = Tg.Bot.Ctx.reply ctx
       "👋 I'm an echo bot!\n\
        Send me any message and I'll echo it back."
     in
@@ -63,14 +59,14 @@ let routes = [
   );
 
   (* Stop command *)
-  on (Event.command "stop") (fun _args ctx ->
-    let* _ = Ctx.reply ctx "Goodbye! Use /start to resume." in
+  Tg.Bot.on (Tg.Bot.Event.command "stop") (fun _args ctx ->
+    let _ = Tg.Bot.Ctx.reply ctx "Goodbye! Use /start to resume." in
     ()
   );
 
   (* Echo everything else *)
-  on Event.text (fun text ctx ->
-    let* _ = Ctx.reply ctx text in
+  Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
+    let _ = Tg.Bot.Ctx.reply ctx text in
     ()
   );
 ]
@@ -82,25 +78,23 @@ Show message information along with the echo:
 
 {[
 let echo_with_info =
-  on Event.text (fun text ctx ->
-    match Ctx.message ctx with
-    | Some msg ->
-        let info = Printf.sprintf
-          "📨 Message Info:\n\
-           Length: %d characters\n\
-           Words: %d\n\
-           From: %s\n\n\
-           Echo: %s"
-          (String.length text)
-          (List.length (String.split_on_char ' ' text))
-          (match msg.from with
-           | Some user -> user.first_name
-           | None -> "Unknown")
-          text
-        in
-        let* _ = Ctx.reply ctx info in
-        ()
-    | None -> ()
+  Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
+    let msg = Tg.Bot.Ctx.message ctx in
+    let info = Printf.sprintf
+      "📨 Message Info:\n\
+       Length: %d characters\n\
+       Words: %d\n\
+       From: %s\n\n\
+       Echo: %s"
+      (String.length text)
+      (List.length (String.split_on_char ' ' text))
+      (match msg.from with
+       | Some user -> user.first_name
+       | None -> "Unknown")
+      text
+    in
+    let _ = Tg.Bot.Ctx.reply ctx info in
+    ()
   )
 ]}
 
@@ -135,9 +129,9 @@ module Format_echo = struct
     |> String.concat "\n"
 
   let route =
-    on Event.text (fun text ctx ->
+    Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
       let formatted = format_bold text in
-      let* _ = Ctx.reply ctx formatted ~parse_mode:`HTML in
+      let _ = Tg.Bot.Ctx.reply ctx formatted in
       ()
     )
 end
@@ -163,9 +157,9 @@ module Markdown_echo = struct
     |> String.concat "\n"
 
   let route =
-    on Event.text (fun text ctx ->
+    Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
       let formatted = format_as_code text in
-      let* _ = Ctx.reply ctx formatted ~parse_mode:`MarkdownV2 in
+      let _ = Tg.Bot.Ctx.reply ctx formatted in
       ()
     )
 end
@@ -179,7 +173,7 @@ Let users choose formatting style:
 module Styled_echo = struct
   type style = Plain | Bold | Italic | Code | Quote
 
-  let style_key : style Session.key = Session.make ~name:"echo_style"
+  let style_key : style Tg.Session.key = Tg.Session.make ~name:"echo_style"
 
   let apply_style style text =
     match style with
@@ -190,41 +184,40 @@ module Styled_echo = struct
     | Quote -> Format_echo.format_quote text
 
   let style_command =
-    on (Event.command "style") (fun args ctx ->
+    Tg.Bot.on (Tg.Bot.Event.command "style") (fun args ctx ->
       match args with
       | ["plain"] ->
-          Ctx.session_set ctx style_key Plain;
-          let* _ = Ctx.reply ctx "✓ Style set to plain" in
+          Tg.Bot.Ctx.session_set ctx style_key Plain;
+          let _ = Tg.Bot.Ctx.reply ctx "✓ Style set to plain" in
           ()
       | ["bold"] ->
-          Ctx.session_set ctx style_key Bold;
-          let* _ = Ctx.reply ctx "✓ Style set to <b>bold</b>" ~parse_mode:`HTML in
+          Tg.Bot.Ctx.session_set ctx style_key Bold;
+          let _ = Tg.Bot.Ctx.reply ctx "✓ Style set to <b>bold</b>" in
           ()
       | ["italic"] ->
-          Ctx.session_set ctx style_key Italic;
-          let* _ = Ctx.reply ctx "✓ Style set to <i>italic</i>" ~parse_mode:`HTML in
+          Tg.Bot.Ctx.session_set ctx style_key Italic;
+          let _ = Tg.Bot.Ctx.reply ctx "✓ Style set to <i>italic</i>" in
           ()
       | ["code"] ->
-          Ctx.session_set ctx style_key Code;
-          let* _ = Ctx.reply ctx "✓ Style set to <code>code</code>" ~parse_mode:`HTML in
+          Tg.Bot.Ctx.session_set ctx style_key Code;
+          let _ = Tg.Bot.Ctx.reply ctx "✓ Style set to <code>code</code>" in
           ()
       | ["quote"] ->
-          Ctx.session_set ctx style_key Quote;
-          let* _ = Ctx.reply ctx "✓ Style set to quote" in
+          Tg.Bot.Ctx.session_set ctx style_key Quote;
+          let _ = Tg.Bot.Ctx.reply ctx "✓ Style set to quote" in
           ()
       | _ ->
-          let* _ = Ctx.reply ctx
+          let _ = Tg.Bot.Ctx.reply ctx
             "Usage: /style <plain|bold|italic|code|quote>"
           in
           ()
     )
 
   let echo_with_style =
-    on Event.text (fun text ctx ->
-      let style = Ctx.session_get_or ctx style_key ~default:Plain in
+    Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
+      let style = Tg.Bot.Ctx.session_get_or ctx style_key ~default:Plain in
       let formatted = apply_style style text in
-      let parse_mode = if style = Plain then None else Some `HTML in
-      let* _ = Ctx.reply ctx formatted ?parse_mode in
+      let _ = Tg.Bot.Ctx.reply ctx formatted in
       ()
     )
 end
@@ -240,40 +233,40 @@ Echo only certain types of messages:
 module Filtered_echo = struct
   (* Echo only short messages *)
   let short_messages_only =
-    on Event.text (fun text ctx ->
+    Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
       if String.length text <= 100 then
-        let* _ = Ctx.reply ctx ("Echo: " ^ text) in
+        let _ = Tg.Bot.Ctx.reply ctx ("Echo: " ^ text) in
         ()
       else
-        let* _ = Ctx.reply ctx "Message too long (max 100 chars)" in
+        let _ = Tg.Bot.Ctx.reply ctx "Message too long (max 100 chars)" in
         ()
     )
 
   (* Echo only messages with specific keywords *)
   let keyword_filter keywords =
-    on Event.text (fun text ctx ->
+    Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
       let text_lower = String.lowercase_ascii text in
       let has_keyword = List.exists (fun kw ->
         String.contains text_lower (String.lowercase_ascii kw)
       ) keywords in
 
       if has_keyword then
-        let* _ = Ctx.reply ctx ("📢 " ^ text) in
+        let _ = Tg.Bot.Ctx.reply ctx ("📢 " ^ text) in
         ()
       else
-        let* _ = Ctx.reply ctx "Message doesn't contain required keywords" in
+        let _ = Tg.Bot.Ctx.reply ctx "Message doesn't contain required keywords" in
         ()
     )
 
   (* Echo only valid URLs *)
   let url_echo =
-    on Event.text (fun text ctx ->
+    Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
       let url_pattern = Str.regexp "https?://[^ ]+" in
       if Str.string_match url_pattern text 0 then
-        let* _ = Ctx.reply ctx ("🔗 " ^ text) in
+        let _ = Tg.Bot.Ctx.reply ctx ("🔗 " ^ text) in
         ()
       else
-        let* _ = Ctx.reply ctx "Please send a valid URL" in
+        let _ = Tg.Bot.Ctx.reply ctx "Please send a valid URL" in
         ()
     )
 end
@@ -285,38 +278,28 @@ end
 module User_filtered_echo = struct
   (* Echo only from specific users *)
   let whitelist_users allowed_ids =
-    on Event.text (fun text ctx ->
-      match Ctx.user ctx with
+    Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
+      match Tg.Bot.Ctx.user ctx with
       | Some user ->
           let user_id = Telegram.Id.User.to_int user.id in
           if List.mem user_id allowed_ids then
-            let* _ = Ctx.reply ctx text in
+            let _ = Tg.Bot.Ctx.reply ctx text in
             ()
           else
-            let* _ = Ctx.reply ctx "You're not authorized to use this bot" in
+            let _ = Tg.Bot.Ctx.reply ctx "You're not authorized to use this bot" in
             ()
       | None ->
-          let* _ = Ctx.reply ctx "User info not available" in
+          let _ = Tg.Bot.Ctx.reply ctx "User info not available" in
           ()
     )
 
-  (* Echo with per-user rate limiting *)
-  let rate_limited_echo max_per_minute =
-    let limiter = Rate_limiter.create ~max_per_minute in
-
-    on Event.text (fun text ctx ->
-      match Ctx.user ctx with
-      | Some user ->
-          let user_id = Telegram.Id.User.to_int user.id in
-          begin match Rate_limiter.check_rate_limit limiter user_id with
-          | Ok () ->
-              let* _ = Ctx.reply ctx text in
-              ()
-          | Error _ ->
-              let* _ = Ctx.reply ctx "⏱️ Too many messages, please slow down" in
-              ()
-          end
-      | None -> ()
+  (* Echo with per-user rate limiting - Note: Rate_limiter module doesn't exist in library *)
+  (* This is a placeholder example *)
+  let rate_limited_echo () =
+    Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
+      (* Rate limiting would need custom implementation *)
+      let _ = Tg.Bot.Ctx.reply ctx text in
+      ()
     )
 end
 ]}
@@ -325,30 +308,14 @@ end
 
 {[
 module Chat_filtered_echo = struct
-  (* Echo only in private chats *)
-  let private_only =
-    on Event.text (fun text ctx ->
-      match Ctx.chat ctx with
-      | Some chat when chat.type_ = "private" ->
-          let* _ = Ctx.reply ctx text in
-          ()
-      | Some _ ->
-          let* _ = Ctx.reply ctx "This bot only works in private chats" in
-          ()
-      | None -> ()
-    )
+  (* Note: Ctx.chat returns a chat ID, not a chat object with type field *)
+  (* This example needs to be adapted to the actual API *)
 
-  (* Echo only in groups *)
-  let groups_only =
-    on Event.text (fun text ctx ->
-      match Ctx.chat ctx with
-      | Some chat when chat.type_ = "group" || chat.type_ = "supergroup" ->
-          let* _ = Ctx.reply ctx text in
-          ()
-      | Some _ ->
-          let* _ = Ctx.reply ctx "This bot only works in groups" in
-          ()
-      | None -> ()
+  (* Echo handler - chat type filtering would need custom implementation *)
+  let echo_route =
+    Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
+      let _ = Tg.Bot.Ctx.reply ctx text in
+      ()
     )
 end
 ]}
@@ -440,51 +407,51 @@ module Transform_echo = struct
     | Character_frequency -> character_frequency text
 
   (* Command to set transformation *)
-  let transform_key : transform Session.key = Session.make ~name:"transform"
+  let transform_key : transform Tg.Session.key = Tg.Session.make ~name:"transform"
 
   let set_transform =
-    on (Event.command "transform") (fun args ctx ->
+    Tg.Bot.on (Tg.Bot.Event.command "transform") (fun args ctx ->
       match args with
       | ["upper"] ->
-          Ctx.session_set ctx transform_key Uppercase;
-          let* _ = Ctx.reply ctx "✓ Transformation: UPPERCASE" in
+          Tg.Bot.Ctx.session_set ctx transform_key Uppercase;
+          let _ = Tg.Bot.Ctx.reply ctx "✓ Transformation: UPPERCASE" in
           ()
       | ["lower"] ->
-          Ctx.session_set ctx transform_key Lowercase;
-          let* _ = Ctx.reply ctx "✓ Transformation: lowercase" in
+          Tg.Bot.Ctx.session_set ctx transform_key Lowercase;
+          let _ = Tg.Bot.Ctx.reply ctx "✓ Transformation: lowercase" in
           ()
       | ["reverse"] ->
-          Ctx.session_set ctx transform_key Reverse;
-          let* _ = Ctx.reply ctx "✓ Transformation: esrever" in
+          Tg.Bot.Ctx.session_set ctx transform_key Reverse;
+          let _ = Tg.Bot.Ctx.reply ctx "✓ Transformation: esrever" in
           ()
       | ["l33t"] ->
-          Ctx.session_set ctx transform_key L33t;
-          let* _ = Ctx.reply ctx "✓ 7r4n5f0rm4710n: 1337" in
+          Tg.Bot.Ctx.session_set ctx transform_key L33t;
+          let _ = Tg.Bot.Ctx.reply ctx "✓ 7r4n5f0rm4710n: 1337" in
           ()
       | ["novowels"] ->
-          Ctx.session_set ctx transform_key Remove_vowels;
-          let* _ = Ctx.reply ctx "✓ Trnsfrmtn: rmv vwls" in
+          Tg.Bot.Ctx.session_set ctx transform_key Remove_vowels;
+          let _ = Tg.Bot.Ctx.reply ctx "✓ Trnsfrmtn: rmv vwls" in
           ()
       | ["count"] ->
-          Ctx.session_set ctx transform_key Word_count;
-          let* _ = Ctx.reply ctx "✓ Transformation: word count" in
+          Tg.Bot.Ctx.session_set ctx transform_key Word_count;
+          let _ = Tg.Bot.Ctx.reply ctx "✓ Transformation: word count" in
           ()
       | ["freq"] ->
-          Ctx.session_set ctx transform_key Character_frequency;
-          let* _ = Ctx.reply ctx "✓ Transformation: character frequency" in
+          Tg.Bot.Ctx.session_set ctx transform_key Character_frequency;
+          let _ = Tg.Bot.Ctx.reply ctx "✓ Transformation: character frequency" in
           ()
       | _ ->
-          let* _ = Ctx.reply ctx
+          let _ = Tg.Bot.Ctx.reply ctx
             "Usage: /transform <upper|lower|reverse|l33t|novowels|count|freq>"
           in
           ()
     )
 
   let echo_with_transform =
-    on Event.text (fun text ctx ->
-      let transform = Ctx.session_get_or ctx transform_key ~default:Uppercase in
+    Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
+      let transform = Tg.Bot.Ctx.session_get_or ctx transform_key ~default:Uppercase in
       let result = apply transform text in
-      let* _ = Ctx.reply ctx result in
+      let _ = Tg.Bot.Ctx.reply ctx result in
       ()
     )
 end
@@ -499,31 +466,31 @@ module Pipeline_echo = struct
       Transform_echo.apply t acc
     ) text transforms
 
-  let pipeline_key : Transform_echo.transform list Session.key =
-    Session.make ~name:"pipeline"
+  let pipeline_key : Transform_echo.transform list Tg.Session.key =
+    Tg.Session.make ~name:"pipeline"
 
   let add_to_pipeline =
-    on (Event.command "add") (fun args ctx ->
+    Tg.Bot.on (Tg.Bot.Event.command "add") (fun args ctx ->
       (* Parse transform from args and add to pipeline *)
-      let current = Ctx.session_get_or ctx pipeline_key ~default:[] in
+      let current = Tg.Bot.Ctx.session_get_or ctx pipeline_key ~default:[] in
       (* Add new transform to current *)
-      Ctx.session_set ctx pipeline_key (current @ [Transform_echo.Uppercase]);
-      let* _ = Ctx.reply ctx "Added to pipeline" in
+      Tg.Bot.Ctx.session_set ctx pipeline_key (current @ [Transform_echo.Uppercase]);
+      let _ = Tg.Bot.Ctx.reply ctx "Added to pipeline" in
       ()
     )
 
   let clear_pipeline =
-    on (Event.command "clear") (fun _args ctx ->
-      Ctx.session_set ctx pipeline_key [];
-      let* _ = Ctx.reply ctx "Pipeline cleared" in
+    Tg.Bot.on (Tg.Bot.Event.command "clear") (fun _args ctx ->
+      Tg.Bot.Ctx.session_set ctx pipeline_key [];
+      let _ = Tg.Bot.Ctx.reply ctx "Pipeline cleared" in
       ()
     )
 
   let echo_pipeline =
-    on Event.text (fun text ctx ->
-      let transforms = Ctx.session_get_or ctx pipeline_key ~default:[] in
+    Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
+      let transforms = Tg.Bot.Ctx.session_get_or ctx pipeline_key ~default:[] in
       let result = pipeline transforms text in
-      let* _ = Ctx.reply ctx result in
+      let _ = Tg.Bot.Ctx.reply ctx result in
       ()
     )
 end
@@ -561,9 +528,9 @@ module Smart_echo = struct
       "📝 " ^ text
 
   let route =
-    on Event.text (fun text ctx ->
+    Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
       let response = get_response text in
-      let* _ = Ctx.reply ctx response in
+      let _ = Tg.Bot.Ctx.reply ctx response in
       ()
     )
 end
@@ -588,13 +555,13 @@ module Sentiment_echo = struct
     | false, false -> "😶 Neutral"
 
   let route =
-    on Event.text (fun text ctx ->
+    Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
       let sentiment = analyze_sentiment text in
       let response = Printf.sprintf
         "%s\n\nSentiment: %s\n\nEcho: %s"
         sentiment sentiment text
       in
-      let* _ = Ctx.reply ctx response in
+      let _ = Tg.Bot.Ctx.reply ctx response in
       ()
     )
 end
@@ -605,10 +572,6 @@ end
 {2 Feature-Rich Echo Bot}
 
 {[
-open Eio.Std
-open Ocaml_telegram_eio
-open Tg.Bot
-
 let () =
   Eio_main.run @@ fun env ->
 
@@ -616,18 +579,18 @@ let () =
   let client = Telegram.Client.create ~env ~token () in
 
   (* Session store *)
-  module Store = Session.Memory_store
+  module Store = Tg.Session.Memory_store
   let store = Store.create () in
-  let session_mw = Middleware.with_session (module Store) store in
+  let session_mw = Tg.Bot.Middleware.with_session (module Store) store in
 
   (* Routes *)
-  let routes = router
+  let routes = Tg.Bot.router
     ~middlewares:[session_mw]
-    ~on_error:ErrorHandler.(log_and_reply ())
+    ~on_error:Tg.Bot.ErrorHandler.(log_and_reply ())
     [
       (* Commands *)
-      on (Event.command "start") (fun _args ctx ->
-        let* _ = Ctx.reply ctx
+      Tg.Bot.on (Tg.Bot.Event.command "start") (fun _args ctx ->
+        let _ = Tg.Bot.Ctx.reply ctx
           "👋 Welcome to Echo Bot Plus!\n\n\
            Features:\n\
            • /style - Set echo style\n\
@@ -639,8 +602,8 @@ let () =
         ()
       );
 
-      on (Event.command "help") (fun _args ctx ->
-        let* _ = Ctx.reply ctx
+      Tg.Bot.on (Tg.Bot.Event.command "help") (fun _args ctx ->
+        let _ = Tg.Bot.Ctx.reply ctx
           "Echo Bot Commands:\n\n\
            /style <plain|bold|italic|code|quote>\n\
            /transform <upper|lower|reverse|l33t>\n\
@@ -658,33 +621,33 @@ let () =
       Transform_echo.set_transform;
 
       (* Stats tracking *)
-      on (Event.command "stats") (fun _args ctx ->
-        let count_key : int Session.key = Session.make ~name:"echo_count" in
-        let count = Ctx.session_get_or ctx count_key ~default:0 in
+      Tg.Bot.on (Tg.Bot.Event.command "stats") (fun _args ctx ->
+        let count_key : int Tg.Session.key = Tg.Session.make ~name:"echo_count" in
+        let count = Tg.Bot.Ctx.session_get_or ctx count_key ~default:0 in
 
-        let* _ = Ctx.reply ctx
+        let _ = Tg.Bot.Ctx.reply ctx
           (Printf.sprintf "📊 Your Stats:\nMessages echoed: %d" count)
         in
         ()
       );
 
       (* Reset settings *)
-      on (Event.command "reset") (fun _args ctx ->
-        Ctx.session_clear ctx;
-        let* _ = Ctx.reply ctx "✓ Settings reset to defaults" in
+      Tg.Bot.on (Tg.Bot.Event.command "reset") (fun _args ctx ->
+        Tg.Bot.Ctx.session_clear ctx;
+        let _ = Tg.Bot.Ctx.reply ctx "✓ Settings reset to defaults" in
         ()
       );
 
       (* Echo with all features *)
-      on Event.text (fun text ctx ->
+      Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
         (* Track message count *)
-        let count_key : int Session.key = Session.make ~name:"echo_count" in
-        Ctx.session_modify ctx count_key ~default:0 (fun n -> n + 1);
+        let count_key : int Tg.Session.key = Tg.Session.make ~name:"echo_count" in
+        Tg.Bot.Ctx.session_modify ctx count_key ~default:0 (fun n -> n + 1);
 
         (* Get user preferences *)
-        let style = Ctx.session_get_or ctx Styled_echo.style_key
+        let style = Tg.Bot.Ctx.session_get_or ctx Styled_echo.style_key
           ~default:Styled_echo.Plain in
-        let transform = Ctx.session_get_or ctx Transform_echo.transform_key
+        let transform = Tg.Bot.Ctx.session_get_or ctx Transform_echo.transform_key
           ~default:Transform_echo.Uppercase in
 
         (* Apply transformation *)
@@ -694,8 +657,7 @@ let () =
         let formatted = Styled_echo.apply_style style transformed in
 
         (* Send response *)
-        let parse_mode = if style = Styled_echo.Plain then None else Some `HTML in
-        let* _ = Ctx.reply ctx formatted ?parse_mode in
+        let _ = Tg.Bot.Ctx.reply ctx formatted in
         ()
       );
     ]
@@ -704,7 +666,7 @@ let () =
   (* Start bot *)
   Printf.printf "🤖 Echo Bot Plus started\n";
   flush stdout;
-  run_polling ~env ~client routes
+  Tg.Bot.run_polling ~env ~client routes
 ]}
 
 {1 Best Practices}
@@ -748,23 +710,23 @@ let () =
 {[
 type echo_state = Disabled | Enabled | Paused
 
-let state_key : echo_state Session.key = Session.make ~name:"echo_state"
+let state_key : echo_state Tg.Session.key = Tg.Session.make ~name:"echo_state"
 
 let toggle_echo =
-  on (Event.command "toggle") (fun _args ctx ->
-    let current = Ctx.session_get_or ctx state_key ~default:Enabled in
+  Tg.Bot.on (Tg.Bot.Event.command "toggle") (fun _args ctx ->
+    let current = Tg.Bot.Ctx.session_get_or ctx state_key ~default:Enabled in
     let new_state = match current with
       | Enabled -> Disabled
       | Disabled -> Enabled
       | Paused -> Enabled
     in
-    Ctx.session_set ctx state_key new_state;
+    Tg.Bot.Ctx.session_set ctx state_key new_state;
     let msg = match new_state with
       | Enabled -> "✓ Echo enabled"
       | Disabled -> "✗ Echo disabled"
       | Paused -> "⏸ Echo paused"
     in
-    let* _ = Ctx.reply ctx msg in
+    let _ = Tg.Bot.Ctx.reply ctx msg in
     ()
   )
 ]}
@@ -772,23 +734,31 @@ let toggle_echo =
 {2 Echo History}
 
 {[
-let history_key : string list Session.key = Session.make ~name:"history"
+let history_key : string list Tg.Session.key = Tg.Session.make ~name:"history"
+
+let take n lst =
+  let rec aux acc n lst =
+    match n, lst with
+    | 0, _ | _, [] -> List.rev acc
+    | n, x :: xs -> aux (x :: acc) (n - 1) xs
+  in
+  aux [] n lst
 
 let echo_with_history =
-  on Event.text (fun text ctx ->
+  Tg.Bot.on Tg.Bot.Event.text (fun text ctx ->
     (* Add to history *)
-    let history = Ctx.session_get_or ctx history_key ~default:[] in
-    let new_history = text :: (List.take 10 history) in  (* Keep last 10 *)
-    Ctx.session_set ctx history_key new_history;
+    let history = Tg.Bot.Ctx.session_get_or ctx history_key ~default:[] in
+    let new_history = text :: (take 10 history) in  (* Keep last 10 *)
+    Tg.Bot.Ctx.session_set ctx history_key new_history;
 
     (* Echo *)
-    let* _ = Ctx.reply ctx text in
+    let _ = Tg.Bot.Ctx.reply ctx text in
     ()
   )
 
 let show_history =
-  on (Event.command "history") (fun _args ctx ->
-    let history = Ctx.session_get_or ctx history_key ~default:[] in
+  Tg.Bot.on (Tg.Bot.Event.command "history") (fun _args ctx ->
+    let history = Tg.Bot.Ctx.session_get_or ctx history_key ~default:[] in
     let text = if history = [] then
       "No message history"
     else
@@ -796,7 +766,7 @@ let show_history =
         Printf.sprintf "%d. %s" (i + 1) msg
       ) history)
     in
-    let* _ = Ctx.reply ctx text in
+    let _ = Tg.Bot.Ctx.reply ctx text in
     ()
   )
 ]}

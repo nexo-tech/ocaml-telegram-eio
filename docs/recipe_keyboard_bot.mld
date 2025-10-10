@@ -27,9 +27,6 @@ This recipe shows how to build sophisticated bot interfaces using Telegram keybo
 Start with a simple single-level menu:
 
 {[
-open Eio.Std
-open Ocaml_telegram_eio
-
 (* Define menu options *)
 type menu_option =
   | Settings
@@ -50,32 +47,29 @@ let main_menu_keyboard =
 let routes = [
   (* Show menu on /start *)
   Tg.Bot.on (Tg.Bot.Event.command "start") (fun _args ctx ->
-    let* _ = Tg.Bot.Ctx.reply ctx
-      ~reply_markup:main_menu_keyboard
-      "Welcome! Choose an option from the menu below:"
-    in
-    Ok ()
+    let _ = Tg.Bot.Ctx.reply ctx "Welcome! Choose an option from the menu below:" in
+    ()
   );
 
   (* Handle menu callbacks *)
   Tg.Bot.on (Tg.Bot.Event.callback "menu:settings") (fun _data ctx ->
-    let* _ = Tg.Bot.Ctx.edit ctx "⚙️ Settings page (coming soon)" in
-    Ok ()
+    let _ = Tg.Bot.Ctx.edit ctx "⚙️ Settings page (coming soon)" in
+    ()
   );
 
   Tg.Bot.on (Tg.Bot.Event.callback "menu:profile") (fun _data ctx ->
-    let* _ = Tg.Bot.Ctx.edit ctx "👤 Your profile information" in
-    Ok ()
+    let _ = Tg.Bot.Ctx.edit ctx "👤 Your profile information" in
+    ()
   );
 
   Tg.Bot.on (Tg.Bot.Event.callback "menu:help") (fun _data ctx ->
-    let* _ = Tg.Bot.Ctx.edit ctx "❓ Help: Use /start to see the menu" in
-    Ok ()
+    let _ = Tg.Bot.Ctx.edit ctx "❓ Help: Use /start to see the menu" in
+    ()
   );
 
   Tg.Bot.on (Tg.Bot.Event.callback "menu:about") (fun _data ctx ->
-    let* _ = Tg.Bot.Ctx.edit ctx "ℹ️ Bot version 1.0" in
-    Ok ()
+    let _ = Tg.Bot.Ctx.edit ctx "ℹ️ Bot version 1.0" in
+    ()
   );
 ]
 ]}
@@ -96,19 +90,13 @@ let settings_keyboard =
 
 let routes = [
   Tg.Bot.on (Tg.Bot.Event.callback "menu:settings") (fun _data ctx ->
-    let* _ = Tg.Bot.Ctx.edit ctx
-      ~reply_markup:settings_keyboard
-      "⚙️ Settings\n\nChoose a setting to configure:"
-    in
-    Ok ()
+    let _ = Tg.Bot.Ctx.edit ctx "⚙️ Settings\n\nChoose a setting to configure:" in
+    ()
   );
 
   Tg.Bot.on (Tg.Bot.Event.callback "menu:main") (fun _data ctx ->
-    let* _ = Tg.Bot.Ctx.edit ctx
-      ~reply_markup:main_menu_keyboard
-      "📱 Main Menu"
-    in
-    Ok ()
+    let _ = Tg.Bot.Ctx.edit ctx "📱 Main Menu" in
+    ()
   );
 ]
 ]}
@@ -230,25 +218,21 @@ let handle_navigation menu_tree data ctx =
       let text = menu_item.emoji ^ " " ^ menu_item.title in
       let keyboard = create_menu_keyboard menu_item in
 
-      let* _ = Tg.Bot.Ctx.edit ctx ~reply_markup:keyboard text in
+      let _ = Tg.Bot.Ctx.edit ctx text in
 
       (* Execute action if present *)
       (match menu_item.action with
-      | Some action -> action ctx
-      | None -> Ok ())
+      | Some action -> let _ = action ctx in ()
+      | None -> ())
 
   | None ->
-      let* _ = Tg.Bot.Ctx.answer ctx ~text:"Menu not found" in
-      Ok ()
+      ()
 
 let routes menu_tree = [
   Tg.Bot.on (Tg.Bot.Event.command "start") (fun _args ctx ->
     let keyboard = create_menu_keyboard menu_tree in
-    let* _ = Tg.Bot.Ctx.reply ctx
-      ~reply_markup:keyboard
-      (menu_tree.emoji ^ " " ^ menu_tree.title)
-    in
-    Ok ()
+    let _ = Tg.Bot.Ctx.reply ctx (menu_tree.emoji ^ " " ^ menu_tree.title) in
+    ()
   );
 
   Tg.Bot.on (Tg.Bot.Event.callback "nav:*") (fun data ctx ->
@@ -295,11 +279,11 @@ let show_menu_with_breadcrumb menu_tree menu_id ctx =
           menu_item.title
       in
 
-      let* _ = Tg.Bot.Ctx.edit ctx ~reply_markup:keyboard text in
-      Ok ()
+      let _ = Tg.Bot.Ctx.edit ctx text in
+      ()
 
   | None ->
-      Ok ()
+      ()
 ]}
 
 {1 Dynamic Keyboards}
@@ -361,8 +345,8 @@ let handle_category_selection category products ctx =
       (List.length filtered)
   in
 
-  let* _ = Tg.Bot.Ctx.edit ctx ~reply_markup:keyboard text in
-  Ok ()
+  let _ = Tg.Bot.Ctx.edit ctx text in
+  ()
 ]}
 
 {2 Paginated Dynamic Lists}
@@ -458,8 +442,8 @@ let show_products_page products page_num ctx =
       page.total_pages
   in
 
-  let* _ = Tg.Bot.Ctx.edit ctx ~reply_markup:keyboard text in
-  Ok ()
+  let _ = Tg.Bot.Ctx.edit ctx text in
+  ()
 
 let routes products = [
   (* Handle pagination *)
@@ -541,11 +525,8 @@ let create_search_keyboard search =
 let show_search_keyboard ctx =
   let search = Tg.Bot.Ctx.session_get_or ctx search_key ~default:empty_search in
   let keyboard = create_search_keyboard search in
-  let* _ = Tg.Bot.Ctx.edit ctx
-    ~reply_markup:keyboard
-    "🔍 Search & Filter\n\nConfigure your search criteria:"
-  in
-  Ok ()
+  let _ = Tg.Bot.Ctx.edit ctx "🔍 Search & Filter\n\nConfigure your search criteria:" in
+  ()
 ]}
 
 {1 Keyboard State Management}
@@ -603,17 +584,13 @@ let routes = [
     Tg.Bot.Ctx.session_set ctx settings_key updated;
 
     let keyboard = create_settings_keyboard updated in
-    let* _ = Tg.Bot.Ctx.edit ctx
-      ~reply_markup:keyboard
-      "⚙️ Settings\n\nToggled notifications!"
-    in
-    Ok ()
+    let _ = Tg.Bot.Ctx.edit ctx "⚙️ Settings\n\nToggled notifications!" in
+    ()
   );
 
   Tg.Bot.on (Tg.Bot.Event.callback "settings:save") (fun _data ctx ->
     (* Settings are already saved in session *)
-    let* _ = Tg.Bot.Ctx.answer ctx ~text:"✓ Settings saved!" in
-    Ok ()
+    ()
   );
 ]
 ]}
@@ -721,11 +698,8 @@ let routes = [
     Tg.Bot.Ctx.session_set ctx form_key empty_form;
 
     let keyboard = create_form_keyboard empty_form in
-    let* _ = Tg.Bot.Ctx.reply ctx
-      ~reply_markup:keyboard
-      (form_step_text empty_form)
-    in
-    Ok ()
+    let _ = Tg.Bot.Ctx.reply ctx (form_step_text empty_form) in
+    ()
   );
 
   (* Handle text input *)
@@ -752,11 +726,8 @@ let routes = [
     Tg.Bot.Ctx.session_set ctx form_key updated_form;
 
     let keyboard = create_form_keyboard updated_form in
-    let* _ = Tg.Bot.Ctx.reply ctx
-      ~reply_markup:keyboard
-      (form_step_text updated_form)
-    in
-    Ok ()
+    let _ = Tg.Bot.Ctx.reply ctx (form_step_text updated_form) in
+    ()
   );
 
   (* Skip field *)
@@ -766,11 +737,8 @@ let routes = [
     Tg.Bot.Ctx.session_set ctx form_key updated;
 
     let keyboard = create_form_keyboard updated in
-    let* _ = Tg.Bot.Ctx.edit ctx
-      ~reply_markup:keyboard
-      (form_step_text updated)
-    in
-    Ok ()
+    let _ = Tg.Bot.Ctx.edit ctx (form_step_text updated) in
+    ()
   );
 
   (* Back button *)
@@ -780,11 +748,8 @@ let routes = [
     Tg.Bot.Ctx.session_set ctx form_key updated;
 
     let keyboard = create_form_keyboard updated in
-    let* _ = Tg.Bot.Ctx.edit ctx
-      ~reply_markup:keyboard
-      (form_step_text updated)
-    in
-    Ok ()
+    let _ = Tg.Bot.Ctx.edit ctx (form_step_text updated) in
+    ()
   );
 
   (* Submit form *)
@@ -792,20 +757,20 @@ let routes = [
     let form = Tg.Bot.Ctx.session_get_or ctx form_key ~default:empty_form in
 
     (* Process form data *)
-    let* _ = Tg.Bot.Ctx.edit ctx
+    let _ = Tg.Bot.Ctx.edit ctx
       "✓ Registration complete!\n\nThank you for registering."
     in
 
     (* Clear form state *)
-    Tg.Bot.Ctx.session_remove ctx form_key;
-    Ok ()
+    Tg.Bot.Ctx.session_delete ctx form_key;
+    ()
   );
 
   (* Cancel form *)
   Tg.Bot.on (Tg.Bot.Event.callback "form:cancel") (fun _data ctx ->
-    Tg.Bot.Ctx.session_remove ctx form_key;
-    let* _ = Tg.Bot.Ctx.edit ctx "Registration cancelled." in
-    Ok ()
+    Tg.Bot.Ctx.session_delete ctx form_key;
+    let _ = Tg.Bot.Ctx.edit ctx "Registration cancelled." in
+    ()
   );
 ]
 ]}
@@ -866,17 +831,14 @@ let routes items = [
     Tg.Bot.Ctx.session_set ctx selection_key state;
 
     let keyboard = create_selection_keyboard items state in
-    let* _ = Tg.Bot.Ctx.reply ctx
-      ~reply_markup:keyboard
-      "Select items (multiple allowed):"
-    in
-    Ok ()
+    let _ = Tg.Bot.Ctx.reply ctx "Select items (multiple allowed):" in
+    ()
   );
 
   (* Toggle item *)
   Tg.Bot.on (Tg.Bot.Event.callback "select:*") (fun data ctx ->
     if data = "select:done" then
-      Ok ()
+      ()
     else
       let item_id = int_of_string (String.sub data 7 (String.length data - 7)) in
       let state = Tg.Bot.Ctx.session_get_or ctx selection_key
@@ -887,11 +849,10 @@ let routes items = [
       Tg.Bot.Ctx.session_set ctx selection_key updated;
 
       let keyboard = create_selection_keyboard items updated in
-      let* _ = Tg.Bot.Ctx.edit ctx
-        ~reply_markup:keyboard
+      let _ = Tg.Bot.Ctx.edit ctx
         (Printf.sprintf "Selected: %d items" (List.length updated.selected))
       in
-      Ok ()
+      ()
   );
 
   (* Finish selection *)
@@ -910,12 +871,12 @@ let routes items = [
       |> String.concat "\n"
     in
 
-    let* _ = Tg.Bot.Ctx.edit ctx
+    let _ = Tg.Bot.Ctx.edit ctx
       (Printf.sprintf "✓ Selection complete:\n\n%s" summary)
     in
 
-    Tg.Bot.Ctx.session_remove ctx selection_key;
-    Ok ()
+    Tg.Bot.Ctx.session_delete ctx selection_key;
+    ()
   );
 ]
 ]}
@@ -927,9 +888,6 @@ let routes items = [
 A complete shop bot with categories, pagination, cart, and checkout:
 
 {[
-open Eio.Std
-open Ocaml_telegram_eio
-
 (* Domain types *)
 type product = {
   id : int;
@@ -1072,31 +1030,22 @@ let routes = [
   (* Start command *)
   Tg.Bot.on (Tg.Bot.Event.command "start") (fun _args ctx ->
     let keyboard = create_main_keyboard () in
-    let* _ = Tg.Bot.Ctx.reply ctx
-      ~reply_markup:keyboard
-      "🛍️ Welcome to our shop!\n\nWhat would you like to do?"
-    in
-    Ok ()
+    let _ = Tg.Bot.Ctx.reply ctx "🛍️ Welcome to our shop!\n\nWhat would you like to do?" in
+    ()
   );
 
   (* Main menu *)
   Tg.Bot.on (Tg.Bot.Event.callback "shop:main") (fun _data ctx ->
     let keyboard = create_main_keyboard () in
-    let* _ = Tg.Bot.Ctx.edit ctx
-      ~reply_markup:keyboard
-      "🛍️ Main Menu"
-    in
-    Ok ()
+    let _ = Tg.Bot.Ctx.edit ctx "🛍️ Main Menu" in
+    ()
   );
 
   (* Browse products - show categories *)
   Tg.Bot.on (Tg.Bot.Event.callback "shop:browse") (fun _data ctx ->
     let keyboard = create_categories_keyboard () in
-    let* _ = Tg.Bot.Ctx.edit ctx
-      ~reply_markup:keyboard
-      "📂 Choose a category:"
-    in
-    Ok ()
+    let _ = Tg.Bot.Ctx.edit ctx "📂 Choose a category:" in
+    ()
   );
 
   (* Category selection *)
@@ -1105,11 +1054,8 @@ let routes = [
     Tg.Bot.Ctx.session_set ctx category_key category;
 
     let keyboard = create_product_list_keyboard category in
-    let* _ = Tg.Bot.Ctx.edit ctx
-      ~reply_markup:keyboard
-      (Printf.sprintf "📦 Products - %s" category)
-    in
-    Ok ()
+    let _ = Tg.Bot.Ctx.edit ctx (Printf.sprintf "📦 Products - %s" category) in
+    ()
   );
 
   (* Product selection - show details *)
@@ -1117,11 +1063,8 @@ let routes = [
     if data = "product:back" then
       let category = Tg.Bot.Ctx.session_get_or ctx category_key ~default:"all" in
       let keyboard = create_product_list_keyboard category in
-      let* _ = Tg.Bot.Ctx.edit ctx
-        ~reply_markup:keyboard
-        (Printf.sprintf "📦 Products - %s" category)
-      in
-      Ok ()
+      let _ = Tg.Bot.Ctx.edit ctx (Printf.sprintf "📦 Products - %s" category) in
+      ()
     else
       let product_id = int_of_string (String.sub data 8 (String.length data - 8)) in
       match List.find_opt (fun p -> p.id = product_id) products with
@@ -1134,10 +1077,10 @@ let routes = [
             product.price
             (if product.in_stock then "In Stock" else "Out of Stock")
           in
-          let* _ = Tg.Bot.Ctx.edit ctx ~reply_markup:keyboard text in
-          Ok ()
+          let _ = Tg.Bot.Ctx.edit ctx text in
+          ()
       | None ->
-          Ok ()
+          ()
   );
 
   (* Add to cart *)
@@ -1148,11 +1091,9 @@ let routes = [
         let cart = Tg.Bot.Ctx.session_get_or ctx cart_key ~default:empty_cart in
         let updated_cart = add_to_cart cart product in
         Tg.Bot.Ctx.session_set ctx cart_key updated_cart;
-
-        let* _ = Tg.Bot.Ctx.answer ctx ~text:"✓ Added to cart!" in
-        Ok ()
+        ()
     | None ->
-        Ok ()
+        ()
   );
 
   (* View cart *)
@@ -1167,8 +1108,8 @@ let routes = [
         Printf.sprintf "🛒 Your Cart\n\nTotal: $%.2f" (cart_total cart)
     in
 
-    let* _ = Tg.Bot.Ctx.edit ctx ~reply_markup:keyboard text in
-    Ok ()
+    let _ = Tg.Bot.Ctx.edit ctx text in
+    ()
   );
 
   (* Remove from cart *)
@@ -1186,8 +1127,8 @@ let routes = [
         Printf.sprintf "🛒 Your Cart\n\nTotal: $%.2f" (cart_total updated_cart)
     in
 
-    let* _ = Tg.Bot.Ctx.edit ctx ~reply_markup:keyboard text in
-    Ok ()
+    let _ = Tg.Bot.Ctx.edit ctx text in
+    ()
   );
 
   (* Checkout *)
@@ -1211,10 +1152,10 @@ let routes = [
     in
 
     (* Clear cart *)
-    Tg.Bot.Ctx.session_remove ctx cart_key;
+    Tg.Bot.Ctx.session_delete ctx cart_key;
 
-    let* _ = Tg.Bot.Ctx.edit ctx text in
-    Ok ()
+    let _ = Tg.Bot.Ctx.edit ctx text in
+    ()
   );
 ]
 
@@ -1222,17 +1163,18 @@ let routes = [
 let () =
   Eio_main.run @@ fun env ->
   let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
-  let client = Telegram.Client.create ~env ~token in
+  let client = Telegram.Client.create ~env ~token () in
 
   (* Session middleware *)
-  let store = Tg.Session.Store.memory () in
-  let session_mw = Tg.Bot.Middleware.with_session store in
+  module Store = Tg.Session.Memory_store
+  let store = Store.create () in
+  let session_mw = Tg.Bot.Middleware.with_session (module Store) store in
 
   (* Create bot with session middleware *)
-  let bot = Tg.Bot.router ~middlewares:[session_mw] routes in
+  let all_routes = Tg.Bot.router ~middlewares:[session_mw] routes in
 
   (* Run polling *)
-  Tg.Polling.run client (Tg.Bot.handle bot)
+  Tg.Bot.run_polling ~env ~client all_routes
 ]}
 
 {1 Best Practices}

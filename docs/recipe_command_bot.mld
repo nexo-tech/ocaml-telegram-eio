@@ -29,10 +29,6 @@ A versatile bot with:
 Start with a basic multi-command bot:
 
 {[
-open Eio.Std
-open Ocaml_telegram_eio
-open Tg.Bot
-
 let () =
   Eio_main.run @@ fun env ->
 
@@ -42,8 +38,8 @@ let () =
   (* Define commands *)
   let routes = [
     (* Start command *)
-    on (Event.command "start") (fun _args ctx ->
-      let* _ = Ctx.reply ctx
+    Tg.Bot.on (Tg.Bot.Event.command "start") (fun _args ctx ->
+      let _ = Tg.Bot.Ctx.reply ctx
         "👋 Welcome! I'm a command bot.\n\
          Use /help to see available commands."
       in
@@ -51,7 +47,7 @@ let () =
     );
 
     (* Help command *)
-    on (Event.command "help") (fun _args ctx ->
+    Tg.Bot.on (Tg.Bot.Event.command "help") (fun _args ctx ->
       let help_text =
         "Available commands:\n\n\
          /start - Get started\n\
@@ -60,23 +56,23 @@ let () =
          /time - Show current time\n\
          /calc <expr> - Calculate expression"
       in
-      let* _ = Ctx.reply ctx help_text in
+      let _ = Tg.Bot.Ctx.reply ctx help_text in
       ()
     );
 
     (* Echo command *)
-    on (Event.command "echo") (fun args ctx ->
-      let text = Args.join_rest args 0 in
+    Tg.Bot.on (Tg.Bot.Event.command "echo") (fun args ctx ->
+      let text = Tg.Bot.Args.join_rest args 0 in
       if text = "" then
-        let* _ = Ctx.reply ctx "Usage: /echo <text>" in
+        let _ = Tg.Bot.Ctx.reply ctx "Usage: /echo <text>" in
         ()
       else
-        let* _ = Ctx.reply ctx text in
+        let _ = Tg.Bot.Ctx.reply ctx text in
         ()
     );
 
     (* Time command *)
-    on (Event.command "time") (fun _args ctx ->
+    Tg.Bot.on (Tg.Bot.Event.command "time") (fun _args ctx ->
       let now = Unix.time () |> Unix.gmtime in
       let time_str = Printf.sprintf "%04d-%02d-%02d %02d:%02d:%02d UTC"
         (now.Unix.tm_year + 1900)
@@ -86,13 +82,13 @@ let () =
         now.Unix.tm_min
         now.Unix.tm_sec
       in
-      let* _ = Ctx.reply ctx ("⏰ " ^ time_str) in
+      let _ = Tg.Bot.Ctx.reply ctx ("⏰ " ^ time_str) in
       ()
     );
   ] in
 
   (* Run bot *)
-  run_polling ~env ~client routes
+  Tg.Bot.run_polling ~env ~client routes
 ]}
 
 {1 Automatic Help System}
@@ -203,10 +199,12 @@ let () =
 Generate help text automatically:
 
 {[
+let is_admin_user _user_id = false (* placeholder *)
+
 let help_route =
-  on (Event.command "help") (fun args ctx ->
+  Tg.Bot.on (Tg.Bot.Event.command "help") (fun args ctx ->
     (* Check if user is admin *)
-    let is_admin = match Ctx.user ctx with
+    let is_admin = match Tg.Bot.Ctx.user ctx with
       | Some user -> is_admin_user (Telegram.Id.User.to_int user.id)
       | None -> false
     in
@@ -215,22 +213,22 @@ let help_route =
     | [] ->
         (* Show all commands *)
         let help_text = Help_system.format_help_text ~is_admin () in
-        let* _ = Ctx.reply ctx help_text in
+        let _ = Tg.Bot.Ctx.reply ctx help_text in
         ()
 
     | [cmd_name] ->
         (* Show specific command help *)
         begin match Help_system.find_command cmd_name with
         | Some cmd ->
-            let* _ = Ctx.reply ctx (Help_system.format_command cmd) in
+            let _ = Tg.Bot.Ctx.reply ctx (Help_system.format_command cmd) in
             ()
         | None ->
-            let* _ = Ctx.reply ctx ("Unknown command: " ^ cmd_name) in
+            let _ = Tg.Bot.Ctx.reply ctx ("Unknown command: " ^ cmd_name) in
             ()
         end
 
     | _ ->
-        let* _ = Ctx.reply ctx "Usage: /help [command]" in
+        let _ = Tg.Bot.Ctx.reply ctx "Usage: /help [command]" in
         ()
   )
 ]}
@@ -244,11 +242,11 @@ Support multiple names for the same command:
 {[
 (* Create alias routes *)
 let create_command_with_aliases ~name ~aliases handler =
-  let main_route = on (Event.command name) handler in
+  let main_route = Tg.Bot.on (Tg.Bot.Event.command name) handler in
 
   let alias_routes =
     aliases |> List.map (fun alias ->
-      on (Event.command alias) handler
+      Tg.Bot.on (Tg.Bot.Event.command alias) handler
     )
   in
 
@@ -260,12 +258,12 @@ let echo_routes =
     ~name:"echo"
     ~aliases:["e"; "repeat"]
     (fun args ctx ->
-      let text = Args.join_rest args 0 in
-      let* _ = Ctx.reply ctx text in
+      let text = Tg.Bot.Args.join_rest args 0 in
+      let _ = Tg.Bot.Ctx.reply ctx text in
       ()
     )
 
-let all_routes =
+let all_routes other_routes =
   echo_routes @
   other_routes
 ]}
@@ -307,8 +305,8 @@ let handle_command command args ctx =
 module Admin = struct
   (* Hardcoded admin list (in production, use database) *)
   let admin_users = ref [
-    123456789L;  (* Replace with real admin user IDs *)
-    987654321L;
+    123456789;  (* Replace with real admin user IDs *)
+    987654321;
   ]
 
   let is_admin user_id =
@@ -323,16 +321,16 @@ module Admin = struct
 
   let require_admin handler =
     fun args ctx ->
-      match Ctx.user ctx with
+      match Tg.Bot.Ctx.user ctx with
       | Some user ->
           let user_id = Telegram.Id.User.to_int user.id in
           if is_admin user_id then
             handler args ctx
           else
-            let* _ = Ctx.reply ctx "⛔ Admin access required" in
+            let _ = Tg.Bot.Ctx.reply ctx "⛔ Admin access required" in
             ()
       | None ->
-          let* _ = Ctx.reply ctx "⛔ User information not available" in
+          let _ = Tg.Bot.Ctx.reply ctx "⛔ User information not available" in
           ()
 end
 ]}
@@ -340,9 +338,21 @@ end
 {2 Admin Command Examples}
 
 {[
+type bot_stats = {
+  total_users: int;
+  messages_today: int;
+  commands_executed: int;
+  uptime_seconds: float;
+}
+
+let gather_bot_stats () = { total_users = 0; messages_today = 0; commands_executed = 0; uptime_seconds = 0.0 }
+let format_uptime _s = "0s"
+let get_all_user_ids () = []
+let ban_user _id = ()
+
 (* Stats command - admin only *)
 let stats_route =
-  on (Event.command "stats")
+  Tg.Bot.on (Tg.Bot.Event.command "stats")
     (Admin.require_admin (fun _args ctx ->
       let stats = gather_bot_stats () in
       let text = Printf.sprintf
@@ -356,18 +366,18 @@ let stats_route =
         stats.commands_executed
         (format_uptime stats.uptime_seconds)
       in
-      let* _ = Ctx.reply ctx text in
+      let _ = Tg.Bot.Ctx.reply ctx text in
       ()
     ))
 
 (* Broadcast command - admin only *)
 let broadcast_route =
-  on (Event.command "broadcast")
+  Tg.Bot.on (Tg.Bot.Event.command "broadcast")
     (Admin.require_admin (fun args ctx ->
-      let message = Args.join_rest args 0 in
+      let message = Tg.Bot.Args.join_rest args 0 in
 
       if message = "" then
-        let* _ = Ctx.reply ctx "Usage: /broadcast <message>" in
+        let _ = Tg.Bot.Ctx.reply ctx "Usage: /broadcast <message>" in
         ()
       else
         (* Send to all users *)
@@ -378,12 +388,12 @@ let broadcast_route =
         user_ids |> List.iter (fun user_id ->
           let chat_id = Telegram.Id.Chat.of_user user_id in
           match Telegram_generated.Gen_methods.send_message
-                  (Ctx.client ctx) ~chat_id ~text:message () with
+                  (Tg.Bot.Ctx.client ctx) ~chat_id ~text:message () with
           | Ok _ -> incr success_count
           | Error _ -> incr fail_count
         );
 
-        let* _ = Ctx.reply ctx
+        let _ = Tg.Bot.Ctx.reply ctx
           (Printf.sprintf "📢 Broadcast sent to %d users (%d failed)"
             !success_count !fail_count)
         in
@@ -392,21 +402,21 @@ let broadcast_route =
 
 (* Ban user command - admin only *)
 let ban_route =
-  on (Event.command "ban")
+  Tg.Bot.on (Tg.Bot.Event.command "ban")
     (Admin.require_admin (fun args ctx ->
-      match Args.expect_1 args with
+      match Tg.Bot.Args.expect_1 args with
       | Some user_id_str ->
-          begin match Int64.of_string_opt user_id_str with
+          begin match int_of_string_opt user_id_str with
           | Some user_id ->
               ban_user user_id;
-              let* _ = Ctx.reply ctx ("🚫 Banned user " ^ user_id_str) in
+              let _ = Tg.Bot.Ctx.reply ctx ("🚫 Banned user " ^ user_id_str) in
               ()
           | None ->
-              let* _ = Ctx.reply ctx "Invalid user ID" in
+              let _ = Tg.Bot.Ctx.reply ctx "Invalid user ID" in
               ()
           end
       | None ->
-          let* _ = Ctx.reply ctx "Usage: /ban <user_id>" in
+          let _ = Tg.Bot.Ctx.reply ctx "Usage: /ban <user_id>" in
           ()
     ))
 ]}
@@ -414,10 +424,14 @@ let ban_route =
 {2 Admin Middleware}
 
 {[
+let stats_handler _args _ctx = ()
+let broadcast_handler _args _ctx = ()
+let ban_handler _args _ctx = ()
+
 let admin_middleware =
-  Middleware.make
+  Tg.Bot.Middleware.make
     ~before:(fun ctx ->
-      match Ctx.user ctx with
+      match Tg.Bot.Ctx.user ctx with
       | Some user ->
           if Admin.is_admin (Telegram.Id.User.to_int user.id) then
             Ok ctx
@@ -430,12 +444,12 @@ let admin_middleware =
 
 (* Apply to admin routes *)
 let admin_routes =
-  router
+  Tg.Bot.router
     ~middlewares:[admin_middleware]
     [
-      on (Event.command "stats") stats_handler;
-      on (Event.command "broadcast") broadcast_handler;
-      on (Event.command "ban") ban_handler;
+      Tg.Bot.on (Tg.Bot.Event.command "stats") stats_handler;
+      Tg.Bot.on (Tg.Bot.Event.command "broadcast") broadcast_handler;
+      Tg.Bot.on (Tg.Bot.Event.command "ban") ban_handler;
     ]
 ]}
 
@@ -492,14 +506,14 @@ module Calc_command = struct
     | Divide (a, b) -> a /. b
 
   let route =
-    on (Event.command "calc") (fun args ctx ->
+    Tg.Bot.on (Tg.Bot.Event.command "calc") (fun args ctx ->
       match parse_args args with
       | Ok operation ->
           let result = execute operation in
-          let* _ = Ctx.reply ctx (string_of_float result) in
+          let _ = Tg.Bot.Ctx.reply ctx (string_of_float result) in
           ()
       | Error msg ->
-          let* _ = Ctx.reply ctx ("❌ " ^ msg) in
+          let _ = Tg.Bot.Ctx.reply ctx ("❌ " ^ msg) in
           ()
     )
 end
@@ -511,7 +525,7 @@ end
 module Arg_validation = struct
   let require_n n args ctx k =
     if List.length args < n then
-      let* _ = Ctx.reply ctx
+      let _ = Tg.Bot.Ctx.reply ctx
         (Printf.sprintf "Expected at least %d arguments" n)
       in
       ()
@@ -519,36 +533,36 @@ module Arg_validation = struct
       k args ctx
 
   let parse_int_arg arg ctx k =
-    match Args.parse_int arg with
+    match Tg.Bot.Args.parse_int arg with
     | Some n -> k n ctx
     | None ->
-        let* _ = Ctx.reply ctx ("Invalid number: " ^ arg) in
+        let _ = Tg.Bot.Ctx.reply ctx ("Invalid number: " ^ arg) in
         ()
 
   let parse_user_id arg ctx k =
-    match Int64.of_string_opt arg with
+    match int_of_string_opt arg with
     | Some id -> k id ctx
     | None ->
-        let* _ = Ctx.reply ctx "Invalid user ID" in
+        let _ = Tg.Bot.Ctx.reply ctx "Invalid user ID" in
         ()
 end
 
 (* Usage *)
 let repeat_route =
-  on (Event.command "repeat") (fun args ctx ->
+  Tg.Bot.on (Tg.Bot.Event.command "repeat") (fun args ctx ->
     Arg_validation.require_n 2 args ctx @@ fun args ctx ->
 
     let count_str = List.hd args in
-    let text = Args.join_rest args 1 in
+    let text = Tg.Bot.Args.join_rest args 1 in
 
     Arg_validation.parse_int_arg count_str ctx @@ fun count ctx ->
 
     if count < 1 || count > 10 then
-      let* _ = Ctx.reply ctx "Count must be between 1 and 10" in
+      let _ = Tg.Bot.Ctx.reply ctx "Count must be between 1 and 10" in
       ()
     else
       let repeated = List.init count (fun _ -> text) |> String.concat "\n" in
-      let* _ = Ctx.reply ctx repeated in
+      let _ = Tg.Bot.Ctx.reply ctx repeated in
       ()
   )
 ]}
@@ -559,9 +573,6 @@ let repeat_route =
 
 {[
 (* main.ml - Complete command bot *)
-open Eio.Std
-open Ocaml_telegram_eio
-open Tg.Bot
 
 (* Bot state *)
 module State = struct
@@ -590,29 +601,29 @@ let state = State.create ()
 (* Command handlers *)
 module Commands = struct
   let start = fun _args ctx ->
-    let* _ = Ctx.reply ctx
+    let _ = Tg.Bot.Ctx.reply ctx
       "👋 Welcome to CommandBot!\n\n\
        I'm a feature-rich bot with multiple commands.\n\
        Use /help to see what I can do."
     in
     ()
 
-  let help = fun args ctx ->
-    let is_admin = match Ctx.user ctx with
+  let help = fun _args ctx ->
+    let is_admin = match Tg.Bot.Ctx.user ctx with
       | Some user -> Admin.is_admin (Telegram.Id.User.to_int user.id)
       | None -> false
     in
     let help_text = Help_system.format_help_text ~is_admin () in
-    let* _ = Ctx.reply ctx help_text in
+    let _ = Tg.Bot.Ctx.reply ctx help_text in
     ()
 
   let echo = fun args ctx ->
-    let text = Args.join_rest args 0 in
+    let text = Tg.Bot.Args.join_rest args 0 in
     if text = "" then
-      let* _ = Ctx.reply ctx "Usage: /echo <text>" in
+      let _ = Tg.Bot.Ctx.reply ctx "Usage: /echo <text>" in
       ()
     else
-      let* _ = Ctx.reply ctx text in
+      let _ = Tg.Bot.Ctx.reply ctx text in
       ()
 
   let time = fun _args ctx ->
@@ -621,11 +632,11 @@ module Commands = struct
       (now.Unix.tm_year + 1900) (now.Unix.tm_mon + 1) now.Unix.tm_mday
       now.Unix.tm_hour now.Unix.tm_min now.Unix.tm_sec
     in
-    let* _ = Ctx.reply ctx text in
+    let _ = Tg.Bot.Ctx.reply ctx text in
     ()
 
   let about = fun _args ctx ->
-    let* _ = Ctx.reply ctx
+    let _ = Tg.Bot.Ctx.reply ctx
       "ℹ️ CommandBot v1.0\n\n\
        A multi-command bot built with ocaml-telegram-eio.\n\
        Source: github.com/example/commandbot"
@@ -643,17 +654,17 @@ module Commands = struct
        Uptime: %d hours"
       cmds users hours
     in
-    let* _ = Ctx.reply ctx text in
+    let _ = Tg.Bot.Ctx.reply ctx text in
     ()
   )
 
   let broadcast = Admin.require_admin (fun args ctx ->
-    let message = Args.join_rest args 0 in
+    let message = Tg.Bot.Args.join_rest args 0 in
     if message = "" then
-      let* _ = Ctx.reply ctx "Usage: /broadcast <message>" in
+      let _ = Tg.Bot.Ctx.reply ctx "Usage: /broadcast <message>" in
       ()
     else
-      let* _ = Ctx.reply ctx "📢 Broadcasting..." in
+      let _ = Tg.Bot.Ctx.reply ctx "📢 Broadcasting..." in
       (* Implementation: send to all users *)
       ()
   )
@@ -682,7 +693,7 @@ let () =
 
 (* Command tracking middleware *)
 let track_commands_middleware =
-  Middleware.make
+  Tg.Bot.Middleware.make
     ~before:(fun ctx ->
       State.track_command state;
       Ok ctx
@@ -712,34 +723,34 @@ let () =
 
   (* Define routes *)
   let public_routes = [
-    on (Event.command "start") Commands.start;
-    on (Event.command "help") Commands.help;
-    on (Event.command "h") Commands.help;  (* Alias *)
-    on (Event.command "echo") Commands.echo;
-    on (Event.command "e") Commands.echo;  (* Alias *)
-    on (Event.command "time") Commands.time;
+    Tg.Bot.on (Tg.Bot.Event.command "start") Commands.start;
+    Tg.Bot.on (Tg.Bot.Event.command "help") Commands.help;
+    Tg.Bot.on (Tg.Bot.Event.command "h") Commands.help;  (* Alias *)
+    Tg.Bot.on (Tg.Bot.Event.command "echo") Commands.echo;
+    Tg.Bot.on (Tg.Bot.Event.command "e") Commands.echo;  (* Alias *)
+    Tg.Bot.on (Tg.Bot.Event.command "time") Commands.time;
     Calc_command.route;
-    on (Event.command "about") Commands.about;
+    Tg.Bot.on (Tg.Bot.Event.command "about") Commands.about;
   ] in
 
-  let admin_routes = router
-    ~middlewares:[Admin.admin_middleware]
+  let admin_routes = Tg.Bot.router
+    ~middlewares:[admin_middleware]
     [
-      on (Event.command "stats") Commands.stats;
-      on (Event.command "broadcast") Commands.broadcast;
+      Tg.Bot.on (Tg.Bot.Event.command "stats") Commands.stats;
+      Tg.Bot.on (Tg.Bot.Event.command "broadcast") Commands.broadcast;
     ]
   in
 
-  let all_routes = router
+  let all_routes = Tg.Bot.router
     ~middlewares:[track_commands_middleware]
-    ~on_error:ErrorHandler.(log_and_reply ())
+    ~on_error:Tg.Bot.ErrorHandler.(log_and_reply ())
     (public_routes @ admin_routes)
   in
 
   (* Run bot *)
   Printf.printf "✅ Polling for updates...\n";
   flush stdout;
-  run_polling ~env ~client all_routes
+  Tg.Bot.run_polling ~env ~client all_routes
 ]}
 
 {1 Best Practices}

@@ -28,23 +28,20 @@ This recipe demonstrates how to build bots that handle files and media effective
 Handle documents sent by users:
 
 {[
-open Eio.Std
-open Ocaml_telegram_eio
-
 (* Handle document uploads *)
 let routes = [
   Tg.Bot.on Tg.Bot.Event.document (fun doc ctx ->
     let file_name = Option.value doc.file_name ~default:"document" in
-    let file_size = Option.value doc.file_size ~default:0L in
+    let file_size = Option.value doc.file_size ~default:0 in
     let mime_type = Option.value doc.mime_type ~default:"application/octet-stream" in
 
     let info = Printf.sprintf
-      "📄 Received document:\n\nName: %s\nSize: %Ld bytes\nType: %s"
+      "📄 Received document:\n\nName: %s\nSize: %d bytes\nType: %s"
       file_name file_size mime_type
     in
 
-    let* _ = Tg.Bot.Ctx.reply ctx info in
-    Ok ()
+    let _ = Tg.Bot.Ctx.reply ctx info in
+    ()
   );
 ]
 ]}
