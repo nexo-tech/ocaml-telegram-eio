@@ -10,6 +10,12 @@
 
 open Tg.Bot
 
+(* Helper: Convert Result to exception for global error handler *)
+let reply_or_fail ctx text =
+  match Ctx.reply ctx text with
+  | Ok msg -> msg
+  | Error err -> raise (Failure (Format.asprintf "Reply failed: %a" Telegram.Error.pp err))
+
 let () =
   (* Get bot token from environment *)
   let token =
@@ -29,11 +35,18 @@ let () =
 
   (* Build bot using functional builder pattern *)
   make ~env ~client
-  |> command "start" (fun ctx _args ->
-      (* Reply to /start command - handle errors *)
-      match Ctx.reply ctx "👋 Hello! I'm your first OCaml Telegram bot!" with
+  (* Add global error handler to catch and log all errors *)
+  |> on_error (fun ctx exn ->
+      Eio.traceln "❌ Error in handler: %s" (Printexc.to_string exn);
+      (* Try to notify user about the error *)
+      match Ctx.reply ctx "Sorry, an error occurred. Please try again." with
       | Ok _ -> ()
-      | Error err ->
-          Eio.traceln "Error sending message: %a" Telegram.Error.pp err
+      | Error err -> Eio.traceln "Failed to send error message: %a" Telegram.Error.pp err
+    )
+  |> command "start" (fun ctx _args ->
+      Eio.traceln "📨 Received /start command";
+      (* Use helper to route errors to global error handler *)
+      let _ = reply_or_fail ctx "👋 Hello! I'm your first OCaml Telegram bot!" in
+      Eio.traceln "✅ Reply sent successfully"
     )
   |> run

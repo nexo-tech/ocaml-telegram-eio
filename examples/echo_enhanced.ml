@@ -16,6 +16,12 @@
 
 open Tg.Bot
 
+(* Helper: Convert Result to exception for global error handler *)
+let reply_or_fail ctx text =
+  match Ctx.reply ctx text with
+  | Ok msg -> msg
+  | Error err -> raise (Failure (Format.asprintf "Reply failed: %a" Telegram.Error.pp err))
+
 let () =
   let token =
     match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
@@ -37,20 +43,29 @@ let () =
 
   (* Build bot using functional builder pattern *)
   make ~env ~client
-  |> command "start" (fun ctx _args ->
-      match Ctx.reply ctx "👋 Hello! Send me any message and I'll echo it back." with
+  (* Add global error handler to catch and log all errors *)
+  |> on_error (fun ctx exn ->
+      Eio.traceln "❌ Error in handler: %s" (Printexc.to_string exn);
+      Eio.traceln "Backtrace: %s" (Printexc.get_backtrace ());
+      (* Try to notify user about the error *)
+      match Ctx.reply ctx "❌ Sorry, an error occurred. Please try again." with
       | Ok _ -> ()
-      | Error err -> Eio.traceln "Error: %a" Telegram.Error.pp err
+      | Error err -> Eio.traceln "Failed to send error message: %a" Telegram.Error.pp err
+    )
+  |> command "start" (fun ctx _args ->
+      Eio.traceln "📨 Received /start command";
+      let _ = reply_or_fail ctx "👋 Hello! Send me any message and I'll echo it back." in
+      ()
     )
   |> command "help" (fun ctx _args ->
-      match Ctx.reply ctx "Just send me text and I'll echo it!" with
-      | Ok _ -> ()
-      | Error err -> Eio.traceln "Error: %a" Telegram.Error.pp err
+      Eio.traceln "📨 Received /help command";
+      let _ = reply_or_fail ctx "Just send me text and I'll echo it!" in
+      ()
     )
   |> on_text (fun ctx text ->
+      Eio.traceln "📨 Received text: %s" text;
       (* Echo all non-command text messages *)
-      match Ctx.reply ctx (Printf.sprintf "You said: %s" text) with
-      | Ok _ -> ()
-      | Error err -> Eio.traceln "Error: %a" Telegram.Error.pp err
+      let _ = reply_or_fail ctx (Printf.sprintf "You said: %s" text) in
+      ()
     )
   |> run
