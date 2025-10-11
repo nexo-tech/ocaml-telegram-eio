@@ -1141,6 +1141,102 @@ val merge : bot -> bot -> bot
     - Testing (compose small testable units)
 *)
 
+val scope_prefix : string -> bot -> bot
+(** [scope_prefix prefix bot] adds a prefix to all command names in the bot.
+
+    This enables command namespacing for modular organization. All commands
+    in the bot will have the prefix prepended to their name. Non-command
+    routes (text handlers, callbacks, etc.) are left unchanged.
+
+    The prefix is added as-is, so include any separators you want
+    (e.g., "admin_", "user_", "mod-").
+
+    Note: Telegram command names can only contain letters, digits, and underscores.
+    Using other characters (like "/") may not work properly in Telegram clients.
+
+    Example - Basic namespacing:
+    {[
+      let admin_commands =
+        Bot.make ~env ~client
+        |> Bot.command ~desc:"Show statistics" "stats" (fun ctx _args ->
+            let _ = Ctx.reply ctx "Statistics: ..." in ()
+          )
+        |> Bot.command ~desc:"Ban a user" "ban" (fun ctx _args ->
+            let _ = Ctx.reply ctx "User banned" in ()
+          )
+        |> Bot.scope_prefix "admin_"
+        (* Commands are now: /admin_stats, /admin_ban *)
+
+      let user_commands =
+        Bot.make ~env ~client
+        |> Bot.command ~desc:"View profile" "profile" (fun ctx _args ->
+            let _ = Ctx.reply ctx "Your profile" in ()
+          )
+        |> Bot.scope_prefix "user_"
+        (* Command is now: /user_profile *)
+
+      let full_bot = Bot.merge admin_commands user_commands |> Bot.run
+    ]}
+
+    Example - Modular architecture:
+    {[
+      (* Define a bot module *)
+      let make_crud_bot ~prefix ~entity =
+        Bot.make ~env ~client
+        |> Bot.command "list" (fun ctx _args ->
+            let _ = Ctx.reply ctx (Printf.sprintf "List of %s" entity) in ()
+          )
+        |> Bot.command "create" (fun ctx _args ->
+            let _ = Ctx.reply ctx (Printf.sprintf "Create %s" entity) in ()
+          )
+        |> Bot.command "delete" (fun ctx _args ->
+            let _ = Ctx.reply ctx (Printf.sprintf "Delete %s" entity) in ()
+          )
+        |> Bot.scope_prefix prefix
+
+      (* Create multiple instances *)
+      let users_bot = make_crud_bot ~prefix:"users_" ~entity:"users"
+      (* Commands: /users_list, /users_create, /users_delete *)
+
+      let posts_bot = make_crud_bot ~prefix:"posts_" ~entity:"posts"
+      (* Commands: /posts_list, /posts_create, /posts_delete *)
+
+      let full_bot =
+        Bot.merge users_bot posts_bot
+        |> Bot.run
+    ]}
+
+    Example - Combined with middleware:
+    {[
+      let admin_ids = [Telegram.Id.User.of_int 123456]
+
+      let admin_bot =
+        Bot.make ~env ~client
+        |> Bot.use (Middleware.only_users admin_ids)
+        |> Bot.command "restart" (fun ctx _args -> ...)
+        |> Bot.command "config" (fun ctx _args -> ...)
+        |> Bot.scope_prefix "admin_"
+        (* Commands: /admin_restart, /admin_config *)
+        (* Both require admin privileges *)
+    ]}
+
+    Behavior:
+    - Command routes: Command name is prefixed
+    - Text handlers: Unchanged (still match all text)
+    - Callback handlers: Unchanged
+    - Other event handlers: Unchanged
+    - Command descriptions: Updated with prefix for help generation
+
+    Note: Apply scope_prefix after defining commands but before merging,
+    as it transforms the existing routes in the bot.
+
+    Use cases:
+    - Organize commands by feature/module (user_, admin_, mod_)
+    - Prevent command name collisions when merging bots
+    - Create reusable bot templates with custom prefixes
+    - Implement plugin systems with namespaced commands
+*)
+
 (** {1 Route-based API} *)
 
 val route : 'a Event.t -> ('a -> [ `Chat ] ctx -> unit) -> route

@@ -265,9 +265,13 @@ let combined = Bot.merge echo_bot admin_bot
   - Command descriptions are merged
   - Comprehensive documentation with modular architecture examples
 
-- [ ] Task 7.2: Sub-routers
+- [x] Task 7.2: Sub-routers
   - `Bot.scope_prefix : string -> bot -> bot`
   - Namespace commands (e.g., `/admin/stats`)
+  - Implemented scope_prefix to add prefixes to command names
+  - Transforms all command routes while leaving other routes unchanged
+  - Command descriptions are updated with prefix
+  - Comprehensive documentation with modular architecture examples
 
 - [ ] Task 7.3: Conditional routing
   - `Bot.when_ : (ctx -> bool) -> bot -> bot`
@@ -346,10 +350,10 @@ let combined = Bot.merge echo_bot admin_bot
 ## Progress Tracking
 
 **Total Tasks**: 33
-**Completed**: 18
+**Completed**: 19
 **In Progress**: 0
-**Remaining**: 15
-**Progress**: 55% (18/33)
+**Remaining**: 14
+**Progress**: 58% (19/33)
 
 ---
 

@@ -1039,3 +1039,35 @@ let merge bot1 bot2 =
     scoped_error_handler = bot2.scoped_error_handler;
     command_descriptions = bot1.command_descriptions @ bot2.command_descriptions;
   }
+
+(** Sub-routers with command prefixes *)
+
+let scope_prefix prefix bot =
+  (* Transform all command routes to add a prefix to the command name.
+     This enables namespacing commands for modular organization.
+     Non-command routes are left unchanged. *)
+
+  (* Helper to transform a route's handler if it's a command *)
+  let transform_route route =
+    let Handler (event, handler) = route.handler in
+    match event with
+    | Event.Command cmd_name ->
+        (* Create new command with prefixed name *)
+        let prefixed_cmd = prefix ^ cmd_name in
+        let new_handler = Handler (Event.Command prefixed_cmd, handler) in
+        { route with handler = new_handler }
+    | _ ->
+        (* Non-command routes are unchanged *)
+        route
+  in
+
+  (* Transform command descriptions to include prefix *)
+  let transform_descriptions =
+    List.map (fun (cmd, desc) -> (prefix ^ cmd, desc)) bot.command_descriptions
+  in
+
+  {
+    bot with
+    routes = List.map transform_route bot.routes;
+    command_descriptions = transform_descriptions;
+  }
