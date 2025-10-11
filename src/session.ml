@@ -69,6 +69,8 @@ let update s k f =
 
 (* Modify - like update but sets default if missing *)
 let modify s k ~default f =
+  let has_value = exists s k in
+  Log.debug "Session.modify: key_id=%d, has_value=%b" k has_value;
   let v = get_or s k ~default in
   set s k (f v)
 
@@ -90,26 +92,43 @@ module Memory_store : STORE = struct
   let create () = Hashtbl.create 100
 
   let get_session store ~user_id =
+    Log.debug "Store access: user_id=%Ld, operation=get_session" user_id;
     try
       let session = Hashtbl.find store user_id in
       let keys_count = List.length session.store in
       Log.info "Session loaded: user_id=%Ld, keys_count=%d" user_id keys_count;
+      Log.debug' (fun () ->
+        let session_count = Hashtbl.length store in
+        let total_keys = Hashtbl.fold (fun _ sess acc ->
+          acc + List.length sess.store
+        ) store 0 in
+        Format.asprintf "Store size: session_count=%d, total_keys=%d" session_count total_keys
+      );
       session
     with Not_found ->
       Log.debug "Session load failed: user_id=%Ld, reason=not found, creating new" user_id;
       let session = { store = [] } in
       Hashtbl.add store user_id session;
       Log.info "Session loaded: user_id=%Ld, keys_count=0" user_id;
+      Log.debug' (fun () ->
+        let session_count = Hashtbl.length store in
+        Format.asprintf "Store size: session_count=%d, total_keys=0" session_count
+      );
       session
 
   let set_session store ~user_id session =
+    Log.debug "Store access: user_id=%Ld, operation=set_session" user_id;
     let keys_count = List.length session.store in
     Log.info "Session saved: user_id=%Ld, keys_count=%d" user_id keys_count;
     Hashtbl.replace store user_id session
 
   let delete_session store ~user_id =
+    Log.debug "Store access: user_id=%Ld, operation=delete_session" user_id;
+    Log.info "Session deleted: user_id=%Ld" user_id;
     Hashtbl.remove store user_id
 
   let clear_all store =
+    let session_count = Hashtbl.length store in
+    Log.info "Store cleared: session_count=%d" session_count;
     Hashtbl.clear store
 end
