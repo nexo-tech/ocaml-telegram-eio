@@ -152,7 +152,7 @@ let combined = Bot.merge echo_bot admin_bot
   - Added `Bot.commands` accessor for help generation
   - Optional desc parameter (backward compatible)
 
-- [ ] Task 2.3: Command with argument parser
+- [x] Task 2.3: Command with argument parser
   - `command_with : string -> 'a parser -> (ctx -> 'a -> unit) -> bot -> bot`
   - Type-safe argument parsing
   - Automatic error messages on parse failure
@@ -302,10 +302,10 @@ let combined = Bot.merge echo_bot admin_bot
 ## Progress Tracking
 
 **Total Tasks**: 33
-**Completed**: 5
+**Completed**: 6
 **In Progress**: 0
-**Remaining**: 28
-**Progress**: 15% (5/33)
+**Remaining**: 27
+**Progress**: 18% (6/33)
 
 ---
 

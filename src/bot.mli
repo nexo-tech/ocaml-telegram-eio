@@ -320,6 +320,65 @@ val commands : bot -> (string * string) list
     ]}
 *)
 
+type 'a parser = string list -> ('a, string) result
+(** Type-safe argument parser for commands.
+
+    A parser takes a list of string arguments and returns either:
+    - [Ok value] on successful parse
+    - [Error message] on parse failure with user-friendly error message
+
+    Example parsers:
+    {[
+      (* Parser that expects exactly 2 integers *)
+      let two_ints : (int * int) parser = fun args ->
+        match args with
+        | [a; b] ->
+            (match int_of_string_opt a, int_of_string_opt b with
+             | Some x, Some y -> Ok (x, y)
+             | _ -> Error "Both arguments must be integers")
+        | _ -> Error "Expected exactly 2 arguments"
+
+      (* Parser that expects at least 1 argument *)
+      let non_empty : string parser = fun args ->
+        match Args.join_rest args 0 with
+        | "" -> Error "Please provide some text"
+        | text -> Ok text
+    ]}
+*)
+
+val command_with : ?desc:string -> string -> 'a parser -> ([ `Chat ] ctx -> 'a -> unit) -> bot -> bot
+(** [command_with ?desc name parser handler bot] adds a command handler with type-safe argument parsing.
+
+    The parser is run on command arguments. On success, the handler is called with the parsed value.
+    On parse failure, an error message is automatically sent to the user.
+
+    This provides stronger type safety than [command] and automatic error handling,
+    eliminating boilerplate argument validation code.
+
+    Example:
+    {[
+      (* Define a parser for two integers *)
+      let two_ints args =
+        match args with
+        | [a; b] ->
+            (match int_of_string_opt a, int_of_string_opt b with
+             | Some x, Some y -> Ok (x, y)
+             | _ -> Error "Both arguments must be integers")
+        | _ -> Error "Usage: /add <number1> <number2>"
+
+      Bot.make ~env ~client
+      |> Bot.command_with ~desc:"Add two numbers" "add" two_ints
+          (fun ctx (a, b) ->
+            let result = a + b in
+            let _ = Ctx.reply ctx (Printf.sprintf "%d + %d = %d" a b result) in
+            ()
+          )
+    ]}
+
+    The handler receives the parsed value directly, with type ['a] determined by the parser.
+    Parse errors are automatically sent to the user with a ❌ prefix.
+*)
+
 (** {1 Route-based API} *)
 
 val on : 'a Event.t -> ('a -> [ `Chat ] ctx -> unit) -> route

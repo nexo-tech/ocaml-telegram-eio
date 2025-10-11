@@ -610,6 +610,9 @@ type bot = {
   command_descriptions : (string * string) list; (* (command_name, description) pairs *)
 }
 
+(* Parser type for type-safe argument parsing *)
+type 'a parser = string list -> ('a, string) result
+
 (* Create a route from an event and handler *)
 let on ev h = {
   handler = Handler (ev, h);
@@ -767,3 +770,31 @@ let command ?(desc = "") cmd_name handler bot =
 
 (** Get list of registered commands with their descriptions *)
 let commands bot = bot.command_descriptions
+
+(** Add a command handler with type-safe argument parser *)
+let command_with ?(desc = "") cmd_name parser handler bot =
+  (* Handler that runs parser and calls user handler on success *)
+  let parsing_handler ctx args =
+    match parser args with
+    | Ok parsed_value ->
+        handler ctx parsed_value
+    | Error err_msg ->
+        (* Send error message to user *)
+        let _ = Ctx.reply ctx ("❌ " ^ err_msg) in
+        ()
+  in
+  (* Create route with the parsing handler *)
+  let flipped_handler args ctx = parsing_handler ctx args in
+  let route = on (Event.Command cmd_name) flipped_handler in
+  (* Store description if provided *)
+  let command_descriptions =
+    if desc <> "" then
+      bot.command_descriptions @ [(cmd_name, desc)]
+    else
+      bot.command_descriptions
+  in
+  (* Return new bot with route and description added *)
+  { bot with
+    routes = bot.routes @ [route];
+    command_descriptions;
+  }
