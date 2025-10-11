@@ -693,6 +693,57 @@ val command_safe : ?desc:string -> string -> ([ `Chat ] ctx -> string list -> (u
     Note: Like [command], this supports optional [desc] parameter for help generation.
 *)
 
+val catch : ([ `Chat ] ctx -> exn -> unit) -> bot -> bot
+(** [catch handler bot] sets a scoped error handler that applies to routes added after this call.
+
+    This provides try/catch style error boundaries for specific groups of routes.
+    Unlike [on_error] which sets a global error handler, [catch] only affects
+    routes added to the returned bot value.
+
+    The scoped error handler takes precedence over the global error handler set by [on_error],
+    but is overridden by route-specific handlers set via [with_error_handler].
+
+    Example:
+    {[
+      Bot.make ~env ~client
+      |> Bot.command "safe" (fun ctx _args ->
+          (* No special error handling *)
+          let _ = Ctx.reply ctx "This is safe" in ()
+        )
+      |> Bot.catch (fun ctx exn ->
+          (* This error handler applies to the next routes *)
+          Printf.eprintf "Caught error: %s\n" (Printexc.to_string exn);
+          let _ = Ctx.reply ctx "An error occurred in this section" in ()
+        )
+      |> Bot.command "risky" (fun ctx _args ->
+          (* This route has the catch error handler *)
+          failwith "Something went wrong!"
+        )
+      |> Bot.command "also_risky" (fun ctx _args ->
+          (* This route also has the catch error handler *)
+          raise (Failure "Another error")
+        )
+      |> Bot.run
+    ]}
+
+    Use cases:
+    - Apply specialized error handling to a group of related routes
+    - Create error boundaries around experimental or high-risk features
+    - Provide different error handling for admin vs user commands
+    - Implement fallback behavior for specific route sections
+
+    Note: Like scoped middleware from [scope], scoped error handlers persist
+    until explicitly cleared or until a new [catch] call replaces them.
+    Currently there is no [end_catch] function - error boundaries persist
+    for all subsequent routes.
+
+    Priority order (highest to lowest):
+    1. Route-specific error handler (via [with_error_handler])
+    2. Scoped error handler (via [catch])
+    3. Global error handler (via [on_error])
+    4. Default error handler (prints to stderr)
+*)
+
 (** {1 Route-based API} *)
 
 val route : 'a Event.t -> ('a -> [ `Chat ] ctx -> unit) -> route

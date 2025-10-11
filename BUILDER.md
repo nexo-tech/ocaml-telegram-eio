@@ -213,9 +213,13 @@ let combined = Bot.merge echo_bot admin_bot
   - Handler returns Result type, errors automatically sent to user
   - Delegates to command function for route creation
 
-- [ ] Task 5.3: Error recovery
+- [x] Task 5.3: Error recovery
   - `catch : (ctx -> exn -> unit) -> bot -> bot`
   - Try/catch style error boundary
+  - Added `scoped_error_handler` field to bot type
+  - Implemented catch function to set scoped error handlers
+  - Updated route creation (on, command, command_with) to apply scoped error handlers
+  - Scoped error handlers take precedence over global but are overridden by route-specific
 
 ### Phase 6: Monadic Helpers
 
@@ -320,10 +324,10 @@ let combined = Bot.merge echo_bot admin_bot
 ## Progress Tracking
 
 **Total Tasks**: 33
-**Completed**: 13
+**Completed**: 14
 **In Progress**: 0
-**Remaining**: 20
-**Progress**: 39% (13/33)
+**Remaining**: 19
+**Progress**: 42% (14/33)
 
 ---
 

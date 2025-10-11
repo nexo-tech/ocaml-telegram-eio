@@ -637,6 +637,7 @@ type bot = {
   middleware : [ `Chat ] Middleware.t list;  (* global middleware *)
   scoped_middleware : [ `Chat ] Middleware.t list;  (* scoped middleware for next routes *)
   on_error : ([ `Chat ] ctx -> exn -> unit) option;
+  scoped_error_handler : ([ `Chat ] ctx -> exn -> unit) option;  (* scoped error handler for next routes *)
   command_descriptions : (string * string) list; (* (command_name, description) pairs *)
 }
 
@@ -766,6 +767,7 @@ let make ~env ~client = {
   middleware = [];
   scoped_middleware = [];
   on_error = None;
+  scoped_error_handler = None;
   command_descriptions = [];
 }
 
@@ -788,6 +790,8 @@ let command ?(desc = "") cmd_name handler bot =
   let route_obj = route (Event.Command cmd_name) flipped_handler in
   (* Apply scoped middleware to this route *)
   let route_obj = { route_obj with middleware = bot.scoped_middleware @ route_obj.middleware } in
+  (* Apply scoped error handler to this route *)
+  let route_obj = { route_obj with on_error = bot.scoped_error_handler } in
   (* Store description if provided *)
   let command_descriptions =
     if desc <> "" then
@@ -821,6 +825,8 @@ let command_with ?(desc = "") cmd_name parser handler bot =
   let route_obj = route (Event.Command cmd_name) flipped_handler in
   (* Apply scoped middleware to this route *)
   let route_obj = { route_obj with middleware = bot.scoped_middleware @ route_obj.middleware } in
+  (* Apply scoped error handler to this route *)
+  let route_obj = { route_obj with on_error = bot.scoped_error_handler } in
   (* Store description if provided *)
   let command_descriptions =
     if desc <> "" then
@@ -843,6 +849,8 @@ let on : type a. a Event.t -> ([ `Chat ] ctx -> a -> unit) -> bot -> bot =
     let route_obj = route event flipped_handler in
     (* Apply scoped middleware to this route *)
     let route_obj = { route_obj with middleware = bot.scoped_middleware @ route_obj.middleware } in
+    (* Apply scoped error handler to this route *)
+    let route_obj = { route_obj with on_error = bot.scoped_error_handler } in
     (* Return new bot with route added *)
     { bot with routes = bot.routes @ [route_obj] }
 
@@ -907,6 +915,10 @@ let end_scope bot =
 (** Set global error handler for the bot *)
 let on_error handler bot =
   { bot with on_error = Some handler }
+
+(** Set scoped error handler for subsequently added routes *)
+let catch handler bot =
+  { bot with scoped_error_handler = Some handler }
 
 (** Add a command handler with automatic Result error handling *)
 let command_safe ?(desc = "") cmd_name handler bot =
