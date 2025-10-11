@@ -2,6 +2,11 @@
 
 open Telegram
 
+module Log = Telegram.Log.Make (Telegram.Log.Console) (struct
+  let src = "Webhook"
+  let level = Telegram.Log.Info
+end)
+
 type request_info = {
   client_addr : string;
   headers : (string * string) list;
@@ -83,21 +88,32 @@ let ip_in_range ip cidr =
 (* Create IP validator from allowlist *)
 let make_ip_validator allowlist request =
   let ip_allowed = List.exists (fun cidr -> ip_in_range request.client_addr cidr) allowlist in
+  Log.debug "IP validation check: source_ip=%s, is_allowed=%b" request.client_addr ip_allowed;
   if ip_allowed then
     Accept
-  else
+  else (
+    Log.warn "IP validation failed: source_ip=%s, allowed_ranges=[%s]"
+      request.client_addr (String.concat ", " allowlist);
     Reject ("IP not in allowlist: " ^ request.client_addr)
+  )
 
 (* Parse JSON body and decode Update *)
 let parse_update body =
   try
     match Yojson.Safe.from_string body with
-    | exception _ -> Error (Error.Decode_error "Invalid JSON in webhook body")
+    | exception exn ->
+        let preview = if String.length body > 200 then String.sub body 0 200 ^ "..." else body in
+        Log.error "JSON parse error: reason=%s, body_preview=%s"
+          (Printexc.to_string exn) preview;
+        Error (Error.Decode_error "Invalid JSON in webhook body")
     | json ->
         (match Telegram_generated.Gen_types.Update.of_yojson json with
          | Ok update -> Ok update
-         | Error msg -> Error (Error.Decode_error ("Failed to decode Update: " ^ msg)))
+         | Error msg ->
+             Log.error "Update decode error: reason=%s" msg;
+             Error (Error.Decode_error ("Failed to decode Update: " ^ msg)))
   with exn ->
+    Log.error "Exception parsing webhook body: %s" (Printexc.to_string exn);
     Error (Error.Decode_error ("Exception parsing webhook body: " ^ Printexc.to_string exn))
 
 (* Helper to read body and handle update *)
@@ -114,6 +130,11 @@ let handle_update_body flow chunk content_length handler on_error =
   done;
   let body_str = Buffer.contents body_buf in
 
+  Log.debug' (fun () ->
+    let preview = if String.length body_str > 500 then String.sub body_str 0 500 ^ "..." else body_str in
+    Format.asprintf "Request body: %s" preview
+  );
+
   (* Parse and handle update *)
   match parse_update body_str with
   | Error err ->
@@ -123,7 +144,8 @@ let handle_update_body flow chunk content_length handler on_error =
       ("400 Bad Request", "Bad Request: Invalid update format")
   | Ok update ->
       (try
-         handler update
+         handler update;
+         Log.info "Update dispatched successfully";
        with exn ->
          let err = Error.Decode_error ("Handler exception: " ^ Printexc.to_string exn) in
          (match on_error with
@@ -135,6 +157,13 @@ let handle_update_body flow chunk content_length handler on_error =
 let run_server client config sw ~handler =
   let env = Client.env client in
   let on_error = config.on_error in
+
+  Log.info "Webhook server started: host=127.0.0.1, port=%d, path=%s" config.port config.path;
+
+  (* Register cleanup on switch release *)
+  Eio.Switch.on_release sw (fun () ->
+    Log.info "Webhook server stopped"
+  );
 
   (* Start HTTP server *)
   let socket = Eio.Net.listen env#net
@@ -222,22 +251,54 @@ let run_server client config sw ~handler =
           method_ = !method_type;
         } in
 
+        Log.info "Webhook request received: source_ip=%s" client_ip;
+        Log.debug' (fun () ->
+          let headers_str = List.map (fun (k, v) -> k ^ ": " ^ v) request_info.headers
+                           |> String.concat ", " in
+          Format.asprintf "Request headers: %s" headers_str
+        );
+
         (* Validate request *)
         let response_status, response_body =
-          if !method_type <> "POST" || !path_info <> config.path then
+          if !method_type <> "POST" || !path_info <> config.path then (
+            Log.warn "Invalid request: reason=wrong method or path (method=%s, path=%s)" !method_type !path_info;
             ("404 Not Found", "Not Found")
-          else if not (match config.secret_token with
-                       | None -> true
-                       | Some expected -> !secret_token_header = Some expected) then
-            ("403 Forbidden", "Forbidden: Invalid secret token")
+          ) else (
+            (* Check Content-Type header *)
+            let has_json_ct = List.exists (fun (name, value) ->
+              String.lowercase_ascii name = "content-type" &&
+              String.contains (String.lowercase_ascii value) 'j'  (* contains 'j' for json *)
+            ) request_info.headers in
+            Log.debug "Content-Type header check: has_json=%b" has_json_ct;
+
+            (* Check secret token *)
+            let token_valid = match config.secret_token with
+              | None ->
+                  Log.debug "Secret token validation: no token configured, accepting";
+                  true
+              | Some expected ->
+                  let is_valid = !secret_token_header = Some expected in
+                  Log.debug "Secret token validation: is_valid=%b" is_valid;
+                  if not is_valid then (
+                    Log.warn "Secret token mismatch: expected=[REDACTED], received=%s"
+                      (match !secret_token_header with Some _ -> "[REDACTED]" | None -> "[none]")
+                  );
+                  is_valid
+            in
+
+            if not token_valid then
+              ("403 Forbidden", "Forbidden: Invalid secret token")
           else (
             (* Check IP allowlist if configured *)
             match config.ip_allowlist with
             | Some allowlist ->
                 let ip_allowed = List.exists (fun cidr -> ip_in_range client_ip cidr) allowlist in
-                if not ip_allowed then
+                Log.debug "IP validation check: source_ip=%s, is_allowed=%b" client_ip ip_allowed;
+                if not ip_allowed then (
+                  Log.warn "IP validation failed: source_ip=%s, allowed_ranges=[%s]"
+                    client_ip (String.concat ", " allowlist);
                   ("403 Forbidden", "Forbidden: IP not in allowlist")
-                else (
+                ) else (
                   (* Check custom validator if configured *)
                   match config.custom_validator with
                   | Some validator ->
@@ -246,6 +307,7 @@ let run_server client config sw ~handler =
                            (* Proceed to handle update *)
                            handle_update_body flow chunk !content_length handler on_error
                        | Reject reason ->
+                           Log.warn "Invalid request: reason=custom validator rejected - %s" reason;
                            ("403 Forbidden", "Forbidden: " ^ reason))
                   | None ->
                       (* No custom validator, proceed *)
@@ -259,10 +321,12 @@ let run_server client config sw ~handler =
                       | Accept ->
                           handle_update_body flow chunk !content_length handler on_error
                       | Reject reason ->
+                          Log.warn "Invalid request: reason=custom validator rejected - %s" reason;
                           ("403 Forbidden", "Forbidden: " ^ reason))
                  | None ->
                      (* No validators, proceed *)
                      handle_update_body flow chunk !content_length handler on_error)
+          )
           )
         in
 

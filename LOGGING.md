@@ -109,10 +109,29 @@ Goal: Implement an idiomatic OCaml logging system with functors for modular, str
 
 ### Phase 5: Webhook Instrumentation
 
-- [ ] Task 5.1: Instrument src/webhook.ml (HTTP server, request handling)
-- [ ] Task 5.2: Add IP validation logging
-- [ ] Task 5.3: Add secret token validation logging
-- [ ] Task 5.4: Add request parsing and error logging
+- [x] Task 5.1: Instrument src/webhook.ml (HTTP server, request handling)
+  - Added info logging for webhook server started (host, port, path)
+  - Added info logging for webhook request received (source_ip)
+  - Added info logging for update dispatched successfully
+  - Added info logging for webhook server stopped
+  - Added warn logging for invalid request (wrong method/path)
+  - Added debug logging for request headers
+  - Added debug logging for request body
+
+- [x] Task 5.2: Add IP validation logging
+  - Added warn logging for IP validation failed (source_ip, allowed_ranges)
+  - Added debug logging for IP validation check (source_ip, is_allowed)
+
+- [x] Task 5.3: Add secret token validation logging
+  - Added warn logging for secret token mismatch (redacted for security)
+  - Added debug logging for secret token validation (is_valid)
+  - Added debug logging for when no token is configured
+
+- [x] Task 5.4: Add request parsing and error logging
+  - Added error logging for JSON parse error (reason, body_preview)
+  - Added error logging for update decode error (reason)
+  - Added debug logging for Content-Type header check
+  - Added warn logging for custom validator rejections
 
 ### Phase 6: Bot Core Instrumentation
 
@@ -148,10 +167,10 @@ Goal: Implement an idiomatic OCaml logging system with functors for modular, str
 - [ ] Task 10.4: Add debugging guide
 
 **Total Tasks**: 40
-**Completed**: 13
+**Completed**: 17
 **In Progress**: 0
-**Remaining**: 27
-**Progress**: 32.5% (13/40)
+**Remaining**: 23
+**Progress**: 42.5% (17/40)
 
 ---
 
