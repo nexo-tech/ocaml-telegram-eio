@@ -102,7 +102,28 @@ Goal: Implement every example from documentation in `examples/` directory with a
   - **Verbose logging**: Every command tracked, admin checks logged, argument parsing traced
   - **Result-based handlers**: All handlers return `(unit, Error.t) result`
   - Example compiles without errors and demonstrates command bot patterns elegantly
-- [ ] Task 1.1.2.3: `docs/recipe_keyboard_bot.mld` - Keyboard interactions
+- [x] Task 1.1.2.3: `docs/recipe_keyboard_bot.mld` - Keyboard interactions
+  - Created `examples/recipe_keyboard_bot.ml` - Interactive keyboard bot with menu navigation
+  - **Ergonomic keyboard API**: Functional KB module wrapping Gen_types
+    - `KB.button ~text ~callback_data` creates inline keyboard buttons
+    - `KB.row [buttons]` creates button rows
+    - `KB.make [rows]` creates inline keyboard markup
+    - `KB.send` sends messages with keyboards (JSON string for send_message)
+    - `KB.edit` edits messages with keyboards (InlineKeyboardMarkup for edit_message_text)
+  - **Multi-level menu navigation**: Main menu → Settings/Profile/Help with back buttons
+  - **Session-based state**: Settings persist across interactions
+    - `Verbose_session.make ~name:"settings"` creates typed session key
+    - `session_get_or` retrieves with default
+    - `session_set` updates session state
+  - **Toggle buttons**: Notification toggle updates keyboard in real-time
+  - **Callback routing**: Multiple on_callback handlers with data matching
+    - menu:main, menu:settings, menu:profile, menu:help
+    - toggle_notif for notification toggle
+  - **Result-based handlers**: All handlers return `(unit, Error.t) result`
+  - **Functor-based logging**: Verbose_bot with Debug level
+  - Commands: /start (main menu), /settings (settings with state)
+  - **Clean functional API**: Demonstrates ergonomic wrapping of generated types
+  - Example compiles without errors and demonstrates keyboard interaction patterns
 - [ ] Task 1.1.2.4: `docs/recipe_file_bot.mld` - File upload/download
 - [ ] Task 1.1.2.5: `docs/recipe_webhook_bot.mld` - Webhook setup
 - [ ] Task 1.1.2.6: `docs/recipe_chatbot_context.mld` - Contextual conversations
@@ -170,10 +191,10 @@ Every example must:
 ## Progress Tracking
 
 **Total Tasks**: 35
-**Completed**: 7
+**Completed**: 8
 **In Progress**: 0
-**Remaining**: 28
-**Progress**: 20% (7/35)
+**Remaining**: 27
+**Progress**: 23% (8/35)
 
 ---
 
