@@ -407,6 +407,73 @@ val on : 'a Event.t -> ([ `Chat ] ctx -> 'a -> unit) -> bot -> bot
     - [Event.inline_query] - matches inline queries
 *)
 
+val on_text : ([ `Chat ] ctx -> string -> unit) -> bot -> bot
+(** [on_text handler bot] adds a text message handler to the bot.
+
+    This is a convenience method equivalent to [on Event.text handler bot].
+
+    Example:
+    {[
+      Bot.make ~env ~client
+      |> Bot.on_text (fun ctx text ->
+          let _ = Ctx.reply ctx ("You said: " ^ text) in ()
+        )
+      |> Bot.run
+    ]}
+*)
+
+val on_message : ([ `Chat ] ctx -> Telegram_generated.Gen_types.Message.t -> unit) -> bot -> bot
+(** [on_message handler bot] adds a message handler that matches any message.
+
+    This is a convenience method equivalent to [on Event.message handler bot].
+    The handler receives the full Telegram Message.t object.
+
+    Example:
+    {[
+      Bot.make ~env ~client
+      |> Bot.on_message (fun ctx msg ->
+          let open Telegram_generated.Gen_types in
+          let text = Option.value msg.Message.text ~default:"(no text)" in
+          let _ = Ctx.send ctx ("Received: " ^ text) in ()
+        )
+      |> Bot.run
+    ]}
+*)
+
+val on_callback : ([ `Chat ] ctx -> string -> unit) -> bot -> bot
+(** [on_callback handler bot] adds a callback query handler to the bot.
+
+    The handler receives the callback data as a string.
+    This matches updates with callback_query field and extracts the data.
+
+    Example:
+    {[
+      Bot.make ~env ~client
+      |> Bot.on_callback (fun ctx data ->
+          (* data is the callback_data from inline keyboard button *)
+          let _ = Ctx.send ctx ("Callback: " ^ data) in ()
+        )
+      |> Bot.run
+    ]}
+*)
+
+val on_photo : ([ `Chat ] ctx -> Telegram_generated.Gen_types.PhotoSize.t list -> unit) -> bot -> bot
+(** [on_photo handler bot] adds a photo message handler to the bot.
+
+    The handler receives a list of PhotoSize objects (different resolutions of the same photo).
+    This matches messages that contain photos.
+
+    Example:
+    {[
+      Bot.make ~env ~client
+      |> Bot.on_photo (fun ctx photos ->
+          let count = List.length photos in
+          let _ = Ctx.reply ctx (Printf.sprintf "Got %d photo sizes" count) in ()
+        )
+      |> Bot.run
+    ]}
+*)
+
 (** {1 Route-based API} *)
 
 val route : 'a Event.t -> ('a -> [ `Chat ] ctx -> unit) -> route

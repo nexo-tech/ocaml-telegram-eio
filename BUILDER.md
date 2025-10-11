@@ -166,11 +166,14 @@ let combined = Bot.merge echo_bot admin_bot
   - Renamed route-based `on` to `route` for clarity
   - Added new builder-pattern `on` function
 
-- [ ] Task 3.2: Convenience methods for common events
+- [x] Task 3.2: Convenience methods for common events
   - `on_text : (ctx -> string -> unit) -> bot -> bot`
   - `on_message : (ctx -> Message.t -> unit) -> bot -> bot`
   - `on_callback : (ctx -> string -> unit) -> bot -> bot`
   - `on_photo : (ctx -> PhotoSize.t list -> unit) -> bot -> bot`
+  - All implemented as thin wrappers over `Bot.on`
+  - on_callback uses Event.when_ filter on callback_query
+  - on_photo uses Event.when_ filter on messages with photos
 
 ### Phase 4: Middleware Integration
 
@@ -304,10 +307,10 @@ let combined = Bot.merge echo_bot admin_bot
 ## Progress Tracking
 
 **Total Tasks**: 33
-**Completed**: 7
+**Completed**: 8
 **In Progress**: 0
-**Remaining**: 26
-**Progress**: 21% (7/33)
+**Remaining**: 25
+**Progress**: 24% (8/33)
 
 ---
 

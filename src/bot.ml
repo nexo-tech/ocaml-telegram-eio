@@ -808,3 +808,45 @@ let on : type a. a Event.t -> ([ `Chat ] ctx -> a -> unit) -> bot -> bot =
     let route_obj = route event flipped_handler in
     (* Return new bot with route added *)
     { bot with routes = bot.routes @ [route_obj] }
+
+(** Convenience methods for common event types *)
+
+(** Add a text message handler to the bot *)
+let on_text handler bot =
+  on Event.text handler bot
+
+(** Add a message handler to the bot *)
+let on_message handler bot =
+  on Event.message handler bot
+
+(** Add a callback query handler to the bot *)
+let on_callback handler bot =
+  (* Create a filter on callback_query updates that extracts the data *)
+  let callback_event = Event.when_ Event.any (fun upd ->
+    match upd.Telegram_generated.Gen_types.Update.callback_query with
+    | Some _ -> true
+    | None -> false
+  ) in
+  let wrapped_handler ctx upd =
+    match upd.Telegram_generated.Gen_types.Update.callback_query with
+    | Some cbq ->
+        let data = Option.value cbq.Telegram_generated.Gen_types.CallbackQuery.data ~default:"" in
+        handler ctx data
+    | None -> ()
+  in
+  on callback_event wrapped_handler bot
+
+(** Add a photo message handler to the bot *)
+let on_photo handler bot =
+  (* Filter messages that have photos *)
+  let photo_event = Event.when_ Event.message (fun msg ->
+    match msg.Telegram_generated.Gen_types.Message.photo with
+    | Some (_ :: _) -> true
+    | _ -> false
+  ) in
+  let wrapped_handler ctx msg =
+    match msg.Telegram_generated.Gen_types.Message.photo with
+    | Some photos -> handler ctx photos
+    | None -> ()
+  in
+  on photo_event wrapped_handler bot
