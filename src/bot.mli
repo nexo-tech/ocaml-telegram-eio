@@ -255,6 +255,32 @@ end
 
 type route
 
+(** {1 Builder Pattern}
+
+    The [bot] type accumulates routes, middleware, and configuration for
+    building bots using a functional, composable style with the [|>] operator.
+
+    This is an immutable builder pattern - operations return new [bot] values
+    rather than mutating in place.
+
+    Example:
+    {[
+      Bot.make ~env ~client
+      |> Bot.command "start" (fun ctx _args -> Ctx.reply ctx "Welcome!")
+      |> Bot.on Event.text (fun ctx text -> Ctx.reply ctx text)
+      |> Bot.run
+    ]}
+*)
+type bot
+
+val make : env:Telegram.Client.env -> client:Telegram.Client.t -> bot
+(** Create a new bot with empty routes, ready for building with [|>] *)
+
+val run : bot -> unit
+(** Run the bot using long polling. Extracts accumulated routes and delegates to [run_polling]. *)
+
+(** {1 Route-based API} *)
+
 val on : 'a Event.t -> ('a -> [ `Chat ] ctx -> unit) -> route
 (** Create a route from an event matcher and handler *)
 

@@ -122,17 +122,17 @@ let combined = Bot.merge echo_bot admin_bot
 
 ### Phase 1: Core Builder Types & Infrastructure
 
-- [ ] Task 1.1: Define `bot` type (builder state)
+- [x] Task 1.1: Define `bot` type (builder state)
   - Accumulates routes, middleware, error handlers
   - Immutable - operations return new bot
   - Contains client reference
 
-- [ ] Task 1.2: Implement `Bot.make : Client.t -> bot`
+- [x] Task 1.2: Implement `Bot.make : Client.t -> bot`
   - Create initial empty bot with client
   - Initialize empty route list
   - Set default error handler
 
-- [ ] Task 1.3: Implement `Bot.run : bot -> unit`
+- [x] Task 1.3: Implement `Bot.run : bot -> unit`
   - Extract routes from bot state
   - Call `run_polling` internally
   - Simple delegation to existing infrastructure
@@ -298,10 +298,10 @@ let combined = Bot.merge echo_bot admin_bot
 ## Progress Tracking
 
 **Total Tasks**: 33
-**Completed**: 0
+**Completed**: 3
 **In Progress**: 0
-**Remaining**: 33
-**Progress**: 0%
+**Remaining**: 30
+**Progress**: 9% (3/33)
 
 ---
 

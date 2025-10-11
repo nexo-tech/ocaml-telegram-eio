@@ -600,6 +600,15 @@ type route = {
   on_error : ([ `Chat ] ctx -> exn -> unit) option;
 }
 
+(* Builder pattern bot type - accumulates routes, middleware, and config *)
+type bot = {
+  client : Client.t;
+  env : Client.env;
+  routes : route list;
+  middleware : [ `Chat ] Middleware.t list;
+  on_error : ([ `Chat ] ctx -> exn -> unit) option;
+}
+
 (* Create a route from an event and handler *)
 let on ev h = {
   handler = Handler (ev, h);
@@ -608,15 +617,15 @@ let on ev h = {
 }
 
 (* Add middleware to a route *)
-let with_middleware mws route = { route with middleware = mws }
+let with_middleware mws (route : route) : route = { route with middleware = mws }
 
 (* Add error handler to a route *)
-let with_error_handler err_h route = { route with on_error = Some err_h }
+let with_error_handler err_h (route : route) : route = { route with on_error = Some err_h }
 
 (* Create router with optional global middleware and error handler *)
-let router ?(middlewares = []) ?on_error routes =
+let router ?(middlewares = []) ?on_error (routes : route list) : route list =
   (* Apply global middleware and error handler to all routes *)
-  List.map (fun route ->
+  List.map (fun (route : route) : route ->
     { route with
       middleware = middlewares @ route.middleware;
       on_error = (match route.on_error with
@@ -712,3 +721,25 @@ let run_webhook ~env ~client ~secret_token ~addr routes =
 
   (* Run the webhook server *)
   Webhook.run client ~secret_token ~port ~path ~handler
+
+(* Builder pattern functions *)
+
+(** Create a new bot with empty route list *)
+let make ~env ~client = {
+  client;
+  env;
+  routes = [];
+  middleware = [];
+  on_error = None;
+}
+
+(** Run the bot using long polling *)
+let run bot =
+  (* Apply global middleware/error handler to all routes *)
+  let routes = router
+    ~middlewares:bot.middleware
+    ?on_error:bot.on_error
+    bot.routes
+  in
+  (* Delegate to existing run_polling *)
+  run_polling ~env:bot.env ~client:bot.client routes
