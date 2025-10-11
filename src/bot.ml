@@ -743,3 +743,12 @@ let run bot =
   in
   (* Delegate to existing run_polling *)
   run_polling ~env:bot.env ~client:bot.client routes
+
+(** Add a command handler to the bot *)
+let command cmd_name handler bot =
+  (* Create route with flipped handler signature for better ergonomics
+     Handler takes (ctx -> string list -> unit) but Event expects (string list -> ctx -> unit) *)
+  let flipped_handler args ctx = handler ctx args in
+  let route = on (Event.Command cmd_name) flipped_handler in
+  (* Return new bot with route added *)
+  { bot with routes = bot.routes @ [route] }

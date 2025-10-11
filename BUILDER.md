@@ -139,10 +139,11 @@ let combined = Bot.merge echo_bot admin_bot
 
 ### Phase 2: Command Routing
 
-- [ ] Task 2.1: `Bot.command : string -> (ctx -> string list -> unit) -> bot -> bot`
+- [x] Task 2.1: `Bot.command : string -> (ctx -> string list -> unit) -> bot -> bot`
   - Sugar over `on (Event.command name) handler`
   - Accumulate route into bot state
   - Return new bot value
+  - Flips handler signature for better ergonomics (ctx first, args second)
 
 - [ ] Task 2.2: Command with description
   - `command : string -> desc:string -> handler -> bot -> bot`
@@ -298,10 +299,10 @@ let combined = Bot.merge echo_bot admin_bot
 ## Progress Tracking
 
 **Total Tasks**: 33
-**Completed**: 3
+**Completed**: 4
 **In Progress**: 0
-**Remaining**: 30
-**Progress**: 9% (3/33)
+**Remaining**: 29
+**Progress**: 12% (4/33)
 
 ---
 

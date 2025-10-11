@@ -279,6 +279,25 @@ val make : env:Telegram.Client.env -> client:Telegram.Client.t -> bot
 val run : bot -> unit
 (** Run the bot using long polling. Extracts accumulated routes and delegates to [run_polling]. *)
 
+val command : string -> ([ `Chat ] ctx -> string list -> unit) -> bot -> bot
+(** [command name handler bot] adds a command handler to the bot.
+
+    The handler receives the context first, then the command arguments.
+    This provides better ergonomics for partial application and piping.
+
+    Example:
+    {[
+      Bot.make ~env ~client
+      |> Bot.command "start" (fun ctx _args ->
+          let _ = Ctx.reply ctx "Welcome!" in ()
+        )
+      |> Bot.command "echo" (fun ctx args ->
+          let text = String.concat " " args in
+          let _ = Ctx.reply ctx text in ()
+        )
+    ]}
+*)
+
 (** {1 Route-based API} *)
 
 val on : 'a Event.t -> ('a -> [ `Chat ] ctx -> unit) -> route
