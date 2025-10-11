@@ -191,9 +191,12 @@ let combined = Bot.merge echo_bot admin_bot
   - Routes automatically get scoped middleware when added
   - Bot.end_scope clears scoped middleware
 
-- [ ] Task 4.3: Middleware combinators
-  - `require_user >>` - monadic chaining
+- [x] Task 4.3: Middleware combinators
+  - `require_user >>` - monadic chaining (already existed)
   - `with_logging` - decorator style
+  - Added `when_` combinator for conditional middleware
+  - Added decorator-style helpers: `with_logging`, `require_admin`, `require_all`
+  - All combinators support functional composition
 
 ### Phase 5: Error Handling
 
@@ -312,10 +315,10 @@ let combined = Bot.merge echo_bot admin_bot
 ## Progress Tracking
 
 **Total Tasks**: 33
-**Completed**: 10
+**Completed**: 11
 **In Progress**: 0
-**Remaining**: 23
-**Progress**: 30% (10/33)
+**Remaining**: 22
+**Progress**: 33% (11/33)
 
 ---
 

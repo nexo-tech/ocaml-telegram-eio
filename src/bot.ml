@@ -479,6 +479,35 @@ module Middleware = struct
 
   (* Chain operator for combining middleware *)
   let ( >> ) m1 m2 = combine [m1; m2]
+
+  (* Conditional middleware - only apply if predicate is true *)
+  let when_ predicate mw =
+    make ~before:(fun ctx ->
+      if predicate ctx then
+        mw.before ctx
+      else
+        Ok ctx)
+    ~after:(fun ctx ->
+      if predicate ctx then
+        mw.after ctx)
+    ~on_error:(fun ctx exn ->
+      if predicate ctx then
+        mw.on_error ctx exn)
+    ("when_" ^ mw.name)
+
+  (* Decorator-style helpers for common patterns *)
+
+  (* Apply logging middleware with custom prefix *)
+  let with_logging ?(prefix = "[Bot]") () =
+    logging ~prefix ()
+
+  (* Require admin user (example decorator) *)
+  let require_admin admin_ids =
+    only_users admin_ids
+
+  (* Combine authorization checks *)
+  let require_all checks =
+    combine checks
 end
 
 module Ctx = struct

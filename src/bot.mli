@@ -187,6 +187,62 @@ module Middleware : sig
 
   val ( >> ) : 's t -> 's t -> 's t
   (** Chain operator: [m1 >> m2] runs m1 then m2 *)
+
+  val when_ : ('s ctx -> bool) -> 's t -> 's t
+  (** [when_ predicate middleware] conditionally applies middleware based on a predicate.
+
+      The middleware only runs if the predicate returns true for the current context.
+      This is useful for applying middleware only in specific situations.
+
+      Example:
+      {[
+        (* Only log private chats *)
+        let is_private ctx = match ctx.chat with
+          | Some chat_id -> (* check if private *)
+          | None -> false
+
+        Middleware.when_ is_private (Middleware.logging ())
+      ]}
+  *)
+
+  val with_logging : ?prefix:string -> unit -> 's t
+  (** Decorator-style alias for [logging]. Makes code more readable in pipelines.
+
+      Example:
+      {[
+        Bot.make ~env ~client
+        |> Bot.use (Middleware.with_logging ~prefix:"[MyBot]" ())
+        |> Bot.command "start" handler
+      ]}
+  *)
+
+  val require_admin : Telegram.Id.User.k Telegram.Id.t list -> 's t
+  (** Decorator-style alias for [only_users]. More descriptive for admin-only routes.
+
+      Example:
+      {[
+        let admin_ids = [Telegram.Id.User.of_int 123456] in
+
+        Bot.make ~env ~client
+        |> Bot.scope [Middleware.require_admin admin_ids]
+        |> Bot.command "admin" admin_handler
+        |> Bot.end_scope
+      ]}
+  *)
+
+  val require_all : 's t list -> 's t
+  (** Combine multiple middleware that must all pass.
+
+      This is an alias for [combine] with a more descriptive name for authorization checks.
+
+      Example:
+      {[
+        Middleware.require_all [
+          Middleware.require_user ();
+          Middleware.rate_limit ~max_per_minute:10 ();
+        ]
+      ]}
+  *)
 end
 
 module Ctx : sig
