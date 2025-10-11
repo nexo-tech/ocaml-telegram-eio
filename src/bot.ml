@@ -1093,3 +1093,11 @@ let when_ predicate bot =
     bot with
     routes = List.map wrap_route bot.routes;
   }
+
+(** Session integration *)
+
+let with_sessions (type s) (module Store : Session.STORE with type store = s) store bot =
+  (* Auto-enable session middleware for the bot.
+     This is sugar over manually using Bot.use with Middleware.with_session. *)
+  let session_middleware = Middleware.with_session (module Store) store in
+  use session_middleware bot

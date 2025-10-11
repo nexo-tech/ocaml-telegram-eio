@@ -283,9 +283,13 @@ let combined = Bot.merge echo_bot admin_bot
 
 ### Phase 8: Session Integration
 
-- [ ] Task 8.1: Session sugar
+- [x] Task 8.1: Session sugar
   - `Bot.with_sessions : Session.store -> bot -> bot`
   - Auto-enable session middleware
+  - Implemented with_sessions function to auto-enable session middleware
+  - Takes a session store and applies session middleware to the bot
+  - Comprehensive documentation with counter, preferences, and basic usage examples
+  - Simplifies session setup compared to manual middleware configuration
 
 - [ ] Task 8.2: Stateful handlers
   - Type-safe session key access
@@ -354,10 +358,10 @@ let combined = Bot.merge echo_bot admin_bot
 ## Progress Tracking
 
 **Total Tasks**: 33
-**Completed**: 20
+**Completed**: 21
 **In Progress**: 0
-**Remaining**: 13
-**Progress**: 61% (20/33)
+**Remaining**: 12
+**Progress**: 64% (21/33)
 
 ---
 

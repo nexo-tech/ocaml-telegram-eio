@@ -1355,6 +1355,125 @@ val when_ : ([ `Chat ] ctx -> bool) -> bot -> bot
     - Dynamic bot behavior based on external state
 *)
 
+(** {1 Session Integration} *)
+
+val with_sessions : (module Session.STORE with type store = 's) -> 's -> bot -> bot
+(** [with_sessions (module Store) store bot] auto-enables session middleware for the bot.
+
+    This is a convenience function that automatically applies session middleware,
+    eliminating the need to manually use [Bot.use] with [Middleware.with_session].
+
+    Sessions allow you to store per-user state across multiple updates. The session
+    is automatically loaded for each user and made available in the context via
+    [Ctx.session] and related helpers.
+
+    Example - Basic session usage:
+    {[
+      (* Create a session store *)
+      let store = Session.Memory_store.create ()
+
+      (* Define a session key *)
+      let count_key = Session.key "message_count"
+
+      let bot =
+        Bot.make ~env ~client
+        |> Bot.with_sessions (module Session.Memory_store) store
+        |> Bot.command "count" (fun ctx _args ->
+            (* Get current count from session *)
+            let count = Ctx.session_get_or ctx count_key ~default:0 in
+            let new_count = count + 1 in
+            (* Save new count to session *)
+            Ctx.session_set ctx count_key new_count;
+            let _ = Ctx.reply ctx (Printf.sprintf "Message count: %d" new_count) in
+            ()
+          )
+        |> Bot.run
+    ]}
+
+    Example - Counter bot with sessions:
+    {[
+      let store = Session.Memory_store.create ()
+      let counter_key = Session.key "counter"
+
+      let bot =
+        Bot.make ~env ~client
+        |> Bot.with_sessions (module Session.Memory_store) store
+        |> Bot.command "increment" (fun ctx _args ->
+            Ctx.session_modify ctx counter_key ~default:0 (fun n -> n + 1);
+            let count = Ctx.session_get_or ctx counter_key ~default:0 in
+            let _ = Ctx.reply ctx (Printf.sprintf "Counter: %d" count) in
+            ()
+          )
+        |> Bot.command "reset" (fun ctx _args ->
+            Ctx.session_set ctx counter_key 0;
+            let _ = Ctx.reply ctx "Counter reset" in ()
+          )
+        |> Bot.run
+    ]}
+
+    Example - User preferences:
+    {[
+      type language = EN | FR | ES
+
+      let store = Session.Memory_store.create ()
+      let lang_key = Session.key "language"
+
+      let bot =
+        Bot.make ~env ~client
+        |> Bot.with_sessions (module Session.Memory_store) store
+        |> Bot.command "setlang" (fun ctx args ->
+            let lang = match args with
+              | ["en"] -> Some EN
+              | ["fr"] -> Some FR
+              | ["es"] -> Some ES
+              | _ -> None
+            in
+            match lang with
+            | Some l ->
+                Ctx.session_set ctx lang_key l;
+                let _ = Ctx.reply ctx "Language updated" in ()
+            | None ->
+                let _ = Ctx.reply ctx "Usage: /setlang [en|fr|es]" in ()
+          )
+        |> Bot.command "greet" (fun ctx _args ->
+            let lang = Ctx.session_get_or ctx lang_key ~default:EN in
+            let greeting = match lang with
+              | EN -> "Hello!"
+              | FR -> "Bonjour!"
+              | ES -> "¡Hola!"
+            in
+            let _ = Ctx.reply ctx greeting in ()
+          )
+        |> Bot.run
+    ]}
+
+    How it works:
+    - Creates a session middleware using the provided store
+    - Applies it globally to the bot using [Bot.use]
+    - For each update with a user, loads the user's session
+    - Session is added to the context and accessible via [Ctx.session_*] functions
+    - Changes to session are persisted in the store
+
+    Session helpers in Ctx module:
+    - [Ctx.session] - Get the session (fails if not enabled)
+    - [Ctx.session_opt] - Get the session as an option
+    - [Ctx.session_get] - Get a value from the session
+    - [Ctx.session_set] - Set a value in the session
+    - [Ctx.session_get_or] - Get a value or return default
+    - [Ctx.session_delete] - Delete a key from the session
+    - [Ctx.session_clear] - Clear all session data
+    - [Ctx.session_modify] - Modify a session value
+
+    Note: The built-in [Session.Memory_store] is suitable for development and
+    small bots. For production use with multiple bot instances or persistence,
+    consider implementing a custom store backed by Redis, PostgreSQL, etc.
+
+    See also:
+    - [Session] module for session operations and store interface
+    - [Ctx.session_*] functions for session access
+    - [Middleware.with_session] for manual middleware setup
+*)
+
 (** {1 Route-based API} *)
 
 val route : 'a Event.t -> ('a -> [ `Chat ] ctx -> unit) -> route
