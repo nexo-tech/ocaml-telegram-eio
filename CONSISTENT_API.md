@@ -28,12 +28,16 @@ Goal: Implement every example from documentation in `examples/` directory with a
   - Logs include prefixes: [Init], [Builder], [Handler], [Error]
   - Every example demonstrates troubleshooting best practices
   - Examples are fully debuggable with verbose output for Claude/humans
-- [ ] Task 1.1.1.2: `docs/quick_start.mld` - Extract and implement all examples
-  - Created `examples/command_tutorial.ml` - Comprehensive command bot (tutorials 1-2)
-  - Added `Input_file.file` alias for `Input_file.path` (doc compatibility)
-  - Identified major API gap: docs show Bot DSL builder pattern (`Bot.make |> Bot.command ...`) which doesn't exist
-  - Current API uses route-based DSL (`on Event.command, run_polling`)
-  - Bot builder pattern needs separate implementation task
+- [x] Task 1.1.1.2: `docs/quick_start.mld` - Extract and implement all examples
+  - Updated `examples/command_tutorial.ml` - Bot DSL tutorial (Tutorial 3)
+  - **Bot builder pattern**: Uses functional builder API with `|>` chaining
+    - `Verbose_bot.make ~env ~client |> Verbose_bot.command ... |> Verbose_bot.run`
+  - **Commands implemented**: /start, /help, /echo, /add, /upper + on_text fallback
+  - **Args module**: Demonstrates Bot.Args helpers (expect_2, parse_int, join_rest)
+  - **Result-based handlers**: All handlers return `(unit, Error.t) result`
+  - **Functor-based logging**: Custom Verbose_bot with Debug level logging
+  - **Comprehensive logging**: Every handler logs entry/exit, argument parsing, results
+  - Example compiles without errors and demonstrates elegant Bot DSL from docs
 - [ ] Task 1.1.1.3: `docs/core_concepts.mld` - Extract and implement all examples
 
 ### Phase 1.1.2: Recipe Examples (Cookbook)
@@ -107,10 +111,10 @@ Every example must:
 ## Progress Tracking
 
 **Total Tasks**: 35
-**Completed**: 3
+**Completed**: 4
 **In Progress**: 0
-**Remaining**: 32
-**Progress**: 9% (3/35)
+**Remaining**: 31
+**Progress**: 11% (4/35)
 
 ---
 
