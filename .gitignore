@@ -1,4 +1,4 @@
 _build
-.gitignore
 *.exe
+.envrc
 

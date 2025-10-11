@@ -13,6 +13,8 @@
 8. Public API changes require documentation updates
 9. Mark the task checked in the .md file - [x]
 10. Commit when task successfully completed
+11. all code examples must have the most verbose logging configured (to
+    effectively troubleshoot all the issues)
 
 ## Result-Based Error Handling (NO EXCEPTIONS)
 
