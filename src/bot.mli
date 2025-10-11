@@ -610,6 +610,48 @@ val end_scope : bot -> bot
     See [scope] for examples.
 *)
 
+(** {1 Error Handling} *)
+
+val on_error : ([ `Chat ] ctx -> exn -> unit) -> bot -> bot
+(** [on_error handler bot] sets a global error handler for all routes in the bot.
+
+    The error handler is called when any route handler raises an exception.
+    This overrides the default error handling behavior.
+
+    The handler receives the context and the exception that was raised.
+
+    Example:
+    {[
+      Bot.make ~env ~client
+      |> Bot.on_error (fun ctx exn ->
+          (* Log error *)
+          Printf.eprintf "Error in handler: %s\n" (Printexc.to_string exn);
+          (* Try to notify user *)
+          let _ = Ctx.reply ctx "Sorry, an error occurred!" in
+          ()
+        )
+      |> Bot.command "start" (fun ctx _args ->
+          (* If this raises, on_error handler is called *)
+          let _ = Ctx.reply ctx "Welcome!" in ()
+        )
+      |> Bot.run
+    ]}
+
+    Note: Route-specific error handlers (via [with_error_handler]) take precedence
+    over the global error handler.
+
+    Common use cases:
+    - Logging errors to a file or service
+    - Sending error notifications to users
+    - Recovering gracefully from errors
+    - Implementing custom retry logic
+
+    See also [ErrorHandler] module for pre-built error handlers:
+    - [ErrorHandler.log] - Log to stderr
+    - [ErrorHandler.log_and_reply] - Log and send message to user
+    - [ErrorHandler.silent] - Ignore errors silently
+*)
+
 (** {1 Route-based API} *)
 
 val route : 'a Event.t -> ('a -> [ `Chat ] ctx -> unit) -> route

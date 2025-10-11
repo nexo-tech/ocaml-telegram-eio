@@ -901,3 +901,9 @@ let scope mws bot =
 (** Clear all scoped middleware *)
 let end_scope bot =
   { bot with scoped_middleware = [] }
+
+(** Error handling *)
+
+(** Set global error handler for the bot *)
+let on_error handler bot =
+  { bot with on_error = Some handler }

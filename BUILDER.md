@@ -200,9 +200,12 @@ let combined = Bot.merge echo_bot admin_bot
 
 ### Phase 5: Error Handling
 
-- [ ] Task 5.1: `Bot.on_error : (ctx -> exn -> unit) -> bot -> bot`
+- [x] Task 5.1: `Bot.on_error : (ctx -> exn -> unit) -> bot -> bot`
   - Set global error handler
   - Override default
+  - Simple implementation: `{ bot with on_error = Some handler }`
+  - Applied via router when Bot.run is called
+  - Route-specific handlers take precedence
 
 - [ ] Task 5.2: Per-command error handling
   - `command_safe : string -> (ctx -> args -> (unit, err) result) -> bot -> bot`
@@ -315,10 +318,10 @@ let combined = Bot.merge echo_bot admin_bot
 ## Progress Tracking
 
 **Total Tasks**: 33
-**Completed**: 11
+**Completed**: 12
 **In Progress**: 0
-**Remaining**: 22
-**Progress**: 33% (11/33)
+**Remaining**: 21
+**Progress**: 36% (12/33)
 
 ---
 
