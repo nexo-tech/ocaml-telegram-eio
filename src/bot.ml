@@ -686,6 +686,24 @@ module Ctx = struct
           })
   (** [require_admin admin_ids ctx] checks if the user is in the admin list.
       Returns [Ok ()] if user is admin, [Error] otherwise. *)
+
+  (* Function composition operators for point-free style *)
+
+  let ( >>= ) f g = fun x ->
+    match f x with
+    | Ok y -> g y
+    | Error e -> Error e
+  (** [f >>= g] composes two monadic functions.
+      The result of [f] is passed to [g] if successful, otherwise the error is propagated.
+      This enables point-free composition of handlers. *)
+
+  let ( >>| ) f g = fun x ->
+    match f x with
+    | Ok y -> Ok (g y)
+    | Error e -> Error e
+  (** [f >>| g] composes a monadic function with a regular function.
+      The result of [f] is transformed by [g] if successful.
+      This enables point-free composition of handlers with transformations. *)
 end
 
 type handler = Handler : 'a Event.t * ('a -> [ `Chat ] ctx -> unit) -> handler

@@ -507,6 +507,109 @@ module Ctx : sig
       - [Error (Api_error "User required...")] if user is missing
       - [Error (Api_error "Admin privileges required")] if user is not an admin
   *)
+
+  (** {2 Function Composition}
+
+      These operators enable point-free style composition of handler functions.
+      They compose functions that work with Result types, enabling elegant
+      pipelines without explicit argument passing.
+  *)
+
+  val ( >>= ) : ('a -> ('b, Telegram.Error.t) result) -> ('b -> ('c, Telegram.Error.t) result) -> ('a -> ('c, Telegram.Error.t) result)
+  (** [f >>= g] composes two monadic functions (both return Result).
+
+      The composed function passes the result of [f] to [g] if successful,
+      otherwise propagates the error. This is the Kleisli composition operator
+      for Result.
+
+      Example (point-free style):
+      {[
+        let open Ctx in
+
+        (* Define reusable monadic functions *)
+        let get_username ctx =
+          let* user = require_user ctx in
+          return (Option.value user.username ~default:"Anonymous")
+
+        let greet name ctx =
+          reply_ ctx (Printf.sprintf "Hello, %s!" name)
+
+        (* Compose them point-free *)
+        let greet_user = get_username >>= greet
+
+        (* Use in handler *)
+        let handler ctx =
+          greet_user ctx
+      ]}
+
+      Compare with explicit style:
+      {[
+        let handler ctx =
+          let open Ctx in
+          let* user = require_user ctx in
+          let name = Option.value user.username ~default:"Anonymous" in
+          reply_ ctx (Printf.sprintf "Hello, %s!" name)
+      ]}
+
+      The [>>=] operator enables building reusable, composable handler functions.
+
+      Type signature breakdown:
+      - [f : 'a -> ('b, error) result] - First monadic function
+      - [g : 'b -> ('c, error) result] - Second monadic function
+      - Result: ['a -> ('c, error) result] - Composed function
+
+      Properties:
+      - Left identity: [return >>= f] is equivalent to [f]
+      - Right identity: [f >>= return] is equivalent to [f]
+      - Associativity: [(f >>= g) >>= h] is equivalent to [f >>= (g >>= h)]
+  *)
+
+  val ( >>| ) : ('a -> ('b, Telegram.Error.t) result) -> ('b -> 'c) -> ('a -> ('c, Telegram.Error.t) result)
+  (** [f >>| g] composes a monadic function with a regular (pure) function.
+
+      The composed function applies [g] to transform the successful result of [f].
+      If [f] returns an error, it's propagated without calling [g].
+
+      Example (point-free style):
+      {[
+        let open Ctx in
+
+        (* Define transformation pipeline *)
+        let extract_username user =
+          Option.value user.username ~default:"Anonymous"
+
+        let format_greeting name =
+          Printf.sprintf "Hello, %s! Welcome to the bot."
+
+        (* Compose: require_user >>| extract_username >>| format_greeting *)
+        let get_greeting =
+          require_user >>| extract_username >>| format_greeting
+
+        (* Use in handler *)
+        let handler ctx =
+          let* greeting = get_greeting ctx in
+          reply_ ctx greeting
+      ]}
+
+      Compare with explicit style:
+      {[
+        let handler ctx =
+          let open Ctx in
+          let* user = require_user ctx in
+          let name = Option.value user.username ~default:"Anonymous" in
+          let greeting = Printf.sprintf "Hello, %s! Welcome to the bot." name in
+          reply_ ctx greeting
+      ]}
+
+      The [>>|] operator enables clean transformation pipelines.
+
+      Type signature breakdown:
+      - [f : 'a -> ('b, error) result] - Monadic function
+      - [g : 'b -> 'c] - Pure transformation
+      - Result: ['a -> ('c, error) result] - Composed function
+
+      Use [>>|] when transforming values, [>>=] when chaining operations that can fail.
+  *)
 end
 
 type route

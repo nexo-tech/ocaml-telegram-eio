@@ -244,9 +244,14 @@ let combined = Bot.merge echo_bot admin_bot
   - All combinators work seamlessly with let* syntax
   - Comprehensive documentation with examples
 
-- [ ] Task 6.3: Chaining helpers
+- [x] Task 6.3: Chaining helpers
   - `(>>=) : ('a -> 'b result) -> ('b -> 'c result) -> ('a -> 'c result)`
   - `(>>|) : ('a -> 'b result) -> ('b -> 'c) -> ('a -> 'c result)`
+  - Implemented `>>=` operator for Kleisli composition (monadic)
+  - Implemented `>>|` operator for functor composition (applicative)
+  - Enable point-free style composition of handler functions
+  - Comprehensive documentation with examples and monad laws
+  - Clean transformation pipelines without explicit argument passing
 
 ### Phase 7: Advanced Composition
 
@@ -336,10 +341,10 @@ let combined = Bot.merge echo_bot admin_bot
 ## Progress Tracking
 
 **Total Tasks**: 33
-**Completed**: 16
+**Completed**: 17
 **In Progress**: 0
-**Remaining**: 17
-**Progress**: 48% (16/33)
+**Remaining**: 16
+**Progress**: 52% (17/33)
 
 ---
 
