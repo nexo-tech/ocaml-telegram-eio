@@ -223,9 +223,16 @@ let combined = Bot.merge echo_bot admin_bot
 
 ### Phase 6: Monadic Helpers
 
-- [ ] Task 6.1: Context monadic operations
+- [x] Task 6.1: Context monadic operations
   - `let* syntax in handlers`
   - `Ctx.bind`, `Ctx.map`, `Ctx.return`
+  - Implemented monadic operations for Result type
+  - Added `Ctx.return` to wrap values in Ok
+  - Added `Ctx.bind` for chaining Result operations
+  - Added `Ctx.map` for transforming Result values
+  - Added `let*` operator for monadic syntax sugar
+  - Added `let+` operator for applicative syntax sugar
+  - Comprehensive documentation with examples
 
 - [ ] Task 6.2: Handler combinators
   - `reply : string -> ctx -> (unit, Error.t) result`
@@ -324,10 +331,10 @@ let combined = Bot.merge echo_bot admin_bot
 ## Progress Tracking
 
 **Total Tasks**: 33
-**Completed**: 14
+**Completed**: 15
 **In Progress**: 0
-**Remaining**: 19
-**Progress**: 42% (14/33)
+**Remaining**: 18
+**Progress**: 45% (15/33)
 
 ---
 

@@ -307,6 +307,114 @@ module Ctx : sig
 
   val session_modify : _ t -> 'a Session.key -> default:'a -> ('a -> 'a) -> unit
   (** Modify a session value, using default if missing *)
+
+  (** {2 Monadic Operations}
+
+      These operations enable elegant error handling using OCaml's monadic syntax.
+      All context operations that can fail (like [reply], [send], [edit]) return
+      [Result.t] values, which can be chained using [bind] or the [let*] syntax.
+  *)
+
+  val return : 'a -> ('a, Telegram.Error.t) result
+  (** [return x] wraps a value in [Ok x].
+
+      This is the monadic return operation for Result.
+
+      Example:
+      {[
+        let handler ctx =
+          Ctx.return ()  (* Returns Ok () *)
+      ]}
+  *)
+
+  val bind : ('a, Telegram.Error.t) result -> ('a -> ('b, Telegram.Error.t) result) -> ('b, Telegram.Error.t) result
+  (** [bind result f] is the monadic bind operation for Result.
+
+      If [result] is [Ok x], applies [f] to [x] and returns the result.
+      If [result] is [Error e], propagates the error without calling [f].
+
+      This enables chaining operations that can fail.
+
+      Example:
+      {[
+        let handler ctx =
+          bind (Ctx.reply ctx "First message") (fun _msg1 ->
+            bind (Ctx.send ctx "Second message") (fun _msg2 ->
+              Ctx.return ()
+            )
+          )
+      ]}
+
+      However, it's more idiomatic to use the [let*] syntax (see below).
+  *)
+
+  val map : ('a, Telegram.Error.t) result -> ('a -> 'b) -> ('b, Telegram.Error.t) result
+  (** [map result f] applies function [f] to the value inside [Ok], or propagates [Error].
+
+      If [result] is [Ok x], returns [Ok (f x)].
+      If [result] is [Error e], returns [Error e].
+
+      Example:
+      {[
+        let handler ctx =
+          map (Ctx.reply ctx "Hello") (fun msg ->
+            Printf.printf "Sent message with ID: %Ld\n" msg.message_id
+          )
+      ]}
+
+      However, it's more idiomatic to use the [let+] syntax (see below).
+  *)
+
+  val ( let* ) : ('a, Telegram.Error.t) result -> ('a -> ('b, Telegram.Error.t) result) -> ('b, Telegram.Error.t) result
+  (** [let* x = expr in body] is syntactic sugar for [bind expr (fun x -> body)].
+
+      This enables elegant monadic syntax for chaining operations that return Result.
+
+      Example:
+      {[
+        let handler ctx =
+          let open Ctx in
+          let* msg1 = reply ctx "First message" in
+          let* msg2 = send ctx "Second message" in
+          let* () = edit ctx "Updated message" in
+          return ()
+      ]}
+
+      The above is equivalent to:
+      {[
+        let handler ctx =
+          Ctx.bind (Ctx.reply ctx "First message") (fun msg1 ->
+            Ctx.bind (Ctx.send ctx "Second message") (fun msg2 ->
+              Ctx.bind (Ctx.edit ctx "Updated message") (fun () ->
+                Ctx.return ()
+              )
+            )
+          )
+      ]}
+
+      Benefits:
+      - Errors are automatically propagated (short-circuiting on first error)
+      - No need for nested match statements
+      - Clean, readable code that focuses on the happy path
+      - Type-safe error handling
+  *)
+
+  val ( let+ ) : ('a, Telegram.Error.t) result -> ('a -> 'b) -> ('b, Telegram.Error.t) result
+  (** [let+ x = expr in body] is syntactic sugar for [map expr (fun x -> body)].
+
+      This enables applicative syntax for Result operations.
+
+      Example:
+      {[
+        let handler ctx =
+          let open Ctx in
+          let+ msg = reply ctx "Hello!" in
+          Printf.printf "Message ID: %Ld\n" msg.message_id
+      ]}
+
+      Use [let+] when you want to transform a successful result without chaining
+      another Result-returning operation. Use [let*] when you need to chain operations.
+  *)
 end
 
 type route

@@ -618,6 +618,34 @@ module Ctx = struct
 
   let session_modify (c : _ t) key ~default f =
     Session.modify (session c) key ~default f
+
+  (* Monadic operations for Result type *)
+
+  let return x = Ok x
+  (** [return x] wraps a value in Ok, for use in monadic context *)
+
+  let bind result f =
+    match result with
+    | Ok x -> f x
+    | Error e -> Error e
+  (** [bind result f] monadic bind operation. Chains operations that return Result.
+      If [result] is [Ok x], applies [f] to [x]. If [Error e], propagates the error. *)
+
+  let map result f =
+    match result with
+    | Ok x -> Ok (f x)
+    | Error e -> Error e
+  (** [map result f] applies function [f] to the value inside [Ok], or propagates [Error] *)
+
+  (* Let operators for monadic syntax *)
+
+  let ( let* ) = bind
+  (** [let* x = expr in body] desugars to [bind expr (fun x -> body)].
+      Enables monadic syntax for chaining Result operations. *)
+
+  let ( let+ ) result f = map result f
+  (** [let+ x = expr in body] desugars to [map expr (fun x -> body)].
+      Enables applicative syntax for Result operations. *)
 end
 
 type handler = Handler : 'a Event.t * ('a -> [ `Chat ] ctx -> unit) -> handler
