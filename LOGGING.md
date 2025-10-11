@@ -135,10 +135,33 @@ Goal: Implement an idiomatic OCaml logging system with functors for modular, str
 
 ### Phase 6: Bot Core Instrumentation
 
-- [ ] Task 6.1: Instrument src/bot.ml dispatch_update (route matching)
-- [ ] Task 6.2: Instrument command routing and parsing
-- [ ] Task 6.3: Instrument event matching system
-- [ ] Task 6.4: Instrument handler execution and results
+- [x] Task 6.1: Instrument src/bot.ml dispatch_update (route matching)
+  - Added info logging for dispatching update (update_id, type)
+  - Added info logging for route matched (route_index)
+  - Added info logging for handler execution completed (duration)
+  - Added warn logging for no route matched for update
+  - Added error logging for handler returned error (Error.t)
+  - Added debug logging for trying route (route_index, event_type)
+  - Added debug logging for route match result (matched: bool)
+
+- [x] Task 6.2: Instrument command routing and parsing
+  - Added info logging for command received (command_name, user_id, args_count)
+  - Added debug logging for command parsing (raw_text, entities)
+  - Added debug logging for arguments extracted (args)
+  - Added debug logging for command name normalization (@botname stripping)
+
+- [x] Task 6.3: Instrument event matching system
+  - Added debug logging for Event.match_event called (event_type, update_type)
+  - Added debug logging for filter predicate evaluated (result)
+  - Logs provided for all event types (Message, Text, Command, etc.)
+
+- [x] Task 6.4: Instrument handler execution and results
+  - Added info logging for handler executing (handler_type)
+  - Added info logging for handler returned Ok
+  - Added error logging for handler returned Error (error_details)
+  - Added debug logging for context preparation (has_user, has_chat, has_message)
+  - Added debug logging for handler result (Ok | Error)
+  - Added warn logging for middleware rejected
 
 ### Phase 7: Middleware Instrumentation
 
@@ -167,10 +190,10 @@ Goal: Implement an idiomatic OCaml logging system with functors for modular, str
 - [ ] Task 10.4: Add debugging guide
 
 **Total Tasks**: 40
-**Completed**: 17
+**Completed**: 21
 **In Progress**: 0
-**Remaining**: 23
-**Progress**: 42.5% (17/40)
+**Remaining**: 19
+**Progress**: 52.5% (21/40)
 
 ---
 

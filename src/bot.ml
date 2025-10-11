@@ -1,6 +1,11 @@
 open Telegram
 open Telegram.Error
 
+module Log = Telegram.Log.Make (Telegram.Log.Console) (struct
+  let src = "Bot"
+  let level = Telegram.Log.Info
+end)
+
 type +'s ctx = {
   client : Client.t option;
   env : Client.env option;
@@ -160,6 +165,11 @@ module Entity = struct
       Returns (command_name, args) option where command_name has no leading slash or @botname.
       This function parses entities only once to avoid infinite loops. *)
   let parse_command_args text entities =
+    Log.debug' (fun () ->
+      let ent_count = match entities with Some e -> List.length e | None -> 0 in
+      Format.asprintf "Command parsing: raw_text=%s, entities=%d" text ent_count
+    );
+
     (* Find the bot_command entity *)
     let parsed = parse_entities text entities in
     let cmd_entities = filter_by_type `BotCommand parsed in
@@ -171,8 +181,13 @@ module Entity = struct
         let cmd_text_no_slash = if String.length cmd_text > 0 && cmd_text.[0] = '/' then
           String.sub cmd_text 1 (String.length cmd_text - 1)
         else cmd_text in
+
+        (* Command name normalization (strip @botname) *)
         let cmd_name = (match String.index_opt cmd_text_no_slash '@' with
-          | Some idx -> String.sub cmd_text_no_slash 0 idx
+          | Some idx ->
+              let botname = String.sub cmd_text_no_slash (idx + 1) (String.length cmd_text_no_slash - idx - 1) in
+              Log.debug "Command name normalization: @botname stripped (%s)" botname;
+              String.sub cmd_text_no_slash 0 idx
           | None -> cmd_text_no_slash) in
 
         (* Get text after the command *)
@@ -185,6 +200,9 @@ module Entity = struct
           if trimmed = "" then []
           else String.split_on_char ' ' trimmed |> List.filter (fun s -> s <> "")
         in
+
+        Log.debug "Arguments extracted: args=[%s]" (String.concat ", " args);
+
         Some (cmd_name, args)
 end
 
@@ -212,6 +230,34 @@ module Event = struct
   (* Internal: match an update against an event matcher *)
   let rec match_event : type a. a t -> Telegram_generated.Gen_types.Update.t -> (a * [ `Chat ] ctx) option =
     fun event upd_param ->
+      (* Extract update type for logging *)
+      let update_type =
+        let open Telegram_generated.Gen_types.Update in
+        let { message; edited_message; channel_post; edited_channel_post;
+              inline_query; callback_query; _ } = upd_param in
+        if message <> None then "message"
+        else if edited_message <> None then "edited_message"
+        else if channel_post <> None then "channel_post"
+        else if edited_channel_post <> None then "edited_channel_post"
+        else if inline_query <> None then "inline_query"
+        else if callback_query <> None then "callback_query"
+        else "other"
+      in
+
+      let event_type_str = match event with
+        | Any -> "Any"
+        | Message -> "Message"
+        | Text -> "Text"
+        | Command cmd -> "Command(" ^ cmd ^ ")"
+        | Callback _ -> "Callback"
+        | Inline_query -> "Inline_query"
+        | Combine _ -> "Combine"
+        | Filter _ -> "Filter"
+      in
+
+      Log.debug "Event.match_event called: event_type=%s, update_type=%s"
+        event_type_str update_type;
+
       match event with
       | Any ->
           (* Create minimal context for 'any' event *)
@@ -282,11 +328,17 @@ module Event = struct
                     (match Entity.parse_command_args text msg.entities with
                      | Some (cmd_name, args) ->
                          (* Check if this is the command we're looking for *)
-                         if cmd_name = cmd then
+                         if cmd_name = cmd then (
+                           let user_id = match msg.from with
+                             | Some user -> Int64.to_string user.id
+                             | None -> "unknown"
+                           in
+                           Log.info "Command received: command_name=%s, user_id=%s, args_count=%d"
+                             cmd_name user_id (List.length args);
                            match match_event Message upd_param with
                            | Some (_, ctx) -> Some (args, ctx)
                            | None -> None
-                         else None
+                         ) else None
                      | None ->
                          (* Fallback to simple parsing *)
                          let parts = String.split_on_char ' ' text in
@@ -336,8 +388,11 @@ module Event = struct
 
       | Filter (event, predicate) ->
           (match match_event event upd_param with
-           | Some (value, ctx) when predicate value -> Some (value, ctx)
-           | _ -> None)
+           | Some (value, ctx) ->
+               let pred_result = predicate value in
+               Log.debug "Filter predicate evaluated: result=%b" pred_result;
+               if pred_result then Some (value, ctx) else None
+           | None -> None)
 end
 
 (* Middleware system *)
@@ -346,7 +401,7 @@ module Middleware = struct
     name : string; [@warning "-69"]
     before : 's ctx -> ('s ctx, string) result;
     after : 's ctx -> unit;
-    on_error : 's ctx -> exn -> unit;
+    on_error : 's ctx -> Error.t -> unit;
   }
 
   (* Create middleware with all hooks *)
@@ -366,8 +421,8 @@ module Middleware = struct
       Ok ctx)
     ~after:(fun _ctx ->
       Printf.eprintf "%s Handler completed\n%!" prefix)
-    ~on_error:(fun _ctx exn ->
-      Printf.eprintf "%s Handler error: %s\n%!" prefix (Printexc.to_string exn))
+    ~on_error:(fun _ctx err ->
+      Format.eprintf "%s Handler error: %a@." prefix Error.pp err)
     "logging"
 
   (* Authorization middleware - only allow specific user IDs *)
@@ -727,13 +782,13 @@ module Ctx = struct
       This enables point-free composition of handlers with transformations. *)
 end
 
-type handler = Handler : 'a Event.t * ('a -> [ `Chat ] ctx -> unit) -> handler
+type handler = Handler : 'a Event.t * ('a -> [ `Chat ] ctx -> (unit, Error.t) result) -> handler
 
 (* Route with optional middleware and error handler *)
 type route = {
   handler : handler;
   middleware : [ `Chat ] Middleware.t list;
-  on_error : ([ `Chat ] ctx -> exn -> unit) option;
+  on_error : ([ `Chat ] ctx -> Error.t -> unit) option;
 }
 
 (* Builder pattern bot type - accumulates routes, middleware, and config *)
@@ -743,8 +798,8 @@ type bot = {
   routes : route list;
   middleware : [ `Chat ] Middleware.t list;  (* global middleware *)
   scoped_middleware : [ `Chat ] Middleware.t list;  (* scoped middleware for next routes *)
-  on_error : ([ `Chat ] ctx -> exn -> unit) option;
-  scoped_error_handler : ([ `Chat ] ctx -> exn -> unit) option;  (* scoped error handler for next routes *)
+  on_error : ([ `Chat ] ctx -> Error.t -> unit) option;
+  scoped_error_handler : ([ `Chat ] ctx -> Error.t -> unit) option;  (* scoped error handler for next routes *)
   command_descriptions : (string * string) list; (* (command_name, description) pairs *)
 }
 
@@ -779,39 +834,89 @@ let router ?(middlewares = []) ?on_error (routes : route list) : route list =
 (* Error handler utilities *)
 module ErrorHandler = struct
   (* Log error to stderr *)
-  let log _ctx exn =
-    Printf.eprintf "[Bot Error] %s\n%s\n%!"
-      (Printexc.to_string exn)
-      (Printexc.get_backtrace ())
+  let log _ctx err =
+    Format.eprintf "[Bot Error] %a\n%!" Error.pp err
 
   (* Log error and send reply to user *)
-  let log_and_reply ?(message = "Sorry, an error occurred while processing your request.") () ctx exn =
-    log ctx exn;
+  let log_and_reply ?(message = "Sorry, an error occurred while processing your request.") () ctx err =
+    log ctx err;
     (* Try to send error message to user *)
     (match Ctx.reply ctx message with
      | Ok _ -> ()
      | Error e ->
          Format.eprintf "[Bot Error] Failed to send error message to user: %a\n%!"
-           Telegram.Error.pp e)
+           Error.pp e)
 
   (* Silent error handler - do nothing *)
-  let silent _ctx _exn = ()
+  let silent _ctx _err = ()
 
   (* Combine multiple error handlers *)
-  let combine handlers ctx exn =
-    List.iter (fun h -> h ctx exn) handlers
+  let combine handlers ctx err =
+    List.iter (fun h -> h ctx err) handlers
 end
 
 (* Internal: try to match and execute routes against an update *)
 let dispatch_update client env routes update =
+  (* Extract update_id and type for logging *)
+  let open Telegram_generated.Gen_types.Update in
+  let { update_id; message; edited_message; channel_post; edited_channel_post;
+        inline_query; callback_query; _ } = update in
+  let update_type =
+    if message <> None then "message"
+    else if edited_message <> None then "edited_message"
+    else if channel_post <> None then "channel_post"
+    else if edited_channel_post <> None then "edited_channel_post"
+    else if inline_query <> None then "inline_query"
+    else if callback_query <> None then "callback_query"
+    else "other"
+  in
+
+  Log.info "Dispatching update: update_id=%Ld, type=%s" update_id update_type;
+
+  let route_index = ref 0 in
+  let matched_route = ref None in
+
   let rec try_routes = function
-    | [] -> () (* No route matched *)
+    | [] ->
+        if !matched_route = None then
+          Log.warn "No route matched for update: update_id=%Ld, type=%s" update_id update_type;
+        () (* No route matched *)
     | route :: rest ->
+        let current_index = !route_index in
+        route_index := !route_index + 1;
+
         let { handler = Handler (event, handler); middleware; on_error } = route in
+
+        let event_type_str = match event with
+          | Event.Any -> "Any"
+          | Event.Message -> "Message"
+          | Event.Text -> "Text"
+          | Event.Command cmd -> "Command(" ^ cmd ^ ")"
+          | Event.Callback _ -> "Callback"
+          | Event.Inline_query -> "Inline_query"
+          | Event.Combine _ -> "Combine"
+          | Event.Filter _ -> "Filter"
+        in
+
+        Log.debug "Trying route: route_index=%d, event_type=%s" current_index event_type_str;
+
         (match Event.match_event event update with
          | Some (value, ctx) ->
+             matched_route := Some current_index;
+             Log.info "Route matched: route_index=%d" current_index;
+
+             let start_time = Unix.gettimeofday () in
+
              (* Fill in client and env in the context *)
              let ctx = { ctx with client = Some client; env = Some env } in
+
+             Log.debug' (fun () ->
+               let has_user = ctx.user <> None in
+               let has_chat = ctx.chat <> None in
+               let has_message = ctx.msg <> None in
+               Format.asprintf "Context preparation: has_user=%b, has_chat=%b, has_message=%b"
+                 has_user has_chat has_message
+             );
 
              (* Run middleware before hooks *)
              let ctx_result = List.fold_left (fun acc mw ->
@@ -823,20 +928,32 @@ let dispatch_update client env routes update =
              (match ctx_result with
               | Error err ->
                   (* Middleware rejected the request *)
+                  Log.warn "Middleware rejected: %s" err;
                   Printf.eprintf "Middleware rejected: %s\n%!" err
               | Ok enriched_ctx ->
-                  (* Call the handler with error boundary *)
-                  (try
-                     handler value enriched_ctx;
-                     (* Run middleware after hooks *)
-                     List.iter (fun mw -> mw.Middleware.after enriched_ctx) (List.rev middleware)
-                   with exn ->
-                     (* Run middleware error hooks *)
-                     List.iter (fun mw -> mw.Middleware.on_error enriched_ctx exn) (List.rev middleware);
-                     (* Call route-specific error handler if present *)
-                     (match on_error with
-                      | Some err_h -> err_h enriched_ctx exn
-                      | None -> Printf.eprintf "Handler exception: %s\n%!" (Printexc.to_string exn))))
+                  Log.info "Handler executing: handler_type=%s" event_type_str;
+
+                  (* Call the handler - it now returns Result *)
+                  let handler_result = handler value enriched_ctx in
+                  let duration = (Unix.gettimeofday () -. start_time) *. 1000.0 in
+
+                  (match handler_result with
+                   | Ok () ->
+                       Log.info "Handler returned Ok";
+                       Log.info "Handler execution completed: duration=%.1fms" duration;
+                       Log.debug "Handler result: Ok";
+                       (* Handler succeeded, run middleware after hooks *)
+                       List.iter (fun mw -> mw.Middleware.after enriched_ctx) (List.rev middleware)
+                   | Error err ->
+                       Log.error "Handler returned Error: %a" Error.pp err;
+                       Log.debug "Handler result: Error";
+                       (* Handler returned error, run error handlers *)
+                       (* Run middleware error hooks - middleware expects Error.t now *)
+                       List.iter (fun mw -> mw.Middleware.on_error enriched_ctx err) (List.rev middleware);
+                       (* Call route-specific error handler if present *)
+                       (match on_error with
+                        | Some err_h -> err_h enriched_ctx err
+                        | None -> Format.eprintf "Handler error: %a@." Error.pp err)))
          | None ->
              (* This route didn't match, try next *)
              try_routes rest)
@@ -925,7 +1042,7 @@ let command_with ?(desc = "") cmd_name parser handler bot =
     | Error err_msg ->
         (* Send error message to user *)
         let _ = Ctx.reply ctx ("❌ " ^ err_msg) in
-        ()
+        Ok ()
   in
   (* Create route with the parsing handler *)
   let flipped_handler args ctx = parsing_handler ctx args in
@@ -948,10 +1065,10 @@ let command_with ?(desc = "") cmd_name parser handler bot =
   }
 
 (** Add an event handler to the bot - builder pattern *)
-let on : type a. a Event.t -> ([ `Chat ] ctx -> a -> unit) -> bot -> bot =
+let on : type a. a Event.t -> ([ `Chat ] ctx -> a -> (unit, Error.t) result) -> bot -> bot =
   fun event handler bot ->
-    (* Flip handler signature: builder takes (ctx -> data -> unit)
-       but route expects (data -> ctx -> unit) *)
+    (* Flip handler signature: builder takes (ctx -> data -> (unit, Error.t) result)
+       but route expects (data -> ctx -> (unit, Error.t) result) *)
     let flipped_handler data ctx = handler ctx data in
     let route_obj = route event flipped_handler in
     (* Apply scoped middleware to this route *)
@@ -984,7 +1101,7 @@ let on_callback handler bot =
     | Some cbq ->
         let data = Option.value cbq.Telegram_generated.Gen_types.CallbackQuery.data ~default:"" in
         handler ctx data
-    | None -> ()
+    | None -> Ok ()
   in
   on callback_event wrapped_handler bot
 
@@ -999,7 +1116,7 @@ let on_photo handler bot =
   let wrapped_handler ctx msg =
     match msg.Telegram_generated.Gen_types.Message.photo with
     | Some photos -> handler ctx photos
-    | None -> ()
+    | None -> Ok ()
   in
   on photo_event wrapped_handler bot
 
@@ -1032,11 +1149,11 @@ let command_safe ?(desc = "") cmd_name handler bot =
   (* Wrapper that handles Result type *)
   let safe_handler ctx args =
     match handler ctx args with
-    | Ok () -> ()
+    | Ok () -> Ok ()
     | Error err_msg ->
         (* Send error message to user *)
         let _ = Ctx.reply ctx ("❌ " ^ err_msg) in
-        ()
+        Ok ()
   in
   (* Delegate to regular command function *)
   command ~desc cmd_name safe_handler bot
@@ -1105,7 +1222,7 @@ let when_ predicate bot =
       if predicate ctx then
         handler data ctx
       else
-        () (* Predicate failed, do nothing *)
+        Ok () (* Predicate failed, do nothing *)
     in
     { route with handler = Handler (event, conditional_handler) }
   in
@@ -1147,7 +1264,7 @@ let when_state_eq : type a. a Session.key -> a -> bot -> bot =
       | None -> false
     ) bot
 
-let on_state : type a b. a Session.key -> a -> b Event.t -> ([ `Chat ] ctx -> b -> unit) -> bot -> bot =
+let on_state : type a b. a Session.key -> a -> b Event.t -> ([ `Chat ] ctx -> b -> (unit, Error.t) result) -> bot -> bot =
   fun key state event handler bot ->
     (* Add a route that only executes when session is in the specified state.
        This is sugar for: bot |> on event handler |> when_state_eq key state *)
