@@ -75,7 +75,33 @@ Goal: Implement every example from documentation in `examples/` directory with a
   - **Result-based handlers**: All handlers return `(unit, Error.t) result`
   - **Functor-based logging**: Verbose_bot with Debug level
   - Example compiles without errors and demonstrates cookbook patterns elegantly
-- [ ] Task 1.1.2.2: `docs/recipe_command_bot.mld` - Command routing bot
+- [x] Task 1.1.2.2: `docs/recipe_command_bot.mld` - Command routing bot
+  - Created `examples/recipe_command_bot.ml` - Multi-command bot with help system
+  - **Command registry**: Auto-generated help from command metadata
+    - `Command_registry` module stores command_info (name, aliases, description, usage, category, admin_only)
+    - `format_help_text ~is_admin ()` generates context-aware help
+    - `find_command` for looking up commands by name or alias
+  - **Command aliases**: Multiple names for same command
+    - /h → /help, /e → /echo, /info → /about
+    - Logged in verbose output for troubleshooting
+  - **Admin commands**: Permission-based access control
+    - `Admin` module with require_admin wrapper
+    - Admin IDs loaded from ADMIN_USER_IDS environment variable
+    - /stats and /broadcast restricted to admins
+    - Permission checks logged with user ID
+  - **Structured argument parsing**: Calculator with type-safe operation parsing
+    - `Calculator` module with `parse_args` returning Result
+    - Operation type (Add | Subtract | Multiply | Divide) with float tuples
+    - Division by zero protection
+    - Detailed error messages for invalid input
+  - **Statistics tracking**: Bot state with command counting
+    - `Bot_state` module tracks total commands and unique users
+    - Hashtbl for unique user tracking
+    - Uptime calculation and formatting
+  - **8 commands**: /start, /help (/h), /echo (/e), /time, /calc, /about (/info), /stats (admin), /broadcast (admin)
+  - **Verbose logging**: Every command tracked, admin checks logged, argument parsing traced
+  - **Result-based handlers**: All handlers return `(unit, Error.t) result`
+  - Example compiles without errors and demonstrates command bot patterns elegantly
 - [ ] Task 1.1.2.3: `docs/recipe_keyboard_bot.mld` - Keyboard interactions
 - [ ] Task 1.1.2.4: `docs/recipe_file_bot.mld` - File upload/download
 - [ ] Task 1.1.2.5: `docs/recipe_webhook_bot.mld` - Webhook setup
@@ -144,10 +170,10 @@ Every example must:
 ## Progress Tracking
 
 **Total Tasks**: 35
-**Completed**: 6
+**Completed**: 7
 **In Progress**: 0
-**Remaining**: 29
-**Progress**: 17% (6/35)
+**Remaining**: 28
+**Progress**: 20% (7/35)
 
 ---
 
