@@ -1237,6 +1237,124 @@ val scope_prefix : string -> bot -> bot
     - Implement plugin systems with namespaced commands
 *)
 
+val when_ : ([ `Chat ] ctx -> bool) -> bot -> bot
+(** [when_ predicate bot] conditionally enables/disables all routes in the bot.
+
+    The predicate is checked for every update before executing any route handler.
+    If the predicate returns [false], the route handlers do nothing (routes are
+    effectively disabled). If it returns [true], routes execute normally.
+
+    This enables dynamic route activation based on runtime conditions like:
+    - Time of day (e.g., only during business hours)
+    - Feature flags (e.g., enable beta features for specific users)
+    - Bot state (e.g., only when maintenance mode is off)
+    - User properties (e.g., only for premium users)
+
+    Example - Time-based routing:
+    {[
+      let is_business_hours _ctx =
+        let open Unix in
+        let tm = localtime (time ()) in
+        tm.tm_hour >= 9 && tm.tm_hour < 17
+
+      let business_bot =
+        Bot.make ~env ~client
+        |> Bot.command "support" (fun ctx _args ->
+            let _ = Ctx.reply ctx "Support team will assist you" in ()
+          )
+        |> Bot.when_ is_business_hours
+        (* Only responds to /support during 9-17 hours *)
+
+      let after_hours_bot =
+        Bot.make ~env ~client
+        |> Bot.command "support" (fun ctx _args ->
+            let _ = Ctx.reply ctx "Support is offline. Please try 9-17" in ()
+          )
+        |> Bot.when_ (fun ctx -> not (is_business_hours ctx))
+
+      let full_bot = Bot.merge business_bot after_hours_bot |> Bot.run
+    ]}
+
+    Example - Feature flags:
+    {[
+      let beta_features_enabled = ref false
+
+      let beta_bot =
+        Bot.make ~env ~client
+        |> Bot.command "experimental" (fun ctx _args ->
+            let _ = Ctx.reply ctx "Experimental feature!" in ()
+          )
+        |> Bot.command "beta" (fun ctx _args ->
+            let _ = Ctx.reply ctx "Beta command" in ()
+          )
+        |> Bot.when_ (fun _ctx -> !beta_features_enabled)
+        (* Only enabled when flag is true *)
+
+      (* Toggle feature flag *)
+      let () = beta_features_enabled := true
+    ]}
+
+    Example - User-based conditions:
+    {[
+      let premium_users = [
+        Telegram.Id.User.of_int 123456;
+        Telegram.Id.User.of_int 789012;
+      ]
+
+      let is_premium ctx =
+        match Ctx.user ctx with
+        | None -> false
+        | Some user -> List.mem user.Telegram.Types.id premium_users
+
+      let premium_bot =
+        Bot.make ~env ~client
+        |> Bot.command "premium_feature" (fun ctx _args ->
+            let _ = Ctx.reply ctx "Premium feature active!" in ()
+          )
+        |> Bot.when_ is_premium
+        (* Only premium users can use these commands *)
+    ]}
+
+    Example - Maintenance mode:
+    {[
+      let maintenance_mode = ref false
+
+      let main_bot =
+        Bot.make ~env ~client
+        |> Bot.command "start" (fun ctx _args -> ...)
+        |> Bot.command "help" (fun ctx _args -> ...)
+        |> Bot.when_ (fun _ctx -> not !maintenance_mode)
+        (* Disabled during maintenance *)
+
+      let maintenance_bot =
+        Bot.make ~env ~client
+        |> Bot.on_text (fun ctx _text ->
+            let _ = Ctx.reply ctx "Bot is under maintenance. Try later." in ()
+          )
+        |> Bot.when_ (fun _ctx -> !maintenance_mode)
+        (* Only active during maintenance *)
+
+      let full_bot = Bot.merge main_bot maintenance_bot |> Bot.run
+    ]}
+
+    Behavior:
+    - Predicate is evaluated on every update
+    - All routes in the bot are affected
+    - If predicate returns false, handlers do nothing
+    - Middleware still runs (only handlers are conditional)
+    - Can be combined with other transformations (scope_prefix, merge, etc.)
+
+    Note: The predicate should be fast as it's evaluated for every update.
+    Avoid expensive operations in the predicate.
+
+    Use cases:
+    - Time-based routing (business hours, weekends)
+    - Feature flags (A/B testing, gradual rollouts)
+    - User segmentation (premium/free, beta testers)
+    - Maintenance mode (disable main bot, show maintenance message)
+    - Dynamic bot behavior based on external state
+*)
+
 (** {1 Route-based API} *)
 
 val route : 'a Event.t -> ('a -> [ `Chat ] ctx -> unit) -> route

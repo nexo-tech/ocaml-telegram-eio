@@ -273,9 +273,13 @@ let combined = Bot.merge echo_bot admin_bot
   - Command descriptions are updated with prefix
   - Comprehensive documentation with modular architecture examples
 
-- [ ] Task 7.3: Conditional routing
+- [x] Task 7.3: Conditional routing
   - `Bot.when_ : (ctx -> bool) -> bot -> bot`
   - Enable/disable routes conditionally
+  - Implemented when_ to conditionally enable/disable all routes in a bot
+  - Predicate checked before executing each route handler
+  - Enables dynamic routing based on time, feature flags, user properties, etc.
+  - Comprehensive documentation with time-based, feature flag, and maintenance mode examples
 
 ### Phase 8: Session Integration
 
@@ -350,10 +354,10 @@ let combined = Bot.merge echo_bot admin_bot
 ## Progress Tracking
 
 **Total Tasks**: 33
-**Completed**: 19
+**Completed**: 20
 **In Progress**: 0
-**Remaining**: 14
-**Progress**: 58% (19/33)
+**Remaining**: 13
+**Progress**: 61% (20/33)
 
 ---
 

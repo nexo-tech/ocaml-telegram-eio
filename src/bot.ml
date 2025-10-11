@@ -1071,3 +1071,25 @@ let scope_prefix prefix bot =
     routes = List.map transform_route bot.routes;
     command_descriptions = transform_descriptions;
   }
+
+(** Conditional routing *)
+
+let when_ predicate bot =
+  (* Wrap all route handlers to check the predicate before executing.
+     If predicate returns false, the handler does nothing (route effectively doesn't match). *)
+
+  let wrap_route route =
+    let Handler (event, handler) = route.handler in
+    let conditional_handler data ctx =
+      if predicate ctx then
+        handler data ctx
+      else
+        () (* Predicate failed, do nothing *)
+    in
+    { route with handler = Handler (event, conditional_handler) }
+  in
+
+  {
+    bot with
+    routes = List.map wrap_route bot.routes;
+  }
