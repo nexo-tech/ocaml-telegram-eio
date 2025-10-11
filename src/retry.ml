@@ -1,5 +1,10 @@
 (* Retry and backoff strategies for Telegram Bot API. *)
 
+module Log = Log.Make (Log.Console) (struct
+  let src = "Retry"
+  let level = Log.Info
+end)
+
 module Strategy = struct
   type t =
     | Immediate
@@ -75,10 +80,28 @@ let with_config config f =
   let rec attempt n =
     match f () with
     | Ok _ as ok -> ok
-    | Error e when n >= config.max_attempts -> Error e
-    | Error e when not (Error.is_retryable e) -> Error e
+    | Error e when n >= config.max_attempts ->
+        Log.error "Max retry attempts (%d) reached, giving up: %a"
+          config.max_attempts Error.pp e;
+        Error e
+    | Error e when not (Error.is_retryable e) ->
+        Log.debug "Error is not retryable, failing immediately: %a" Error.pp e;
+        Error e
     | Error e ->
         let delay = Strategy.next_delay config.strategy ~attempt:n ~error:(Some e) in
+        Log.warn "Retry attempt %d/%d after %.1fs: %a"
+          n config.max_attempts delay Error.pp e;
+        Log.debug' (fun () ->
+          Format.asprintf "Backoff delay calculation: attempt=%d, strategy=%s, delay=%.3fs"
+            n
+            (match config.strategy with
+             | Strategy.Immediate -> "immediate"
+             | Strategy.Fixed _ -> "fixed"
+             | Strategy.Exponential _ -> "exponential"
+             | Strategy.Exponential_jitter _ -> "exponential_jitter"
+             | Strategy.Telegram_aware _ -> "telegram_aware")
+            delay
+        );
         (* Invoke retry callback if provided *)
         (match config.on_retry with
          | Some callback -> callback ~attempt:n ~error:e ~delay

@@ -1,5 +1,10 @@
 open Error
 
+module Log = Log.Make (Log.Console) (struct
+  let src = "Api"
+  let level = Log.Info
+end)
+
 let string_of_chat_id (id : Id.Chat.k Id.t) =
   Id.to_string id
 
@@ -93,28 +98,81 @@ let call (type a) (client : Client.t) (req : a Request.t) : (a, Error.t) result 
 let call_json client ~method_name body =
   let url = Printf.sprintf "%s/bot%s/%s" (Client.base_url client) (Client.token client) method_name in
   let http = Http.Cohttp_eio.v () in
-  match Http.Cohttp_eio.call http ~meth:`POST ~url ~headers:[ "Content-Type", "application/json" ] ~body:(Http.String (Yojson.Safe.to_string body)) with
-  | Error e -> Error e
-  | Ok resp -> Response.parse_json resp.body
+
+  Log.info "Telegram method called: %s" method_name;
+  Log.debug' (fun () ->
+    Format.asprintf "Request JSON: %s" (Yojson.Safe.to_string body)
+  );
+
+  let result =
+    match Http.Cohttp_eio.call http ~meth:`POST ~url ~headers:[ "Content-Type", "application/json" ] ~body:(Http.String (Yojson.Safe.to_string body)) with
+    | Error e -> Error e
+    | Ok resp ->
+        Log.debug' (fun () ->
+          let preview = if String.length resp.body > 500 then String.sub resp.body 0 500 ^ "..." else resp.body in
+          Format.asprintf "Response JSON: %s" preview
+        );
+        Response.parse_json resp.body
+  in
+
+  (match result with
+   | Ok _ -> Log.info "Method completed successfully: %s" method_name
+   | Error (Api_error { code; description; _ }) ->
+       Log.warn "API returned error: %s - code=%d, description=%s" method_name code description
+   | Error e ->
+       Log.error "Method failed: %s - %a" method_name Error.pp e);
+
+  result
 
 (* New unified call_method that auto-detects JSON vs multipart *)
 let call_method client ~method_name params =
   let url = build_url client method_name in
   let http = Http.Cohttp_eio.v () in
 
+  Log.info "Telegram method called: %s" method_name;
+
+  Log.debug' (fun () ->
+    if Param.has_files params then
+      Format.asprintf "Request parameters: [multipart with files]"
+    else
+      let json = Param.to_json params in
+      Format.asprintf "Request parameters: %s" (Yojson.Safe.to_string json)
+  );
+
   (* Auto-detect if we need multipart encoding *)
-  if Param.has_files params then
-    (* Use multipart/form-data for file uploads *)
-    let parts = Param.to_multipart params in
-    match Http.Cohttp_eio.call http ~meth:`POST ~url ~headers:[] ~body:(Http.Multipart parts) with
-    | Error e -> Error e
-    | Ok resp -> Response.parse_json resp.body
-  else
-    (* Use application/json for simple requests *)
-    let json = Param.to_json params in
-    match Http.Cohttp_eio.call http ~meth:`POST ~url ~headers:[ "Content-Type", "application/json" ] ~body:(Http.String (Yojson.Safe.to_string json)) with
-    | Error e -> Error e
-    | Ok resp -> Response.parse_json resp.body
+  let result =
+    if Param.has_files params then
+      (* Use multipart/form-data for file uploads *)
+      let parts = Param.to_multipart params in
+      match Http.Cohttp_eio.call http ~meth:`POST ~url ~headers:[] ~body:(Http.Multipart parts) with
+      | Error e -> Error e
+      | Ok resp ->
+          Log.debug' (fun () ->
+            let preview = if String.length resp.body > 500 then String.sub resp.body 0 500 ^ "..." else resp.body in
+            Format.asprintf "Response JSON: %s" preview
+          );
+          Response.parse_json resp.body
+    else
+      (* Use application/json for simple requests *)
+      let json = Param.to_json params in
+      match Http.Cohttp_eio.call http ~meth:`POST ~url ~headers:[ "Content-Type", "application/json" ] ~body:(Http.String (Yojson.Safe.to_string json)) with
+      | Error e -> Error e
+      | Ok resp ->
+          Log.debug' (fun () ->
+            let preview = if String.length resp.body > 500 then String.sub resp.body 0 500 ^ "..." else resp.body in
+            Format.asprintf "Response JSON: %s" preview
+          );
+          Response.parse_json resp.body
+  in
+
+  (match result with
+   | Ok _ -> Log.info "Method completed successfully: %s" method_name
+   | Error (Api_error { code; description; _ }) ->
+       Log.warn "API returned error: %s - code=%d, description=%s" method_name code description
+   | Error e ->
+       Log.error "Method failed: %s - %a" method_name Error.pp e);
+
+  result
 
 (* Request builders - re-exported from Request module *)
 let send_message = Request.send_message

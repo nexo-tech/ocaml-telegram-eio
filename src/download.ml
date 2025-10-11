@@ -1,3 +1,8 @@
+module Log = Telegram.Log.Make (Telegram.Log.Console) (struct
+  let src = "Download"
+  let level = Telegram.Log.Info
+end)
+
 (* File information type *)
 type file_info = {
   file_id : string;
@@ -30,7 +35,9 @@ let get_file client ~file_id =
 let download_url client ~file_path =
   let base = Telegram.Client.base_url client in
   let token = Telegram.Client.token client in
-  Printf.sprintf "%s/file/bot%s/%s" base token file_path
+  let url = Printf.sprintf "%s/file/bot%s/%s" base token file_path in
+  Log.debug "URL construction: %s" url;
+  url
 
 (* Build download URL from file_info *)
 let download_url_from_info client info =
@@ -40,21 +47,35 @@ let download_url_from_info client info =
 
 (* Download file contents to a buffer *)
 let to_buffer client ~file_path buffer =
+  let start_time = Unix.gettimeofday () in
   let url = download_url client ~file_path in
   let http = Telegram.Http.Cohttp_eio.v () in
 
-  match Telegram.Http.Cohttp_eio.call http ~meth:`GET ~url ~headers:[] ~body:Telegram.Http.Empty with
-  | Error e -> Error e
-  | Ok response ->
-      let body = response.Telegram.Http.body in
-      let size = Int64.of_int (String.length body) in
-      (* Check download size limit *)
-      let limits = Telegram.Client.limits client in
-      (match Telegram.Limits.check_download_size limits size with
-       | Error msg -> Error (Telegram.Error.Decode_error ("Download size limit exceeded: " ^ msg))
-       | Ok () ->
-           Buffer.add_string buffer body;
-           Ok size)
+  Log.info "Download started: file_path=%s" file_path;
+
+  let result =
+    match Telegram.Http.Cohttp_eio.call http ~meth:`GET ~url ~headers:[] ~body:Telegram.Http.Empty with
+    | Error e ->
+        Log.error "Download failed: file_path=%s - %a" file_path Telegram.Error.pp e;
+        Error e
+    | Ok response ->
+        let body = response.Telegram.Http.body in
+        let size = Int64.of_int (String.length body) in
+        Log.debug "Download progress: received %Ld bytes" size;
+
+        (* Check download size limit *)
+        let limits = Telegram.Client.limits client in
+        (match Telegram.Limits.check_download_size limits size with
+         | Error msg ->
+             Log.error "Download size limit exceeded: %s (size=%Ld bytes)" msg size;
+             Error (Telegram.Error.Decode_error ("Download size limit exceeded: " ^ msg))
+         | Ok () ->
+             Buffer.add_string buffer body;
+             let duration = (Unix.gettimeofday () -. start_time) *. 1000.0 in
+             Log.info "Download completed: size=%Ld bytes, duration=%.1fms" size duration;
+             Ok size)
+  in
+  result
 
 (* Download file contents as a string *)
 let to_string client ~file_path =

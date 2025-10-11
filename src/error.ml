@@ -1,3 +1,8 @@
+module Log = Log.Make (Log.Console) (struct
+  let src = "Error"
+  let level = Log.Info
+end)
+
 type response_parameters = {
   migrate_to_chat_id : Id.Chat.k Id.t option;
   retry_after : int option;
@@ -10,6 +15,7 @@ type t =
   | Timeout
   | Canceled
   | Not_implemented of string
+  | Internal_error of string
 
 let pp fmt = function
   | Http_error (c, b) -> Format.fprintf fmt "Http(%d): %s" c b
@@ -25,22 +31,67 @@ let pp fmt = function
   | Timeout -> Format.pp_print_string fmt "Timeout"
   | Canceled -> Format.pp_print_string fmt "Canceled"
   | Not_implemented s -> Format.fprintf fmt "Not_implemented: %s" s
+  | Internal_error s -> Format.fprintf fmt "Internal_error: %s" s
 
-let is_retryable = function
-  | Http_error (code, _) -> code = 429 || (code >= 500 && code < 600)
-  | Api_error { code; _ } -> code = 429 || (code >= 500 && code < 600)
-  | Timeout -> true
-  | Canceled -> false
-  | Decode_error _ -> false
-  | Not_implemented _ -> false
+let is_retryable err =
+  let retryable = match err with
+    | Http_error (code, _) -> code = 429 || (code >= 500 && code < 600)
+    | Api_error { code; _ } -> code = 429 || (code >= 500 && code < 600)
+    | Timeout -> true
+    | Canceled -> false
+    | Decode_error _ -> false
+    | Not_implemented _ -> false
+    | Internal_error _ -> false
+  in
 
-let retry_after = function
-  | Api_error { parameters = Some { retry_after; _ }; _ } -> retry_after
-  | _ -> None
+  Log.debug' (fun () ->
+    Format.asprintf "is_retryable decision: %a -> %b" pp err retryable
+  );
 
-let parameters = function
-  | Api_error { parameters; _ } -> parameters
-  | _ -> None
+  (match err with
+   | Http_error (code, _) when retryable ->
+       Log.warn "Retryable HTTP error detected: code=%d" code
+   | Api_error { code; description; parameters } when retryable ->
+       (match parameters with
+        | Some { retry_after = Some seconds; _ } ->
+            Log.warn "Retryable API error detected: code=%d, description=%s, retry_after=%ds"
+              code description seconds
+        | _ ->
+            Log.warn "Retryable API error detected: code=%d, description=%s" code description)
+   | Timeout when retryable ->
+       Log.warn "Retryable timeout detected"
+   | _ when not retryable ->
+       Log.info "Non-retryable error: %a" pp err
+   | _ -> ());
+
+  retryable
+
+let retry_after err =
+  let result = match err with
+    | Api_error { parameters = Some { retry_after; _ }; _ } -> retry_after
+    | _ -> None
+  in
+  Log.debug' (fun () ->
+    match result with
+    | Some seconds -> Format.asprintf "Extracted retry_after: %d seconds" seconds
+    | None -> "No retry_after in error"
+  );
+  result
+
+let parameters err =
+  let result = match err with
+    | Api_error { parameters; _ } -> parameters
+    | _ -> None
+  in
+  Log.debug' (fun () ->
+    match result with
+    | Some { retry_after; migrate_to_chat_id } ->
+        Format.asprintf "Extracted parameters: retry_after=%s, migrate_to_chat_id=%s"
+          (match retry_after with Some s -> string_of_int s | None -> "none")
+          (match migrate_to_chat_id with Some cid -> Id.to_string cid | None -> "none")
+    | None -> "No parameters in error"
+  );
+  result
 
 let or_fail = function
   | Ok x -> x
