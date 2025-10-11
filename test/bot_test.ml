@@ -108,12 +108,12 @@ let test_entity_filter_by_type () =
   Alcotest.(check int) "filter Mention count" 1 (List.length mentions)
 
 let test_entity_parse_command_args () =
-  (* Test with no entities *)
-  Alcotest.(check (option (list string))) "no entities"
+  (* Test with no entities - now returns (cmd_name, args) option *)
+  Alcotest.(check (option (pair string (list string)))) "no entities"
     None (Bot.Entity.parse_command_args "/start arg1 arg2" None);
 
   (* Test with empty entities list *)
-  Alcotest.(check (option (list string))) "empty entities"
+  Alcotest.(check (option (pair string (list string)))) "empty entities"
     None (Bot.Entity.parse_command_args "/start arg1 arg2" (Some []))
 
 (* Middleware module tests *)

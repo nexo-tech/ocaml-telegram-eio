@@ -2,8 +2,8 @@ open Telegram
 open Telegram.Error
 
 type +'s ctx = {
-  client : Client.t;
-  env : Client.env;
+  client : Client.t option;
+  env : Client.env option;
   chat : Id.Chat.k Id.t option;
   user : Telegram.Types.user option;
   msg : Telegram.Types.message option;
@@ -156,21 +156,36 @@ module Entity = struct
     ) entities
 
   (* Extract command arguments from text, respecting entities *)
+  (** Parse command name and arguments from message text and entities.
+      Returns (command_name, args) option where command_name has no leading slash or @botname.
+      This function parses entities only once to avoid infinite loops. *)
   let parse_command_args text entities =
     (* Find the bot_command entity *)
-    let cmd_entities = filter_by_type `BotCommand (parse_entities text entities) in
+    let parsed = parse_entities text entities in
+    let cmd_entities = filter_by_type `BotCommand parsed in
     match cmd_entities with
     | [] -> None  (* No command found *)
     | cmd :: _ ->
+        (* Extract command name and strip leading / and @botname *)
+        let cmd_text = cmd.text in
+        let cmd_text_no_slash = if String.length cmd_text > 0 && cmd_text.[0] = '/' then
+          String.sub cmd_text 1 (String.length cmd_text - 1)
+        else cmd_text in
+        let cmd_name = (match String.index_opt cmd_text_no_slash '@' with
+          | Some idx -> String.sub cmd_text_no_slash 0 idx
+          | None -> cmd_text_no_slash) in
+
         (* Get text after the command *)
         let args_start = cmd.offset + cmd.length in
-        if args_start >= String.length text then
-          Some []  (* Command with no args *)
+        let args = if args_start >= String.length text then
+          []  (* Command with no args *)
         else
           let args_text = String.sub text args_start (String.length text - args_start) in
           let trimmed = String.trim args_text in
-          if trimmed = "" then Some []
-          else Some (String.split_on_char ' ' trimmed |> List.filter (fun s -> s <> ""))
+          if trimmed = "" then []
+          else String.split_on_char ' ' trimmed |> List.filter (fun s -> s <> "")
+        in
+        Some (cmd_name, args)
 end
 
 module Event = struct
@@ -201,8 +216,8 @@ module Event = struct
       | Any ->
           (* Create minimal context for 'any' event *)
           let ctx = {
-            client = failwith "client not set"; (* Will be set by router *)
-            env = failwith "env not set";
+            client = None; (* Will be set by dispatch_update *)
+            env = None;
             chat = None;
             user = None;
             msg = None;
@@ -235,8 +250,8 @@ module Event = struct
                  text = text;
                } in
                let ctx = {
-                 client = failwith "client not set";
-                 env = failwith "env not set";
+                 client = None; (* Will be filled by dispatch_update *)
+                 env = None; (* Will be filled by dispatch_update *)
                  chat = Some chat_id;
                  user = user;
                  msg = Some message;
@@ -263,41 +278,15 @@ module Event = struct
            | Some msg ->
                (match msg.text with
                 | Some text when String.length text > 0 && text.[0] = '/' ->
-                    (* Try entity-aware parsing first *)
+                    (* Try entity-aware parsing first - now returns (cmd_name, args) *)
                     (match Entity.parse_command_args text msg.entities with
-                     | Some args ->
-                         (* Extract command name from first bot_command entity *)
-                         let cmd_entities = Entity.filter_by_type `BotCommand (Entity.parse_entities text msg.entities) in
-                         (match cmd_entities with
-                          | cmd_entity :: _ ->
-                              (* Extract command text and strip @botname if present *)
-                              let cmd_text = cmd_entity.Entity.text in
-                              let cmd_text_no_slash = if String.length cmd_text > 0 && cmd_text.[0] = '/' then
-                                String.sub cmd_text 1 (String.length cmd_text - 1)
-                              else cmd_text in
-                              let cmd_name = (match String.index_opt cmd_text_no_slash '@' with
-                                | Some idx -> String.sub cmd_text_no_slash 0 idx
-                                | None -> cmd_text_no_slash) in
-                              if cmd_name = cmd then
-                                (match match_event Message upd_param with
-                                 | Some (_, ctx) -> Some (args, ctx)
-                                 | None -> None)
-                              else None
-                          | [] ->
-                              (* Fallback to simple parsing if no entities *)
-                              let parts = String.split_on_char ' ' text in
-                              (match parts with
-                               | cmd_part :: args when String.length cmd_part > 1 ->
-                                   let cmd_text = String.sub cmd_part 1 (String.length cmd_part - 1) in
-                                   let cmd_name = (match String.index_opt cmd_text '@' with
-                                     | Some idx -> String.sub cmd_text 0 idx
-                                     | None -> cmd_text) in
-                                   if cmd_name = cmd then
-                                     (match match_event Message upd_param with
-                                      | Some (_, ctx) -> Some (args, ctx)
-                                      | None -> None)
-                                   else None
-                               | _ -> None))
+                     | Some (cmd_name, args) ->
+                         (* Check if this is the command we're looking for *)
+                         if cmd_name = cmd then
+                           match match_event Message upd_param with
+                           | Some (_, ctx) -> Some (args, ctx)
+                           | None -> None
+                         else None
                      | None ->
                          (* Fallback to simple parsing *)
                          let parts = String.split_on_char ' ' text in
@@ -326,8 +315,8 @@ module Event = struct
           (match iq_opt with
            | Some iq ->
                let ctx = {
-                 client = failwith "client not set";
-                 env = failwith "env not set";
+                 client = None;
+                 env = None;
                  chat = None;
                  user = None;
                  msg = None;
@@ -514,8 +503,8 @@ module Ctx = struct
   type +'s t = 's ctx
 
   (* Basic accessors *)
-  let client c = c.client
-  let env c = c.env
+  let client c = match c.client with Some cl -> cl | None -> failwith "client not set (internal error)"
+  let env c = match c.env with Some e -> e | None -> failwith "env not set (internal error)"
   let chat (c : [ `Chat ] t) = match c.chat with Some id -> id | None -> failwith "no chat"
   let user c = c.user
   let message (c : [ `Chat ] t) = match c.msg with Some m -> m | None -> failwith "no message"
@@ -803,13 +792,13 @@ end
 (* Internal: try to match and execute routes against an update *)
 let dispatch_update client env routes update =
   let rec try_routes = function
-    | [] -> () (* No route matched, silently ignore *)
+    | [] -> () (* No route matched *)
     | route :: rest ->
         let { handler = Handler (event, handler); middleware; on_error } = route in
         (match Event.match_event event update with
          | Some (value, ctx) ->
              (* Fill in client and env in the context *)
-             let ctx = { ctx with client = client; env = env } in
+             let ctx = { ctx with client = Some client; env = Some env } in
 
              (* Run middleware before hooks *)
              let ctx_result = List.fold_left (fun acc mw ->

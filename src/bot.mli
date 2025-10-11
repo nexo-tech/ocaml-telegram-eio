@@ -136,8 +136,10 @@ module Entity : sig
   val filter_by_type : [ `BotCommand | `Url | `Mention | `Hashtag | `Code | `Pre ] -> entity_info list -> entity_info list
   (** Filter entities by type *)
 
-  val parse_command_args : string -> Telegram_generated.Gen_types.MessageEntity.t list option -> string list option
-  (** Extract command arguments using entity information *)
+  val parse_command_args : string -> Telegram_generated.Gen_types.MessageEntity.t list option -> (string * string list) option
+  (** Parse command name and arguments from message text and entities.
+      Returns (command_name, args) option where command_name has no leading slash or @botname.
+      This function parses entities only once to avoid infinite loops. *)
 end
 
 module Middleware : sig

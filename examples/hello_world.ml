@@ -38,6 +38,7 @@ let () =
   (* Add global error handler to catch and log all errors *)
   |> on_error (fun ctx exn ->
       Eio.traceln "❌ Error in handler: %s" (Printexc.to_string exn);
+      Eio.traceln "Backtrace: %s" (Printexc.get_backtrace ());
       (* Try to notify user about the error *)
       match Ctx.reply ctx "Sorry, an error occurred. Please try again." with
       | Ok _ -> ()
