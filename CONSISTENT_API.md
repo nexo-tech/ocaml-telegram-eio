@@ -38,7 +38,21 @@ Goal: Implement every example from documentation in `examples/` directory with a
   - **Functor-based logging**: Custom Verbose_bot with Debug level logging
   - **Comprehensive logging**: Every handler logs entry/exit, argument parsing, results
   - Example compiles without errors and demonstrates elegant Bot DSL from docs
-- [ ] Task 1.1.1.3: `docs/core_concepts.mld` - Extract and implement all examples
+- [x] Task 1.1.1.3: `docs/core_concepts.mld` - Extract and implement all examples
+  - Created `examples/core_concepts_demo.ml` - Demonstrates fundamental patterns
+  - **Bot lifecycle**: Shows 4 phases (Init → Start → Handle → Shutdown)
+    - Phase 1: Eio runtime initialization, client creation
+    - Phase 2: Bot builder DSL with route registration
+    - Phase 3: Update handling with different event types
+    - Phase 4: Automatic cleanup via Eio structured concurrency
+  - **Separation of concerns**: Pure Logic module separate from Telegram handlers
+  - **Result-based error handling**: Monadic let* composition throughout
+  - **Type-safe IDs**: Demonstrates phantom types (Id.Chat.k, Id.User.k)
+  - **Error recovery pattern**: on_error handler with user notification
+  - **Functor-based logging**: Verbose logging at every lifecycle phase
+  - Commands: /start, /echo (Args helpers), /error (error demo), /calc (monadic composition)
+  - Comprehensive logging with phase markers (boxes) for clarity
+  - Example compiles without errors and demonstrates core concepts elegantly
 
 ### Phase 1.1.2: Recipe Examples (Cookbook)
 - [ ] Task 1.1.2.1: `docs/recipe_echo_bot.mld` - Echo bot example
@@ -111,10 +125,10 @@ Every example must:
 ## Progress Tracking
 
 **Total Tasks**: 35
-**Completed**: 4
+**Completed**: 5
 **In Progress**: 0
-**Remaining**: 31
-**Progress**: 11% (4/35)
+**Remaining**: 30
+**Progress**: 14% (5/35)
 
 ---
 
