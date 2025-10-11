@@ -10,10 +10,11 @@ Goal: Implement every example from documentation in `examples/` directory with a
 - [x] Task 1.1.1.1: `docs/getting_started.mld` - Extract and implement all examples
   - Created `examples/hello_world.ml` - Basic /start command bot
   - Created `examples/echo_enhanced.ml` - Echo bot with command routing
-  - Both examples compile and use working API patterns
-  - Identified API inconsistencies: docs show `Api.send_message + Api.call` pattern that doesn't exist
-  - Actual working API: `Gen_methods.send_message client ~params ()` returns `Result.t` directly
-- [x] Task 1.1.1.2: `docs/quick_start.mld` - Extract and implement all examples
+  - Updated both examples to use functional builder API from BUILDER.md
+  - `Bot.make ~env ~client |> Bot.command |> Bot.on_text |> Bot.run`
+  - Examples compile without warnings and demonstrate elegant builder pattern
+  - Clean, readable code that matches Haskell-style functional APIs
+- [ ] Task 1.1.1.2: `docs/quick_start.mld` - Extract and implement all examples
   - Created `examples/command_tutorial.ml` - Comprehensive command bot (tutorials 1-2)
   - Added `Input_file.file` alias for `Input_file.path` (doc compatibility)
   - Identified major API gap: docs show Bot DSL builder pattern (`Bot.make |> Bot.command ...`) which doesn't exist
@@ -92,10 +93,10 @@ Every example must:
 ## Progress Tracking
 
 **Total Tasks**: 35
-**Completed**: 2
+**Completed**: 3
 **In Progress**: 0
-**Remaining**: 33
-**Progress**: 6% (2/35)
+**Remaining**: 32
+**Progress**: 9% (3/35)
 
 ---
 
