@@ -336,6 +336,75 @@ let combined = Bot.merge echo_bot admin_bot
   - When to use builder vs routes
   - Performance implications
 
+### Phase 11: Result-Based Handler Refactoring
+
+**Goal**: Eliminate exceptions from library code, use Result.t for all error handling
+
+- [x] Task 11.1: Update CLAUDE.md with Result-based guidelines
+  - Document NO EXCEPTIONS policy
+  - Add Result monad patterns
+  - Migration checklist for exceptions → Result
+  - Handler signature requirements
+
+- [x] Task 11.2: Refactor Ctx accessors to return Result
+  - `Ctx.client: 'a t -> (Client.t, Error.t) result`
+  - `Ctx.env: 'a t -> (Client.env, Error.t) result`
+  - `Ctx.chat: [ \`Chat ] t -> (Id.t, Error.t) result`
+  - `Ctx.message: [ \`Chat ] t -> (message, Error.t) result`
+  - Update `Ctx.reply/send/edit` to use monadic let* composition
+  - Remove all `failwith` from Ctx module
+
+- [ ] Task 11.3: Change handler type signature
+  - Current: `'a -> 's ctx -> unit`
+  - New: `'a -> 's ctx -> (unit, Error.t) result`
+  - Update handler GADT definition
+  - Update route type to use Result handler
+  - Update bot.mli signatures
+
+- [ ] Task 11.4: Refactor dispatch_update for Result handlers
+  - Handler returns `(unit, Error.t) result`
+  - On `Ok ()`: Continue normally
+  - On `Error err`: Call on_error handler with error
+  - Remove try/catch, use Result matching
+  - Middleware before/after/on_error work with Result
+
+- [ ] Task 11.5: Update builder functions for Result handlers
+  - `Bot.command`: Handler returns Result
+  - `Bot.command_safe`: Keep but simplify (already Result-based)
+  - `Bot.on`: Handler returns Result
+  - `Bot.on_text/on_message/on_callback/on_photo`: Handler returns Result
+  - All convenience methods updated
+
+- [ ] Task 11.6: Update error handler signature
+  - `Bot.on_error`: Takes `ctx -> Error.t -> unit`
+  - Error handlers process Error.t, not exceptions
+  - Remove exception-to-string conversion
+  - Clean error propagation
+
+- [ ] Task 11.7: Update middleware for Result handlers
+  - Middleware.on_error: Takes `ctx -> Error.t -> unit`
+  - Handler errors flow through middleware error hooks
+  - No exception catching in middleware
+
+- [ ] Task 11.8: Refactor examples to use Result
+  - `examples/hello_world.ml`: Return `Ok ()` from handlers
+  - `examples/echo_enhanced.ml`: Return `Ok ()` from handlers
+  - Remove `reply_or_fail` helper (anti-pattern)
+  - Use monadic `let*` composition
+  - Global error handler receives Error.t
+
+- [ ] Task 11.9: Update tests for Result handlers
+  - Test handlers return Result
+  - Test error propagation
+  - Test monadic composition
+  - Ensure no regression
+
+- [ ] Task 11.10: Update documentation examples
+  - All doc examples use Result-returning handlers
+  - Show `let*` monadic composition
+  - Error handling patterns
+  - Remove exception-based patterns
+
 ## API Consistency Rules
 
 1. **Parameter Order**: `bot` always last (enables `|>`)
@@ -364,11 +433,11 @@ let combined = Bot.merge echo_bot admin_bot
 
 ## Progress Tracking
 
-**Total Tasks**: 33
-**Completed**: 23
+**Total Tasks**: 43 (33 original + 10 Result-based refactoring)
+**Completed**: 25 (23 original + 2 Result-based)
 **In Progress**: 0
-**Remaining**: 10
-**Progress**: 70% (23/33)
+**Remaining**: 18 (10 original + 8 Result-based)
+**Progress**: 58% (25/43)
 
 ---
 
