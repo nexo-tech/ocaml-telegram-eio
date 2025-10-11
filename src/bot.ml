@@ -619,6 +619,25 @@ module Ctx = struct
   let session_modify (c : _ t) key ~default f =
     Session.modify (session c) key ~default f
 
+  (* Stateful handlers - ergonomic aliases for session operations *)
+
+  let get_state (c : _ t) key =
+    session_get c key
+  (** [get_state ctx key] retrieves a value from the session.
+      Returns [Some value] if the key exists, [None] otherwise.
+      This is an ergonomic alias for [session_get]. *)
+
+  let set_state (c : _ t) key value =
+    session_set c key value
+  (** [set_state ctx key value] stores a value in the session.
+      This is an ergonomic alias for [session_set]. *)
+
+  let modify_state (c : _ t) key ~default f =
+    session_modify c key ~default f
+  (** [modify_state ctx key ~default f] atomically updates a session value.
+      If the key doesn't exist, uses [default] as the initial value.
+      This is an ergonomic alias for [session_modify]. *)
+
   (* Monadic operations for Result type *)
 
   let return x = Ok x

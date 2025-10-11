@@ -8,6 +8,9 @@
 4. If docs use non-existent API that's nicer than generated API, implement it
 5. API must be powerful monadic/functional/combinator style (like Haskell) - elegant and simple
 6. Code compiles with zero warnings
-7. Library code passes 100% tests
+7. Library code passes 100% tests, write new tests if new api/implementation is
+   introduced
 8. Public API changes require documentation updates
+9. Mark the task checked in the .md file - [x] 
 9. Commit when task successfully completed
+

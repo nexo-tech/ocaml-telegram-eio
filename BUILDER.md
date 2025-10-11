@@ -291,9 +291,12 @@ let combined = Bot.merge echo_bot admin_bot
   - Comprehensive documentation with counter, preferences, and basic usage examples
   - Simplifies session setup compared to manual middleware configuration
 
-- [ ] Task 8.2: Stateful handlers
+- [x] Task 8.2: Stateful handlers
   - Type-safe session key access
   - `get_state`, `set_state`, `modify_state`
+  - Implemented ergonomic aliases for session operations
+  - Comprehensive documentation with counter, preferences, and state machine examples
+  - All functions maintain type-safety through Session.key phantom types
 
 - [ ] Task 8.3: Session-based routing
   - Route based on session state
@@ -358,10 +361,10 @@ let combined = Bot.merge echo_bot admin_bot
 ## Progress Tracking
 
 **Total Tasks**: 33
-**Completed**: 21
+**Completed**: 22
 **In Progress**: 0
-**Remaining**: 12
-**Progress**: 64% (21/33)
+**Remaining**: 11
+**Progress**: 67% (22/33)
 
 ---
 

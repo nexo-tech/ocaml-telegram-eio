@@ -308,6 +308,145 @@ module Ctx : sig
   val session_modify : _ t -> 'a Session.key -> default:'a -> ('a -> 'a) -> unit
   (** Modify a session value, using default if missing *)
 
+  (** {2 Stateful Handlers}
+
+      These are ergonomic aliases for session operations, providing a cleaner API
+      for stateful bot handlers. They maintain type-safety through [Session.key]
+      phantom types and offer a more intuitive naming convention.
+
+      Example - Counter Bot:
+      {[
+        let counter_key = Session.key "counter"
+
+        let increment_handler ctx _args =
+          (* Get current count, default to 0 *)
+          let count = Option.value (Ctx.get_state ctx counter_key) ~default:0 in
+          (* Increment and save *)
+          Ctx.set_state ctx counter_key (count + 1);
+          (* Reply with new count *)
+          ignore (Ctx.reply ctx (Printf.sprintf "Count: %d" (count + 1)))
+
+        let reset_handler ctx _args =
+          (* Reset counter to 0 *)
+          Ctx.set_state ctx counter_key 0;
+          ignore (Ctx.reply ctx "Counter reset!")
+      ]}
+
+      Example - User Preferences:
+      {[
+        type prefs = { theme : string; lang : string }
+
+        let prefs_key = Session.key "preferences"
+
+        let set_theme_handler ctx args =
+          let theme = Args.join_rest args 0 in
+          (* Modify preferences, updating only the theme *)
+          Ctx.modify_state ctx prefs_key
+            ~default:{ theme = "light"; lang = "en" }
+            (fun p -> { p with theme });
+          ignore (Ctx.reply ctx "Theme updated!")
+      ]}
+
+      Example - State Machine:
+      {[
+        type state = Idle | AwaitingName | AwaitingAge
+
+        let state_key = Session.key "state"
+        let name_key = Session.key "name"
+
+        let start_handler ctx _args =
+          Ctx.set_state ctx state_key AwaitingName;
+          ignore (Ctx.reply ctx "What's your name?")
+
+        let text_handler ctx text =
+          match Ctx.get_state ctx state_key with
+          | Some AwaitingName ->
+              Ctx.set_state ctx name_key text;
+              Ctx.set_state ctx state_key AwaitingAge;
+              ignore (Ctx.reply ctx "How old are you?")
+          | Some AwaitingAge ->
+              let name = Option.value (Ctx.get_state ctx name_key) ~default:"" in
+              ignore (Ctx.reply ctx (Printf.sprintf "Hi %s, age %s!" name text));
+              Ctx.set_state ctx state_key Idle
+          | _ -> ()
+      ]}
+  *)
+
+  val get_state : _ t -> 'a Session.key -> 'a option
+  (** [get_state ctx key] retrieves a value from the session.
+
+      Returns [Some value] if the key exists, [None] otherwise.
+      This is an ergonomic alias for [session_get].
+
+      Type-safe: The return type matches the key's phantom type.
+
+      Example:
+      {[
+        let counter_key = Session.key "counter"
+
+        let handler ctx =
+          match Ctx.get_state ctx counter_key with
+          | Some count -> Printf.printf "Count is %d\n" count
+          | None -> Printf.printf "Counter not initialized\n"
+      ]}
+  *)
+
+  val set_state : _ t -> 'a Session.key -> 'a -> unit
+  (** [set_state ctx key value] stores a value in the session.
+
+      This is an ergonomic alias for [session_set].
+
+      Type-safe: The value type must match the key's phantom type.
+
+      Example:
+      {[
+        let counter_key = Session.key "counter"
+
+        let handler ctx =
+          Ctx.set_state ctx counter_key 42;
+          ignore (Ctx.reply ctx "Counter set to 42!")
+      ]}
+  *)
+
+  val modify_state : _ t -> 'a Session.key -> default:'a -> ('a -> 'a) -> unit
+  (** [modify_state ctx key ~default f] atomically updates a session value.
+
+      If the key doesn't exist, uses [default] as the initial value.
+      Applies function [f] to the current (or default) value and stores the result.
+
+      This is an ergonomic alias for [session_modify].
+
+      Type-safe: All types must match the key's phantom type.
+
+      Example:
+      {[
+        let counter_key = Session.key "counter"
+
+        let handler ctx =
+          (* Increment counter, starting from 0 if not set *)
+          Ctx.modify_state ctx counter_key ~default:0 (fun n -> n + 1);
+          let count = Option.value (Ctx.get_state ctx counter_key) ~default:0 in
+          ignore (Ctx.reply ctx (Printf.sprintf "New count: %d" count))
+      ]}
+
+      Example with complex state:
+      {[
+        type user_prefs = {
+          notifications : bool;
+          language : string;
+          theme : string;
+        }
+
+        let prefs_key = Session.key "prefs"
+
+        let toggle_notifications_handler ctx =
+          Ctx.modify_state ctx prefs_key
+            ~default:{ notifications = true; language = "en"; theme = "light" }
+            (fun p -> { p with notifications = not p.notifications });
+          ignore (Ctx.reply ctx "Notifications toggled!")
+      ]}
+  *)
+
   (** {2 Monadic Operations}
 
       These operations enable elegant error handling using OCaml's monadic syntax.
