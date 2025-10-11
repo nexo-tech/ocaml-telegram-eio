@@ -379,10 +379,44 @@ val command_with : ?desc:string -> string -> 'a parser -> ([ `Chat ] ctx -> 'a -
     Parse errors are automatically sent to the user with a ❌ prefix.
 *)
 
+(** {1 Builder Pattern - Event Routing} *)
+
+val on : 'a Event.t -> ([ `Chat ] ctx -> 'a -> unit) -> bot -> bot
+(** [on event handler bot] adds an event handler to the bot.
+
+    The handler receives the context first, then the event data.
+    This provides better ergonomics for partial application and piping.
+
+    Example:
+    {[
+      Bot.make ~env ~client
+      |> Bot.on Event.text (fun ctx text ->
+          let _ = Ctx.reply ctx ("Echo: " ^ text) in ()
+        )
+      |> Bot.on Event.message (fun ctx msg ->
+          (* Handle any message *)
+          let _ = Ctx.send ctx "Got a message!" in ()
+        )
+      |> Bot.run
+    ]}
+
+    Common events:
+    - [Event.text] - matches text messages, handler receives string
+    - [Event.message] - matches any message, handler receives Message.t
+    - [Event.callback] - matches callback queries
+    - [Event.inline_query] - matches inline queries
+*)
+
 (** {1 Route-based API} *)
 
-val on : 'a Event.t -> ('a -> [ `Chat ] ctx -> unit) -> route
-(** Create a route from an event matcher and handler *)
+val route : 'a Event.t -> ('a -> [ `Chat ] ctx -> unit) -> route
+(** Create a route from an event matcher and handler.
+
+    This is the low-level route-based API. For the builder pattern, use {!on} instead.
+
+    Note: The handler signature is ('a -> ctx -> unit) - data first, then context.
+    This is different from the builder pattern {!on} which uses (ctx -> 'a -> unit).
+*)
 
 val with_middleware : [ `Chat ] Middleware.t list -> route -> route
 (** Add middleware to a specific route *)

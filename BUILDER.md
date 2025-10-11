@@ -159,10 +159,12 @@ let combined = Bot.merge echo_bot admin_bot
 
 ### Phase 3: Event Routing Sugar
 
-- [ ] Task 3.1: Fix `Bot.on` signature
+- [x] Task 3.1: Fix `Bot.on` signature
   - Current: `on : Event.t -> (data -> ctx -> unit) -> route`
   - Needed: `on : Event.t -> (ctx -> data -> unit) -> bot -> bot`
   - Better ergonomics: ctx first for partial application
+  - Renamed route-based `on` to `route` for clarity
+  - Added new builder-pattern `on` function
 
 - [ ] Task 3.2: Convenience methods for common events
   - `on_text : (ctx -> string -> unit) -> bot -> bot`
@@ -302,10 +304,10 @@ let combined = Bot.merge echo_bot admin_bot
 ## Progress Tracking
 
 **Total Tasks**: 33
-**Completed**: 6
+**Completed**: 7
 **In Progress**: 0
-**Remaining**: 27
-**Progress**: 18% (6/33)
+**Remaining**: 26
+**Progress**: 21% (7/33)
 
 ---
 

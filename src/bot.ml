@@ -613,8 +613,8 @@ type bot = {
 (* Parser type for type-safe argument parsing *)
 type 'a parser = string list -> ('a, string) result
 
-(* Create a route from an event and handler *)
-let on ev h = {
+(* Create a route from an event and handler - route-based API *)
+let route ev h = {
   handler = Handler (ev, h);
   middleware = [];
   on_error = None;
@@ -754,7 +754,7 @@ let command ?(desc = "") cmd_name handler bot =
   (* Create route with flipped handler signature for better ergonomics
      Handler takes (ctx -> string list -> unit) but Event expects (string list -> ctx -> unit) *)
   let flipped_handler args ctx = handler ctx args in
-  let route = on (Event.Command cmd_name) flipped_handler in
+  let route_obj = route (Event.Command cmd_name) flipped_handler in
   (* Store description if provided *)
   let command_descriptions =
     if desc <> "" then
@@ -764,7 +764,7 @@ let command ?(desc = "") cmd_name handler bot =
   in
   (* Return new bot with route and description added *)
   { bot with
-    routes = bot.routes @ [route];
+    routes = bot.routes @ [route_obj];
     command_descriptions;
   }
 
@@ -785,7 +785,7 @@ let command_with ?(desc = "") cmd_name parser handler bot =
   in
   (* Create route with the parsing handler *)
   let flipped_handler args ctx = parsing_handler ctx args in
-  let route = on (Event.Command cmd_name) flipped_handler in
+  let route_obj = route (Event.Command cmd_name) flipped_handler in
   (* Store description if provided *)
   let command_descriptions =
     if desc <> "" then
@@ -795,6 +795,16 @@ let command_with ?(desc = "") cmd_name parser handler bot =
   in
   (* Return new bot with route and description added *)
   { bot with
-    routes = bot.routes @ [route];
+    routes = bot.routes @ [route_obj];
     command_descriptions;
   }
+
+(** Add an event handler to the bot - builder pattern *)
+let on : type a. a Event.t -> ([ `Chat ] ctx -> a -> unit) -> bot -> bot =
+  fun event handler bot ->
+    (* Flip handler signature: builder takes (ctx -> data -> unit)
+       but route expects (data -> ctx -> unit) *)
+    let flipped_handler data ctx = handler ctx data in
+    let route_obj = route event flipped_handler in
+    (* Return new bot with route added *)
+    { bot with routes = bot.routes @ [route_obj] }
