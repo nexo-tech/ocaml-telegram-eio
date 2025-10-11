@@ -38,13 +38,19 @@ let () =
   (* Build bot using functional builder pattern *)
   make ~env ~client
   |> command "start" (fun ctx _args ->
-      ignore (Ctx.reply ctx "👋 Hello! Send me any message and I'll echo it back.")
+      match Ctx.reply ctx "👋 Hello! Send me any message and I'll echo it back." with
+      | Ok _ -> ()
+      | Error err -> Eio.traceln "Error: %a" Telegram.Error.pp err
     )
   |> command "help" (fun ctx _args ->
-      ignore (Ctx.reply ctx "Just send me text and I'll echo it!")
+      match Ctx.reply ctx "Just send me text and I'll echo it!" with
+      | Ok _ -> ()
+      | Error err -> Eio.traceln "Error: %a" Telegram.Error.pp err
     )
   |> on_text (fun ctx text ->
       (* Echo all non-command text messages *)
-      ignore (Ctx.reply ctx (Printf.sprintf "You said: %s" text))
+      match Ctx.reply ctx (Printf.sprintf "You said: %s" text) with
+      | Ok _ -> ()
+      | Error err -> Eio.traceln "Error: %a" Telegram.Error.pp err
     )
   |> run

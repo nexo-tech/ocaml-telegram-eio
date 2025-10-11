@@ -30,7 +30,10 @@ let () =
   (* Build bot using functional builder pattern *)
   make ~env ~client
   |> command "start" (fun ctx _args ->
-      (* Reply to /start command *)
-      ignore (Ctx.reply ctx "👋 Hello! I'm your first OCaml Telegram bot!")
+      (* Reply to /start command - handle errors *)
+      match Ctx.reply ctx "👋 Hello! I'm your first OCaml Telegram bot!" with
+      | Ok _ -> ()
+      | Error err ->
+          Eio.traceln "Error sending message: %a" Telegram.Error.pp err
     )
   |> run
