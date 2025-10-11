@@ -177,9 +177,11 @@ let combined = Bot.merge echo_bot admin_bot
 
 ### Phase 4: Middleware Integration
 
-- [ ] Task 4.1: `Bot.use : Middleware.t -> bot -> bot`
+- [x] Task 4.1: `Bot.use : Middleware.t -> bot -> bot`
   - Apply middleware to all subsequent routes
   - Accumulate middleware in bot state
+  - Middleware appended to bot.middleware list
+  - Applied globally via router when Bot.run is called
 
 - [ ] Task 4.2: Scoped middleware
   - `Bot.scope : Middleware.t list -> bot -> bot`
@@ -307,10 +309,10 @@ let combined = Bot.merge echo_bot admin_bot
 ## Progress Tracking
 
 **Total Tasks**: 33
-**Completed**: 8
+**Completed**: 9
 **In Progress**: 0
-**Remaining**: 25
-**Progress**: 24% (8/33)
+**Remaining**: 24
+**Progress**: 27% (9/33)
 
 ---
 

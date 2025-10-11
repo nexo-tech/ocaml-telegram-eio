@@ -474,6 +474,41 @@ val on_photo : ([ `Chat ] ctx -> Telegram_generated.Gen_types.PhotoSize.t list -
     ]}
 *)
 
+(** {1 Middleware Integration} *)
+
+val use : [ `Chat ] Middleware.t -> bot -> bot
+(** [use middleware bot] adds middleware that applies to all routes in the bot.
+
+    Middleware is accumulated in the bot state and applied globally when [run] is called.
+    Middleware runs in the order it was added (first added runs first).
+
+    Example:
+    {[
+      Bot.make ~env ~client
+      |> Bot.use (Middleware.logging ())
+      |> Bot.use (Middleware.rate_limit ~max_per_minute:10 ())
+      |> Bot.command "start" (fun ctx _args ->
+          (* Both logging and rate_limit middleware will run before this handler *)
+          let _ = Ctx.reply ctx "Welcome!" in ()
+        )
+      |> Bot.run
+    ]}
+
+    Common middleware:
+    - [Middleware.logging ()] - Log all updates and handler execution
+    - [Middleware.rate_limit ~max_per_minute:n ()] - Rate limiting per user
+    - [Middleware.only_users ids] - Restrict bot to specific user IDs
+    - [Middleware.require_user ()] - Require user to be present in update
+    - [Middleware.with_session store] - Enable session management
+
+    Middleware can:
+    - Run code before handler ([before] hook)
+    - Transform or enrich the context
+    - Reject requests (return [Error] from [before])
+    - Run code after handler ([after] hook)
+    - Handle errors ([on_error] hook)
+*)
+
 (** {1 Route-based API} *)
 
 val route : 'a Event.t -> ('a -> [ `Chat ] ctx -> unit) -> route

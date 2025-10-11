@@ -850,3 +850,9 @@ let on_photo handler bot =
     | None -> ()
   in
   on photo_event wrapped_handler bot
+
+(** Middleware integration *)
+
+(** Add middleware that applies to all routes *)
+let use mw bot =
+  { bot with middleware = bot.middleware @ [mw] }
