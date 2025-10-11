@@ -13,7 +13,12 @@ Goal: Implement every example from documentation in `examples/` directory with a
   - Both examples compile and use working API patterns
   - Identified API inconsistencies: docs show `Api.send_message + Api.call` pattern that doesn't exist
   - Actual working API: `Gen_methods.send_message client ~params ()` returns `Result.t` directly
-- [ ] Task 1.1.1.2: `docs/quick_start.mld` - Extract and implement all examples
+- [x] Task 1.1.1.2: `docs/quick_start.mld` - Extract and implement all examples
+  - Created `examples/command_tutorial.ml` - Comprehensive command bot (tutorials 1-2)
+  - Added `Input_file.file` alias for `Input_file.path` (doc compatibility)
+  - Identified major API gap: docs show Bot DSL builder pattern (`Bot.make |> Bot.command ...`) which doesn't exist
+  - Current API uses route-based DSL (`on Event.command, run_polling`)
+  - Bot builder pattern needs separate implementation task
 - [ ] Task 1.1.1.3: `docs/core_concepts.mld` - Extract and implement all examples
 
 ### Phase 1.1.2: Recipe Examples (Cookbook)
@@ -87,10 +92,10 @@ Every example must:
 ## Progress Tracking
 
 **Total Tasks**: 35
-**Completed**: 1
+**Completed**: 2
 **In Progress**: 0
-**Remaining**: 34
-**Progress**: 3% (1/35)
+**Remaining**: 33
+**Progress**: 6% (2/35)
 
 ---
 

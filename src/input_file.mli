@@ -46,6 +46,9 @@ val url : string -> t
 *)
 val path : string -> t
 
+(** Alias for [path]. Commonly used in documentation examples. *)
+val file : string -> t
+
 (** Upload a file with explicit filename and optional mime type.
     Provides full control over the upload parameters.
 

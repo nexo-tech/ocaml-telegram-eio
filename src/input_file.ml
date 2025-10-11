@@ -27,6 +27,8 @@ let path file_path =
   in
   Upload { filename; mime_type; path = file_path }
 
+let file = path
+
 let upload ~filename ?mime_type file_path =
   Upload { filename; mime_type; path = file_path }
 
