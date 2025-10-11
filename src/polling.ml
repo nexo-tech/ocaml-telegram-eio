@@ -2,6 +2,11 @@
 
 open Telegram
 
+module Log = Telegram.Log.Make (Telegram.Log.Console) (struct
+  let src = "Polling"
+  let level = Telegram.Log.Info
+end)
+
 type offset_storage = {
   load : unit -> int64 option;
   save : int64 -> unit;
@@ -73,13 +78,25 @@ module Dedup_window = struct
         else if window.buffer.(i) = update_id then true
         else check ((i + 1) mod window.size) (remaining - 1)
       in
-      check 0 window.count
+      let seen_before = check 0 window.count in
+      Log.debug "Deduplication check: update_id=%Ld, seen_before=%b" update_id seen_before;
+      if seen_before then
+        Log.warn "Duplicate update detected: update_id=%Ld" update_id;
+      seen_before
 
   let add window update_id =
     if window.size > 0 then (
       window.buffer.(window.pos) <- update_id;
       window.pos <- (window.pos + 1) mod window.size;
-      window.count <- min (window.count + 1) window.size
+      window.count <- min (window.count + 1) window.size;
+
+      Log.debug' (fun () ->
+        let oldest_id = if window.count > 0 then
+          window.buffer.((window.pos - window.count + window.size) mod window.size)
+        else 0L in
+        Format.asprintf "Deduplication window state: size=%d, oldest_id=%Ld"
+          window.count oldest_id
+      )
     )
 end
 
@@ -101,6 +118,7 @@ let process_updates updates ~handler ~on_error ~dedup_window =
     match get_update_id update with
     | None ->
         (* No update_id found - shouldn't happen but process anyway *)
+        Log.debug "Processing update: update_id=none (malformed)";
         (try handler update
          with exn ->
            let err = Error.Decode_error ("Handler exception: " ^ Printexc.to_string exn) in
@@ -108,6 +126,22 @@ let process_updates updates ~handler ~on_error ~dedup_window =
             | Some f -> f err
             | None -> ()))
     | Some update_id ->
+        Log.debug' (fun () ->
+          let module U = Telegram_generated.Gen_types.Update in
+          let json = U.to_yojson update in
+          let update_type = match json with
+            | `Assoc fields ->
+                let types = ["message"; "edited_message"; "channel_post"; "edited_channel_post";
+                            "inline_query"; "chosen_inline_result"; "callback_query"; "shipping_query";
+                            "pre_checkout_query"; "poll"; "poll_answer"; "my_chat_member"; "chat_member";
+                            "chat_join_request"] in
+                List.find_opt (fun t -> List.mem_assoc t fields) types
+                |> Option.value ~default:"unknown"
+            | _ -> "unknown"
+          in
+          Format.asprintf "Each update received: update_id=%Ld, type=%s" update_id update_type
+        );
+
         (* Check if already seen *)
         if Dedup_window.mem dedup_window update_id then
           () (* Skip duplicate *)
@@ -127,7 +161,9 @@ let process_updates updates ~handler ~on_error ~dedup_window =
 (* Internal: compute next offset from updates *)
 let next_offset updates current_offset =
   match updates with
-  | [] -> current_offset
+  | [] ->
+      Log.debug "Offset calculation: no updates, keeping offset=%Ld" current_offset;
+      current_offset
   | _ ->
       (* Get the highest update_id and add 1 *)
       let module U = Telegram_generated.Gen_types.Update in
@@ -142,58 +178,90 @@ let next_offset updates current_offset =
              | _ -> acc)
         | _ -> acc
       ) 0L updates in
-      Int64.add max_id 1L
+      let new_offset = Int64.add max_id 1L in
+      Log.debug "Offset calculation and update: previous=%Ld, max_update_id=%Ld, next=%Ld"
+        current_offset max_id new_offset;
+      new_offset
 
 (* Internal: main polling loop with graceful shutdown *)
 let rec polling_loop client config ~handler ~offset ~should_stop ~dedup_window =
-  (* Fetch updates first, then check shutdown - this ensures in-flight updates are processed *)
-  match get_updates client ~offset config with
-  | Error err ->
-      (* Check if we should stop before handling error *)
-      if should_stop () then
-        () (* Graceful shutdown - don't retry on errors during shutdown *)
-      else (
-        (* Handle error *)
-        (match config.on_error with
-         | Some f -> f err
-         | None -> ());
+  (* Check for shutdown signal *)
+  if should_stop () then (
+    Log.debug "Shutdown signal received";
+    Log.info "Graceful shutdown initiated";
+    () (* Exit polling loop immediately *)
+  ) else (
+    (* Fetch updates first, then check shutdown - this ensures in-flight updates are processed *)
+    match get_updates client ~offset config with
+    | Error err ->
+        Log.warn "getUpdates error (will retry): %a" Error.pp err;
 
-        (* Continue polling after a brief delay on errors *)
-        (match err with
-         | Error.Api_error { code = 429; parameters = Some { retry_after = Some delay; _ }; _ } ->
-             (* Rate limited: respect retry_after *)
-             Eio.Time.sleep (Client.env client)#clock (float_of_int delay)
-         | Error.Timeout ->
-             (* Timeout is expected in long polling, just continue *)
-             ()
-         | Error.Http_error _ | Error.Decode_error _ ->
-             (* HTTP or decode error: brief delay before retry *)
-             Eio.Time.sleep (Client.env client)#clock 1.0
-         | _ ->
-             (* Other errors: brief delay *)
-             Eio.Time.sleep (Client.env client)#clock 1.0);
+        (* Check if we should stop before handling error *)
+        if should_stop () then (
+          Log.info "Shutdown during error handling";
+          () (* Graceful shutdown - don't retry on errors during shutdown *)
+        ) else (
+          (* Handle error *)
+          (match config.on_error with
+           | Some f -> f err
+           | None -> ());
 
-        polling_loop client config ~handler ~offset ~should_stop ~dedup_window
-      )
+          (* Continue polling after a brief delay on errors *)
+          (match err with
+           | Error.Api_error { code = 429; parameters = Some { retry_after = Some delay; _ }; _ } ->
+               Log.warn "Rate limited: waiting %ds before retry" delay;
+               (* Rate limited: respect retry_after *)
+               Eio.Time.sleep (Client.env client)#clock (float_of_int delay)
+           | Error.Timeout ->
+               (* Timeout is expected in long polling, just continue *)
+               Log.debug "Long polling timeout (expected, continuing)"
+           | Error.Http_error _ | Error.Decode_error _ ->
+               (* HTTP or decode error: brief delay before retry *)
+               Eio.Time.sleep (Client.env client)#clock 1.0
+           | _ ->
+               (* Other errors: brief delay *)
+               Eio.Time.sleep (Client.env client)#clock 1.0);
+
+          polling_loop client config ~handler ~offset ~should_stop ~dedup_window
+        )
 
   | Ok updates ->
+      (* Log received updates *)
+      let count = List.length updates in
+      if count > 0 then (
+        let update_ids = List.filter_map get_update_id updates in
+        let ids_str = String.concat ", " (List.map Int64.to_string update_ids) in
+        Log.info "Received updates: count=%d, update_ids=[%s]" count ids_str
+      );
+
       (* Process updates with deduplication - always process fetched updates even during shutdown *)
+      if should_stop () && count > 0 then
+        Log.info "Processing in-flight updates before shutdown: count=%d" count;
+
       process_updates updates ~handler ~on_error:config.on_error ~dedup_window;
+
+      if should_stop () && count > 0 then
+        Log.debug "Update queue drained: processed %d updates" count;
 
       (* Calculate next offset *)
       let new_offset = next_offset updates offset in
 
       (* Save offset if persistence is enabled *)
       (match config.offset_storage with
-       | Some storage -> storage.save new_offset
+       | Some storage ->
+           Log.debug "Storage operation: saving offset=%Ld" new_offset;
+           storage.save new_offset;
+           Log.info "Offset saved to storage: offset=%Ld" new_offset
        | None -> ());
 
       (* Check if we should stop AFTER processing updates *)
-      if should_stop () then
+      if should_stop () then (
+        Log.info "Shutdown complete";
         () (* Graceful shutdown - all fetched updates have been processed *)
-      else
+      ) else
         (* Continue polling *)
         polling_loop client config ~handler ~offset:new_offset ~should_stop ~dedup_window
+  )
 
 let run_with_config_and_switch client config sw ~handler =
   (* Use switch to detect cancellation *)
@@ -205,12 +273,22 @@ let run_with_config_and_switch client config sw ~handler =
   (* Load initial offset from storage or use 0 *)
   let initial_offset =
     match config.offset_storage with
-    | Some storage -> (match storage.load () with Some o -> o | None -> 0L)
+    | Some storage ->
+        Log.debug "Storage operation: loading offset";
+        (match storage.load () with
+         | Some o ->
+             Log.info "Offset loaded from storage: offset=%Ld" o;
+             o
+         | None ->
+             Log.warn "Failed to load offset (using default): offset=0";
+             0L)
     | None -> 0L
   in
 
   (* Create deduplication window *)
   let dedup_window = Dedup_window.create config.dedup_window in
+
+  Log.info "Long polling started: timeout=%ds, offset=%Ld" config.timeout initial_offset;
 
   polling_loop client config ~handler ~offset:initial_offset ~should_stop ~dedup_window
 
@@ -221,12 +299,22 @@ let run_with_config client config ~handler =
   (* Load initial offset from storage or use 0 *)
   let initial_offset =
     match config.offset_storage with
-    | Some storage -> (match storage.load () with Some o -> o | None -> 0L)
+    | Some storage ->
+        Log.debug "Storage operation: loading offset";
+        (match storage.load () with
+         | Some o ->
+             Log.info "Offset loaded from storage: offset=%Ld" o;
+             o
+         | None ->
+             Log.warn "Failed to load offset (using default): offset=0";
+             0L)
     | None -> 0L
   in
 
   (* Create deduplication window *)
   let dedup_window = Dedup_window.create config.dedup_window in
+
+  Log.info "Long polling started: timeout=%ds, offset=%Ld" config.timeout initial_offset;
 
   polling_loop client config ~handler ~offset:initial_offset ~should_stop ~dedup_window
 
