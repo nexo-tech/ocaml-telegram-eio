@@ -14,6 +14,15 @@ Goal: Implement every example from documentation in `examples/` directory with a
   - `Bot.make ~env ~client |> Bot.command |> Bot.on_text |> Bot.run`
   - Examples compile without warnings and demonstrate elegant builder pattern
   - Clean, readable code that matches Haskell-style functional APIs
+  - **VERBOSE LOGGING**: Added comprehensive Eio.traceln logging at every step
+    - Bot initialization (token loading, client creation)
+    - Route registration (command, on_text)
+    - Update reception and routing
+    - Handler execution (entry/exit with context details)
+    - API calls (sendMessage with success/error)
+    - Error handling (full context dump, error recovery)
+  - Logs include prefixes: [Init], [Builder], [Handler], [API], [Error]
+  - Every example demonstrates troubleshooting best practices
 - [ ] Task 1.1.1.2: `docs/quick_start.mld` - Extract and implement all examples
   - Created `examples/command_tutorial.ml` - Comprehensive command bot (tutorials 1-2)
   - Added `Input_file.file` alias for `Input_file.path` (doc compatibility)
