@@ -279,22 +279,44 @@ val make : env:Telegram.Client.env -> client:Telegram.Client.t -> bot
 val run : bot -> unit
 (** Run the bot using long polling. Extracts accumulated routes and delegates to [run_polling]. *)
 
-val command : string -> ([ `Chat ] ctx -> string list -> unit) -> bot -> bot
-(** [command name handler bot] adds a command handler to the bot.
+val command : ?desc:string -> string -> ([ `Chat ] ctx -> string list -> unit) -> bot -> bot
+(** [command ?desc name handler bot] adds a command handler to the bot.
 
     The handler receives the context first, then the command arguments.
     This provides better ergonomics for partial application and piping.
 
+    Optional [desc] parameter stores command description for auto-generated help.
+    When provided, the description is associated with the command name and can
+    be used to generate help messages programmatically.
+
     Example:
     {[
       Bot.make ~env ~client
-      |> Bot.command "start" (fun ctx _args ->
+      |> Bot.command ~desc:"Start the bot" "start" (fun ctx _args ->
           let _ = Ctx.reply ctx "Welcome!" in ()
         )
-      |> Bot.command "echo" (fun ctx args ->
+      |> Bot.command ~desc:"Echo back your message" "echo" (fun ctx args ->
           let text = String.concat " " args in
           let _ = Ctx.reply ctx text in ()
         )
+    ]}
+
+    The descriptions are stored in the bot state as [(command_name, description)]
+    pairs and can be used to implement help commands.
+*)
+
+val commands : bot -> (string * string) list
+(** [commands bot] returns list of registered commands with their descriptions.
+
+    Returns a list of [(command_name, description)] pairs for all commands
+    that were registered with descriptions. Useful for implementing help commands.
+
+    Example:
+    {[
+      let help_text bot =
+        Bot.commands bot
+        |> List.map (fun (name, desc) -> Printf.sprintf "/%s - %s" name desc)
+        |> String.concat "\n"
     ]}
 *)
 

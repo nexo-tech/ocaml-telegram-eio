@@ -145,9 +145,12 @@ let combined = Bot.merge echo_bot admin_bot
   - Return new bot value
   - Flips handler signature for better ergonomics (ctx first, args second)
 
-- [ ] Task 2.2: Command with description
-  - `command : string -> desc:string -> handler -> bot -> bot`
+- [x] Task 2.2: Command with description
+  - `command : ?desc:string -> string -> handler -> bot -> bot`
   - Store descriptions for auto-generated help
+  - Added `command_descriptions` field to bot type
+  - Added `Bot.commands` accessor for help generation
+  - Optional desc parameter (backward compatible)
 
 - [ ] Task 2.3: Command with argument parser
   - `command_with : string -> 'a parser -> (ctx -> 'a -> unit) -> bot -> bot`
@@ -299,10 +302,10 @@ let combined = Bot.merge echo_bot admin_bot
 ## Progress Tracking
 
 **Total Tasks**: 33
-**Completed**: 4
+**Completed**: 5
 **In Progress**: 0
-**Remaining**: 29
-**Progress**: 12% (4/33)
+**Remaining**: 28
+**Progress**: 15% (5/33)
 
 ---
 

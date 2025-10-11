@@ -607,6 +607,7 @@ type bot = {
   routes : route list;
   middleware : [ `Chat ] Middleware.t list;
   on_error : ([ `Chat ] ctx -> exn -> unit) option;
+  command_descriptions : (string * string) list; (* (command_name, description) pairs *)
 }
 
 (* Create a route from an event and handler *)
@@ -731,6 +732,7 @@ let make ~env ~client = {
   routes = [];
   middleware = [];
   on_error = None;
+  command_descriptions = [];
 }
 
 (** Run the bot using long polling *)
@@ -745,10 +747,23 @@ let run bot =
   run_polling ~env:bot.env ~client:bot.client routes
 
 (** Add a command handler to the bot *)
-let command cmd_name handler bot =
+let command ?(desc = "") cmd_name handler bot =
   (* Create route with flipped handler signature for better ergonomics
      Handler takes (ctx -> string list -> unit) but Event expects (string list -> ctx -> unit) *)
   let flipped_handler args ctx = handler ctx args in
   let route = on (Event.Command cmd_name) flipped_handler in
-  (* Return new bot with route added *)
-  { bot with routes = bot.routes @ [route] }
+  (* Store description if provided *)
+  let command_descriptions =
+    if desc <> "" then
+      bot.command_descriptions @ [(cmd_name, desc)]
+    else
+      bot.command_descriptions
+  in
+  (* Return new bot with route and description added *)
+  { bot with
+    routes = bot.routes @ [route];
+    command_descriptions;
+  }
+
+(** Get list of registered commands with their descriptions *)
+let commands bot = bot.command_descriptions
