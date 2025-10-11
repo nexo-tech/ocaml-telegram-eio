@@ -36,6 +36,27 @@
 *)
 val call : Client.t -> 'a Request.t -> ('a, Error.t) result
 
+(** {2 Request Builders}
+
+    These functions create typed requests that can be executed with {!call}.
+    They are re-exported from the {!Request} module for convenience.
+*)
+
+val send_message
+  :  chat_id:Id.Chat.k Id.t
+  -> text:string
+  -> ?parse_mode:Types.parse_mode
+  -> ?reply_parameters:Types.reply_parameters
+  -> unit -> Types.message Request.t
+(** [send_message ~chat_id ~text ()] creates a request to send a text message. *)
+
+val send_photo
+  :  chat_id:Id.Chat.k Id.t
+  -> photo:[ `File_id of string | `Url of string | `Path of string ]
+  -> ?caption:string
+  -> unit -> Types.message Request.t
+(** [send_photo ~chat_id ~photo ()] creates a request to send a photo. *)
+
 (** Call a method with JSON parameters (legacy, for simple requests). *)
 val call_json : Client.t -> method_name:string -> Yojson.Safe.t -> (Yojson.Safe.t, Error.t) result
 

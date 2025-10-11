@@ -115,3 +115,7 @@ let call_method client ~method_name params =
     match Http.Cohttp_eio.call http ~meth:`POST ~url ~headers:[ "Content-Type", "application/json" ] ~body:(Http.String (Yojson.Safe.to_string json)) with
     | Error e -> Error e
     | Ok resp -> Response.parse_json resp.body
+
+(* Request builders - re-exported from Request module *)
+let send_message = Request.send_message
+let send_photo = Request.send_photo
