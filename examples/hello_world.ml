@@ -19,18 +19,18 @@
       - API call results (success/error)
 *)
 
-open Tg.Bot
+open Telegram
+open Tg
 
-(* Helper: Convert Result to exception for global error handler *)
-let reply_or_fail ctx text =
-  Eio.traceln "[API] Sending reply: %s" text;
-  match Ctx.reply ctx text with
-  | Ok msg ->
-      Eio.traceln "[API] ✓ Reply sent successfully (message_id=%Ld)" msg.message_id;
-      msg
-  | Error err ->
-      Eio.traceln "[API] ✗ Reply failed: %a" Telegram.Error.pp err;
-      raise (Failure (Format.asprintf "Reply failed: %a" Telegram.Error.pp err))
+(* Configure verbose logging via functor composition *)
+module Verbose_log = Log.Make (Log.Console) (struct
+  let src = "HelloBot"
+  let level = Log.Debug  (* Enable debug logging *)
+end)
+
+module Verbose_session = Session.Make (Verbose_log)
+module Verbose_polling = Polling.Make (Verbose_log)
+module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
 
 let () =
   Eio.traceln "=== Hello World Bot Starting ===";
@@ -57,8 +57,8 @@ let () =
 
   Eio.traceln "[Init] Creating Telegram HTTP client...";
   (* Create HTTP client for Telegram API *)
-  let client = Telegram.Client.create ~env ~token () in
-  Eio.traceln "[Init] ✓ HTTP client created (base_url=%s)" (Telegram.Client.base_url client);
+  let client = Client.create ~env ~token () in
+  Eio.traceln "[Init] ✓ HTTP client created (base_url=%s)" (Client.base_url client);
 
   (* Print startup message *)
   Eio.traceln "";
@@ -67,42 +67,42 @@ let () =
   Eio.traceln "🔍 Watching for updates (long polling)...";
   Eio.traceln "";
 
-  (* Build bot using functional builder pattern *)
+  (* Build bot using functional builder pattern with verbose logging *)
   Eio.traceln "[Builder] Building bot with functional API...";
-  make ~env ~client
+  Verbose_bot.make ~env ~client
   (* Add global error handler to catch and log all errors *)
-  |> on_error (fun ctx err ->
-      Eio.traceln "[Error] ❌ Uncaught error in handler: %a" Telegram.Error.pp err;
+  |> Verbose_bot.on_error (fun ctx exn ->
+      Eio.traceln "[Error] ❌ Uncaught error in handler: %s" (Printexc.to_string exn);
       Eio.traceln "[Error] Context: user=%s, chat=%s"
-        (match Ctx.user ctx with
-         | Some u -> Printf.sprintf "id=%s" (Telegram.Id.to_string u.id)
+        (match Verbose_bot.Ctx.user ctx with
+         | Some u -> Printf.sprintf "id=%s" (Id.to_string u.id)
          | None -> "none")
-        (match Ctx.chat ctx with Ok c -> Telegram.Id.to_string c | Error _ -> "none");
+        (match Verbose_bot.Ctx.chat ctx with
+         | ch_id -> Id.to_string ch_id);
       (* Try to notify user about the error *)
       Eio.traceln "[Error] Attempting to send error notification to user...";
-      match Ctx.reply ctx "Sorry, an error occurred. Please try again." with
+      match Verbose_bot.Ctx.reply ctx "Sorry, an error occurred. Please try again." with
       | Ok _ -> Eio.traceln "[Error] ✓ Error notification sent to user"
-      | Error e -> Eio.traceln "[Error] ✗ Failed to send error message: %a" Telegram.Error.pp e
+      | Error e -> Eio.traceln "[Error] ✗ Failed to send error message: %a" Error.pp e
     )
-  |> command "start" (fun ctx _args ->
+  |> Verbose_bot.command "start" (fun ctx _args ->
       Eio.traceln "";
       Eio.traceln "[Handler] >>> Received /start command";
       Eio.traceln "[Handler] User: %s"
-        (match Ctx.user ctx with
+        (match Verbose_bot.Ctx.user ctx with
          | Some u -> Printf.sprintf "id=%s, username=%s"
-             (Telegram.Id.to_string u.id)
+             (Id.to_string u.id)
              (Option.value ~default:"<none>" u.username)
          | None -> "<none>");
       Eio.traceln "[Handler] Chat: %s"
-        (match Ctx.chat ctx with
-         | Ok c -> Telegram.Id.to_string c
-         | Error _ -> "<none>");
+        (Id.to_string (Verbose_bot.Ctx.chat ctx));
 
       Eio.traceln "[Handler] Executing handler logic...";
-      (* Use helper to route errors to global error handler *)
-      let _ = reply_or_fail ctx "👋 Hello! I'm your first OCaml Telegram bot!" in
+      (* Use Result-based error handling *)
+      let open Verbose_bot.Ctx in
+      let* () = reply_ ctx "👋 Hello! I'm your first OCaml Telegram bot!" in
       Eio.traceln "[Handler] <<< Handler completed successfully";
       Eio.traceln "";
       Ok ()
     )
-  |> run
+  |> Verbose_bot.run

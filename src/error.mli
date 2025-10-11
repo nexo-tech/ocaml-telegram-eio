@@ -10,6 +10,7 @@ type t =
   | Timeout
   | Canceled
   | Not_implemented of string
+  | Internal_error of string
 
 val pp : t Fmt.t
 val is_retryable : t -> bool

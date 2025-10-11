@@ -11,9 +11,13 @@ Goal: Implement every example from documentation in `examples/` directory with a
   - Created `examples/hello_world.ml` - Basic /start command bot
   - Created `examples/echo_enhanced.ml` - Echo bot with command routing
   - Updated both examples to use functional builder API from BUILDER.md
-  - `Bot.make ~env ~client |> Bot.command |> Bot.on_text |> Bot.run`
+  - `Verbose_bot.make ~env ~client |> Verbose_bot.command |> Verbose_bot.on_text |> Verbose_bot.run`
   - Examples compile without warnings and demonstrate elegant builder pattern
   - Clean, readable code that matches Haskell-style functional APIs
+  - **Result-based handlers**: All handlers return `(unit, Error.t) result`
+  - **Functor-based logging**: Custom Log/Session/Polling/Bot modules with Debug level
+    - `Verbose_log = Log.Make (Log.Console) (struct let level = Log.Debug end)`
+    - `Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)`
   - **VERBOSE LOGGING**: Added comprehensive Eio.traceln logging at every step
     - Bot initialization (token loading, client creation)
     - Route registration (command, on_text)
@@ -21,8 +25,9 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - Handler execution (entry/exit with context details)
     - API calls (sendMessage with success/error)
     - Error handling (full context dump, error recovery)
-  - Logs include prefixes: [Init], [Builder], [Handler], [API], [Error]
+  - Logs include prefixes: [Init], [Builder], [Handler], [Error]
   - Every example demonstrates troubleshooting best practices
+  - Examples are fully debuggable with verbose output for Claude/humans
 - [ ] Task 1.1.1.2: `docs/quick_start.mld` - Extract and implement all examples
   - Created `examples/command_tutorial.ml` - Comprehensive command bot (tutorials 1-2)
   - Added `Input_file.file` alias for `Input_file.path` (doc compatibility)

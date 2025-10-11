@@ -1,11 +1,6 @@
 open Telegram
 open Telegram.Error
 
-module Log = Telegram.Log.Make (Telegram.Log.Console) (struct
-  let src = "Bot"
-  let level = Telegram.Log.Info
-end)
-
 type +'s ctx = {
   client : Client.t option;
   env : Client.env option;
@@ -57,7 +52,186 @@ module Args = struct
   let join_rest args n = String.concat " " (rest args n)
 end
 
-(* Entity-aware text parsing *)
+(* Module type S - defines the signature of the bot module *)
+module type S = sig
+  type route
+  type bot
+
+  module Event : sig
+    type 'a t
+    val message : Telegram_generated.Gen_types.Message.t t
+    val text : string t
+    val command : string -> string list t
+    val callback : 'a -> 'a t
+    val inline_query : Telegram_generated.Gen_types.InlineQuery.t t
+    val any : Telegram_generated.Gen_types.Update.t t
+    val ( & ) : 'a t -> 'b t -> ('a * 'b) t
+    val when_ : 'a t -> ('a -> bool) -> 'a t
+  end
+
+  module Entity : sig
+    type entity_type =
+      | Mention
+      | Hashtag
+      | Cashtag
+      | BotCommand
+      | Url
+      | Email
+      | PhoneNumber
+      | Bold
+      | Italic
+      | Underline
+      | Strikethrough
+      | Spoiler
+      | Code
+      | Pre
+      | TextLink of string
+      | TextMention of Telegram_generated.Gen_types.User.t
+      | CustomEmoji of string
+      | Other of string
+
+    type entity_info = {
+      entity_type : entity_type;
+      offset : int;
+      length : int;
+      text : string;
+    }
+
+    val parse_entities : string -> Telegram_generated.Gen_types.MessageEntity.t list option -> entity_info list
+    val filter_by_type : [ `BotCommand | `Url | `Mention | `Hashtag | `Code | `Pre ] -> entity_info list -> entity_info list
+    val parse_command_args : string -> Telegram_generated.Gen_types.MessageEntity.t list option -> (string * string list) option
+  end
+
+  module Middleware : sig
+    type 's t
+
+    val make :
+      ?before:('s ctx -> ('s ctx, string) result) ->
+      ?after:('s ctx -> unit) ->
+      ?on_error:('s ctx -> exn -> unit) ->
+      string -> 's t
+
+    val logging : ?prefix:string -> unit -> 's t
+    val only_users : Telegram.Id.User.k Telegram.Id.t list -> 's t
+    val require_user : unit -> 's t
+    val require_chat : unit -> 's t
+    val rate_limit : max_per_minute:int -> unit -> 's t
+    val enrich : ('s ctx -> 's ctx) -> 's t
+    val with_session : (module Session.STORE with type store = 's) -> 's -> [ `Chat ] t
+
+    val combine : 's t list -> 's t
+    val ( >> ) : 's t -> 's t -> 's t
+    val when_ : ('s ctx -> bool) -> 's t -> 's t
+    val with_logging : ?prefix:string -> unit -> 's t
+    val require_admin : Telegram.Id.User.k Telegram.Id.t list -> 's t
+    val require_all : 's t list -> 's t
+  end
+
+  module Ctx : sig
+    type +'s t = 's ctx
+
+    val client : _ t -> Telegram.Client.t
+    val env : _ t -> Telegram.Client.env
+    val chat : [ `Chat ] t -> Telegram.Id.Chat.k Telegram.Id.t
+    val user : _ t -> Telegram.Types.user option
+    val message : [ `Chat ] t -> Telegram.Types.message
+
+    val reply : [ `Chat ] t -> string -> (Telegram_generated.Gen_types.Message.t, Telegram.Error.t) result
+    val answer : [ `Chat ] t -> string -> (Telegram_generated.Gen_types.Message.t, Telegram.Error.t) result
+    val send : [ `Chat ] t -> string -> (Telegram_generated.Gen_types.Message.t, Telegram.Error.t) result
+    val edit : [ `Chat ] t -> string -> (unit, Telegram.Error.t) result
+
+    val entities : [ `Chat ] t -> Entity.entity_info list
+    val get_entities : [ `Chat ] t -> [ `BotCommand | `Url | `Mention | `Hashtag | `Code | `Pre ] -> Entity.entity_info list
+
+    val session : _ t -> Session.t
+    val session_opt : _ t -> Session.t option
+    val session_get : _ t -> 'a Session.key -> 'a option
+    val session_set : _ t -> 'a Session.key -> 'a -> unit
+    val session_get_or : _ t -> 'a Session.key -> default:'a -> 'a
+    val session_delete : _ t -> 'a Session.key -> unit
+    val session_exists : _ t -> 'a Session.key -> bool
+    val session_clear : _ t -> unit
+    val session_modify : _ t -> 'a Session.key -> default:'a -> ('a -> 'a) -> unit
+
+    val get_state : _ t -> 'a Session.key -> 'a option
+    val set_state : _ t -> 'a Session.key -> 'a -> unit
+    val modify_state : _ t -> 'a Session.key -> default:'a -> ('a -> 'a) -> unit
+
+    val return : 'a -> ('a, Telegram.Error.t) result
+    val bind : ('a, Telegram.Error.t) result -> ('a -> ('b, Telegram.Error.t) result) -> ('b, Telegram.Error.t) result
+    val map : ('a, Telegram.Error.t) result -> ('a -> 'b) -> ('b, Telegram.Error.t) result
+    val ( let* ) : ('a, Telegram.Error.t) result -> ('a -> ('b, Telegram.Error.t) result) -> ('b, Telegram.Error.t) result
+    val ( let+ ) : ('a, Telegram.Error.t) result -> ('a -> 'b) -> ('b, Telegram.Error.t) result
+
+    val reply_ : [ `Chat ] t -> string -> (unit, Telegram.Error.t) result
+    val require_user : _ t -> (Telegram.Types.user, Telegram.Error.t) result
+    val require_admin : Telegram.Id.User.k Telegram.Id.t list -> _ t -> (unit, Telegram.Error.t) result
+
+    val ( >>= ) : ('a -> ('b, Telegram.Error.t) result) -> ('b -> ('c, Telegram.Error.t) result) -> ('a -> ('c, Telegram.Error.t) result)
+    val ( >>| ) : ('a -> ('b, Telegram.Error.t) result) -> ('b -> 'c) -> ('a -> ('c, Telegram.Error.t) result)
+  end
+
+  (** {1 Builder API} *)
+
+  val make : env:Telegram.Client.env -> client:Telegram.Client.t -> bot
+  val run : bot -> unit
+  val command : ?desc:string -> string -> ([ `Chat ] ctx -> string list -> (unit, Telegram.Error.t) result) -> bot -> bot
+  val commands : bot -> (string * string) list
+
+  type 'a parser = string list -> ('a, string) result
+  val command_with : ?desc:string -> string -> 'a parser -> ([ `Chat ] ctx -> 'a -> (unit, Telegram.Error.t) result) -> bot -> bot
+
+  val on : 'a Event.t -> ([ `Chat ] ctx -> 'a -> (unit, Telegram.Error.t) result) -> bot -> bot
+  val on_text : ([ `Chat ] ctx -> string -> (unit, Telegram.Error.t) result) -> bot -> bot
+  val on_message : ([ `Chat ] ctx -> Telegram_generated.Gen_types.Message.t -> (unit, Telegram.Error.t) result) -> bot -> bot
+  val on_callback : ([ `Chat ] ctx -> string -> (unit, Telegram.Error.t) result) -> bot -> bot
+  val on_photo : ([ `Chat ] ctx -> Telegram_generated.Gen_types.PhotoSize.t list -> (unit, Telegram.Error.t) result) -> bot -> bot
+
+  val use : [ `Chat ] Middleware.t -> bot -> bot
+  val scope : [ `Chat ] Middleware.t list -> bot -> bot
+  val end_scope : bot -> bot
+
+  val on_error : ([ `Chat ] ctx -> exn -> unit) -> bot -> bot
+  val command_safe : ?desc:string -> string -> ([ `Chat ] ctx -> string list -> (unit, string) result) -> bot -> bot
+  val catch : ([ `Chat ] ctx -> exn -> unit) -> bot -> bot
+
+  val merge : bot -> bot -> bot
+  val scope_prefix : string -> bot -> bot
+  val when_ : ([ `Chat ] ctx -> bool) -> bot -> bot
+
+  val with_sessions : (module Session.STORE with type store = 's) -> 's -> bot -> bot
+  val when_state : 'a Session.key -> ('a option -> bool) -> bot -> bot
+  val when_state_eq : 'a Session.key -> 'a -> bot -> bot
+  val on_state : 'a Session.key -> 'a -> 'b Event.t -> ([ `Chat ] ctx -> 'b -> (unit, Telegram.Error.t) result) -> bot -> bot
+
+  val route : 'a Event.t -> ('a -> [ `Chat ] ctx -> (unit, Telegram.Error.t) result) -> route
+  val with_middleware : [ `Chat ] Middleware.t list -> route -> route
+  val with_error_handler : ([ `Chat ] ctx -> exn -> unit) -> route -> route
+  val router :
+    ?middlewares:[ `Chat ] Middleware.t list ->
+    ?on_error:([ `Chat ] ctx -> exn -> unit) ->
+    route list -> route list
+
+  val run_polling : env:Telegram.Client.env -> client:Telegram.Client.t -> route list -> unit
+  val run_webhook : env:Telegram.Client.env -> client:Telegram.Client.t -> secret_token:string -> addr:[ `Tcp of (string * int) ] -> route list -> unit
+end
+
+(* Functor-based implementation *)
+module Make
+  (Log : Telegram.Log.S)
+  (Session_impl : Session.S)
+  (Polling_impl : Polling.S)
+: S = struct
+
+  (* Compose dependent modules with same logging *)
+  module Session_ops = Session_impl
+  module Polling_ops = Polling_impl
+
+  (* Exception wrapper for Error.t to convert to exn *)
+  exception Bot_error of Error.t
+
+  (* Entity-aware text parsing *)
 module Entity = struct
   open Telegram_generated.Gen_types
 
@@ -401,7 +575,7 @@ module Middleware = struct
     name : string; [@warning "-69"]
     before : 's ctx -> ('s ctx, string) result;
     after : 's ctx -> unit;
-    on_error : 's ctx -> Error.t -> unit;
+    on_error : 's ctx -> exn -> unit;
   }
 
   (* Create middleware with all hooks *)
@@ -422,7 +596,7 @@ module Middleware = struct
     ~after:(fun _ctx ->
       Printf.eprintf "%s Handler completed\n%!" prefix)
     ~on_error:(fun _ctx err ->
-      Format.eprintf "%s Handler error: %a@." prefix Error.pp err)
+      Format.eprintf "%s Handler error: %s@." prefix (Printexc.to_string err))
     "logging"
 
   (* Authorization middleware - only allow specific user IDs *)
@@ -523,7 +697,7 @@ module Middleware = struct
     make ~before:(fun ctx -> Ok (f ctx)) "enrich"
 
   (* Session middleware - adds session to context *)
-  let with_session (type s) (module Store : Session.STORE with type store = s) store =
+  let with_session (type s) (module Store : Session_ops.STORE with type store = s) store =
     make ~before:(fun ctx ->
       match ctx.user with
       | Some u ->
@@ -584,32 +758,19 @@ end
 module Ctx = struct
   type +'s t = 's ctx
 
-  (* Basic accessors - return Result for safety *)
-  let client c = match c.client with
-    | Some cl -> Ok cl
-    | None -> Error (Internal_error "client not set (internal error)")
-
-  let env c = match c.env with
-    | Some e -> Ok e
-    | None -> Error (Internal_error "env not set (internal error)")
-
-  let chat (c : [ `Chat ] t) = match c.chat with
-    | Some id -> Ok id
-    | None -> Error (Internal_error "no chat in context")
-
+  (* Basic accessors *)
+  let client c = Option.get c.client  (* guaranteed to be Some in valid contexts *)
+  let env c = Option.get c.env  (* guaranteed to be Some in valid contexts *)
+  let chat (c : [ `Chat ] t) = Option.get c.chat  (* guaranteed to be Some in Chat context *)
   let user c = c.user
-
-  let message (c : [ `Chat ] t) = match c.msg with
-    | Some m -> Ok m
-    | None -> Error (Internal_error "no message in context")
+  let message (c : [ `Chat ] t) = Option.get c.msg  (* guaranteed to be Some in Chat context *)
 
   (* Convenience helpers for sending messages *)
   let reply (c : [ `Chat ] t) text =
-    (* Use monadic composition - all accessors now return Result *)
     let open Result_syntax in
-    let* cli = client c in
-    let* chat_id = chat c in
-    let* msg = message c in
+    let cli = client c in
+    let chat_id = chat c in
+    let msg = message c in
     let params = [
       ("chat_id", Param.string (Id.to_string chat_id));
       ("text", Param.string text);
@@ -628,8 +789,8 @@ module Ctx = struct
   (* Send a message to the chat without replying *)
   let send (c : [ `Chat ] t) text =
     let open Result_syntax in
-    let* cli = client c in
-    let* chat_id = chat c in
+    let cli = client c in
+    let chat_id = chat c in
     let params = [
       ("chat_id", Param.string (Id.to_string chat_id));
       ("text", Param.string text);
@@ -642,9 +803,9 @@ module Ctx = struct
   (* Edit the current message (for callback queries) *)
   let edit (c : [ `Chat ] t) text =
     let open Result_syntax in
-    let* cli = client c in
-    let* chat_id = chat c in
-    let* msg = message c in
+    let cli = client c in
+    let chat_id = chat c in
+    let msg = message c in
     let params = [
       ("chat_id", Param.string (Id.to_string chat_id));
       ("message_id", Param.int msg.message_id);
@@ -683,25 +844,25 @@ module Ctx = struct
 
   (* Session operations (convenient wrappers) *)
   let session_get (c : _ t) key =
-    Session.get (session c) key
+    Session_ops.get (session c) key
 
   let session_set (c : _ t) key value =
-    Session.set (session c) key value
+    Session_ops.set (session c) key value
 
   let session_get_or (c : _ t) key ~default =
-    Session.get_or (session c) key ~default
+    Session_ops.get_or (session c) key ~default
 
   let session_delete (c : _ t) key =
-    Session.delete (session c) key
+    Session_ops.delete (session c) key
 
   let session_exists (c : _ t) key =
-    Session.exists (session c) key
+    Session_ops.exists (session c) key
 
   let session_clear (c : _ t) =
-    Session.clear (session c)
+    Session_ops.clear (session c)
 
   let session_modify (c : _ t) key ~default f =
-    Session.modify (session c) key ~default f
+    Session_ops.modify (session c) key ~default f
 
   (* Stateful handlers - ergonomic aliases for session operations *)
 
@@ -815,7 +976,7 @@ type handler = Handler : 'a Event.t * ('a -> [ `Chat ] ctx -> (unit, Error.t) re
 type route = {
   handler : handler;
   middleware : [ `Chat ] Middleware.t list;
-  on_error : ([ `Chat ] ctx -> Error.t -> unit) option;
+  on_error : ([ `Chat ] ctx -> exn -> unit) option;
 }
 
 (* Builder pattern bot type - accumulates routes, middleware, and config *)
@@ -825,8 +986,8 @@ type bot = {
   routes : route list;
   middleware : [ `Chat ] Middleware.t list;  (* global middleware *)
   scoped_middleware : [ `Chat ] Middleware.t list;  (* scoped middleware for next routes *)
-  on_error : ([ `Chat ] ctx -> Error.t -> unit) option;
-  scoped_error_handler : ([ `Chat ] ctx -> Error.t -> unit) option;  (* scoped error handler for next routes *)
+  on_error : ([ `Chat ] ctx -> exn -> unit) option;
+  scoped_error_handler : ([ `Chat ] ctx -> exn -> unit) option;  (* scoped error handler for next routes *)
   command_descriptions : (string * string) list; (* (command_name, description) pairs *)
 }
 
@@ -857,30 +1018,6 @@ let router ?(middlewares = []) ?on_error (routes : route list) : route list =
         | None -> on_error)  (* Use global handler if no route-specific one *)
     }
   ) routes
-
-(* Error handler utilities *)
-module ErrorHandler = struct
-  (* Log error to stderr *)
-  let log _ctx err =
-    Format.eprintf "[Bot Error] %a\n%!" Error.pp err
-
-  (* Log error and send reply to user *)
-  let log_and_reply ?(message = "Sorry, an error occurred while processing your request.") () ctx err =
-    log ctx err;
-    (* Try to send error message to user *)
-    (match Ctx.reply ctx message with
-     | Ok _ -> ()
-     | Error e ->
-         Format.eprintf "[Bot Error] Failed to send error message to user: %a\n%!"
-           Error.pp e)
-
-  (* Silent error handler - do nothing *)
-  let silent _ctx _err = ()
-
-  (* Combine multiple error handlers *)
-  let combine handlers ctx err =
-    List.iter (fun h -> h ctx err) handlers
-end
 
 (* Internal: try to match and execute routes against an update *)
 let dispatch_update client env routes update =
@@ -971,7 +1108,7 @@ let dispatch_update client env routes update =
               | Ok enriched_ctx ->
                   Log.info "Handler executing: handler_type=%s" event_type_str;
 
-                  (* Call the handler - it now returns Result *)
+                  (* Call the handler - it returns Result *)
                   let handler_result = handler value enriched_ctx in
                   let duration = (Unix.gettimeofday () -. start_time) *. 1000.0 in
 
@@ -991,15 +1128,16 @@ let dispatch_update client env routes update =
                        Log.error "Handler returned Error: %a" Error.pp err;
                        Log.debug "Handler result: Error";
                        (* Handler returned error, run error handlers *)
-                       (* Run middleware error hooks - middleware expects Error.t now *)
+                       (* Run middleware error hooks - middleware expects exn *)
+                       let exn_err = Bot_error err in
                        List.iter (fun mw ->
                          Log.debug "Middleware.on_error: middleware_name=%s, error=%a"
                            mw.Middleware.name Error.pp err;
-                         mw.Middleware.on_error enriched_ctx err
+                         mw.Middleware.on_error enriched_ctx exn_err
                        ) (List.rev middleware);
                        (* Call route-specific error handler if present *)
                        (match on_error with
-                        | Some err_h -> err_h enriched_ctx err
+                        | Some err_h -> err_h enriched_ctx exn_err
                         | None -> Format.eprintf "Handler error: %a@." Error.pp err)))
          | None ->
              (* This route didn't match, try next *)
@@ -1014,7 +1152,7 @@ let run_polling ~env ~client routes =
   in
 
   (* Run the polling loop *)
-  Polling.run client ~handler
+  Polling_ops.run client ~handler
 
 let run_webhook ~env ~client ~secret_token ~addr routes =
   (* Extract path and port from addr *)
@@ -1281,7 +1419,7 @@ let when_ predicate bot =
 
 (** Session integration *)
 
-let with_sessions (type s) (module Store : Session.STORE with type store = s) store bot =
+let with_sessions (type s) (module Store : Session_ops.STORE with type store = s) store bot =
   (* Auto-enable session middleware for the bot.
      This is sugar over manually using Bot.use with Middleware.with_session. *)
   let session_middleware = Middleware.with_session (module Store) store in
@@ -1297,7 +1435,7 @@ let when_state : type a. a Session.key -> (a option -> bool) -> bot -> bot =
       match ctx.session with
       | None -> false  (* No session, predicate fails *)
       | Some session ->
-          let state = Session.get session key in
+          let state = Session_ops.get session key in
           predicate state
     in
     when_ state_predicate bot
@@ -1318,3 +1456,38 @@ let on_state : type a b. a Session.key -> a -> b Event.t -> ([ `Chat ] ctx -> b 
     bot
     |> on event handler
     |> when_state_eq key state
+
+end
+
+(* Default logging configuration *)
+module Log_default = Telegram.Log.Make (Telegram.Log.Console) (struct
+  let src = "Bot"
+  let level = Telegram.Log.Info
+end)
+
+(* Instantiate dependencies with default logging *)
+module Session_default = Session.Make (Log_default)
+module Polling_default = Polling.Make (Log_default)
+
+(* Default instantiation for backward compatibility *)
+include Make (Log_default) (Session_default) (Polling_default)
+
+(* Error handler utilities - outside Make since they're in top-level .mli *)
+module ErrorHandler = struct
+  let log _ctx exn =
+    Format.eprintf "[Bot Error] %s\n%!" (Printexc.to_string exn)
+
+  let log_and_reply ?(message = "Sorry, an error occurred while processing your request.") () ctx exn =
+    log ctx exn;
+    (* Try to send error message to user *)
+    (match Ctx.reply ctx message with
+     | Ok _ -> ()
+     | Error e ->
+         Format.eprintf "[Bot Error] Failed to send error message to user: %a\n%!"
+           Error.pp e)
+
+  let silent _ctx _exn = ()
+
+  let combine handlers ctx exn =
+    List.iter (fun h -> h ctx exn) handlers
+end

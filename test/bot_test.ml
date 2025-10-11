@@ -171,21 +171,21 @@ let test_middleware_enrich () =
 
 let test_route_with_middleware () =
   (* Test adding middleware to routes - just verify it compiles *)
-  let route_obj = Bot.route Bot.Event.text (fun _txt _ctx -> ()) in
+  let route_obj = Bot.route Bot.Event.text (fun _txt _ctx -> Ok ()) in
   let mw = Bot.Middleware.logging () in
   let _route_with_mw = Bot.with_middleware [mw] route_obj in
   Alcotest.(check bool) "route with middleware" true true
 
 let test_route_with_error_handler () =
   (* Test adding error handler to routes - just verify it compiles *)
-  let route_obj = Bot.route Bot.Event.text (fun _txt _ctx -> ()) in
+  let route_obj = Bot.route Bot.Event.text (fun _txt _ctx -> Ok ()) in
   let _route_with_err = Bot.with_error_handler (fun _ctx _exn -> ()) route_obj in
   Alcotest.(check bool) "route with error handler" true true
 
 let test_router_with_global_middleware () =
   (* Test router with global middleware *)
-  let route1 = Bot.route Bot.Event.text (fun _txt _ctx -> ()) in
-  let route2 = Bot.route Bot.Event.(command "start") (fun _args _ctx -> ()) in
+  let route1 = Bot.route Bot.Event.text (fun _txt _ctx -> Ok ()) in
+  let route2 = Bot.route Bot.Event.(command "start") (fun _args _ctx -> Ok ()) in
   let mw = Bot.Middleware.logging () in
   let routes = Bot.router ~middlewares:[mw] [route1; route2] in
   Alcotest.(check int) "router returns routes" 2 (List.length routes)
@@ -332,15 +332,15 @@ let test_error_handler_combine () =
 
 let test_router_with_global_error_handler () =
   (* Test router with global error handler *)
-  let route1 = Bot.route Bot.Event.text (fun _txt _ctx -> ()) in
-  let route2 = Bot.route Bot.Event.(command "start") (fun _args _ctx -> ()) in
+  let route1 = Bot.route Bot.Event.text (fun _txt _ctx -> Ok ()) in
+  let route2 = Bot.route Bot.Event.(command "start") (fun _args _ctx -> Ok ()) in
   let error_handler = Bot.ErrorHandler.log in
   let routes = Bot.router ~on_error:error_handler [route1; route2] in
   Alcotest.(check int) "router with error handler returns routes" 2 (List.length routes)
 
 let test_router_with_middleware_and_error_handler () =
   (* Test router with both global middleware and error handler *)
-  let route = Bot.route Bot.Event.text (fun _txt _ctx -> ()) in
+  let route = Bot.route Bot.Event.text (fun _txt _ctx -> Ok ()) in
   let mw = Bot.Middleware.logging () in
   let error_handler = Bot.ErrorHandler.log_and_reply () in
   let routes = Bot.router ~middlewares:[mw] ~on_error:error_handler [route] in
@@ -348,7 +348,7 @@ let test_router_with_middleware_and_error_handler () =
 
 let test_route_specific_error_handler_precedence () =
   (* Test that route-specific error handler takes precedence over global *)
-  let route = Bot.route Bot.Event.text (fun _txt _ctx -> ()) in
+  let route = Bot.route Bot.Event.text (fun _txt _ctx -> Ok ()) in
   let route_with_err = Bot.with_error_handler (fun _ctx _exn -> ()) route in
   let global_handler = Bot.ErrorHandler.log in
   let routes = Bot.router ~on_error:global_handler [route_with_err] in
