@@ -509,6 +509,51 @@ val use : [ `Chat ] Middleware.t -> bot -> bot
     - Handle errors ([on_error] hook)
 *)
 
+val scope : [ `Chat ] Middleware.t list -> bot -> bot
+(** [scope middlewares bot] adds scoped middleware that applies only to routes added after this call.
+
+    Scoped middleware is temporary - it only affects routes added to the returned bot value.
+    Use [end_scope] to clear scoped middleware and return to the previous state.
+
+    This is useful for applying middleware to a subset of routes without affecting others.
+
+    Example:
+    {[
+      let admin_ids = [Telegram.Id.User.of_int 123456] in
+
+      Bot.make ~env ~client
+      |> Bot.command "start" (fun ctx _args ->
+          (* No special middleware *)
+          let _ = Ctx.reply ctx "Welcome!" in ()
+        )
+      |> Bot.scope [Middleware.only_users admin_ids]
+      |> Bot.command "admin" (fun ctx _args ->
+          (* only_users middleware applies here *)
+          let _ = Ctx.reply ctx "Admin panel" in ()
+        )
+      |> Bot.command "ban" (fun ctx _args ->
+          (* only_users middleware applies here too *)
+          let _ = Ctx.reply ctx "User banned" in ()
+        )
+      |> Bot.end_scope
+      |> Bot.command "help" (fun ctx _args ->
+          (* Back to no special middleware *)
+          let _ = Ctx.reply ctx "Help text" in ()
+        )
+      |> Bot.run
+    ]}
+
+    Note: Scoped middleware is additive with global middleware from [use].
+    Routes get both global and scoped middleware.
+*)
+
+val end_scope : bot -> bot
+(** [end_scope bot] clears all scoped middleware, returning to the previous middleware state.
+
+    This allows you to stop applying scoped middleware to subsequent routes.
+    See [scope] for examples.
+*)
+
 (** {1 Route-based API} *)
 
 val route : 'a Event.t -> ('a -> [ `Chat ] ctx -> unit) -> route

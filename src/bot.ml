@@ -605,7 +605,8 @@ type bot = {
   client : Client.t;
   env : Client.env;
   routes : route list;
-  middleware : [ `Chat ] Middleware.t list;
+  middleware : [ `Chat ] Middleware.t list;  (* global middleware *)
+  scoped_middleware : [ `Chat ] Middleware.t list;  (* scoped middleware for next routes *)
   on_error : ([ `Chat ] ctx -> exn -> unit) option;
   command_descriptions : (string * string) list; (* (command_name, description) pairs *)
 }
@@ -734,6 +735,7 @@ let make ~env ~client = {
   env;
   routes = [];
   middleware = [];
+  scoped_middleware = [];
   on_error = None;
   command_descriptions = [];
 }
@@ -755,6 +757,8 @@ let command ?(desc = "") cmd_name handler bot =
      Handler takes (ctx -> string list -> unit) but Event expects (string list -> ctx -> unit) *)
   let flipped_handler args ctx = handler ctx args in
   let route_obj = route (Event.Command cmd_name) flipped_handler in
+  (* Apply scoped middleware to this route *)
+  let route_obj = { route_obj with middleware = bot.scoped_middleware @ route_obj.middleware } in
   (* Store description if provided *)
   let command_descriptions =
     if desc <> "" then
@@ -786,6 +790,8 @@ let command_with ?(desc = "") cmd_name parser handler bot =
   (* Create route with the parsing handler *)
   let flipped_handler args ctx = parsing_handler ctx args in
   let route_obj = route (Event.Command cmd_name) flipped_handler in
+  (* Apply scoped middleware to this route *)
+  let route_obj = { route_obj with middleware = bot.scoped_middleware @ route_obj.middleware } in
   (* Store description if provided *)
   let command_descriptions =
     if desc <> "" then
@@ -806,6 +812,8 @@ let on : type a. a Event.t -> ([ `Chat ] ctx -> a -> unit) -> bot -> bot =
        but route expects (data -> ctx -> unit) *)
     let flipped_handler data ctx = handler ctx data in
     let route_obj = route event flipped_handler in
+    (* Apply scoped middleware to this route *)
+    let route_obj = { route_obj with middleware = bot.scoped_middleware @ route_obj.middleware } in
     (* Return new bot with route added *)
     { bot with routes = bot.routes @ [route_obj] }
 
@@ -856,3 +864,11 @@ let on_photo handler bot =
 (** Add middleware that applies to all routes *)
 let use mw bot =
   { bot with middleware = bot.middleware @ [mw] }
+
+(** Add scoped middleware that applies only to routes added after this point *)
+let scope mws bot =
+  { bot with scoped_middleware = bot.scoped_middleware @ mws }
+
+(** Clear all scoped middleware *)
+let end_scope bot =
+  { bot with scoped_middleware = [] }

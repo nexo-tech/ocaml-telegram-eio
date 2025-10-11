@@ -183,10 +183,13 @@ let combined = Bot.merge echo_bot admin_bot
   - Middleware appended to bot.middleware list
   - Applied globally via router when Bot.run is called
 
-- [ ] Task 4.2: Scoped middleware
+- [x] Task 4.2: Scoped middleware
   - `Bot.scope : Middleware.t list -> bot -> bot`
   - Apply middleware only within scope
   - Pop middleware at end of scope
+  - Added scoped_middleware field to bot type
+  - Routes automatically get scoped middleware when added
+  - Bot.end_scope clears scoped middleware
 
 - [ ] Task 4.3: Middleware combinators
   - `require_user >>` - monadic chaining
@@ -309,10 +312,10 @@ let combined = Bot.merge echo_bot admin_bot
 ## Progress Tracking
 
 **Total Tasks**: 33
-**Completed**: 9
+**Completed**: 10
 **In Progress**: 0
-**Remaining**: 24
-**Progress**: 27% (9/33)
+**Remaining**: 23
+**Progress**: 30% (10/33)
 
 ---
 
