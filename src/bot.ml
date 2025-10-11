@@ -907,3 +907,17 @@ let end_scope bot =
 (** Set global error handler for the bot *)
 let on_error handler bot =
   { bot with on_error = Some handler }
+
+(** Add a command handler with automatic Result error handling *)
+let command_safe ?(desc = "") cmd_name handler bot =
+  (* Wrapper that handles Result type *)
+  let safe_handler ctx args =
+    match handler ctx args with
+    | Ok () -> ()
+    | Error err_msg ->
+        (* Send error message to user *)
+        let _ = Ctx.reply ctx ("❌ " ^ err_msg) in
+        ()
+  in
+  (* Delegate to regular command function *)
+  command ~desc cmd_name safe_handler bot

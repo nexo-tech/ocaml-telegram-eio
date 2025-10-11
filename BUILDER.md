@@ -207,9 +207,11 @@ let combined = Bot.merge echo_bot admin_bot
   - Applied via router when Bot.run is called
   - Route-specific handlers take precedence
 
-- [ ] Task 5.2: Per-command error handling
+- [x] Task 5.2: Per-command error handling
   - `command_safe : string -> (ctx -> args -> (unit, err) result) -> bot -> bot`
   - Automatic Result error handling
+  - Handler returns Result type, errors automatically sent to user
+  - Delegates to command function for route creation
 
 - [ ] Task 5.3: Error recovery
   - `catch : (ctx -> exn -> unit) -> bot -> bot`
@@ -318,10 +320,10 @@ let combined = Bot.merge echo_bot admin_bot
 ## Progress Tracking
 
 **Total Tasks**: 33
-**Completed**: 12
+**Completed**: 13
 **In Progress**: 0
-**Remaining**: 21
-**Progress**: 36% (12/33)
+**Remaining**: 20
+**Progress**: 39% (13/33)
 
 ---
 

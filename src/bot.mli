@@ -652,6 +652,47 @@ val on_error : ([ `Chat ] ctx -> exn -> unit) -> bot -> bot
     - [ErrorHandler.silent] - Ignore errors silently
 *)
 
+val command_safe : ?desc:string -> string -> ([ `Chat ] ctx -> string list -> (unit, string) result) -> bot -> bot
+(** [command_safe ?desc name handler bot] adds a command handler with automatic Result error handling.
+
+    The handler returns a Result type. On [Ok ()], execution continues normally.
+    On [Error message], the error message is automatically sent to the user with a ❌ prefix.
+
+    This eliminates the need for manual error handling boilerplate in command handlers.
+
+    Example:
+    {[
+      Bot.make ~env ~client
+      |> Bot.command_safe ~desc:"Divide two numbers" "div" (fun ctx args ->
+          match args with
+          | [a; b] ->
+              (match int_of_string_opt a, int_of_string_opt b with
+               | Some x, Some 0 ->
+                   Error "Cannot divide by zero!"
+               | Some x, Some y ->
+                   let result = x / y in
+                   let _ = Ctx.reply ctx (string_of_int result) in
+                   Ok ()
+               | _ ->
+                   Error "Both arguments must be integers")
+          | _ ->
+              Error "Usage: /div <number1> <number2>"
+        )
+      |> Bot.run
+    ]}
+
+    The handler signature is [(ctx -> args -> (unit, string) result)], making it easy
+    to chain operations that can fail without explicit error handling at each step.
+
+    Benefits over regular [command]:
+    - Explicit error handling in type signature
+    - Automatic error message sending
+    - No need to manually call [Ctx.reply] for errors
+    - Encourages functional error handling patterns
+
+    Note: Like [command], this supports optional [desc] parameter for help generation.
+*)
+
 (** {1 Route-based API} *)
 
 val route : 'a Event.t -> ('a -> [ `Chat ] ctx -> unit) -> route
