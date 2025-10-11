@@ -1019,3 +1019,23 @@ let command_safe ?(desc = "") cmd_name handler bot =
   in
   (* Delegate to regular command function *)
   command ~desc cmd_name safe_handler bot
+
+(** Bot composition *)
+
+let merge bot1 bot2 =
+  (* Merge two bots, combining their routes and configuration.
+     Routes from bot1 come first (higher priority).
+     Uses bot2's client, env, and scoped state (current state).
+     Global middleware and error handlers are combined. *)
+  {
+    client = bot2.client;
+    env = bot2.env;
+    routes = bot1.routes @ bot2.routes;
+    middleware = bot1.middleware @ bot2.middleware;
+    scoped_middleware = bot2.scoped_middleware;
+    on_error = (match bot2.on_error with
+      | Some _ as handler -> handler
+      | None -> bot1.on_error);
+    scoped_error_handler = bot2.scoped_error_handler;
+    command_descriptions = bot1.command_descriptions @ bot2.command_descriptions;
+  }

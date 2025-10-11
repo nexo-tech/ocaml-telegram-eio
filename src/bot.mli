@@ -1047,6 +1047,100 @@ val catch : ([ `Chat ] ctx -> exn -> unit) -> bot -> bot
     4. Default error handler (prints to stderr)
 *)
 
+(** {1 Bot Composition} *)
+
+val merge : bot -> bot -> bot
+(** [merge bot1 bot2] combines two bots into a single bot.
+
+    This enables modular bot construction by composing smaller, focused bots
+    into a larger application. Routes from [bot1] are processed before routes
+    from [bot2], giving [bot1] higher priority in pattern matching.
+
+    Merging behavior:
+    - Routes: [bot1.routes @ bot2.routes] (bot1 routes have priority)
+    - Middleware: [bot1.middleware @ bot2.middleware] (both apply in order)
+    - Command descriptions: Combined from both bots
+    - Client/env: Uses [bot2]'s (current state)
+    - Global error handler: Uses [bot2]'s if set, otherwise [bot1]'s
+    - Scoped state: Uses [bot2]'s (current middleware/error handler scope)
+
+    Example - Modular bot construction:
+    {[
+      (* Define focused sub-bots *)
+      let public_bot client =
+        Bot.make ~env ~client
+        |> Bot.command ~desc:"Start the bot" "start" (fun ctx _args ->
+            let _ = Ctx.reply ctx "Welcome!" in ()
+          )
+        |> Bot.command ~desc:"Show help" "help" (fun ctx _args ->
+            let _ = Ctx.reply ctx "Available commands: /start, /help" in ()
+          )
+
+      let admin_bot admin_ids client =
+        Bot.make ~env ~client
+        |> Bot.use (Middleware.only_users admin_ids)
+        |> Bot.command ~desc:"Show stats" "stats" (fun ctx _args ->
+            let _ = Ctx.reply ctx "Stats: ..." in ()
+          )
+        |> Bot.command ~desc:"Ban user" "ban" (fun ctx _args ->
+            let _ = Ctx.reply ctx "User banned" in ()
+          )
+
+      (* Combine into full bot *)
+      let full_bot =
+        Bot.merge (public_bot client) (admin_bot admin_ids client)
+        |> Bot.run
+    ]}
+
+    Example - Feature composition:
+    {[
+      let echo_bot =
+        Bot.make ~env ~client
+        |> Bot.on_text (fun ctx text ->
+            let _ = Ctx.reply ctx ("Echo: " ^ text) in ()
+          )
+
+      let command_bot =
+        Bot.make ~env ~client
+        |> Bot.command "ping" (fun ctx _args ->
+            let _ = Ctx.reply ctx "Pong!" in ()
+          )
+
+      (* Combine features *)
+      let combined =
+        Bot.merge command_bot echo_bot
+        |> Bot.run
+    ]}
+
+    Route priority example:
+    {[
+      let specific =
+        Bot.make ~env ~client
+        |> Bot.command "greet" (fun ctx _args ->
+            let _ = Ctx.reply ctx "Hello from specific!" in ()
+          )
+
+      let general =
+        Bot.make ~env ~client
+        |> Bot.command "greet" (fun ctx _args ->
+            let _ = Ctx.reply ctx "Hello from general!" in ()
+          )
+
+      (* specific's /greet handler runs (higher priority) *)
+      let bot = Bot.merge specific general
+    ]}
+
+    Note: Both bots should share the same client and env for proper operation.
+    The merged bot uses [bot2]'s client/env, but typically they should be identical.
+
+    Use cases:
+    - Modular bot architecture (separate public/admin/feature bots)
+    - Plugin system (dynamically compose bots)
+    - Namespace separation (different bot modules)
+    - Incremental bot construction
+    - Testing (compose small testable units)
+*)
+
 (** {1 Route-based API} *)
 
 val route : 'a Event.t -> ('a -> [ `Chat ] ctx -> unit) -> route

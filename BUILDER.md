@@ -255,10 +255,15 @@ let combined = Bot.merge echo_bot admin_bot
 
 ### Phase 7: Advanced Composition
 
-- [ ] Task 7.1: Bot composition
+- [x] Task 7.1: Bot composition
   - `Bot.merge : bot -> bot -> bot`
   - Combine multiple bots
   - Route priority/ordering
+  - Implemented merge function that combines two bots
+  - Routes from bot1 have priority (processed first)
+  - Middleware from both bots are combined
+  - Command descriptions are merged
+  - Comprehensive documentation with modular architecture examples
 
 - [ ] Task 7.2: Sub-routers
   - `Bot.scope_prefix : string -> bot -> bot`
@@ -341,10 +346,10 @@ let combined = Bot.merge echo_bot admin_bot
 ## Progress Tracking
 
 **Total Tasks**: 33
-**Completed**: 17
+**Completed**: 18
 **In Progress**: 0
-**Remaining**: 16
-**Progress**: 52% (17/33)
+**Remaining**: 15
+**Progress**: 55% (18/33)
 
 ---
 
