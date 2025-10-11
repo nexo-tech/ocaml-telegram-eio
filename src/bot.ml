@@ -430,27 +430,46 @@ module Middleware = struct
     make ~before:(fun ctx ->
       match ctx.user with
       | Some u ->
-          if List.mem u.Telegram.Types.id allowed_ids then
+          let user_id = u.Telegram.Types.id in
+          let user_id_str = Telegram.Id.to_string user_id in
+          let is_allowed = List.mem user_id allowed_ids in
+          Log.debug "User whitelist check: user_id=%s, is_allowed=%b" user_id_str is_allowed;
+          if is_allowed then
             Ok ctx
-          else
+          else (
+            Log.warn "Unauthorized access attempt: user_id=%s, required_role=whitelisted_user"
+              user_id_str;
             Error "Unauthorized user"
-      | None -> Error "No user in update")
+          )
+      | None ->
+          Log.warn "Unauthorized access attempt: user_id=none, required_role=whitelisted_user";
+          Error "No user in update")
     "only_users"
 
   (* Authorization middleware - require user to be present *)
   let require_user () =
     make ~before:(fun ctx ->
       match ctx.user with
-      | Some _ -> Ok ctx
-      | None -> Error "User required")
+      | Some u ->
+          let user_id_str = Telegram.Id.to_string u.Telegram.Types.id in
+          Log.debug "Authorization check: user_id=%s, has_permission=true" user_id_str;
+          Ok ctx
+      | None ->
+          Log.warn "Authorization check failed: user_id=none, required_role=any_user";
+          Error "User required")
     "require_user"
 
   (* Authorization middleware - require chat to be present *)
   let require_chat () =
     make ~before:(fun ctx ->
       match ctx.chat with
-      | Some _ -> Ok ctx
-      | None -> Error "Chat required")
+      | Some chat_id ->
+          let chat_id_str = Telegram.Id.to_string chat_id in
+          Log.debug "Authorization check: chat_id=%s, has_permission=true" chat_id_str;
+          Ok ctx
+      | None ->
+          Log.warn "Authorization check failed: chat_id=none, required_role=any_chat";
+          Error "Chat required")
     "require_chat"
 
   (* Rate limiting middleware (simple in-memory) *)
@@ -472,20 +491,28 @@ module Middleware = struct
       match ctx.user with
       | Some u ->
           let user_id = u.Telegram.Types.id in
+          let user_id_str = Telegram.Id.to_string user_id in
           let count = try H.find requests user_id with Not_found -> (ref 0, ref now) in
           let (counter, first_req) = count in
 
           (* Reset if window expired *)
           if now -. !first_req > 60.0 then (
+            Log.debug "Rate limit window expired: user_id=%s, resetting counter" user_id_str;
             counter := 1;
             first_req := now;
             H.replace requests user_id (counter, first_req);
+            Log.debug "Rate counter incremented: user_id=%s, new_count=%d" user_id_str !counter;
             Ok ctx
-          ) else if !counter >= max_per_minute then
+          ) else if !counter >= max_per_minute then (
+            Log.warn "Rate limit exceeded: user_id=%s, current=%d, limit=%d"
+              user_id_str !counter max_per_minute;
             Error "Rate limit exceeded"
-          else (
+          ) else (
+            Log.debug "Rate check: user_id=%s, count=%d, limit=%d, window=60s"
+              user_id_str !counter max_per_minute;
             incr counter;
             H.replace requests user_id (counter, first_req);
+            Log.debug "Rate counter incremented: user_id=%s, new_count=%d" user_id_str !counter;
             Ok ctx
           )
       | None -> Ok ctx (* No user, no rate limit *))
@@ -919,10 +946,21 @@ let dispatch_update client env routes update =
              );
 
              (* Run middleware before hooks *)
+             let middleware_count = List.length middleware in
+             if middleware_count > 0 then
+               Log.info "Middleware chain started: middleware_count=%d" middleware_count;
+
              let ctx_result = List.fold_left (fun acc mw ->
                match acc with
                | Error _ as e -> e
-               | Ok ctx -> mw.Middleware.before ctx
+               | Ok ctx ->
+                   Log.debug "Middleware.before: middleware_name=%s" mw.Middleware.name;
+                   match mw.Middleware.before ctx with
+                   | Ok enriched_ctx -> Ok enriched_ctx
+                   | Error reason ->
+                       Log.debug "Middleware rejected request: middleware_name=%s, reason=%s"
+                         mw.Middleware.name reason;
+                       Error reason
              ) (Ok ctx) middleware in
 
              (match ctx_result with
@@ -943,13 +981,22 @@ let dispatch_update client env routes update =
                        Log.info "Handler execution completed: duration=%.1fms" duration;
                        Log.debug "Handler result: Ok";
                        (* Handler succeeded, run middleware after hooks *)
-                       List.iter (fun mw -> mw.Middleware.after enriched_ctx) (List.rev middleware)
+                       List.iter (fun mw ->
+                         Log.debug "Middleware.after: middleware_name=%s" mw.Middleware.name;
+                         mw.Middleware.after enriched_ctx
+                       ) (List.rev middleware);
+                       if middleware_count > 0 then
+                         Log.info "Middleware chain completed"
                    | Error err ->
                        Log.error "Handler returned Error: %a" Error.pp err;
                        Log.debug "Handler result: Error";
                        (* Handler returned error, run error handlers *)
                        (* Run middleware error hooks - middleware expects Error.t now *)
-                       List.iter (fun mw -> mw.Middleware.on_error enriched_ctx err) (List.rev middleware);
+                       List.iter (fun mw ->
+                         Log.debug "Middleware.on_error: middleware_name=%s, error=%a"
+                           mw.Middleware.name Error.pp err;
+                         mw.Middleware.on_error enriched_ctx err
+                       ) (List.rev middleware);
                        (* Call route-specific error handler if present *)
                        (match on_error with
                         | Some err_h -> err_h enriched_ctx err

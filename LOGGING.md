@@ -165,10 +165,10 @@ Goal: Implement an idiomatic OCaml logging system with functors for modular, str
 
 ### Phase 7: Middleware Instrumentation
 
-- [ ] Task 7.1: Instrument middleware execution (before/after/on_error)
-- [ ] Task 7.2: Instrument session middleware (load/save/access)
-- [ ] Task 7.3: Instrument rate limiting middleware
-- [ ] Task 7.4: Instrument authorization middleware
+- [x] Task 7.1: Instrument middleware execution (before/after/on_error)
+- [x] Task 7.2: Instrument session middleware (load/save/access)
+- [x] Task 7.3: Instrument rate limiting middleware
+- [x] Task 7.4: Instrument authorization middleware
 
 ### Phase 8: Session System Instrumentation
 
@@ -190,10 +190,10 @@ Goal: Implement an idiomatic OCaml logging system with functors for modular, str
 - [ ] Task 10.4: Add debugging guide
 
 **Total Tasks**: 40
-**Completed**: 21
+**Completed**: 25
 **In Progress**: 0
-**Remaining**: 19
-**Progress**: 52.5% (21/40)
+**Remaining**: 15
+**Progress**: 62.5% (25/40)
 
 ---
 
@@ -503,8 +503,8 @@ let () =
 
 ### Phase 7: Middleware Instrumentation
 
-- [ ] Task 7.1: Instrument middleware execution (before/after/on_error)
-  - Create `Middleware_log` module
+- [x] Task 7.1: Instrument middleware execution (before/after/on_error)
+  - Instrumented src/bot.ml dispatch_update function
   - Info: Middleware chain started (middleware_count)
   - Info: Middleware chain completed
   - Debug: Middleware.before (middleware_name)
@@ -512,21 +512,25 @@ let () =
   - Debug: Middleware.on_error (middleware_name, error)
   - Debug: Middleware rejected request (middleware_name, reason)
 
-- [ ] Task 7.2: Instrument session middleware (load/save/access)
-  - Info: Session loaded (chat_id, keys_count)
-  - Info: Session saved (chat_id)
-  - Warn: Session load failed (chat_id, reason)
-  - Debug: Session key access (operation, key_name)
-  - Debug: Session state modified (key_name)
+- [x] Task 7.2: Instrument session middleware (load/save/access)
+  - Instrumented src/session.ml
+  - Info: Session loaded (user_id, keys_count)
+  - Info: Session saved (user_id, keys_count)
+  - Debug: Session load failed (user_id, reason=not found, creating new)
+  - Debug: Session key access (operation=get, key_id, found)
+  - Debug: Session state modified (operation=set|delete, key_id)
 
-- [ ] Task 7.3: Instrument rate limiting middleware
-  - Info: Rate limit exceeded (user_id, current/limit)
+- [x] Task 7.3: Instrument rate limiting middleware
+  - Instrumented Middleware.rate_limit in src/bot.ml
+  - Warn: Rate limit exceeded (user_id, current, limit)
   - Debug: Rate check (user_id, count, limit, window)
   - Debug: Rate counter incremented (user_id, new_count)
+  - Debug: Rate limit window expired (user_id, resetting counter)
 
-- [ ] Task 7.4: Instrument authorization middleware
+- [x] Task 7.4: Instrument authorization middleware
+  - Instrumented Middleware.only_users, require_user, require_chat in src/bot.ml
   - Warn: Unauthorized access attempt (user_id, required_role)
-  - Debug: Authorization check (user_id, has_permission)
+  - Debug: Authorization check (user_id|chat_id, has_permission)
   - Debug: User whitelist check (user_id, is_allowed)
 
 ### Phase 8: Session System Instrumentation
