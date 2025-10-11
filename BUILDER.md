@@ -234,10 +234,15 @@ let combined = Bot.merge echo_bot admin_bot
   - Added `let+` operator for applicative syntax sugar
   - Comprehensive documentation with examples
 
-- [ ] Task 6.2: Handler combinators
+- [x] Task 6.2: Handler combinators
   - `reply : string -> ctx -> (unit, Error.t) result`
   - `require_user : ctx -> (User.t, Error.t) result`
   - `require_admin : ctx -> (unit, Error.t) result`
+  - Implemented `Ctx.reply_` that returns unit instead of Message.t
+  - Implemented `Ctx.require_user` to extract user or return error
+  - Implemented `Ctx.require_admin` to check admin privileges
+  - All combinators work seamlessly with let* syntax
+  - Comprehensive documentation with examples
 
 - [ ] Task 6.3: Chaining helpers
   - `(>>=) : ('a -> 'b result) -> ('b -> 'c result) -> ('a -> 'c result)`
@@ -331,10 +336,10 @@ let combined = Bot.merge echo_bot admin_bot
 ## Progress Tracking
 
 **Total Tasks**: 33
-**Completed**: 15
+**Completed**: 16
 **In Progress**: 0
-**Remaining**: 18
-**Progress**: 45% (15/33)
+**Remaining**: 17
+**Progress**: 48% (16/33)
 
 ---
 

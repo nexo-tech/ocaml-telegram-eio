@@ -646,6 +646,46 @@ module Ctx = struct
   let ( let+ ) result f = map result f
   (** [let+ x = expr in body] desugars to [map expr (fun x -> body)].
       Enables applicative syntax for Result operations. *)
+
+  (* Handler combinators for common patterns *)
+
+  let reply_ ctx text =
+    match reply ctx text with
+    | Ok _ -> Ok ()
+    | Error e -> Error e
+  (** [reply_ ctx text] sends a reply and returns [Ok ()] on success.
+      This is a simpler version of [reply] that discards the returned message,
+      useful when you don't need to inspect the sent message. *)
+
+  let require_user ctx =
+    match ctx.user with
+    | Some u -> Ok u
+    | None -> Error (Telegram.Error.Api_error {
+        code = 400;
+        description = "User required but not present in update";
+        parameters = None
+      })
+  (** [require_user ctx] extracts the user from context or returns an error.
+      This enables monadic checking of user presence. *)
+
+  let require_admin admin_ids ctx =
+    match ctx.user with
+    | None -> Error (Telegram.Error.Api_error {
+        code = 401;
+        description = "User required for admin check";
+        parameters = None
+      })
+    | Some u ->
+        if List.mem u.Telegram.Types.id admin_ids then
+          Ok ()
+        else
+          Error (Telegram.Error.Api_error {
+            code = 403;
+            description = "Admin privileges required";
+            parameters = None
+          })
+  (** [require_admin admin_ids ctx] checks if the user is in the admin list.
+      Returns [Ok ()] if user is admin, [Error] otherwise. *)
 end
 
 type handler = Handler : 'a Event.t * ('a -> [ `Chat ] ctx -> unit) -> handler

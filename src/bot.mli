@@ -415,6 +415,98 @@ module Ctx : sig
       Use [let+] when you want to transform a successful result without chaining
       another Result-returning operation. Use [let*] when you need to chain operations.
   *)
+
+  (** {2 Handler Combinators}
+
+      These are helper functions designed to work seamlessly with monadic syntax.
+      They return Result types and can be chained using [let*] for elegant error handling.
+  *)
+
+  val reply_ : [ `Chat ] t -> string -> (unit, Telegram.Error.t) result
+  (** [reply_ ctx text] sends a reply and returns [Ok ()] on success.
+
+      This is a simpler version of {!reply} that discards the returned message.
+      Useful when you don't need to inspect the sent message and want cleaner code.
+
+      Example:
+      {[
+        let handler ctx =
+          let open Ctx in
+          let* () = reply_ ctx "Processing..." in
+          (* Do some work *)
+          let* () = reply_ ctx "Done!" in
+          return ()
+      ]}
+
+      Compare with using [reply]:
+      {[
+        let handler ctx =
+          let open Ctx in
+          let* _msg1 = reply ctx "Processing..." in
+          (* Do some work *)
+          let* _msg2 = reply ctx "Done!" in
+          return ()
+      ]}
+
+      The [reply_] version is cleaner when you don't care about the message object.
+  *)
+
+  val require_user : _ t -> (Telegram.Types.user, Telegram.Error.t) result
+  (** [require_user ctx] extracts the user from context or returns an error.
+
+      This enables monadic checking of user presence with automatic error handling.
+
+      Example:
+      {[
+        let handler ctx =
+          let open Ctx in
+          let* user = require_user ctx in
+          let username = Option.value user.username ~default:"Anonymous" in
+          reply_ ctx (Printf.sprintf "Hello, %s!" username)
+      ]}
+
+      Without this combinator, you'd need explicit pattern matching:
+      {[
+        let handler ctx =
+          match Ctx.user ctx with
+          | None -> Error (Api_error "User required")
+          | Some user ->
+              let username = Option.value user.username ~default:"Anonymous" in
+              Ctx.reply_ ctx (Printf.sprintf "Hello, %s!" username)
+      ]}
+
+      Returns:
+      - [Ok user] if user is present in the update
+      - [Error (Api_error "User required...")] if user is missing
+  *)
+
+  val require_admin : Telegram.Id.User.k Telegram.Id.t list -> _ t -> (unit, Telegram.Error.t) result
+  (** [require_admin admin_ids ctx] checks if the user is in the admin list.
+
+      This is a monadic authorization check that integrates with [let*] syntax.
+
+      Example:
+      {[
+        let admin_ids = [
+          Telegram.Id.User.of_int 123456;
+          Telegram.Id.User.of_int 789012;
+        ]
+
+        let handler ctx =
+          let open Ctx in
+          let* () = require_admin admin_ids ctx in
+          let* () = reply_ ctx "Admin command executed!" in
+          return ()
+      ]}
+
+      If the user is not an admin, the function returns an error and the rest
+      of the handler is not executed (monadic short-circuiting).
+
+      Returns:
+      - [Ok ()] if user is in admin list
+      - [Error (Api_error "User required...")] if user is missing
+      - [Error (Api_error "Admin privileges required")] if user is not an admin
+  *)
 end
 
 type route
