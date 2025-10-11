@@ -298,9 +298,13 @@ let combined = Bot.merge echo_bot admin_bot
   - Comprehensive documentation with counter, preferences, and state machine examples
   - All functions maintain type-safety through Session.key phantom types
 
-- [ ] Task 8.3: Session-based routing
+- [x] Task 8.3: Session-based routing
   - Route based on session state
   - State machines
+  - Implemented when_state, when_state_eq, and on_state functions
+  - Comprehensive documentation with multi-step form, game state, and Q&A examples
+  - Clean separation of state-specific handlers
+  - Enables elegant conversational flows and wizards
 
 ### Phase 9: Testing & Examples
 
@@ -361,10 +365,10 @@ let combined = Bot.merge echo_bot admin_bot
 ## Progress Tracking
 
 **Total Tasks**: 33
-**Completed**: 22
+**Completed**: 23
 **In Progress**: 0
-**Remaining**: 11
-**Progress**: 67% (22/33)
+**Remaining**: 10
+**Progress**: 70% (23/33)
 
 ---
 

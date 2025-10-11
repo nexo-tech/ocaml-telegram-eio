@@ -1120,3 +1120,35 @@ let with_sessions (type s) (module Store : Session.STORE with type store = s) st
      This is sugar over manually using Bot.use with Middleware.with_session. *)
   let session_middleware = Middleware.with_session (module Store) store in
   use session_middleware bot
+
+(** Session-based routing for state machines *)
+
+let when_state : type a. a Session.key -> (a option -> bool) -> bot -> bot =
+  fun key predicate bot ->
+    (* Filter routes based on session state.
+       Only execute handlers when the session state matches the predicate. *)
+    let state_predicate ctx =
+      match ctx.session with
+      | None -> false  (* No session, predicate fails *)
+      | Some session ->
+          let state = Session.get session key in
+          predicate state
+    in
+    when_ state_predicate bot
+
+let when_state_eq : type a. a Session.key -> a -> bot -> bot =
+  fun key expected_state bot ->
+    (* Convenience function to check if session state equals expected value. *)
+    when_state key (fun state_opt ->
+      match state_opt with
+      | Some state -> state = expected_state
+      | None -> false
+    ) bot
+
+let on_state : type a b. a Session.key -> a -> b Event.t -> ([ `Chat ] ctx -> b -> unit) -> bot -> bot =
+  fun key state event handler bot ->
+    (* Add a route that only executes when session is in the specified state.
+       This is sugar for: bot |> on event handler |> when_state_eq key state *)
+    bot
+    |> on event handler
+    |> when_state_eq key state

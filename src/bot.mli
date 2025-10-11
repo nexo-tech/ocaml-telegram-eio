@@ -1613,6 +1613,212 @@ val with_sessions : (module Session.STORE with type store = 's) -> 's -> bot -> 
     - [Middleware.with_session] for manual middleware setup
 *)
 
+(** {1 Session-based Routing}
+
+    Route handlers based on session state for implementing conversational state machines.
+    These functions enable multi-step conversations where different handlers are activated
+    based on the current session state.
+
+    Common use cases:
+    - Multi-step forms (collect name, age, email, etc.)
+    - Conversational flows (ask question, await response, provide follow-up)
+    - Game states (menu, playing, game over)
+    - Wizard-style interactions (step 1, step 2, step 3, etc.)
+*)
+
+val when_state : 'a Session.key -> ('a option -> bool) -> bot -> bot
+(** [when_state key predicate bot] wraps all routes in the bot to only execute when
+    the session state matches the predicate.
+
+    The predicate receives [Some value] if the key exists in the session, or [None] if not.
+    If the predicate returns [false], the route handlers do nothing (effectively skip).
+
+    This is useful for scoping multiple handlers to a specific state.
+
+    Example - Name collection state:
+    {[
+      type state = Idle | AwaitingName | AwaitingAge
+
+      let state_key = Session.key "state"
+
+      (* Only handle text when awaiting name *)
+      let name_bot =
+        Bot.make ~env ~client
+        |> Bot.when_state state_key (fun s -> s = Some AwaitingName)
+        |> Bot.on Event.text (fun ctx text ->
+            Ctx.set_state ctx name_key text;
+            Ctx.set_state ctx state_key AwaitingAge;
+            ignore (Ctx.reply ctx "How old are you?")
+          )
+        |> Bot.on (Event.command "cancel") cancel_handler
+    ]}
+
+    Example - Complex state filtering:
+    {[
+      (* Only active during business hours *)
+      let business_hours_bot =
+        Bot.make ~env ~client
+        |> Bot.when_state status_key (fun s ->
+            match s with
+            | Some "active" | Some "busy" -> true
+            | _ -> false
+          )
+        |> Bot.on Event.text handle_business_messages
+    ]}
+
+    See also:
+    - [when_state_eq] for simple equality checks
+    - [on_state] for adding single routes with state guards
+*)
+
+val when_state_eq : 'a Session.key -> 'a -> bot -> bot
+(** [when_state_eq key expected_state bot] is a convenience function that wraps all routes
+    to only execute when the session state exactly equals [expected_state].
+
+    This is equivalent to [when_state key (fun s -> s = Some expected_state)].
+
+    Example - State-based routing:
+    {[
+      type state = Menu | Playing | GameOver
+
+      let state_key = Session.key "game_state"
+
+      (* Handle menu commands *)
+      let menu_bot =
+        Bot.make ~env ~client
+        |> Bot.when_state_eq state_key Menu
+        |> Bot.command "new_game" start_game_handler
+        |> Bot.command "high_scores" show_scores_handler
+
+      (* Handle game commands *)
+      let game_bot =
+        Bot.make ~env ~client
+        |> Bot.when_state_eq state_key Playing
+        |> Bot.on Event.text process_move_handler
+        |> Bot.command "quit" quit_game_handler
+
+      (* Combine all states *)
+      let bot =
+        Bot.make ~env ~client
+        |> Bot.with_sessions (module Session.Memory_store) store
+        |> Bot.merge menu_bot
+        |> Bot.merge game_bot
+        |> Bot.run
+    ]}
+
+    This pattern enables clean separation of concerns: each state has its own
+    isolated bot with its own handlers, and they're combined at the end.
+*)
+
+val on_state : 'a Session.key -> 'a -> 'b Event.t -> ([ `Chat ] ctx -> 'b -> unit) -> bot -> bot
+(** [on_state key state event handler bot] adds a route that only executes when the
+    session is in the specified [state].
+
+    This combines [Bot.on] and [Bot.when_state_eq] for convenience when adding
+    individual state-specific handlers.
+
+    Example - Multi-step form:
+    {[
+      type form_state = Idle | AwaitingName | AwaitingEmail | AwaitingAge
+
+      let state_key = Session.key "form_state"
+      let name_key = Session.key "name"
+      let email_key = Session.key "email"
+
+      let bot =
+        Bot.make ~env ~client
+        |> Bot.with_sessions (module Session.Memory_store) store
+
+        (* Start command *)
+        |> Bot.command "register" (fun ctx _args ->
+            Ctx.set_state ctx state_key AwaitingName;
+            ignore (Ctx.reply ctx "What's your name?")
+          )
+
+        (* Handle name input *)
+        |> Bot.on_state state_key AwaitingName Event.text (fun ctx text ->
+            Ctx.set_state ctx name_key text;
+            Ctx.set_state ctx state_key AwaitingEmail;
+            ignore (Ctx.reply ctx "What's your email?")
+          )
+
+        (* Handle email input *)
+        |> Bot.on_state state_key AwaitingEmail Event.text (fun ctx text ->
+            Ctx.set_state ctx email_key text;
+            Ctx.set_state ctx state_key AwaitingAge;
+            ignore (Ctx.reply ctx "What's your age?")
+          )
+
+        (* Handle age input *)
+        |> Bot.on_state state_key AwaitingAge Event.text (fun ctx text ->
+            let name = Option.get (Ctx.get_state ctx name_key) in
+            let email = Option.get (Ctx.get_state ctx email_key) in
+            ignore (Ctx.reply ctx
+              (Printf.sprintf "Registered: %s (%s), age %s" name email text));
+            Ctx.set_state ctx state_key Idle
+          )
+
+        (* Cancel at any step *)
+        |> Bot.command "cancel" (fun ctx _args ->
+            Ctx.set_state ctx state_key Idle;
+            ignore (Ctx.reply ctx "Registration cancelled")
+          )
+
+        |> Bot.run
+    ]}
+
+    Example - Conversational Q&A bot:
+    {[
+      type qa_state = Idle | AwaitingQuestion | AwaitingConfirmation
+
+      let state_key = Session.key "qa_state"
+      let question_key = Session.key "question"
+
+      let bot =
+        Bot.make ~env ~client
+        |> Bot.with_sessions (module Session.Memory_store) store
+
+        |> Bot.command "ask" (fun ctx _args ->
+            Ctx.set_state ctx state_key AwaitingQuestion;
+            ignore (Ctx.reply ctx "What's your question?")
+          )
+
+        |> Bot.on_state state_key AwaitingQuestion Event.text (fun ctx text ->
+            Ctx.set_state ctx question_key text;
+            Ctx.set_state ctx state_key AwaitingConfirmation;
+            ignore (Ctx.reply ctx
+              (Printf.sprintf "You asked: %s\n\nSubmit? (yes/no)" text))
+          )
+
+        |> Bot.on_state state_key AwaitingConfirmation Event.text (fun ctx text ->
+            match String.lowercase_ascii text with
+            | "yes" | "y" ->
+                let q = Option.get (Ctx.get_state ctx question_key) in
+                (* Process question... *)
+                ignore (Ctx.reply ctx (Printf.sprintf "Processing: %s" q));
+                Ctx.set_state ctx state_key Idle
+            | "no" | "n" ->
+                Ctx.set_state ctx state_key Idle;
+                ignore (Ctx.reply ctx "Cancelled")
+            | _ ->
+                ignore (Ctx.reply ctx "Please answer yes or no")
+          )
+
+        |> Bot.run
+    ]}
+
+    Benefits of state-based routing:
+    - Clear separation between different conversation stages
+    - Same events (e.g., text messages) can have different meanings in different states
+    - Easy to add cancel/back handlers that work across multiple states
+    - Natural way to implement wizards, forms, and conversational flows
+
+    See also:
+    - [when_state] for wrapping multiple handlers with state guard
+    - [when_state_eq] for applying state filter to entire bot
+    - [Ctx.get_state], [Ctx.set_state] for state management
+*)
+
 (** {1 Route-based API} *)
 
 val route : 'a Event.t -> ('a -> [ `Chat ] ctx -> unit) -> route
