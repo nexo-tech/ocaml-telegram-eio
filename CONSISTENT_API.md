@@ -55,7 +55,26 @@ Goal: Implement every example from documentation in `examples/` directory with a
   - Example compiles without errors and demonstrates core concepts elegantly
 
 ### Phase 1.1.2: Recipe Examples (Cookbook)
-- [ ] Task 1.1.2.1: `docs/recipe_echo_bot.mld` - Echo bot example
+- [x] Task 1.1.2.1: `docs/recipe_echo_bot.mld` - Echo bot example
+  - Created `examples/recipe_echo_bot.ml` - Feature-rich echo bot with transformations
+  - **Text transformations**: 7 types (upper, lower, reverse, l33t, novowels, count, freq)
+    - Pure Transform module with clean separation of concerns
+    - Each transformation is a pure function on strings
+  - **Formatting styles**: 5 types (plain, bold, italic, code, quote)
+    - HTML escaping for safe formatting
+    - Style module with type-safe style application
+  - **Session management**: User preferences persist across messages
+    - Session keys created via functor: `Verbose_session.make ~name:"transform"`
+    - session_get_or for defaults, session_set for updates
+    - session_modify for atomic increments (message counting)
+    - session_clear for reset functionality
+  - **Smart context awareness**: Emoji prefixes based on message content
+    - Questions (?) → 🤔, Greetings → 👋, Thanks → 😊, Excitement (!) → 🎉
+  - **Statistics tracking**: Message count per user
+  - **Commands**: /start, /help, /transform <type>, /style <type>, /stats, /reset
+  - **Result-based handlers**: All handlers return `(unit, Error.t) result`
+  - **Functor-based logging**: Verbose_bot with Debug level
+  - Example compiles without errors and demonstrates cookbook patterns elegantly
 - [ ] Task 1.1.2.2: `docs/recipe_command_bot.mld` - Command routing bot
 - [ ] Task 1.1.2.3: `docs/recipe_keyboard_bot.mld` - Keyboard interactions
 - [ ] Task 1.1.2.4: `docs/recipe_file_bot.mld` - File upload/download
@@ -125,10 +144,10 @@ Every example must:
 ## Progress Tracking
 
 **Total Tasks**: 35
-**Completed**: 5
+**Completed**: 6
 **In Progress**: 0
-**Remaining**: 30
-**Progress**: 14% (5/35)
+**Remaining**: 29
+**Progress**: 17% (6/35)
 
 ---
 

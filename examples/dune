@@ -1,4 +1,4 @@
 (executables
- (names hello_world echo_bot echo_enhanced command_bot command_tutorial keyboard_bot file_bot core_concepts_demo)
- (libraries ocaml_telegram_eio.telegram ocaml_telegram_eio.tg ocaml_telegram_eio.generated eio_main)
+ (names hello_world echo_bot echo_enhanced command_bot command_tutorial keyboard_bot file_bot core_concepts_demo recipe_echo_bot)
+ (libraries ocaml_telegram_eio.telegram ocaml_telegram_eio.tg ocaml_telegram_eio.generated eio_main str)
  (promote (until-clean)))
