@@ -176,10 +176,10 @@ module type S = sig
     val user : _ t -> Telegram.Types.user option
     val message : [ `Chat ] t -> Telegram.Types.message
 
-    val reply : [ `Chat ] t -> string -> (Telegram_generated.Gen_types.Message.t, Telegram.Error.t) result
-    val answer : [ `Chat ] t -> string -> (Telegram_generated.Gen_types.Message.t, Telegram.Error.t) result
-    val send : [ `Chat ] t -> string -> (Telegram_generated.Gen_types.Message.t, Telegram.Error.t) result
-    val edit : [ `Chat ] t -> string -> (unit, Telegram.Error.t) result
+    val reply : ?keyboard:Telegram.Types.inline_keyboard_markup -> [ `Chat ] t -> string -> (Telegram_generated.Gen_types.Message.t, Telegram.Error.t) result
+    val answer : ?keyboard:Telegram.Types.inline_keyboard_markup -> [ `Chat ] t -> string -> (Telegram_generated.Gen_types.Message.t, Telegram.Error.t) result
+    val send : ?keyboard:Telegram.Types.inline_keyboard_markup -> [ `Chat ] t -> string -> (Telegram_generated.Gen_types.Message.t, Telegram.Error.t) result
+    val edit : ?keyboard:Telegram.Types.inline_keyboard_markup -> [ `Chat ] t -> string -> (unit, Telegram.Error.t) result
 
     val entities : [ `Chat ] t -> Entity.entity_info list
     val get_entities : [ `Chat ] t -> [ `BotCommand | `Url | `Mention | `Hashtag | `Code | `Pre ] -> Entity.entity_info list
@@ -204,7 +204,7 @@ module type S = sig
     val ( let* ) : ('a, Telegram.Error.t) result -> ('a -> ('b, Telegram.Error.t) result) -> ('b, Telegram.Error.t) result
     val ( let+ ) : ('a, Telegram.Error.t) result -> ('a -> 'b) -> ('b, Telegram.Error.t) result
 
-    val reply_ : [ `Chat ] t -> string -> (unit, Telegram.Error.t) result
+    val reply_ : ?keyboard:Telegram.Types.inline_keyboard_markup -> [ `Chat ] t -> string -> (unit, Telegram.Error.t) result
     val require_user : _ t -> (Telegram.Types.user, Telegram.Error.t) result
     val require_admin : Telegram.Id.User.k Telegram.Id.t list -> _ t -> (unit, Telegram.Error.t) result
 

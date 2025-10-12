@@ -104,12 +104,16 @@ Goal: Implement every example from documentation in `examples/` directory with a
   - Example compiles without errors and demonstrates command bot patterns elegantly
 - [x] Task 1.1.2.3: `docs/recipe_keyboard_bot.mld` - Keyboard interactions
   - Created `examples/recipe_keyboard_bot.ml` - Interactive keyboard bot with menu navigation
-  - **Ergonomic keyboard API**: Functional KB module wrapping Gen_types
-    - `KB.button ~text ~callback_data` creates inline keyboard buttons
-    - `KB.row [buttons]` creates button rows
-    - `KB.make [rows]` creates inline keyboard markup
-    - `KB.send` sends messages with keyboards (JSON string for send_message)
-    - `KB.edit` edits messages with keyboards (InlineKeyboardMarkup for edit_message_text)
+  - **Refined keyboard API**: Uses library's `Keyboard` module with optional keyboard params
+    - `Keyboard.inline [[Keyboard.callback ~text ~data]]` creates inline keyboard markup
+    - `Ctx.send ~keyboard ctx "text"` sends messages with keyboards
+    - `Ctx.edit ~keyboard ctx "text"` edits messages with keyboards
+    - `Ctx.reply ~keyboard ctx "text"` replies with keyboards
+    - Optional `?keyboard` parameter added to all Ctx message functions
+  - **Keyboard serialization**: Added `serialize_keyboard` helper in Bot.Ctx module
+    - Converts `Types.inline_keyboard_markup` to JSON string for API calls
+    - Handles both `Url_button` and `Callback_button` types
+    - Integrates with `Gen_types.InlineKeyboardButton` and `InlineKeyboardMarkup`
   - **Multi-level menu navigation**: Main menu → Settings/Profile/Help with back buttons
   - **Session-based state**: Settings persist across interactions
     - `Verbose_session.make ~name:"settings"` creates typed session key
@@ -122,8 +126,9 @@ Goal: Implement every example from documentation in `examples/` directory with a
   - **Result-based handlers**: All handlers return `(unit, Error.t) result`
   - **Functor-based logging**: Verbose_bot with Debug level
   - Commands: /start (main menu), /settings (settings with state)
-  - **Clean functional API**: Demonstrates ergonomic wrapping of generated types
-  - Example compiles without errors and demonstrates keyboard interaction patterns
+  - **Ergonomic API**: Uses library's Keyboard module, no custom wrappers needed
+  - Example compiles without errors/warnings and demonstrates keyboard interaction patterns
+  - All tests pass (100% test coverage maintained)
 - [ ] Task 1.1.2.4: `docs/recipe_file_bot.mld` - File upload/download
 - [ ] Task 1.1.2.5: `docs/recipe_webhook_bot.mld` - Webhook setup
 - [ ] Task 1.1.2.6: `docs/recipe_chatbot_context.mld` - Contextual conversations
@@ -191,10 +196,10 @@ Every example must:
 ## Progress Tracking
 
 **Total Tasks**: 35
-**Completed**: 8
+**Completed**: 9
 **In Progress**: 0
-**Remaining**: 27
-**Progress**: 23% (8/35)
+**Remaining**: 26
+**Progress**: 26% (9/35)
 
 ---
 

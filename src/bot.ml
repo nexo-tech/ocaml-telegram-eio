@@ -136,10 +136,10 @@ module type S = sig
     val user : _ t -> Telegram.Types.user option
     val message : [ `Chat ] t -> Telegram.Types.message
 
-    val reply : [ `Chat ] t -> string -> (Telegram_generated.Gen_types.Message.t, Telegram.Error.t) result
-    val answer : [ `Chat ] t -> string -> (Telegram_generated.Gen_types.Message.t, Telegram.Error.t) result
-    val send : [ `Chat ] t -> string -> (Telegram_generated.Gen_types.Message.t, Telegram.Error.t) result
-    val edit : [ `Chat ] t -> string -> (unit, Telegram.Error.t) result
+    val reply : ?keyboard:Telegram.Types.inline_keyboard_markup -> [ `Chat ] t -> string -> (Telegram_generated.Gen_types.Message.t, Telegram.Error.t) result
+    val answer : ?keyboard:Telegram.Types.inline_keyboard_markup -> [ `Chat ] t -> string -> (Telegram_generated.Gen_types.Message.t, Telegram.Error.t) result
+    val send : ?keyboard:Telegram.Types.inline_keyboard_markup -> [ `Chat ] t -> string -> (Telegram_generated.Gen_types.Message.t, Telegram.Error.t) result
+    val edit : ?keyboard:Telegram.Types.inline_keyboard_markup -> [ `Chat ] t -> string -> (unit, Telegram.Error.t) result
 
     val entities : [ `Chat ] t -> Entity.entity_info list
     val get_entities : [ `Chat ] t -> [ `BotCommand | `Url | `Mention | `Hashtag | `Code | `Pre ] -> Entity.entity_info list
@@ -164,7 +164,7 @@ module type S = sig
     val ( let* ) : ('a, Telegram.Error.t) result -> ('a -> ('b, Telegram.Error.t) result) -> ('b, Telegram.Error.t) result
     val ( let+ ) : ('a, Telegram.Error.t) result -> ('a -> 'b) -> ('b, Telegram.Error.t) result
 
-    val reply_ : [ `Chat ] t -> string -> (unit, Telegram.Error.t) result
+    val reply_ : ?keyboard:Telegram.Types.inline_keyboard_markup -> [ `Chat ] t -> string -> (unit, Telegram.Error.t) result
     val require_user : _ t -> (Telegram.Types.user, Telegram.Error.t) result
     val require_admin : Telegram.Id.User.k Telegram.Id.t list -> _ t -> (unit, Telegram.Error.t) result
 
@@ -765,19 +765,68 @@ module Ctx = struct
   let user c = c.user
   let message (c : [ `Chat ] t) = Option.get c.msg  (* guaranteed to be Some in Chat context *)
 
+  (* Helper to serialize inline keyboard markup to JSON string *)
+  let serialize_keyboard (kb : Telegram.Types.inline_keyboard_markup) : string =
+    let open Telegram_generated.Gen_types in
+    let uf = Telegram.Json_compat.Unknown_fields.create () in
+    let inline_keyboard = List.map (fun row ->
+      List.map (fun btn ->
+        match btn with
+        | Telegram.Types.Url_button { text; url } ->
+            {
+              InlineKeyboardButton.text;
+              url = Some url;
+              callback_data = None;
+              web_app = None;
+              login_url = None;
+              switch_inline_query = None;
+              switch_inline_query_current_chat = None;
+              switch_inline_query_chosen_chat = None;
+              copy_text = None;
+              callback_game = None;
+              pay = None;
+              unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf [];
+            }
+        | Telegram.Types.Callback_button { text; data } ->
+            {
+              InlineKeyboardButton.text;
+              callback_data = Some data;
+              url = None;
+              web_app = None;
+              login_url = None;
+              switch_inline_query = None;
+              switch_inline_query_current_chat = None;
+              switch_inline_query_chosen_chat = None;
+              copy_text = None;
+              callback_game = None;
+              pay = None;
+              unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf [];
+            }
+      ) row
+    ) kb in
+    let markup = {
+      InlineKeyboardMarkup.inline_keyboard;
+      unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf [];
+    } in
+    InlineKeyboardMarkup.to_yojson markup |> Yojson.Safe.to_string
+
   (* Convenience helpers for sending messages *)
-  let reply (c : [ `Chat ] t) text =
+  let reply ?keyboard (c : [ `Chat ] t) text =
     let open Result_syntax in
     let cli = client c in
     let chat_id = chat c in
     let msg = message c in
-    let params = [
+    let base_params = [
       ("chat_id", Param.string (Id.to_string chat_id));
       ("text", Param.string text);
       ("reply_parameters", Param.json (`Assoc [
         ("message_id", `Int msg.message_id)
       ]));
     ] in
+    let params = match keyboard with
+      | Some kb -> base_params @ [("reply_markup", Param.string (serialize_keyboard kb))]
+      | None -> base_params
+    in
     let* json = Api.call_method cli ~method_name:"sendMessage" params in
     match Telegram_generated.Gen_types.Message.of_yojson json with
     | Ok m -> Ok m
@@ -787,30 +836,38 @@ module Ctx = struct
   let answer = reply
 
   (* Send a message to the chat without replying *)
-  let send (c : [ `Chat ] t) text =
+  let send ?keyboard (c : [ `Chat ] t) text =
     let open Result_syntax in
     let cli = client c in
     let chat_id = chat c in
-    let params = [
+    let base_params = [
       ("chat_id", Param.string (Id.to_string chat_id));
       ("text", Param.string text);
     ] in
+    let params = match keyboard with
+      | Some kb -> base_params @ [("reply_markup", Param.string (serialize_keyboard kb))]
+      | None -> base_params
+    in
     let* json = Api.call_method cli ~method_name:"sendMessage" params in
     match Telegram_generated.Gen_types.Message.of_yojson json with
     | Ok m -> Ok m
     | Error err -> Error (Decode_error ("Failed to decode sent message: " ^ err))
 
   (* Edit the current message (for callback queries) *)
-  let edit (c : [ `Chat ] t) text =
+  let edit ?keyboard (c : [ `Chat ] t) text =
     let open Result_syntax in
     let cli = client c in
     let chat_id = chat c in
     let msg = message c in
-    let params = [
+    let base_params = [
       ("chat_id", Param.string (Id.to_string chat_id));
       ("message_id", Param.int msg.message_id);
       ("text", Param.string text);
     ] in
+    let params = match keyboard with
+      | Some kb -> base_params @ [("reply_markup", Param.string (serialize_keyboard kb))]
+      | None -> base_params
+    in
     let* json = Api.call_method cli ~method_name:"editMessageText" params in
     match json with
     | `Bool true -> Ok ()
@@ -913,11 +970,11 @@ module Ctx = struct
 
   (* Handler combinators for common patterns *)
 
-  let reply_ ctx text =
-    match reply ctx text with
+  let reply_ ?keyboard ctx text =
+    match reply ?keyboard ctx text with
     | Ok _ -> Ok ()
     | Error e -> Error e
-  (** [reply_ ctx text] sends a reply and returns [Ok ()] on success.
+  (** [reply_ ?keyboard ctx text] sends a reply and returns [Ok ()] on success.
       This is a simpler version of [reply] that discards the returned message,
       useful when you don't need to inspect the sent message. *)
 

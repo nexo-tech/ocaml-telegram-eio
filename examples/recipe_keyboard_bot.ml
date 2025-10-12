@@ -51,52 +51,8 @@ module Verbose_session = Session.Make (Verbose_log)
 module Verbose_polling = Polling.Make (Verbose_log)
 module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
 
-(** Functional keyboard builder - ergonomic wrapper around generated types *)
-module KB = struct
-  open Telegram_generated.Gen_types
-
-  let button ~text ~callback_data =
-    let uf = Telegram.Json_compat.Unknown_fields.create () in
-    {
-      InlineKeyboardButton.text;
-      callback_data = Some callback_data;
-      url = None;
-      web_app = None;
-      login_url = None;
-      switch_inline_query = None;
-      switch_inline_query_current_chat = None;
-      switch_inline_query_chosen_chat = None;
-      copy_text = None;
-      callback_game = None;
-      pay = None;
-      unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf [];
-    }
-
-  let row buttons = buttons
-
-  let make rows =
-    let uf = Telegram.Json_compat.Unknown_fields.create () in
-    {
-      InlineKeyboardMarkup.inline_keyboard = rows;
-      unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf [];
-    }
-
-  (** Send message with keyboard *)
-  let send ~client ~chat_id ~text keyboard =
-    let json = InlineKeyboardMarkup.to_yojson keyboard |> Yojson.Safe.to_string in
-    Telegram_generated.Gen_methods.send_message
-      client ~chat_id ~text ~reply_markup:json ()
-
-  (** Edit message with keyboard *)
-  let edit ~client ~chat_id ~message_id ~text keyboard =
-    Telegram_generated.Gen_methods.edit_message_text
-      client
-      ~chat_id:(Id.to_string chat_id)
-      ~message_id
-      ~text
-      ~reply_markup:keyboard
-      ()
-end
+(* Use the ergonomic Keyboard module from the library *)
+module KB = Keyboard
 
 (** Settings state *)
 module Settings = struct
@@ -131,14 +87,13 @@ let () =
       let open Verbose_bot.Ctx in
       Eio.traceln "[/start] Showing main menu";
 
-      let keyboard = KB.make [
-        KB.row [KB.button ~text:"⚙️ Settings" ~callback_data:"menu:settings"];
-        KB.row [KB.button ~text:"👤 Profile" ~callback_data:"menu:profile"];
-        KB.row [KB.button ~text:"❓ Help" ~callback_data:"menu:help"];
+      let keyboard = KB.inline [
+        [KB.callback ~text:"⚙️ Settings" ~data:"menu:settings"];
+        [KB.callback ~text:"👤 Profile" ~data:"menu:profile"];
+        [KB.callback ~text:"❓ Help" ~data:"menu:help"];
       ] in
 
-      match KB.send ~client:(client ctx) ~chat_id:(chat ctx)
-              ~text:"👋 Welcome! Choose an option:" keyboard with
+      match send ~keyboard ctx "👋 Welcome! Choose an option:" with
       | Ok _ -> Eio.traceln "[/start] ✓ Sent"; Ok ()
       | Error e -> Eio.traceln "[/start] ✗ Error: %a" Error.pp e; Ok ()
     )
@@ -153,15 +108,14 @@ let () =
       let notif_text = if settings.notifications
         then "🔔 Notifications: ON" else "🔕 Notifications: OFF" in
 
-      let keyboard = KB.make [
-        KB.row [KB.button ~text:notif_text ~callback_data:"toggle_notif"];
-        KB.row [KB.button ~text:("🌐 " ^ settings.language) ~callback_data:"lang"];
-        KB.row [KB.button ~text:("🎨 " ^ settings.theme) ~callback_data:"theme"];
-        KB.row [KB.button ~text:"← Back" ~callback_data:"menu:main"];
+      let keyboard = KB.inline [
+        [KB.callback ~text:notif_text ~data:"toggle_notif"];
+        [KB.callback ~text:("🌐 " ^ settings.language) ~data:"lang"];
+        [KB.callback ~text:("🎨 " ^ settings.theme) ~data:"theme"];
+        [KB.callback ~text:"← Back" ~data:"menu:main"];
       ] in
 
-      match KB.send ~client:(client ctx) ~chat_id:(chat ctx)
-              ~text:"⚙️ Settings" keyboard with
+      match send ~keyboard ctx "⚙️ Settings" with
       | Ok _ -> Ok ()
       | Error e -> Eio.traceln "[/settings] Error: %a" Error.pp e; Ok ()
     )
@@ -170,17 +124,14 @@ let () =
   |> Verbose_bot.on_callback (fun ctx data ->
       if data = "menu:main" then (
         let open Verbose_bot.Ctx in
-        let msg = message ctx in
 
-        let keyboard = KB.make [
-          KB.row [KB.button ~text:"⚙️ Settings" ~callback_data:"menu:settings"];
-          KB.row [KB.button ~text:"👤 Profile" ~callback_data:"menu:profile"];
-          KB.row [KB.button ~text:"❓ Help" ~callback_data:"menu:help"];
+        let keyboard = KB.inline [
+          [KB.callback ~text:"⚙️ Settings" ~data:"menu:settings"];
+          [KB.callback ~text:"👤 Profile" ~data:"menu:profile"];
+          [KB.callback ~text:"❓ Help" ~data:"menu:help"];
         ] in
 
-        match KB.edit ~client:(client ctx) ~chat_id:(chat ctx)
-                ~message_id:(Int64.of_int msg.message_id)
-                ~text:"📱 Main Menu" keyboard with
+        match edit ~keyboard ctx "📱 Main Menu" with
         | Ok _ -> Eio.traceln "[menu:main] ✓"; Ok ()
         | Error e -> Eio.traceln "[menu:main] ✗ %a" Error.pp e; Ok ()
       ) else Ok ()
@@ -190,22 +141,19 @@ let () =
   |> Verbose_bot.on_callback (fun ctx data ->
       if data = "menu:settings" then (
         let open Verbose_bot.Ctx in
-        let msg = message ctx in
         let settings = session_get_or ctx settings_key ~default:Settings.default in
 
         let notif_text = if settings.notifications
           then "🔔 Notifications: ON" else "🔕 Notifications: OFF" in
 
-        let keyboard = KB.make [
-          KB.row [KB.button ~text:notif_text ~callback_data:"toggle_notif"];
-          KB.row [KB.button ~text:("🌐 " ^ settings.language) ~callback_data:"lang"];
-          KB.row [KB.button ~text:("🎨 " ^ settings.theme) ~callback_data:"theme"];
-          KB.row [KB.button ~text:"← Back" ~callback_data:"menu:main"];
+        let keyboard = KB.inline [
+          [KB.callback ~text:notif_text ~data:"toggle_notif"];
+          [KB.callback ~text:("🌐 " ^ settings.language) ~data:"lang"];
+          [KB.callback ~text:("🎨 " ^ settings.theme) ~data:"theme"];
+          [KB.callback ~text:"← Back" ~data:"menu:main"];
         ] in
 
-        match KB.edit ~client:(client ctx) ~chat_id:(chat ctx)
-                ~message_id:(Int64.of_int msg.message_id)
-                ~text:"⚙️ Settings" keyboard with
+        match edit ~keyboard ctx "⚙️ Settings" with
         | Ok _ -> Ok ()
         | Error e -> Eio.traceln "[menu:settings] Error: %a" Error.pp e; Ok ()
       ) else Ok ()
@@ -215,7 +163,6 @@ let () =
   |> Verbose_bot.on_callback (fun ctx data ->
       if data = "toggle_notif" then (
         let open Verbose_bot.Ctx in
-        let msg = message ctx in
         let settings = session_get_or ctx settings_key ~default:Settings.default in
         let updated = Settings.toggle_notif settings in
         session_set ctx settings_key updated;
@@ -224,16 +171,14 @@ let () =
         let notif_text = if updated.notifications
           then "🔔 Notifications: ON" else "🔕 Notifications: OFF" in
 
-        let keyboard = KB.make [
-          KB.row [KB.button ~text:notif_text ~callback_data:"toggle_notif"];
-          KB.row [KB.button ~text:("🌐 " ^ updated.language) ~callback_data:"lang"];
-          KB.row [KB.button ~text:("🎨 " ^ updated.theme) ~callback_data:"theme"];
-          KB.row [KB.button ~text:"← Back" ~callback_data:"menu:main"];
+        let keyboard = KB.inline [
+          [KB.callback ~text:notif_text ~data:"toggle_notif"];
+          [KB.callback ~text:("🌐 " ^ updated.language) ~data:"lang"];
+          [KB.callback ~text:("🎨 " ^ updated.theme) ~data:"theme"];
+          [KB.callback ~text:"← Back" ~data:"menu:main"];
         ] in
 
-        match KB.edit ~client:(client ctx) ~chat_id:(chat ctx)
-                ~message_id:(Int64.of_int msg.message_id)
-                ~text:"⚙️ Settings (toggled!)" keyboard with
+        match edit ~keyboard ctx "⚙️ Settings (toggled!)" with
         | Ok _ -> Ok ()
         | Error e -> Eio.traceln "[toggle_notif] Error: %a" Error.pp e; Ok ()
       ) else Ok ()
@@ -243,15 +188,12 @@ let () =
   |> Verbose_bot.on_callback (fun ctx data ->
       if data = "menu:profile" then (
         let open Verbose_bot.Ctx in
-        let msg = message ctx in
 
-        let keyboard = KB.make [
-          KB.row [KB.button ~text:"← Back" ~callback_data:"menu:main"];
+        let keyboard = KB.inline [
+          [KB.callback ~text:"← Back" ~data:"menu:main"];
         ] in
 
-        match KB.edit ~client:(client ctx) ~chat_id:(chat ctx)
-                ~message_id:(Int64.of_int msg.message_id)
-                ~text:"👤 Profile\n\nProfile features coming soon!" keyboard with
+        match edit ~keyboard ctx "👤 Profile\n\nProfile features coming soon!" with
         | Ok _ -> Ok ()
         | Error e -> Eio.traceln "[menu:profile] Error: %a" Error.pp e; Ok ()
       ) else Ok ()
@@ -261,15 +203,12 @@ let () =
   |> Verbose_bot.on_callback (fun ctx data ->
       if data = "menu:help" then (
         let open Verbose_bot.Ctx in
-        let msg = message ctx in
 
-        let keyboard = KB.make [
-          KB.row [KB.button ~text:"← Back" ~callback_data:"menu:main"];
+        let keyboard = KB.inline [
+          [KB.callback ~text:"← Back" ~data:"menu:main"];
         ] in
 
-        match KB.edit ~client:(client ctx) ~chat_id:(chat ctx)
-                ~message_id:(Int64.of_int msg.message_id)
-                ~text:"❓ Help\n\nCommands:\n/start - Main menu\n/settings - Settings" keyboard with
+        match edit ~keyboard ctx "❓ Help\n\nCommands:\n/start - Main menu\n/settings - Settings" with
         | Ok _ -> Ok ()
         | Error e -> Eio.traceln "[menu:help] Error: %a" Error.pp e; Ok ()
       ) else Ok ()
