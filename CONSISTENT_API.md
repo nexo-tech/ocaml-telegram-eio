@@ -154,7 +154,46 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - Comprehensive Eio.traceln logging at every step
     - Logs include: [Init], [Handler], [Storage], [Album], [Callback] prefixes
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.2.5: `docs/recipe_webhook_bot.mld` - Webhook setup
+- [x] Task 1.1.2.5: `docs/recipe_webhook_bot.mld` - Webhook setup
+  - Created `examples/recipe_webhook_bot.ml` - Production-ready webhook bot
+  - **Webhook server configuration**: Full-featured webhook server using Webhook module
+    - Port configuration (8443 default, configurable via WEBHOOK_PORT)
+    - Custom path configuration (configurable via WEBHOOK_PATH)
+    - Secret token validation (WEBHOOK_SECRET environment variable)
+    - Max connections: 100 concurrent connections
+  - **Security features**: Production-grade security
+    - Secret token validation (X-Telegram-Bot-Api-Secret-Token header)
+    - IP allowlisting with Telegram's official IP ranges
+    - Custom rate limiting validator (100 req/min per IP)
+    - Request validation hooks
+  - **Graceful shutdown**: Signal-based shutdown with connection draining
+    - SIGINT and SIGTERM signal handlers
+    - Eio switch-based graceful shutdown
+    - In-flight request draining
+    - Clean exit with final metrics
+  - **Metrics tracking**: Comprehensive runtime metrics
+    - Updates processed counter
+    - Error counter
+    - Uptime calculation with formatted display (hours/mins/secs)
+    - Real-time metrics logging
+  - **Rate limiting**: IP-based rate limiter with Hashtbl
+    - 100 requests per minute per IP
+    - Automatic counter reset every 60 seconds
+    - Custom validator integration
+  - **Webhook setup instructions**: Auto-generated curl commands
+    - Prints setWebhook curl command on startup
+    - Includes secret token and URL configuration
+    - getWebhookInfo command for status checking
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Comprehensive Eio.traceln logging at every step
+    - Logs include: [Config], [Webhook], [RateLimit], [Metrics], [Update], [Error], [Shutdown]
+    - Detailed request logging (IP, headers, path)
+    - Update details logging (message ID, chat ID, text)
+  - **Low-level Webhook API demonstration**: Uses Webhook module directly
+    - `Webhook.make` with all configuration options
+    - `Webhook.run_with_config_and_switch` for manual control
+    - Demonstrates production patterns without high-level Bot.run_webhook
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.2.6: `docs/recipe_chatbot_context.mld` - Contextual conversations
 - [ ] Task 1.1.2.7: `docs/recipe_notification_bot.mld` - Notifications
 - [ ] Task 1.1.2.8: `docs/recipe_poll_quiz_bot.mld` - Polls and quizzes
