@@ -194,7 +194,50 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - `Webhook.run_with_config_and_switch` for manual control
     - Demonstrates production patterns without high-level Bot.run_webhook
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.2.6: `docs/recipe_chatbot_context.mld` - Contextual conversations
+- [x] Task 1.1.2.6: `docs/recipe_chatbot_context.mld` - Contextual conversations
+  - Created `examples/recipe_chatbot_context.ml` - Multi-turn contextual chatbot
+  - **Multi-step conversation flow**: Profile setup wizard with state machine
+    - States: Idle → AskName → AskEmail → AskTimezone → Confirm
+    - Type-safe step transitions with phantom types
+    - Data accumulation across steps (profile record)
+    - Clear step progression with verbose logging
+  - **Session-based state management**: Typed session keys with Verbose_session functor
+    - `state_key = Verbose_session.make ~name:"profile_wizard"`
+    - session_get, session_set, session_delete, session_exists operations
+    - session_get_or with default for safe access
+    - Per-user state isolation
+  - **Context expiration with TTL**: Time-to-live based expiration
+    - 15-minute TTL (900 seconds)
+    - started_at timestamp tracking
+    - Automatic expiration check before each step
+    - Clear expiration message to user
+  - **Confirmation keyboard**: Inline keyboard for final confirmation
+    - ✅ Confirm button (saves and exits)
+    - ✏️  Restart button (begins flow again)
+    - ✖️  Cancel button (aborts and clears session)
+    - Callback data: profile:confirm, profile:restart, profile:cancel
+  - **Commands**: /start, /help, /start_profile, /status, /cancel
+    - /start_profile initiates wizard
+    - /status shows current step and TTL remaining
+    - /cancel aborts active conversation
+  - **Mixed input handling**: Text + buttons with graceful fallbacks
+    - Text handler for name/email/timezone collection
+    - Callback handler for confirmation actions
+    - State-aware prompts at each step
+    - Idle state ignores random text
+  - **Conversation state tracking**: context_state type with profile data
+    - profile type: name, email, timezone (all option)
+    - step ADT with associated data
+    - TTL tracking with Unix timestamps
+    - Helper functions: now(), expired(), begin_flow()
+  - **Result-based handlers**: All handlers return `(unit, Error.t) result`
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Comprehensive Eio.traceln logging at every step
+    - Logs include: [Flow], [Handler], [Builder], [Init], [Polling]
+    - State transition logging (step changes)
+    - TTL expiration logging (elapsed time)
+    - Data collection logging (name, email, timezone)
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.2.7: `docs/recipe_notification_bot.mld` - Notifications
 - [ ] Task 1.1.2.8: `docs/recipe_poll_quiz_bot.mld` - Polls and quizzes
 - [ ] Task 1.1.2.9: `docs/recipe_inline_bot.mld` - Inline queries
