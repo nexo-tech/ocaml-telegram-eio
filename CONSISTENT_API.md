@@ -238,7 +238,48 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - TTL expiration logging (elapsed time)
     - Data collection logging (name, email, timezone)
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.2.7: `docs/recipe_notification_bot.mld` - Notifications
+- [x] Task 1.1.2.7: `docs/recipe_notification_bot.mld` - Notifications
+  - Created `examples/recipe_notification_bot.ml` - Comprehensive notification system
+  - **Subscription management**: In-memory subscriber storage with Hashtbl
+    - Subscriptions module with create, add, remove, list, count, is_subscribed
+    - Chat ID tracking (string keys for persistence compatibility)
+    - Real-time subscription status tracking
+    - Subscribe/unsubscribe commands
+  - **Broadcast messaging**: Eio concurrency with rate limiting
+    - Concurrent message sending with Eio.Semaphore (max_concurrency: 10)
+    - Rate limiting with configurable delay between messages (0.05s default)
+    - Background fibers with Eio.Fiber.fork
+    - Success/failure tracking and reporting
+    - Comprehensive broadcast logging (per-message status)
+  - **Scheduled messages**: Background periodic messaging with Eio fibers
+    - schedule_every function with clock-based timing
+    - Daily digest demo (60s interval, configurable to 24h)
+    - Background fiber integration with Eio.Switch
+    - Admin chat configuration via ADMIN_CHAT_ID env var
+  - **Notification preferences**: Session-based mute/unmute
+    - notification_prefs type with mute flag
+    - Session storage with prefs_key
+    - /preferences command to toggle mute
+    - Status display showing mute state
+  - **Admin-only commands**: Permission-based access control
+    - Admin module with ADMIN_USER_IDS environment variable
+    - require_admin guard function
+    - /broadcast restricted to admins
+    - /stats restricted to admins
+  - **Commands**: /start, /help, /subscribe, /unsubscribe, /status, /preferences, /broadcast (admin), /stats (admin)
+  - **Eio concurrency patterns**: Demonstrates production patterns
+    - Semaphore for concurrency limiting
+    - Fiber.fork for background tasks
+    - Switch for coordinated lifecycle
+    - Clock-based scheduling
+  - **Result-based handlers**: All handlers return `(unit, Error.t) result`
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Comprehensive Eio.traceln logging at every step
+    - Logs include: [Subscriptions], [Admin], [Broadcast], [Scheduler], [Handler], [Builder], [Init]
+    - Broadcast progress logging (per-message success/failure)
+    - Admin access logging (granted/denied)
+    - Subscription changes logging (add/remove)
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.2.8: `docs/recipe_poll_quiz_bot.mld` - Polls and quizzes
 - [ ] Task 1.1.2.9: `docs/recipe_inline_bot.mld` - Inline queries
 - [ ] Task 1.1.2.10: `docs/recipe_group_management_bot.mld` - Group admin features
