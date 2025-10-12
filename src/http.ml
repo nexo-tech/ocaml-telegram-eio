@@ -48,8 +48,8 @@ module Cohttp_eio = struct
     );
     try
       Eio_main.run @@ fun env ->
-      (* Ensure RNG for TLS handshakes *)
-      Mirage_crypto_rng_eio.run (module Mirage_crypto_rng.Fortuna) env @@ fun () ->
+      (* Initialize RNG for TLS *)
+      Mirage_crypto_rng_eio.run (module Mirage_crypto_rng.Fortuna) env (fun () ->
       let net = env#net in
       let https_wrapper (uri:Uri.t) (socket : _ Eio.Flow.two_way) =
         let host =
@@ -60,7 +60,10 @@ module Cohttp_eio = struct
           | None -> failwith "HTTPS URI missing host"
         in
         let authenticator = match Ca_certs.authenticator () with Ok a -> a | Error (`Msg m) -> failwith m in
-        let cfg = Tls.Config.client ~authenticator () in
+        let cfg = match Tls.Config.client ~authenticator () with
+          | Ok c -> c
+          | Error (`Msg m) -> failwith m
+        in
         (Tls_eio.client_of_flow cfg ~host socket :> _ Eio.Flow.two_way)
       in
       let client = Cohttp_eio.Client.make ~https:(Some https_wrapper) net in
@@ -212,7 +215,7 @@ module Cohttp_eio = struct
          Log.error "HTTP request timeout after %.1fs: %s %s"
            (match Sys.getenv_opt "TELEGRAM_HTTP_TIMEOUT" with Some s -> float_of_string s | None -> 0.0)
            meth_str url;
-         Error Timeout)
+         Error Timeout))
     with exn ->
       Log.error "HTTP request failed: %s %s - %s" meth_str url (Printexc.to_string exn);
       Error (Http_error (0, Printexc.to_string exn))

@@ -129,7 +129,31 @@ Goal: Implement every example from documentation in `examples/` directory with a
   - **Ergonomic API**: Uses library's Keyboard module, no custom wrappers needed
   - Example compiles without errors/warnings and demonstrates keyboard interaction patterns
   - All tests pass (100% test coverage maintained)
-- [ ] Task 1.1.2.4: `docs/recipe_file_bot.mld` - File upload/download
+- [x] Task 1.1.2.4: `docs/recipe_file_bot.mld` - File upload/download
+  - Created `examples/recipe_file_bot.ml` - Comprehensive file management bot
+  - **File storage with quota tracking**: User-specific file storage with 100MB quota
+    - `file_entry` type tracks file_id, file_name, file_size, mime_type, uploaded_at, user_id
+    - `user_storage` type with files list and quota field
+    - `total_size`, `has_space`, `add_file`, `remove_file` storage operations
+  - **Session-based file tracking**: Files persisted in user sessions
+    - `storage_key = Verbose_session.make ~name:"user_storage"` for per-user storage
+    - `album_key = Verbose_session.make ~name:"album_builder"` for album state
+  - **File cache**: Hashtbl for quick file access by ID
+  - **Callback-based file operations**: Inline keyboard for file management
+    - download:file_id, delete:file_id, view:file_id callbacks
+    - Dynamic keyboard generation from user's file list
+  - **Album builder**: Multi-photo album with session state
+    - Collect up to 10 photos with /album command
+    - Session stores album_state (items list, max_items)
+    - Send all photos as album or cancel collection
+  - **Commands**: /start, /files (list files), /stats (storage stats), /album (build album)
+  - **Callback handlers**: File download/delete/view, album actions (add/send/cancel)
+  - **Note**: Uses on_text fallback for file handling (Event.document/Event.photo to be implemented)
+  - **Result-based handlers**: All handlers return `(unit, Error.t) result`
+  - **Functor-based verbose logging**: Verbose_bot with Debug level for troubleshooting
+    - Comprehensive Eio.traceln logging at every step
+    - Logs include: [Init], [Handler], [Storage], [Album], [Callback] prefixes
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.2.5: `docs/recipe_webhook_bot.mld` - Webhook setup
 - [ ] Task 1.1.2.6: `docs/recipe_chatbot_context.mld` - Contextual conversations
 - [ ] Task 1.1.2.7: `docs/recipe_notification_bot.mld` - Notifications

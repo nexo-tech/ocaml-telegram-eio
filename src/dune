@@ -4,7 +4,7 @@
  (libraries eio eio_main tls-eio ca-certs mirage-crypto-rng-eio domain-name yojson cohttp-eio cohttp uri cstruct)
  (preprocess (pps ppx_deriving_yojson))
  (modules id types money units chat_action parse_mode json_compat input_file param error response retry client request api http version spec_ast spec_norm limits media_group currency log)
- (flags (:standard -w -67)))
+ (flags (:standard -w -67-3)))
 
 (library
  (name tg)
