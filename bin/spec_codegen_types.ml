@@ -176,7 +176,38 @@ let gen_ml defs =
       Buffer.add_string b "  let to_yojson (_ : t) : Yojson.Safe.t = `Null\n"
     ) else (
       Buffer.add_string b "  let to_yojson (v : t) : Yojson.Safe.t =\n";
-      Buffer.add_string b "    `Assoc ([\n";
+      (* Separate required and optional fields for cleaner code generation *)
+      let required_fields = List.filter (fun (f:Telegram.Spec_ast.field) -> not f.optional) d.fields in
+      let optional_fields = List.filter (fun (f:Telegram.Spec_ast.field) -> f.optional) d.fields in
+
+      Buffer.add_string b "    `Assoc (\n";
+
+      (* Required fields as a simple list *)
+      if required_fields <> [] then (
+        Buffer.add_string b "      [\n";
+        List.iteri (fun i (f:Telegram.Spec_ast.field) ->
+          let fname = ocaml_field_name f.name in
+          let json_name = f.name in
+          let typ = parse_type f.typ in
+          let rec gen_encoder t var =
+            match t with
+            | TInt64 -> Printf.sprintf "`Intlit (Int64.to_string %s)" var
+            | TString -> Printf.sprintf "`String %s" var
+            | TBool -> Printf.sprintf "`Bool %s" var
+            | TFloat -> Printf.sprintf "`Float %s" var
+            | TCustom s -> Printf.sprintf "%s.to_yojson %s" (ocaml_module_name s) var
+            | TArray inner -> Printf.sprintf "`List (List.map (fun x -> %s) %s)" (gen_encoder inner "x") var
+            | TUnion _ -> Printf.sprintf "`String %s" var
+          in
+          let sep = if i < List.length required_fields - 1 then ";\n" else "\n" in
+          Buffer.add_string b (Printf.sprintf "        (\"%s\", %s)%s" json_name (gen_encoder typ ("v." ^ fname)) sep)
+        ) required_fields;
+        Buffer.add_string b "      ]"
+      ) else (
+        Buffer.add_string b "      []"
+      );
+
+      (* Optional fields - each wrapped in match to return [] or singleton list *)
       List.iter (fun (f:Telegram.Spec_ast.field) ->
         let fname = ocaml_field_name f.name in
         let json_name = f.name in
@@ -191,13 +222,13 @@ let gen_ml defs =
           | TArray inner -> Printf.sprintf "`List (List.map (fun x -> %s) %s)" (gen_encoder inner "x") var
           | TUnion _ -> Printf.sprintf "`String %s" var
         in
-        if f.optional then
-          Buffer.add_string b (Printf.sprintf "      (match v.%s with None -> (\"%s\", `Null) | Some x -> (\"%s\", %s));\n"
-            fname json_name json_name (gen_encoder typ "x"))
-        else
-          Buffer.add_string b (Printf.sprintf "      (\"%s\", %s);\n" json_name (gen_encoder typ ("v." ^ fname)))
-      ) d.fields;
-      Buffer.add_string b "    ] @ Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)\n"
+        Buffer.add_string b " @\n";
+        Buffer.add_string b (Printf.sprintf "      (match v.%s with None -> [] | Some x -> [(\"%s\", %s)])"
+          fname json_name (gen_encoder typ "x"))
+      ) optional_fields;
+
+      Buffer.add_string b " @\n";
+      Buffer.add_string b "      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)\n"
     );
 
     (* of_yojson implementation *)
