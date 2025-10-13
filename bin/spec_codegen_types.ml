@@ -262,8 +262,9 @@ let gen_ml defs =
           Buffer.add_string b (Printf.sprintf "          let %s = match List.assoc_opt \"%s\" fields with None | Some `Null -> None | Some x -> Some (%s) in\n"
             fname json_name (gen_decoder typ "x"))
         else
-          Buffer.add_string b (Printf.sprintf "          let %s = %s in\n"
-            fname (gen_decoder typ (Printf.sprintf "(List.assoc \"%s\" fields)" json_name)))
+          (* Required field - wrap with better error handling *)
+          Buffer.add_string b (Printf.sprintf "          let %s = (try %s with Not_found -> raise (Type_error (\"Missing required field '%s'\", `Null))) in\n"
+            fname (gen_decoder typ (Printf.sprintf "(List.assoc \"%s\" fields)" json_name)) json_name)
       ) d.fields;
 
       (* Capture unknown fields *)
@@ -278,9 +279,11 @@ let gen_ml defs =
       ) d.fields;
       Buffer.add_string b "; unknown_fields }\n";
       Buffer.add_string b "        with\n";
-      Buffer.add_string b "        | Not_found -> Error \"Missing required field\"\n";
+      (* Include type name in error messages for better debugging *)
+      let type_name = d.title in
+      Buffer.add_string b (Printf.sprintf "        | Not_found -> Error \"Missing required field in %s\"\n" type_name);
       Buffer.add_string b "        | Type_error (msg, _) -> Error msg)\n";
-      Buffer.add_string b "    | _ -> Error \"Expected JSON object\"\n"
+      Buffer.add_string b (Printf.sprintf "    | _ -> Error \"Expected JSON object for %s\"\n" type_name)
     );
 
     Buffer.add_string b "end\n";
