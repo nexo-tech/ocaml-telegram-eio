@@ -470,7 +470,61 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - Pre-checkout validation logging (order, amount match)
     - Payment processing logging (charge IDs, fulfillment)
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.2.12: `docs/recipe_games_bot.mld` - Game bot
+- [x] Task 1.1.2.12: `docs/recipe_games_bot.mld` - Game bot
+  - Created `examples/recipe_games_bot.ml` - Tic-Tac-Toe game system
+  - **Game logic**: Turn-based Tic-Tac-Toe implementation
+    - GameLogic module with move validation and win detection
+    - 3x3 board represented as cell array (Empty, X, O)
+    - 8 winning patterns (rows, columns, diagonals)
+    - Win/draw/loss detection with outcome type
+    - Move validation (empty cell, correct turn)
+  - **Game state management**: Typed sessions with per-game locking
+    - game_state type with id, chat_id, board, turn, player IDs, TTL
+    - Session key (game_key) for persistent state storage
+    - Per-game Eio.Mutex locks via GameLocks module
+    - 30-minute game expiration (TTL-based)
+    - Automatic cleanup of expired games
+  - **Player management**: Join flow and turn validation
+    - /new command creates game with X player
+    - Inline "Join as O" button for second player
+    - Turn-based gameplay (X moves first)
+    - Player validation (correct turn, valid user)
+  - **Inline keyboard**: 3x3 grid with callback data
+    - Board rendered as InlineKeyboardMarkup
+    - Each cell is InlineKeyboardButton with move:idx callback
+    - Empty cells show "·", occupied show X/O emoji
+    - Keyboard updates after each move
+  - **Win detection**: 8 winning patterns checked after each move
+    - check_win function scans all win_lines
+    - Returns Some winner or None
+    - check_draw detects filled board without winner
+    - Game ends with winner announcement or draw message
+  - **Scoreboard system**: Wins/draws/losses tracking
+    - Scoreboard module with (user_id -> stats) Hashtbl
+    - record_win, record_draw, record_loss operations
+    - get_stats returns wins/draws/losses for user
+    - /stats command shows personal statistics
+  - **Leaderboard**: Top N players sorted by wins
+    - top_n function sorts by wins descending
+    - /leaderboard command shows top 10 players
+    - Displays username, wins, draws, losses
+  - **Rematch functionality**: Play again after game ends
+    - "Play Again" button creates new game
+    - Preserves player matchup (same X and O)
+    - New game state with fresh board
+  - **Commands**: /start, /new, /stats, /leaderboard, /help
+  - **Callback handlers**: join (second player), move:idx (game moves), rematch
+  - **Result-based handlers**: All handlers return `(unit, Error.t) result`
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Comprehensive Eio.traceln logging at every step
+    - Logs include: [Handler], [GameLogic], [GameLocks], [Scoreboard], [Builder], [Init], [Polling]
+    - Game creation logging (id, chat, X player)
+    - Join logging (O player, game start)
+    - Move logging (player, position, outcome)
+    - Win/draw logging (result, score update)
+    - Lock acquisition/release logging
+    - TTL and expiration logging
+  - Example compiles without errors/warnings (zero compilation issues)
 
 ### Phase 1.1.3: API Components
 - [ ] Task 1.1.3.1: `docs/keyboard_api.mld` - Keyboard creation examples
@@ -529,10 +583,10 @@ Every example must:
 ## Progress Tracking
 
 **Total Tasks**: 35
-**Completed**: 13
+**Completed**: 14
 **In Progress**: 0
-**Remaining**: 22
-**Progress**: 37% (13/35)
+**Remaining**: 21
+**Progress**: 40% (14/35)
 
 ---
 
