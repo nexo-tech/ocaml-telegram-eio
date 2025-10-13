@@ -546,7 +546,30 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - Button selection logging, navigation tracking
     - Success/error logging for all operations
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.3.2: `docs/command_dsl.mld` - Command DSL examples
+- [x] Task 1.1.3.2: `docs/command_dsl.mld` - Command DSL examples
+  - Created `examples/command_dsl_demo.ml` - Comprehensive command DSL demonstration
+  - **Basic commands**: Simple commands with no arguments (/start, /help, /info)
+  - **Raw argument parsing**: Manual argument handling with Bot.Args helpers
+    - Bot.Args.expect_1, expect_2, expect_3 for arity checking
+    - Bot.Args.parse_int, parse_bool, parse_float for type parsing
+    - Bot.Args.join_rest for remaining arguments
+  - **Commands with manual parsing**: /echo, /calc, /remind
+    - /echo - Concatenates all arguments
+    - /calc - Adds two numbers with manual validation
+    - /remind - Title + remaining text joined
+  - **Typed parsers with command_with**: /multiply, /greet, /check, /square, /subtract
+    - Custom parser functions returning Result.t
+    - Automatic error message delivery on parse failure
+    - Type-safe argument extraction
+  - **Command descriptions**: All commands have ~desc for documentation
+  - **Builder pattern**: Bot.make |> command |> command_with |> run composition
+  - **Commands**: /start, /help, /echo, /calc, /subtract, /multiply, /square, /greet, /remind, /check, /info
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Logs include: [/start], [/help], [/echo], [/calc], [/multiply], [/greet], [/check], [/remind], [/square], [/subtract], [/info]
+    - Argument parsing logging (count, values)
+    - Computation logging (operations, results)
+    - Success/error logging for all operations
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.3.3: `docs/message_handling.mld` - Message handling patterns
 - [ ] Task 1.1.3.4: `docs/callback_queries.mld` - Callback query handling
 - [ ] Task 1.1.3.5: `docs/media_files.mld` - Media handling examples
