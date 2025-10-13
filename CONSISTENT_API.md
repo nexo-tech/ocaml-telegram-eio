@@ -311,7 +311,54 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - Vote tracking logging (poll_id, user_id, option_ids)
     - Leaderboard scoring logging (correct answers, rankings)
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.2.9: `docs/recipe_inline_bot.mld` - Inline queries
+- [x] Task 1.1.2.9: `docs/recipe_inline_bot.mld` - Inline queries
+  - Created `examples/recipe_inline_bot.ml` - Comprehensive inline query system
+  - **Article search**: Wikipedia-style search with rich content
+    - Article database with title, summary, content, URL, thumbnail
+    - Full-text search across title, summary, and category
+    - InlineQueryResultArticle with InputTextMessageContent
+  - **Photo search**: Photo gallery with tag-based search
+    - Photo items with URLs, thumbnails, captions, tags
+    - InlineQueryResultPhoto with photo_url and thumbnail_url
+    - Configurable dimensions (800x600)
+  - **GIF search**: Animated GIF library
+    - GIF items with URLs, thumbnails, titles, tags
+    - InlineQueryResultGif with configurable dimensions
+  - **Client-side caching**: Result cache with TTL
+    - 5-minute TTL for computed results
+    - Cache hit/miss logging
+    - Automatic expiration and cleanup
+    - Bounded cache size with get/set/clear operations
+  - **Server-side caching**: Telegram cache control
+    - cache_time parameter (300s for articles, 600s for media)
+    - is_personal flag for per-user caching
+  - **Pagination**: Offset-based pagination for large result sets
+    - Page size: 10 results per page
+    - next_offset calculation for load-more
+    - Lazy loading pattern with filteri
+  - **Inline keyboard integration**: Interactive buttons in results
+    - "Read Full Article" URL buttons
+    - "Share" switch_inline_query buttons
+    - "Search Again" buttons with query pre-fill
+  - **Multiple search modes**: Prefix-based mode selection
+    - Default mode: article search
+    - photo: prefix for photo search
+    - gif: prefix for GIF search
+    - page: prefix for paginated search
+  - **Chosen result tracking**: Analytics for selected results
+    - Tracks result_id, query, user_id, timestamp
+    - Bounded history (100 entries)
+    - Statistics: total chosen, unique users, popular results
+  - **Commands**: /start, /help, /stats, /clearcache
+  - **Result-based handlers**: All handlers return `(unit, Error.t) result`
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Comprehensive Eio.traceln logging at every step
+    - Logs include: [Handler], [ArticleDB], [PhotoGallery], [GifLibrary], [ResultCache], [Pagination], [ChosenResults], [InlineKeyboard], [ResultConverter], [Builder], [Init], [Polling]
+    - Search query logging (query text, result counts)
+    - Cache operation logging (hit/miss, TTL)
+    - Pagination logging (offset, page size, total)
+    - Chosen result logging (result_id, user_id)
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.2.10: `docs/recipe_group_management_bot.mld` - Group admin features
 - [ ] Task 1.1.2.11: `docs/recipe_payment_bot.mld` - Payment integration
 - [ ] Task 1.1.2.12: `docs/recipe_games_bot.mld` - Game bot
@@ -373,10 +420,10 @@ Every example must:
 ## Progress Tracking
 
 **Total Tasks**: 35
-**Completed**: 10
+**Completed**: 11
 **In Progress**: 0
-**Remaining**: 25
-**Progress**: 29% (10/35)
+**Remaining**: 24
+**Progress**: 31% (11/35)
 
 ---
 
