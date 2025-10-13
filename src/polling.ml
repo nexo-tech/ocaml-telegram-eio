@@ -75,7 +75,15 @@ module Make (Log : Telegram.Log.S) : S = struct
                | update_json :: rest ->
                    (match Telegram_generated.Gen_types.Update.of_yojson update_json with
                     | Ok update -> decode_updates (update :: acc) rest
-                    | Error msg -> Error (Error.Decode_error msg))
+                    | Error msg ->
+                        (* Log the problematic JSON for debugging *)
+                        let json_str = Yojson.Safe.to_string update_json in
+                        let preview = if String.length json_str > 500
+                          then String.sub json_str 0 500 ^ "..."
+                          else json_str in
+                        Log.error "Failed to decode Update: %s" msg;
+                        Log.debug "Problematic JSON: %s" preview;
+                        Error (Error.Decode_error msg))
              in
              decode_updates [] updates_json
          | _ -> Error (Error.Decode_error "Expected array of updates"))
