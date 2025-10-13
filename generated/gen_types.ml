@@ -6872,7 +6872,7 @@ and MessageOrigin : sig
   type t = {
     type_ : string;
     date : int64;
-    sender_user : User.t;
+    sender_user : User.t option;  (* Optional - only in MessageOriginUser *)
     unknown_fields : Telegram.Json_compat.Unknown_fields.t;
   }
   val to_yojson : t -> Yojson.Safe.t
@@ -6881,16 +6881,16 @@ end = struct
   type t = {
     type_ : string;
     date : int64;
-    sender_user : User.t;
+    sender_user : User.t option;  (* Optional - only in MessageOriginUser *)
     unknown_fields : Telegram.Json_compat.Unknown_fields.t;
   }
   let to_yojson (v : t) : Yojson.Safe.t =
     `Assoc (
       [
         ("type", `String v.type_);
-        ("date", `Intlit (Int64.to_string v.date));
-        ("sender_user", User.to_yojson v.sender_user)
+        ("date", `Intlit (Int64.to_string v.date))
       ] @
+      (match v.sender_user with None -> [] | Some x -> [("sender_user", User.to_yojson x)]) @
       Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
   let of_yojson (j : Yojson.Safe.t) : (t, string) result =
     match j with
@@ -6903,7 +6903,7 @@ end = struct
           Telegram.Json_compat.Unknown_fields.mark_known uf "date";
           let date = (try (match (List.assoc "date" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "date" fields)))) with Not_found -> raise (Type_error ("Missing required field 'date'", `Null))) in
           Telegram.Json_compat.Unknown_fields.mark_known uf "sender_user";
-          let sender_user = (try (match User.of_yojson (List.assoc "sender_user" fields) with Ok v -> v | Error e -> raise (Type_error (e, (List.assoc "sender_user" fields)))) with Not_found -> raise (Type_error ("Missing required field 'sender_user'", `Null))) in
+          let sender_user = match List.assoc_opt "sender_user" fields with None | Some `Null -> None | Some x -> Some ((match User.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
           let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
           Ok { type_ = type_; date = date; sender_user = sender_user; unknown_fields }
         with
