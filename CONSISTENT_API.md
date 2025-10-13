@@ -570,7 +570,40 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - Computation logging (operations, results)
     - Success/error logging for all operations
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.3.3: `docs/message_handling.mld` - Message handling patterns
+- [x] Task 1.1.3.3: `docs/message_handling.mld` - Message handling patterns
+  - Created `examples/message_handling_demo.ml` - Comprehensive message handling demonstration
+  - **Message type handlers**: Different handlers for each content type
+    - on_text - Text message handler with entity extraction
+    - on_photo - Photo message handler with size info
+    - on_message - Generic message handler for documents, locations, contacts
+  - **Entity extraction**: Bot.Entity API for parsing message entities
+    - Mention, Hashtag, Cashtag, BotCommand, Url, Email, PhoneNumber
+    - Code, Bold, Italic, Underline, Strikethrough, Spoiler, Pre
+    - TextLink, TextMention, CustomEmoji
+    - entities() and get_entities() context functions
+  - **Text formatting**: HTML and MarkdownV2 examples
+    - Html.escape, bold, italic, underline, strike, code, pre, link helpers
+    - HTML formatting command (/format_html)
+    - MarkdownV2 formatting command (/format_markdown)
+  - **Message operations**: Edit, delete, and metadata access
+    - /edit_test - Send message, wait 2s, then edit with edit_message_text
+    - /delete_test - Send message, wait 5s, then delete with delete_message
+    - /info - Display message metadata (ID, user, chat)
+  - **Message templates**: Reusable message builders
+    - Templates.welcome, error, success, info
+    - /template_demo - Shows all template styles
+  - **Pattern matching**: Demonstrates content type detection
+    - Photo with caption extraction and size analysis
+    - Document with filename, size, MIME type
+    - Location with latitude/longitude
+    - Contact with name and phone
+  - **Commands**: /start, /format_html, /format_markdown, /entities, /edit_test, /delete_test, /info, /template_demo
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Logs include: [/start], [/format_html], [/format_markdown], [/entities], [/edit_test], [/delete_test], [/info], [/template_demo], [on_text], [on_photo], [on_document], [on_location], [on_contact]
+    - Entity extraction logging (count, types)
+    - Message operation logging (send, edit, delete)
+    - Success/error logging for all operations
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.3.4: `docs/callback_queries.mld` - Callback query handling
 - [ ] Task 1.1.3.5: `docs/media_files.mld` - Media handling examples
 - [ ] Task 1.1.3.6: `docs/update_processing.mld` - Update processing patterns
