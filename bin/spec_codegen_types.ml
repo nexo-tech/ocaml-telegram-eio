@@ -49,20 +49,28 @@ let parse_types s : Telegram.Spec_ast.tdef list =
                   | None -> List.rev acc
                   | Some h_end ->
                       let title = strip_tags (String.sub s a_end (h_end - a_end)) |> String.trim in
+                      (* Find the next h4 tag to know where this type's section ends *)
+                      let next_h4_pos = match find_sub s "<h4><a class=\"anchor\" name=\"" ~from:(h_end + 5) with
+                        | Some pos -> pos
+                        | None -> String.length s
+                      in
                       (* Check if this is a discriminated union type by looking for "can be one of" *)
                       let is_union =
                         match find_sub s "<table" ~from:h_end with
-                        | Some t_start ->
+                        | Some t_start when t_start < next_h4_pos ->
                             let desc_section = String.sub s h_end (t_start - h_end) |> String.lowercase_ascii in
                             String.length desc_section > 0 &&
                             (find_sub desc_section "can be one of" <> None ||
                              find_sub desc_section "one of the following" <> None)
-                        | None -> false
+                        | _ -> false
                       in
                       let table =
                         match find_sub s "<table" ~from:h_end with
-                        | Some t_start -> (match find_sub s "</table>" ~from:t_start with None -> None | Some t_end -> Some (String.sub s t_start (t_end - t_start + 8)))
-                        | None -> None
+                        | Some t_start when t_start < next_h4_pos ->
+                            (match find_sub s "</table>" ~from:t_start with
+                             | None -> None
+                             | Some t_end -> Some (String.sub s t_start (t_end - t_start + 8)))
+                        | _ -> None
                       in
                       let fields =
                         match table with

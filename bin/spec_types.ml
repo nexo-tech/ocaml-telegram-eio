@@ -85,12 +85,18 @@ let scan_types_section s =
                    | None -> List.rev acc
                    | Some h_end ->
                        let title = strip_tags (String.sub s a_end (h_end - a_end)) in
-                       (* find first table after h4 *)
+                       (* Find the next h4 tag to know where this type's section ends *)
+                       let next_h4_pos = match find_sub s "<h4><a class=\"anchor\" name=\"" ~from:(h_end + 5) with
+                         | Some pos -> pos
+                         | None -> String.length s
+                       in
+                       (* find first table after h4 but before next h4 *)
                        (match find_sub s "<table" ~from:h_end with
                         | None ->
                             let open Telegram.Spec_ast in
                             loop ({ anchor; title = String.trim title; fields = []; is_union = false } :: acc) (h_end + 5)
-                        | Some t_start ->
+                        | Some t_start when t_start < next_h4_pos ->
+                            (* Table is within this type's section *)
                             (match find_sub s "</table>" ~from:t_start with
                              | None ->
                                  let open Telegram.Spec_ast in
@@ -99,7 +105,11 @@ let scan_types_section s =
                                  let tbl = String.sub s t_start (t_end - t_start + 8) in
                                  let fields = parse_table tbl in
                                  let open Telegram.Spec_ast in
-                                 loop ({ anchor; title = String.trim title; fields; is_union = false } :: acc) (h_end + 5))))))
+                                 loop ({ anchor; title = String.trim title; fields; is_union = false } :: acc) (h_end + 5))
+                        | Some _ ->
+                            (* Table is in the next type's section, so this type has no table *)
+                            let open Telegram.Spec_ast in
+                            loop ({ anchor; title = String.trim title; fields = []; is_union = false } :: acc) (h_end + 5)))))
   in
   loop [] 0
 

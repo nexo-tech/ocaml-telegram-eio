@@ -1,5 +1,50 @@
 (* Generated from reference/api.html *)
-module rec GetUpdates : sig
+module rec August152025 : sig
+  type t = unit
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
+end
+and July32025 : sig
+  type t = unit
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
+end
+and April112025 : sig
+  type t = unit
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
+end
+and MakingRequestsWhenGettingUpdates : sig
+  type t = unit
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
+end
+and DoINeedALocalBotAPIServer : sig
+  type t = unit
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
+end
+and GetUpdates : sig
   type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
@@ -27,77 +72,13 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and GetWebhookInfo : sig
-  type t = {
-    url : string;
-    has_custom_certificate : bool;
-    pending_update_count : int64;
-    ip_address : string option;
-    last_error_date : int64 option;
-    last_error_message : string option;
-    last_synchronization_error_date : int64 option;
-    max_connections : int64 option;
-    allowed_updates : string list option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
-  type t = {
-    url : string;
-    has_custom_certificate : bool;
-    pending_update_count : int64;
-    ip_address : string option;
-    last_error_date : int64 option;
-    last_error_message : string option;
-    last_synchronization_error_date : int64 option;
-    max_connections : int64 option;
-    allowed_updates : string list option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("url", `String v.url);
-        ("has_custom_certificate", `Bool v.has_custom_certificate);
-        ("pending_update_count", `Intlit (Int64.to_string v.pending_update_count))
-      ] @
-      (match v.ip_address with None -> [] | Some x -> [("ip_address", `String x)]) @
-      (match v.last_error_date with None -> [] | Some x -> [("last_error_date", `Intlit (Int64.to_string x))]) @
-      (match v.last_error_message with None -> [] | Some x -> [("last_error_message", `String x)]) @
-      (match v.last_synchronization_error_date with None -> [] | Some x -> [("last_synchronization_error_date", `Intlit (Int64.to_string x))]) @
-      (match v.max_connections with None -> [] | Some x -> [("max_connections", `Intlit (Int64.to_string x))]) @
-      (match v.allowed_updates with None -> [] | Some x -> [("allowed_updates", `List (List.map (fun x -> `String x) x))]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "url";
-          let url = (try (to_string (List.assoc "url" fields)) with Not_found -> raise (Type_error ("Missing required field 'url'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "has_custom_certificate";
-          let has_custom_certificate = (try (to_bool (List.assoc "has_custom_certificate" fields)) with Not_found -> raise (Type_error ("Missing required field 'has_custom_certificate'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "pending_update_count";
-          let pending_update_count = (try (match (List.assoc "pending_update_count" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "pending_update_count" fields)))) with Not_found -> raise (Type_error ("Missing required field 'pending_update_count'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "ip_address";
-          let ip_address = match List.assoc_opt "ip_address" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "last_error_date";
-          let last_error_date = match List.assoc_opt "last_error_date" fields with None | Some `Null -> None | Some x -> Some ((match x with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "last_error_message";
-          let last_error_message = match List.assoc_opt "last_error_message" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "last_synchronization_error_date";
-          let last_synchronization_error_date = match List.assoc_opt "last_synchronization_error_date" fields with None | Some `Null -> None | Some x -> Some ((match x with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "max_connections";
-          let max_connections = match List.assoc_opt "max_connections" fields with None | Some `Null -> None | Some x -> Some ((match x with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "allowed_updates";
-          let allowed_updates = match List.assoc_opt "allowed_updates" fields with None | Some `Null -> None | Some x -> Some ((List.map (fun x -> (to_string x)) (to_list x))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { url = url; has_custom_certificate = has_custom_certificate; pending_update_count = pending_update_count; ip_address = ip_address; last_error_date = last_error_date; last_error_message = last_error_message; last_synchronization_error_date = last_synchronization_error_date; max_connections = max_connections; allowed_updates = allowed_updates; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in getWebhookInfo"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for getWebhookInfo"
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and WebhookInfo : sig
   type t = {
@@ -366,6 +347,26 @@ end = struct
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for MessageId"
 end
+and MaybeInaccessibleMessage : sig
+  (* Union type: Message | InaccessibleMessage *)
+  (* For now, alias to Message (works for most cases) *)
+  type t = Message.t
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = Message.t
+  let to_yojson (v : t) : Yojson.Safe.t = Message.to_yojson v
+  let of_yojson (j : Yojson.Safe.t) : (t, string) result = Message.of_yojson j
+end
+and MessageOrigin : sig
+  type t = unit
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
+end
 and MessageOriginHiddenUser : sig
   type t = {
     type_ : string;
@@ -516,52 +517,13 @@ end = struct
     | _ -> Error "Expected JSON object for Voice"
 end
 and PaidMedia : sig
-  type t = {
-    type_ : string;
-    width : int64 option;
-    height : int64 option;
-    duration : int64 option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
-  type t = {
-    type_ : string;
-    width : int64 option;
-    height : int64 option;
-    duration : int64 option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("type", `String v.type_)
-      ] @
-      (match v.width with None -> [] | Some x -> [("width", `Intlit (Int64.to_string x))]) @
-      (match v.height with None -> [] | Some x -> [("height", `Intlit (Int64.to_string x))]) @
-      (match v.duration with None -> [] | Some x -> [("duration", `Intlit (Int64.to_string x))]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
-          let type_ = (try (to_string (List.assoc "type" fields)) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "width";
-          let width = match List.assoc_opt "width" fields with None | Some `Null -> None | Some x -> Some ((match x with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "height";
-          let height = match List.assoc_opt "height" fields with None | Some `Null -> None | Some x -> Some ((match x with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "duration";
-          let duration = match List.assoc_opt "duration" fields with None | Some `Null -> None | Some x -> Some ((match x with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", x)))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { type_ = type_; width = width; height = height; duration = duration; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in PaidMedia"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for PaidMedia"
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and PaidMediaPreview : sig
   type t = {
@@ -865,42 +827,13 @@ end = struct
     | _ -> Error "Expected JSON object for ChatBoostAdded"
 end
 and BackgroundFill : sig
-  type t = {
-    type_ : string;
-    color : int64 option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
-  type t = {
-    type_ : string;
-    color : int64 option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("type", `String v.type_)
-      ] @
-      (match v.color with None -> [] | Some x -> [("color", `Intlit (Int64.to_string x))]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
-          let type_ = (try (to_string (List.assoc "type" fields)) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "color";
-          let color = match List.assoc_opt "color" fields with None | Some `Null -> None | Some x -> Some ((match x with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", x)))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { type_ = type_; color = color; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in BackgroundFill"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for BackgroundFill"
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and BackgroundFillSolid : sig
   type t = {
@@ -1026,6 +959,15 @@ end = struct
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for BackgroundFillFreeformGradient"
 end
+and BackgroundType : sig
+  type t = unit
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
+end
 and BackgroundTypeChatTheme : sig
   type t = {
     type_ : string;
@@ -1108,41 +1050,13 @@ end = struct
     | _ -> Error "Expected JSON object for ForumTopicCreated"
 end
 and ForumTopicClosed : sig
-  type t = {
-    name : string option;
-    icon_custom_emoji_id : string option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
-  type t = {
-    name : string option;
-    icon_custom_emoji_id : string option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [] @
-      (match v.name with None -> [] | Some x -> [("name", `String x)]) @
-      (match v.icon_custom_emoji_id with None -> [] | Some x -> [("icon_custom_emoji_id", `String x)]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "name";
-          let name = match List.assoc_opt "name" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "icon_custom_emoji_id";
-          let icon_custom_emoji_id = match List.assoc_opt "icon_custom_emoji_id" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { name = name; icon_custom_emoji_id = icon_custom_emoji_id; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in ForumTopicClosed"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for ForumTopicClosed"
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and ForumTopicEdited : sig
   type t = {
@@ -1180,6 +1094,33 @@ end = struct
         | Not_found -> Error "Missing required field in ForumTopicEdited"
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for ForumTopicEdited"
+end
+and ForumTopicReopened : sig
+  type t = unit
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
+end
+and GeneralForumTopicHidden : sig
+  type t = unit
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
+end
+and GeneralForumTopicUnhidden : sig
+  type t = unit
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and WriteAccessAllowed : sig
   type t = {
@@ -1257,37 +1198,13 @@ end = struct
     | _ -> Error "Expected JSON object for VideoChatScheduled"
 end
 and VideoChatStarted : sig
-  type t = {
-    duration : int64;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
-  type t = {
-    duration : int64;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("duration", `Intlit (Int64.to_string v.duration))
-      ] @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "duration";
-          let duration = (try (match (List.assoc "duration" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "duration" fields)))) with Not_found -> raise (Type_error ("Missing required field 'duration'", `Null))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { duration = duration; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in VideoChatStarted"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for VideoChatStarted"
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and VideoChatEnded : sig
   type t = {
@@ -2061,6 +1978,15 @@ end = struct
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for ChatAdministratorRights"
 end
+and ChatMember : sig
+  type t = unit
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
+end
 and ChatPermissions : sig
   type t = {
     can_send_messages : bool option;
@@ -2345,6 +2271,15 @@ end = struct
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for LocationAddress"
 end
+and StoryAreaType : sig
+  type t = unit
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
+end
 and StoryAreaTypeLink : sig
   type t = {
     type_ : string;
@@ -2470,42 +2405,13 @@ end = struct
     | _ -> Error "Expected JSON object for StoryAreaTypeUniqueGift"
 end
 and ReactionType : sig
-  type t = {
-    type_ : string;
-    emoji : string option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
-  type t = {
-    type_ : string;
-    emoji : string option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("type", `String v.type_)
-      ] @
-      (match v.emoji with None -> [] | Some x -> [("emoji", `String x)]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
-          let type_ = (try (to_string (List.assoc "type" fields)) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "emoji";
-          let emoji = match List.assoc_opt "emoji" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { type_ = type_; emoji = emoji; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in ReactionType"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for ReactionType"
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and ReactionTypeEmoji : sig
   type t = {
@@ -2712,6 +2618,15 @@ end = struct
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for UniqueGiftBackdropColors"
 end
+and OwnedGift : sig
+  type t = unit
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
+end
 and AcceptedGiftTypes : sig
   type t = {
     unlimited_gifts : bool;
@@ -2837,70 +2752,22 @@ end = struct
     | _ -> Error "Expected JSON object for BotCommand"
 end
 and BotCommandScope : sig
-  type t = {
-    type_ : string;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
-  type t = {
-    type_ : string;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("type", `String v.type_)
-      ] @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
-          let type_ = (try (to_string (List.assoc "type" fields)) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { type_ = type_; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in BotCommandScope"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for BotCommandScope"
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and DeterminingListOfCommands : sig
-  type t = {
-    type_ : string;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
-  type t = {
-    type_ : string;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("type", `String v.type_)
-      ] @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
-          let type_ = (try (to_string (List.assoc "type" fields)) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { type_ = type_; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in Determining list of commands"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for Determining list of commands"
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and BotCommandScopeDefault : sig
   type t = {
@@ -3253,37 +3120,13 @@ end = struct
     | _ -> Error "Expected JSON object for BotShortDescription"
 end
 and MenuButton : sig
-  type t = {
-    type_ : string;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
-  type t = {
-    type_ : string;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("type", `String v.type_)
-      ] @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
-          let type_ = (try (to_string (List.assoc "type" fields)) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { type_ = type_; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in MenuButton"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for MenuButton"
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and MenuButtonCommands : sig
   type t = {
@@ -3350,6 +3193,15 @@ end = struct
         | Not_found -> Error "Missing required field in MenuButtonDefault"
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for MenuButtonDefault"
+end
+and ChatBoostSource : sig
+  type t = unit
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and BusinessBotRights : sig
   type t = {
@@ -3485,81 +3337,32 @@ end = struct
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for ResponseParameters"
 end
-and InputFile : sig
-  type t = {
-    type_ : string;
-    media : string option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
+and InputMedia : sig
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
-  type t = {
-    type_ : string;
-    media : string option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("type", `String v.type_)
-      ] @
-      (match v.media with None -> [] | Some x -> [("media", `String x)]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
-          let type_ = (try (to_string (List.assoc "type" fields)) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "media";
-          let media = match List.assoc_opt "media" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { type_ = type_; media = media; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in InputFile"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for InputFile"
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
+end
+and InputFile : sig
+  type t = unit
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and InputPaidMedia : sig
-  type t = {
-    type_ : string;
-    media : string option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
-  type t = {
-    type_ : string;
-    media : string option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("type", `String v.type_)
-      ] @
-      (match v.media with None -> [] | Some x -> [("media", `String x)]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
-          let type_ = (try (to_string (List.assoc "type" fields)) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "media";
-          let media = match List.assoc_opt "media" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { type_ = type_; media = media; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in InputPaidMedia"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for InputPaidMedia"
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and InputPaidMediaPhoto : sig
   type t = {
@@ -3673,42 +3476,13 @@ end = struct
     | _ -> Error "Expected JSON object for InputPaidMediaVideo"
 end
 and InputProfilePhoto : sig
-  type t = {
-    type_ : string;
-    photo : string option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
-  type t = {
-    type_ : string;
-    photo : string option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("type", `String v.type_)
-      ] @
-      (match v.photo with None -> [] | Some x -> [("photo", `String x)]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
-          let type_ = (try (to_string (List.assoc "type" fields)) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "photo";
-          let photo = match List.assoc_opt "photo" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { type_ = type_; photo = photo; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in InputProfilePhoto"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for InputProfilePhoto"
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and InputProfilePhotoStatic : sig
   type t = {
@@ -3792,42 +3566,13 @@ end = struct
     | _ -> Error "Expected JSON object for InputProfilePhotoAnimated"
 end
 and InputStoryContent : sig
-  type t = {
-    type_ : string;
-    photo : string option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
-  type t = {
-    type_ : string;
-    photo : string option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("type", `String v.type_)
-      ] @
-      (match v.photo with None -> [] | Some x -> [("photo", `String x)]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
-          let type_ = (try (to_string (List.assoc "type" fields)) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "photo";
-          let photo = match List.assoc_opt "photo" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { type_ = type_; photo = photo; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in InputStoryContent"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for InputStoryContent"
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and InputStoryContentPhoto : sig
   type t = {
@@ -5291,6 +5036,24 @@ end = struct
   let to_yojson (_ : t) : Yojson.Safe.t = `Null
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
+and InlineQueryResult : sig
+  type t = unit
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
+end
+and InputMessageContent : sig
+  type t = unit
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
+end
 and InputLocationMessageContent : sig
   type t = {
     latitude : float;
@@ -5828,37 +5591,13 @@ end = struct
     | _ -> Error "Expected JSON object for RefundedPayment"
 end
 and RevenueWithdrawalState : sig
-  type t = {
-    type_ : string;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
-  type t = {
-    type_ : string;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("type", `String v.type_)
-      ] @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
-          let type_ = (try (to_string (List.assoc "type" fields)) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { type_ = type_; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in RevenueWithdrawalState"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for RevenueWithdrawalState"
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and RevenueWithdrawalStatePending : sig
   type t = {
@@ -5968,6 +5707,15 @@ end = struct
         | Not_found -> Error "Missing required field in RevenueWithdrawalStateFailed"
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for RevenueWithdrawalStateFailed"
+end
+and TransactionPartner : sig
+  type t = unit
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and TransactionPartnerTelegramAds : sig
   type t = {
@@ -6174,57 +5922,13 @@ end = struct
   let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and PassportElementError : sig
-  type t = {
-    source : string;
-    type_ : string;
-    field_name : string;
-    data_hash : string;
-    message : string;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
+  type t = unit
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
-  type t = {
-    source : string;
-    type_ : string;
-    field_name : string;
-    data_hash : string;
-    message : string;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("source", `String v.source);
-        ("type", `String v.type_);
-        ("field_name", `String v.field_name);
-        ("data_hash", `String v.data_hash);
-        ("message", `String v.message)
-      ] @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "source";
-          let source = (try (to_string (List.assoc "source" fields)) with Not_found -> raise (Type_error ("Missing required field 'source'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
-          let type_ = (try (to_string (List.assoc "type" fields)) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "field_name";
-          let field_name = (try (to_string (List.assoc "field_name" fields)) with Not_found -> raise (Type_error ("Missing required field 'field_name'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "data_hash";
-          let data_hash = (try (to_string (List.assoc "data_hash" fields)) with Not_found -> raise (Type_error ("Missing required field 'data_hash'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "message";
-          let message = (try (to_string (List.assoc "message" fields)) with Not_found -> raise (Type_error ("Missing required field 'message'", `Null))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { source = source; type_ = type_; field_name = field_name; data_hash = data_hash; message = message; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in PassportElementError"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for PassportElementError"
+  type t = unit
+  let to_yojson (_ : t) : Yojson.Safe.t = `Null
+  let of_yojson (_ : Yojson.Safe.t) : (t, string) result = Ok (Obj.magic () : t)
 end
 and PassportElementErrorDataField : sig
   type t = {
@@ -6742,68 +6446,6 @@ end = struct
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for InaccessibleMessage"
 end
-and MaybeInaccessibleMessage : sig
-  type t = {
-    type_ : string option;  (* Optional - not all variants have type field *)
-    offset : int64 option;
-    length : int64 option;
-    url : string option;
-    user : User.t option;
-    language : string option;
-    custom_emoji_id : string option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    type_ : string option;  (* Optional - not all variants have type field *)
-    offset : int64 option;
-    length : int64 option;
-    url : string option;
-    user : User.t option;
-    language : string option;
-    custom_emoji_id : string option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [] @
-      (match v.type_ with None -> [] | Some x -> [("type", `String x)]) @
-      (match v.offset with None -> [] | Some x -> [("offset", `Intlit (Int64.to_string x))]) @
-      (match v.length with None -> [] | Some x -> [("length", `Intlit (Int64.to_string x))]) @
-      (match v.url with None -> [] | Some x -> [("url", `String x)]) @
-      (match v.user with None -> [] | Some x -> [("user", User.to_yojson x)]) @
-      (match v.language with None -> [] | Some x -> [("language", `String x)]) @
-      (match v.custom_emoji_id with None -> [] | Some x -> [("custom_emoji_id", `String x)]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
-          let type_ = match List.assoc_opt "type" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "offset";
-          let offset = match List.assoc_opt "offset" fields with None | Some `Null -> None | Some x -> Some ((match x with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "length";
-          let length = match List.assoc_opt "length" fields with None | Some `Null -> None | Some x -> Some ((match x with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "url";
-          let url = match List.assoc_opt "url" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "user";
-          let user = match List.assoc_opt "user" fields with None | Some `Null -> None | Some x -> Some ((match User.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "language";
-          let language = match List.assoc_opt "language" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "custom_emoji_id";
-          let custom_emoji_id = match List.assoc_opt "custom_emoji_id" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { type_ = type_; offset = offset; length = length; url = url; user = user; language = language; custom_emoji_id = custom_emoji_id; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in MaybeInaccessibleMessage"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for MaybeInaccessibleMessage"
-end
 and MessageEntity : sig
   type t = {
     type_ : string;
@@ -6866,49 +6508,6 @@ end = struct
         | Not_found -> Error "Missing required field in MessageEntity"
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for MessageEntity"
-end
-and MessageOrigin : sig
-  type t = {
-    type_ : string;
-    date : int64 option;
-    sender_user : User.t option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    type_ : string;
-    date : int64 option;
-    sender_user : User.t option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("type", `String v.type_)
-      ] @
-      (match v.date with None -> [] | Some x -> [("date", `Intlit (Int64.to_string x))]) @
-      (match v.sender_user with None -> [] | Some x -> [("sender_user", User.to_yojson x)]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
-          let type_ = (try (to_string (List.assoc "type" fields)) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "date";
-          let date = match List.assoc_opt "date" fields with None | Some `Null -> None | Some x -> Some ((match x with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "sender_user";
-          let sender_user = match List.assoc_opt "sender_user" fields with None | Some `Null -> None | Some x -> Some ((match User.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { type_ = type_; date = date; sender_user = sender_user; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in MessageOrigin"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for MessageOrigin"
 end
 and MessageOriginUser : sig
   type t = {
@@ -7667,49 +7266,6 @@ end = struct
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for ProximityAlertTriggered"
 end
-and BackgroundType : sig
-  type t = {
-    type_ : string;
-    fill : BackgroundFill.t option;
-    dark_theme_dimming : int64 option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    type_ : string;
-    fill : BackgroundFill.t option;
-    dark_theme_dimming : int64 option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("type", `String v.type_)
-      ] @
-      (match v.fill with None -> [] | Some x -> [("fill", BackgroundFill.to_yojson x)]) @
-      (match v.dark_theme_dimming with None -> [] | Some x -> [("dark_theme_dimming", `Intlit (Int64.to_string x))]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
-          let type_ = (try (to_string (List.assoc "type" fields)) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "fill";
-          let fill = match List.assoc_opt "fill" fields with None | Some `Null -> None | Some x -> Some ((match BackgroundFill.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "dark_theme_dimming";
-          let dark_theme_dimming = match List.assoc_opt "dark_theme_dimming" fields with None | Some `Null -> None | Some x -> Some ((match x with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", x)))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { type_ = type_; fill = fill; dark_theme_dimming = dark_theme_dimming; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in BackgroundType"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for BackgroundType"
-end
 and BackgroundTypeFill : sig
   type t = {
     type_ : string;
@@ -7753,35 +7309,23 @@ end = struct
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for BackgroundTypeFill"
 end
-and ForumTopicReopened : sig
+and ChatBackground : sig
   type t = {
-    user_id : int64;
-    first_name : string option;
-    last_name : string option;
-    username : string option;
-    photo : PhotoSize.t list option;
+    type_ : BackgroundType.t;
     unknown_fields : Telegram.Json_compat.Unknown_fields.t;
   }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
   type t = {
-    user_id : int64;
-    first_name : string option;
-    last_name : string option;
-    username : string option;
-    photo : PhotoSize.t list option;
+    type_ : BackgroundType.t;
     unknown_fields : Telegram.Json_compat.Unknown_fields.t;
   }
   let to_yojson (v : t) : Yojson.Safe.t =
     `Assoc (
       [
-        ("user_id", `Intlit (Int64.to_string v.user_id))
+        ("type", BackgroundType.to_yojson v.type_)
       ] @
-      (match v.first_name with None -> [] | Some x -> [("first_name", `String x)]) @
-      (match v.last_name with None -> [] | Some x -> [("last_name", `String x)]) @
-      (match v.username with None -> [] | Some x -> [("username", `String x)]) @
-      (match v.photo with None -> [] | Some x -> [("photo", `List (List.map (fun x -> PhotoSize.to_yojson x) x))]) @
       Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
   let of_yojson (j : Yojson.Safe.t) : (t, string) result =
     match j with
@@ -7789,128 +7333,14 @@ end = struct
         let open Yojson.Safe.Util in
         let uf = Telegram.Json_compat.Unknown_fields.create () in
         (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "user_id";
-          let user_id = (try (match (List.assoc "user_id" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "user_id" fields)))) with Not_found -> raise (Type_error ("Missing required field 'user_id'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "first_name";
-          let first_name = match List.assoc_opt "first_name" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "last_name";
-          let last_name = match List.assoc_opt "last_name" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "username";
-          let username = match List.assoc_opt "username" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "photo";
-          let photo = match List.assoc_opt "photo" fields with None | Some `Null -> None | Some x -> Some ((List.map (fun x -> (match PhotoSize.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) (to_list x))) in
+          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
+          let type_ = (try (match BackgroundType.of_yojson (List.assoc "type" fields) with Ok v -> v | Error e -> raise (Type_error (e, (List.assoc "type" fields)))) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
           let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { user_id = user_id; first_name = first_name; last_name = last_name; username = username; photo = photo; unknown_fields }
+          Ok { type_ = type_; unknown_fields }
         with
-        | Not_found -> Error "Missing required field in ForumTopicReopened"
+        | Not_found -> Error "Missing required field in ChatBackground"
         | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for ForumTopicReopened"
-end
-and GeneralForumTopicHidden : sig
-  type t = {
-    user_id : int64;
-    first_name : string option;
-    last_name : string option;
-    username : string option;
-    photo : PhotoSize.t list option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    user_id : int64;
-    first_name : string option;
-    last_name : string option;
-    username : string option;
-    photo : PhotoSize.t list option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("user_id", `Intlit (Int64.to_string v.user_id))
-      ] @
-      (match v.first_name with None -> [] | Some x -> [("first_name", `String x)]) @
-      (match v.last_name with None -> [] | Some x -> [("last_name", `String x)]) @
-      (match v.username with None -> [] | Some x -> [("username", `String x)]) @
-      (match v.photo with None -> [] | Some x -> [("photo", `List (List.map (fun x -> PhotoSize.to_yojson x) x))]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "user_id";
-          let user_id = (try (match (List.assoc "user_id" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "user_id" fields)))) with Not_found -> raise (Type_error ("Missing required field 'user_id'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "first_name";
-          let first_name = match List.assoc_opt "first_name" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "last_name";
-          let last_name = match List.assoc_opt "last_name" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "username";
-          let username = match List.assoc_opt "username" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "photo";
-          let photo = match List.assoc_opt "photo" fields with None | Some `Null -> None | Some x -> Some ((List.map (fun x -> (match PhotoSize.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) (to_list x))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { user_id = user_id; first_name = first_name; last_name = last_name; username = username; photo = photo; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in GeneralForumTopicHidden"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for GeneralForumTopicHidden"
-end
-and GeneralForumTopicUnhidden : sig
-  type t = {
-    user_id : int64;
-    first_name : string option;
-    last_name : string option;
-    username : string option;
-    photo : PhotoSize.t list option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    user_id : int64;
-    first_name : string option;
-    last_name : string option;
-    username : string option;
-    photo : PhotoSize.t list option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("user_id", `Intlit (Int64.to_string v.user_id))
-      ] @
-      (match v.first_name with None -> [] | Some x -> [("first_name", `String x)]) @
-      (match v.last_name with None -> [] | Some x -> [("last_name", `String x)]) @
-      (match v.username with None -> [] | Some x -> [("username", `String x)]) @
-      (match v.photo with None -> [] | Some x -> [("photo", `List (List.map (fun x -> PhotoSize.to_yojson x) x))]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "user_id";
-          let user_id = (try (match (List.assoc "user_id" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "user_id" fields)))) with Not_found -> raise (Type_error ("Missing required field 'user_id'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "first_name";
-          let first_name = match List.assoc_opt "first_name" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "last_name";
-          let last_name = match List.assoc_opt "last_name" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "username";
-          let username = match List.assoc_opt "username" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "photo";
-          let photo = match List.assoc_opt "photo" fields with None | Some `Null -> None | Some x -> Some ((List.map (fun x -> (match PhotoSize.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) (to_list x))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { user_id = user_id; first_name = first_name; last_name = last_name; username = username; photo = photo; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in GeneralForumTopicUnhidden"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for GeneralForumTopicUnhidden"
+    | _ -> Error "Expected JSON object for ChatBackground"
 end
 and SharedUser : sig
   type t = {
@@ -8534,6 +7964,69 @@ end = struct
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for InlineKeyboardButton"
 end
+and CallbackQuery : sig
+  type t = {
+    id : string;
+    from : User.t;
+    message : MaybeInaccessibleMessage.t option;
+    inline_message_id : string option;
+    chat_instance : string;
+    data : string option;
+    game_short_name : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = {
+    id : string;
+    from : User.t;
+    message : MaybeInaccessibleMessage.t option;
+    inline_message_id : string option;
+    chat_instance : string;
+    data : string option;
+    game_short_name : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
+  let to_yojson (v : t) : Yojson.Safe.t =
+    `Assoc (
+      [
+        ("id", `String v.id);
+        ("from", User.to_yojson v.from);
+        ("chat_instance", `String v.chat_instance)
+      ] @
+      (match v.message with None -> [] | Some x -> [("message", MaybeInaccessibleMessage.to_yojson x)]) @
+      (match v.inline_message_id with None -> [] | Some x -> [("inline_message_id", `String x)]) @
+      (match v.data with None -> [] | Some x -> [("data", `String x)]) @
+      (match v.game_short_name with None -> [] | Some x -> [("game_short_name", `String x)]) @
+      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
+  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
+    match j with
+    | `Assoc fields ->
+        let open Yojson.Safe.Util in
+        let uf = Telegram.Json_compat.Unknown_fields.create () in
+        (try
+          Telegram.Json_compat.Unknown_fields.mark_known uf "id";
+          let id = (try (to_string (List.assoc "id" fields)) with Not_found -> raise (Type_error ("Missing required field 'id'", `Null))) in
+          Telegram.Json_compat.Unknown_fields.mark_known uf "from";
+          let from = (try (match User.of_yojson (List.assoc "from" fields) with Ok v -> v | Error e -> raise (Type_error (e, (List.assoc "from" fields)))) with Not_found -> raise (Type_error ("Missing required field 'from'", `Null))) in
+          Telegram.Json_compat.Unknown_fields.mark_known uf "message";
+          let message = match List.assoc_opt "message" fields with None | Some `Null -> None | Some x -> Some ((match MaybeInaccessibleMessage.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
+          Telegram.Json_compat.Unknown_fields.mark_known uf "inline_message_id";
+          let inline_message_id = match List.assoc_opt "inline_message_id" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
+          Telegram.Json_compat.Unknown_fields.mark_known uf "chat_instance";
+          let chat_instance = (try (to_string (List.assoc "chat_instance" fields)) with Not_found -> raise (Type_error ("Missing required field 'chat_instance'", `Null))) in
+          Telegram.Json_compat.Unknown_fields.mark_known uf "data";
+          let data = match List.assoc_opt "data" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
+          Telegram.Json_compat.Unknown_fields.mark_known uf "game_short_name";
+          let game_short_name = match List.assoc_opt "game_short_name" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
+          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
+          Ok { id = id; from = from; message = message; inline_message_id = inline_message_id; chat_instance = chat_instance; data = data; game_short_name = game_short_name; unknown_fields }
+        with
+        | Not_found -> Error "Missing required field in CallbackQuery"
+        | Type_error (msg, _) -> Error msg)
+    | _ -> Error "Expected JSON object for CallbackQuery"
+end
 and ChatInviteLink : sig
   type t = {
     invite_link : string;
@@ -8616,54 +8109,6 @@ end = struct
         | Not_found -> Error "Missing required field in ChatInviteLink"
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for ChatInviteLink"
-end
-and ChatMember : sig
-  type t = {
-    status : string;
-    user : User.t;
-    is_anonymous : bool;
-    custom_title : string option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    status : string;
-    user : User.t;
-    is_anonymous : bool;
-    custom_title : string option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("status", `String v.status);
-        ("user", User.to_yojson v.user);
-        ("is_anonymous", `Bool v.is_anonymous)
-      ] @
-      (match v.custom_title with None -> [] | Some x -> [("custom_title", `String x)]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "status";
-          let status = (try (to_string (List.assoc "status" fields)) with Not_found -> raise (Type_error ("Missing required field 'status'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "user";
-          let user = (try (match User.of_yojson (List.assoc "user" fields) with Ok v -> v | Error e -> raise (Type_error (e, (List.assoc "user" fields)))) with Not_found -> raise (Type_error ("Missing required field 'user'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "is_anonymous";
-          let is_anonymous = (try (to_bool (List.assoc "is_anonymous" fields)) with Not_found -> raise (Type_error ("Missing required field 'is_anonymous'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "custom_title";
-          let custom_title = match List.assoc_opt "custom_title" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { status = status; user = user; is_anonymous = is_anonymous; custom_title = custom_title; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in ChatMember"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for ChatMember"
 end
 and ChatMemberOwner : sig
   type t = {
@@ -9159,54 +8604,6 @@ end = struct
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for BusinessOpeningHours"
 end
-and StoryAreaType : sig
-  type t = {
-    type_ : string;
-    latitude : float option;
-    longitude : float option;
-    address : LocationAddress.t option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    type_ : string;
-    latitude : float option;
-    longitude : float option;
-    address : LocationAddress.t option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("type", `String v.type_)
-      ] @
-      (match v.latitude with None -> [] | Some x -> [("latitude", `Float x)]) @
-      (match v.longitude with None -> [] | Some x -> [("longitude", `Float x)]) @
-      (match v.address with None -> [] | Some x -> [("address", LocationAddress.to_yojson x)]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
-          let type_ = (try (to_string (List.assoc "type" fields)) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "latitude";
-          let latitude = match List.assoc_opt "latitude" fields with None | Some `Null -> None | Some x -> Some ((to_float x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "longitude";
-          let longitude = match List.assoc_opt "longitude" fields with None | Some `Null -> None | Some x -> Some ((to_float x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "address";
-          let address = match List.assoc_opt "address" fields with None | Some `Null -> None | Some x -> Some ((match LocationAddress.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { type_ = type_; latitude = latitude; longitude = longitude; address = address; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in StoryAreaType"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for StoryAreaType"
-end
 and StoryAreaTypeLocation : sig
   type t = {
     type_ : string;
@@ -9302,6 +8699,44 @@ end = struct
         | Not_found -> Error "Missing required field in StoryAreaTypeSuggestedReaction"
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for StoryAreaTypeSuggestedReaction"
+end
+and StoryArea : sig
+  type t = {
+    position : StoryAreaPosition.t;
+    type_ : StoryAreaType.t;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = {
+    position : StoryAreaPosition.t;
+    type_ : StoryAreaType.t;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
+  let to_yojson (v : t) : Yojson.Safe.t =
+    `Assoc (
+      [
+        ("position", StoryAreaPosition.to_yojson v.position);
+        ("type", StoryAreaType.to_yojson v.type_)
+      ] @
+      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
+  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
+    match j with
+    | `Assoc fields ->
+        let open Yojson.Safe.Util in
+        let uf = Telegram.Json_compat.Unknown_fields.create () in
+        (try
+          Telegram.Json_compat.Unknown_fields.mark_known uf "position";
+          let position = (try (match StoryAreaPosition.of_yojson (List.assoc "position" fields) with Ok v -> v | Error e -> raise (Type_error (e, (List.assoc "position" fields)))) with Not_found -> raise (Type_error ("Missing required field 'position'", `Null))) in
+          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
+          let type_ = (try (match StoryAreaType.of_yojson (List.assoc "type" fields) with Ok v -> v | Error e -> raise (Type_error (e, (List.assoc "type" fields)))) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
+          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
+          Ok { position = position; type_ = type_; unknown_fields }
+        with
+        | Not_found -> Error "Missing required field in StoryArea"
+        | Type_error (msg, _) -> Error msg)
+    | _ -> Error "Expected JSON object for StoryArea"
 end
 and ChatLocation : sig
   type t = {
@@ -9485,6 +8920,49 @@ end = struct
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for UniqueGiftBackdrop"
 end
+and OwnedGifts : sig
+  type t = {
+    total_count : int64;
+    gifts : OwnedGift.t list;
+    next_offset : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = {
+    total_count : int64;
+    gifts : OwnedGift.t list;
+    next_offset : string option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
+  let to_yojson (v : t) : Yojson.Safe.t =
+    `Assoc (
+      [
+        ("total_count", `Intlit (Int64.to_string v.total_count));
+        ("gifts", `List (List.map (fun x -> OwnedGift.to_yojson x) v.gifts))
+      ] @
+      (match v.next_offset with None -> [] | Some x -> [("next_offset", `String x)]) @
+      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
+  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
+    match j with
+    | `Assoc fields ->
+        let open Yojson.Safe.Util in
+        let uf = Telegram.Json_compat.Unknown_fields.create () in
+        (try
+          Telegram.Json_compat.Unknown_fields.mark_known uf "total_count";
+          let total_count = (try (match (List.assoc "total_count" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "total_count" fields)))) with Not_found -> raise (Type_error ("Missing required field 'total_count'", `Null))) in
+          Telegram.Json_compat.Unknown_fields.mark_known uf "gifts";
+          let gifts = (try (List.map (fun x -> (match OwnedGift.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) (to_list (List.assoc "gifts" fields))) with Not_found -> raise (Type_error ("Missing required field 'gifts'", `Null))) in
+          Telegram.Json_compat.Unknown_fields.mark_known uf "next_offset";
+          let next_offset = match List.assoc_opt "next_offset" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
+          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
+          Ok { total_count = total_count; gifts = gifts; next_offset = next_offset; unknown_fields }
+        with
+        | Not_found -> Error "Missing required field in OwnedGifts"
+        | Type_error (msg, _) -> Error msg)
+    | _ -> Error "Expected JSON object for OwnedGifts"
+end
 and MenuButtonWebApp : sig
   type t = {
     type_ : string;
@@ -9527,43 +9005,6 @@ end = struct
         | Not_found -> Error "Missing required field in MenuButtonWebApp"
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for MenuButtonWebApp"
-end
-and ChatBoostSource : sig
-  type t = {
-    source : string option;
-    user : User.t option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    source : string option;
-    user : User.t option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [] @
-      (match v.source with None -> [] | Some x -> [("source", `String x)]) @
-      (match v.user with None -> [] | Some x -> [("user", User.to_yojson x)]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "source";
-          let source = match List.assoc_opt "source" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "user";
-          let user = match List.assoc_opt "user" fields with None | Some `Null -> None | Some x -> Some ((match User.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { source = source; user = user; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in ChatBoostSource"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for ChatBoostSource"
 end
 and ChatBoostSourcePremium : sig
   type t = {
@@ -9693,6 +9134,102 @@ end = struct
         | Not_found -> Error "Missing required field in ChatBoostSourceGiveaway"
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for ChatBoostSourceGiveaway"
+end
+and ChatBoost : sig
+  type t = {
+    boost_id : string;
+    add_date : int64;
+    expiration_date : int64;
+    source : ChatBoostSource.t;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = {
+    boost_id : string;
+    add_date : int64;
+    expiration_date : int64;
+    source : ChatBoostSource.t;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
+  let to_yojson (v : t) : Yojson.Safe.t =
+    `Assoc (
+      [
+        ("boost_id", `String v.boost_id);
+        ("add_date", `Intlit (Int64.to_string v.add_date));
+        ("expiration_date", `Intlit (Int64.to_string v.expiration_date));
+        ("source", ChatBoostSource.to_yojson v.source)
+      ] @
+      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
+  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
+    match j with
+    | `Assoc fields ->
+        let open Yojson.Safe.Util in
+        let uf = Telegram.Json_compat.Unknown_fields.create () in
+        (try
+          Telegram.Json_compat.Unknown_fields.mark_known uf "boost_id";
+          let boost_id = (try (to_string (List.assoc "boost_id" fields)) with Not_found -> raise (Type_error ("Missing required field 'boost_id'", `Null))) in
+          Telegram.Json_compat.Unknown_fields.mark_known uf "add_date";
+          let add_date = (try (match (List.assoc "add_date" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "add_date" fields)))) with Not_found -> raise (Type_error ("Missing required field 'add_date'", `Null))) in
+          Telegram.Json_compat.Unknown_fields.mark_known uf "expiration_date";
+          let expiration_date = (try (match (List.assoc "expiration_date" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "expiration_date" fields)))) with Not_found -> raise (Type_error ("Missing required field 'expiration_date'", `Null))) in
+          Telegram.Json_compat.Unknown_fields.mark_known uf "source";
+          let source = (try (match ChatBoostSource.of_yojson (List.assoc "source" fields) with Ok v -> v | Error e -> raise (Type_error (e, (List.assoc "source" fields)))) with Not_found -> raise (Type_error ("Missing required field 'source'", `Null))) in
+          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
+          Ok { boost_id = boost_id; add_date = add_date; expiration_date = expiration_date; source = source; unknown_fields }
+        with
+        | Not_found -> Error "Missing required field in ChatBoost"
+        | Type_error (msg, _) -> Error msg)
+    | _ -> Error "Expected JSON object for ChatBoost"
+end
+and ChatBoostRemoved : sig
+  type t = {
+    chat : Chat.t;
+    boost_id : string;
+    remove_date : int64;
+    source : ChatBoostSource.t;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = {
+    chat : Chat.t;
+    boost_id : string;
+    remove_date : int64;
+    source : ChatBoostSource.t;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
+  let to_yojson (v : t) : Yojson.Safe.t =
+    `Assoc (
+      [
+        ("chat", Chat.to_yojson v.chat);
+        ("boost_id", `String v.boost_id);
+        ("remove_date", `Intlit (Int64.to_string v.remove_date));
+        ("source", ChatBoostSource.to_yojson v.source)
+      ] @
+      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
+  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
+    match j with
+    | `Assoc fields ->
+        let open Yojson.Safe.Util in
+        let uf = Telegram.Json_compat.Unknown_fields.create () in
+        (try
+          Telegram.Json_compat.Unknown_fields.mark_known uf "chat";
+          let chat = (try (match Chat.of_yojson (List.assoc "chat" fields) with Ok v -> v | Error e -> raise (Type_error (e, (List.assoc "chat" fields)))) with Not_found -> raise (Type_error ("Missing required field 'chat'", `Null))) in
+          Telegram.Json_compat.Unknown_fields.mark_known uf "boost_id";
+          let boost_id = (try (to_string (List.assoc "boost_id" fields)) with Not_found -> raise (Type_error ("Missing required field 'boost_id'", `Null))) in
+          Telegram.Json_compat.Unknown_fields.mark_known uf "remove_date";
+          let remove_date = (try (match (List.assoc "remove_date" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "remove_date" fields)))) with Not_found -> raise (Type_error ("Missing required field 'remove_date'", `Null))) in
+          Telegram.Json_compat.Unknown_fields.mark_known uf "source";
+          let source = (try (match ChatBoostSource.of_yojson (List.assoc "source" fields) with Ok v -> v | Error e -> raise (Type_error (e, (List.assoc "source" fields)))) with Not_found -> raise (Type_error ("Missing required field 'source'", `Null))) in
+          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
+          Ok { chat = chat; boost_id = boost_id; remove_date = remove_date; source = source; unknown_fields }
+        with
+        | Not_found -> Error "Missing required field in ChatBoostRemoved"
+        | Type_error (msg, _) -> Error msg)
+    | _ -> Error "Expected JSON object for ChatBoostRemoved"
 end
 and BusinessConnection : sig
   type t = {
@@ -10543,6 +10080,64 @@ end = struct
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for TransactionPartnerFragment"
 end
+and StarTransaction : sig
+  type t = {
+    id : string;
+    amount : int64;
+    nanostar_amount : int64 option;
+    date : int64;
+    source : TransactionPartner.t option;
+    receiver : TransactionPartner.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = {
+    id : string;
+    amount : int64;
+    nanostar_amount : int64 option;
+    date : int64;
+    source : TransactionPartner.t option;
+    receiver : TransactionPartner.t option;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
+  let to_yojson (v : t) : Yojson.Safe.t =
+    `Assoc (
+      [
+        ("id", `String v.id);
+        ("amount", `Intlit (Int64.to_string v.amount));
+        ("date", `Intlit (Int64.to_string v.date))
+      ] @
+      (match v.nanostar_amount with None -> [] | Some x -> [("nanostar_amount", `Intlit (Int64.to_string x))]) @
+      (match v.source with None -> [] | Some x -> [("source", TransactionPartner.to_yojson x)]) @
+      (match v.receiver with None -> [] | Some x -> [("receiver", TransactionPartner.to_yojson x)]) @
+      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
+  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
+    match j with
+    | `Assoc fields ->
+        let open Yojson.Safe.Util in
+        let uf = Telegram.Json_compat.Unknown_fields.create () in
+        (try
+          Telegram.Json_compat.Unknown_fields.mark_known uf "id";
+          let id = (try (to_string (List.assoc "id" fields)) with Not_found -> raise (Type_error ("Missing required field 'id'", `Null))) in
+          Telegram.Json_compat.Unknown_fields.mark_known uf "amount";
+          let amount = (try (match (List.assoc "amount" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "amount" fields)))) with Not_found -> raise (Type_error ("Missing required field 'amount'", `Null))) in
+          Telegram.Json_compat.Unknown_fields.mark_known uf "nanostar_amount";
+          let nanostar_amount = match List.assoc_opt "nanostar_amount" fields with None | Some `Null -> None | Some x -> Some ((match x with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", x)))) in
+          Telegram.Json_compat.Unknown_fields.mark_known uf "date";
+          let date = (try (match (List.assoc "date" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "date" fields)))) with Not_found -> raise (Type_error ("Missing required field 'date'", `Null))) in
+          Telegram.Json_compat.Unknown_fields.mark_known uf "source";
+          let source = match List.assoc_opt "source" fields with None | Some `Null -> None | Some x -> Some ((match TransactionPartner.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
+          Telegram.Json_compat.Unknown_fields.mark_known uf "receiver";
+          let receiver = match List.assoc_opt "receiver" fields with None | Some `Null -> None | Some x -> Some ((match TransactionPartner.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
+          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
+          Ok { id = id; amount = amount; nanostar_amount = nanostar_amount; date = date; source = source; receiver = receiver; unknown_fields }
+        with
+        | Not_found -> Error "Missing required field in StarTransaction"
+        | Type_error (msg, _) -> Error msg)
+    | _ -> Error "Expected JSON object for StarTransaction"
+end
 and EncryptedPassportElement : sig
   type t = {
     type_ : string;
@@ -11116,39 +10711,6 @@ end = struct
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for BackgroundTypePattern"
 end
-and ChatBackground : sig
-  type t = {
-    type_ : BackgroundType.t;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    type_ : BackgroundType.t;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("type", BackgroundType.to_yojson v.type_)
-      ] @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
-          let type_ = (try (match BackgroundType.of_yojson (List.assoc "type" fields) with Ok v -> v | Error e -> raise (Type_error (e, (List.assoc "type" fields)))) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { type_ = type_; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in ChatBackground"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for ChatBackground"
-end
 and UsersShared : sig
   type t = {
     request_id : int64;
@@ -11282,69 +10844,6 @@ end = struct
         | Not_found -> Error "Missing required field in InlineKeyboardMarkup"
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for InlineKeyboardMarkup"
-end
-and CallbackQuery : sig
-  type t = {
-    id : string;
-    from : User.t;
-    message : MaybeInaccessibleMessage.t option;
-    inline_message_id : string option;
-    chat_instance : string;
-    data : string option;
-    game_short_name : string option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    id : string;
-    from : User.t;
-    message : MaybeInaccessibleMessage.t option;
-    inline_message_id : string option;
-    chat_instance : string;
-    data : string option;
-    game_short_name : string option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("id", `String v.id);
-        ("from", User.to_yojson v.from);
-        ("chat_instance", `String v.chat_instance)
-      ] @
-      (match v.message with None -> [] | Some x -> [("message", MaybeInaccessibleMessage.to_yojson x)]) @
-      (match v.inline_message_id with None -> [] | Some x -> [("inline_message_id", `String x)]) @
-      (match v.data with None -> [] | Some x -> [("data", `String x)]) @
-      (match v.game_short_name with None -> [] | Some x -> [("game_short_name", `String x)]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "id";
-          let id = (try (to_string (List.assoc "id" fields)) with Not_found -> raise (Type_error ("Missing required field 'id'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "from";
-          let from = (try (match User.of_yojson (List.assoc "from" fields) with Ok v -> v | Error e -> raise (Type_error (e, (List.assoc "from" fields)))) with Not_found -> raise (Type_error ("Missing required field 'from'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "message";
-          let message = match List.assoc_opt "message" fields with None | Some `Null -> None | Some x -> Some ((match MaybeInaccessibleMessage.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "inline_message_id";
-          let inline_message_id = match List.assoc_opt "inline_message_id" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "chat_instance";
-          let chat_instance = (try (to_string (List.assoc "chat_instance" fields)) with Not_found -> raise (Type_error ("Missing required field 'chat_instance'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "data";
-          let data = match List.assoc_opt "data" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "game_short_name";
-          let game_short_name = match List.assoc_opt "game_short_name" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { id = id; from = from; message = message; inline_message_id = inline_message_id; chat_instance = chat_instance; data = data; game_short_name = game_short_name; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in CallbackQuery"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for CallbackQuery"
 end
 and ChatMemberUpdated : sig
   type t = {
@@ -11513,44 +11012,6 @@ end = struct
         | Not_found -> Error "Missing required field in BusinessIntro"
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for BusinessIntro"
-end
-and StoryArea : sig
-  type t = {
-    position : StoryAreaPosition.t;
-    type_ : StoryAreaType.t;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    position : StoryAreaPosition.t;
-    type_ : StoryAreaType.t;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("position", StoryAreaPosition.to_yojson v.position);
-        ("type", StoryAreaType.to_yojson v.type_)
-      ] @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "position";
-          let position = (try (match StoryAreaPosition.of_yojson (List.assoc "position" fields) with Ok v -> v | Error e -> raise (Type_error (e, (List.assoc "position" fields)))) with Not_found -> raise (Type_error ("Missing required field 'position'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
-          let type_ = (try (match StoryAreaType.of_yojson (List.assoc "type" fields) with Ok v -> v | Error e -> raise (Type_error (e, (List.assoc "type" fields)))) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { position = position; type_ = type_; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in StoryArea"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for StoryArea"
 end
 and MessageReactionCountUpdated : sig
   type t = {
@@ -11749,60 +11210,10 @@ end = struct
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for UniqueGiftSymbol"
 end
-and ChatBoost : sig
-  type t = {
-    boost_id : string;
-    add_date : int64;
-    expiration_date : int64;
-    source : ChatBoostSource.t;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    boost_id : string;
-    add_date : int64;
-    expiration_date : int64;
-    source : ChatBoostSource.t;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("boost_id", `String v.boost_id);
-        ("add_date", `Intlit (Int64.to_string v.add_date));
-        ("expiration_date", `Intlit (Int64.to_string v.expiration_date));
-        ("source", ChatBoostSource.to_yojson v.source)
-      ] @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "boost_id";
-          let boost_id = (try (to_string (List.assoc "boost_id" fields)) with Not_found -> raise (Type_error ("Missing required field 'boost_id'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "add_date";
-          let add_date = (try (match (List.assoc "add_date" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "add_date" fields)))) with Not_found -> raise (Type_error ("Missing required field 'add_date'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "expiration_date";
-          let expiration_date = (try (match (List.assoc "expiration_date" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "expiration_date" fields)))) with Not_found -> raise (Type_error ("Missing required field 'expiration_date'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "source";
-          let source = (try (match ChatBoostSource.of_yojson (List.assoc "source" fields) with Ok v -> v | Error e -> raise (Type_error (e, (List.assoc "source" fields)))) with Not_found -> raise (Type_error ("Missing required field 'source'", `Null))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { boost_id = boost_id; add_date = add_date; expiration_date = expiration_date; source = source; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in ChatBoost"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for ChatBoost"
-end
-and ChatBoostRemoved : sig
+and ChatBoostUpdated : sig
   type t = {
     chat : Chat.t;
-    boost_id : string;
-    remove_date : int64;
-    source : ChatBoostSource.t;
+    boost : ChatBoost.t;
     unknown_fields : Telegram.Json_compat.Unknown_fields.t;
   }
   val to_yojson : t -> Yojson.Safe.t
@@ -11810,18 +11221,14 @@ and ChatBoostRemoved : sig
 end = struct
   type t = {
     chat : Chat.t;
-    boost_id : string;
-    remove_date : int64;
-    source : ChatBoostSource.t;
+    boost : ChatBoost.t;
     unknown_fields : Telegram.Json_compat.Unknown_fields.t;
   }
   let to_yojson (v : t) : Yojson.Safe.t =
     `Assoc (
       [
         ("chat", Chat.to_yojson v.chat);
-        ("boost_id", `String v.boost_id);
-        ("remove_date", `Intlit (Int64.to_string v.remove_date));
-        ("source", ChatBoostSource.to_yojson v.source)
+        ("boost", ChatBoost.to_yojson v.boost)
       ] @
       Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
   let of_yojson (j : Yojson.Safe.t) : (t, string) result =
@@ -11832,54 +11239,32 @@ end = struct
         (try
           Telegram.Json_compat.Unknown_fields.mark_known uf "chat";
           let chat = (try (match Chat.of_yojson (List.assoc "chat" fields) with Ok v -> v | Error e -> raise (Type_error (e, (List.assoc "chat" fields)))) with Not_found -> raise (Type_error ("Missing required field 'chat'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "boost_id";
-          let boost_id = (try (to_string (List.assoc "boost_id" fields)) with Not_found -> raise (Type_error ("Missing required field 'boost_id'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "remove_date";
-          let remove_date = (try (match (List.assoc "remove_date" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "remove_date" fields)))) with Not_found -> raise (Type_error ("Missing required field 'remove_date'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "source";
-          let source = (try (match ChatBoostSource.of_yojson (List.assoc "source" fields) with Ok v -> v | Error e -> raise (Type_error (e, (List.assoc "source" fields)))) with Not_found -> raise (Type_error ("Missing required field 'source'", `Null))) in
+          Telegram.Json_compat.Unknown_fields.mark_known uf "boost";
+          let boost = (try (match ChatBoost.of_yojson (List.assoc "boost" fields) with Ok v -> v | Error e -> raise (Type_error (e, (List.assoc "boost" fields)))) with Not_found -> raise (Type_error ("Missing required field 'boost'", `Null))) in
           let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { chat = chat; boost_id = boost_id; remove_date = remove_date; source = source; unknown_fields }
+          Ok { chat = chat; boost = boost; unknown_fields }
         with
-        | Not_found -> Error "Missing required field in ChatBoostRemoved"
+        | Not_found -> Error "Missing required field in ChatBoostUpdated"
         | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for ChatBoostRemoved"
+    | _ -> Error "Expected JSON object for ChatBoostUpdated"
 end
-and InputMedia : sig
+and UserChatBoosts : sig
   type t = {
-    type_ : string;
-    media : string;
-    caption : string option;
-    parse_mode : string option;
-    caption_entities : MessageEntity.t list option;
-    show_caption_above_media : bool option;
-    has_spoiler : bool option;
+    boosts : ChatBoost.t list;
     unknown_fields : Telegram.Json_compat.Unknown_fields.t;
   }
   val to_yojson : t -> Yojson.Safe.t
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
   type t = {
-    type_ : string;
-    media : string;
-    caption : string option;
-    parse_mode : string option;
-    caption_entities : MessageEntity.t list option;
-    show_caption_above_media : bool option;
-    has_spoiler : bool option;
+    boosts : ChatBoost.t list;
     unknown_fields : Telegram.Json_compat.Unknown_fields.t;
   }
   let to_yojson (v : t) : Yojson.Safe.t =
     `Assoc (
       [
-        ("type", `String v.type_);
-        ("media", `String v.media)
+        ("boosts", `List (List.map (fun x -> ChatBoost.to_yojson x) v.boosts))
       ] @
-      (match v.caption with None -> [] | Some x -> [("caption", `String x)]) @
-      (match v.parse_mode with None -> [] | Some x -> [("parse_mode", `String x)]) @
-      (match v.caption_entities with None -> [] | Some x -> [("caption_entities", `List (List.map (fun x -> MessageEntity.to_yojson x) x))]) @
-      (match v.show_caption_above_media with None -> [] | Some x -> [("show_caption_above_media", `Bool x)]) @
-      (match v.has_spoiler with None -> [] | Some x -> [("has_spoiler", `Bool x)]) @
       Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
   let of_yojson (j : Yojson.Safe.t) : (t, string) result =
     match j with
@@ -11887,26 +11272,14 @@ end = struct
         let open Yojson.Safe.Util in
         let uf = Telegram.Json_compat.Unknown_fields.create () in
         (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
-          let type_ = (try (to_string (List.assoc "type" fields)) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "media";
-          let media = (try (to_string (List.assoc "media" fields)) with Not_found -> raise (Type_error ("Missing required field 'media'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "caption";
-          let caption = match List.assoc_opt "caption" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "parse_mode";
-          let parse_mode = match List.assoc_opt "parse_mode" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "caption_entities";
-          let caption_entities = match List.assoc_opt "caption_entities" fields with None | Some `Null -> None | Some x -> Some ((List.map (fun x -> (match MessageEntity.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) (to_list x))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "show_caption_above_media";
-          let show_caption_above_media = match List.assoc_opt "show_caption_above_media" fields with None | Some `Null -> None | Some x -> Some ((to_bool x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "has_spoiler";
-          let has_spoiler = match List.assoc_opt "has_spoiler" fields with None | Some `Null -> None | Some x -> Some ((to_bool x)) in
+          Telegram.Json_compat.Unknown_fields.mark_known uf "boosts";
+          let boosts = (try (List.map (fun x -> (match ChatBoost.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) (to_list (List.assoc "boosts" fields))) with Not_found -> raise (Type_error ("Missing required field 'boosts'", `Null))) in
           let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { type_ = type_; media = media; caption = caption; parse_mode = parse_mode; caption_entities = caption_entities; show_caption_above_media = show_caption_above_media; has_spoiler = has_spoiler; unknown_fields }
+          Ok { boosts = boosts; unknown_fields }
         with
-        | Not_found -> Error "Missing required field in InputMedia"
+        | Not_found -> Error "Missing required field in UserChatBoosts"
         | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for InputMedia"
+    | _ -> Error "Expected JSON object for UserChatBoosts"
 end
 and InputMediaPhoto : sig
   type t = {
@@ -12341,54 +11714,6 @@ end = struct
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for StickerSet"
 end
-and InputMessageContent : sig
-  type t = {
-    message_text : string;
-    parse_mode : string option;
-    entities : MessageEntity.t list option;
-    link_preview_options : LinkPreviewOptions.t option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    message_text : string;
-    parse_mode : string option;
-    entities : MessageEntity.t list option;
-    link_preview_options : LinkPreviewOptions.t option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("message_text", `String v.message_text)
-      ] @
-      (match v.parse_mode with None -> [] | Some x -> [("parse_mode", `String x)]) @
-      (match v.entities with None -> [] | Some x -> [("entities", `List (List.map (fun x -> MessageEntity.to_yojson x) x))]) @
-      (match v.link_preview_options with None -> [] | Some x -> [("link_preview_options", LinkPreviewOptions.to_yojson x)]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "message_text";
-          let message_text = (try (to_string (List.assoc "message_text" fields)) with Not_found -> raise (Type_error ("Missing required field 'message_text'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "parse_mode";
-          let parse_mode = match List.assoc_opt "parse_mode" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "entities";
-          let entities = match List.assoc_opt "entities" fields with None | Some `Null -> None | Some x -> Some ((List.map (fun x -> (match MessageEntity.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) (to_list x))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "link_preview_options";
-          let link_preview_options = match List.assoc_opt "link_preview_options" fields with None | Some `Null -> None | Some x -> Some ((match LinkPreviewOptions.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { message_text = message_text; parse_mode = parse_mode; entities = entities; link_preview_options = link_preview_options; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in InputMessageContent"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for InputMessageContent"
-end
 and InputTextMessageContent : sig
   type t = {
     message_text : string;
@@ -12577,6 +11902,39 @@ end = struct
         | Not_found -> Error "Missing required field in PreCheckoutQuery"
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for PreCheckoutQuery"
+end
+and StarTransactions : sig
+  type t = {
+    transactions : StarTransaction.t list;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
+  val to_yojson : t -> Yojson.Safe.t
+  val of_yojson : Yojson.Safe.t -> (t, string) result
+end = struct
+  type t = {
+    transactions : StarTransaction.t list;
+    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
+  }
+  let to_yojson (v : t) : Yojson.Safe.t =
+    `Assoc (
+      [
+        ("transactions", `List (List.map (fun x -> StarTransaction.to_yojson x) v.transactions))
+      ] @
+      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
+  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
+    match j with
+    | `Assoc fields ->
+        let open Yojson.Safe.Util in
+        let uf = Telegram.Json_compat.Unknown_fields.create () in
+        (try
+          Telegram.Json_compat.Unknown_fields.mark_known uf "transactions";
+          let transactions = (try (List.map (fun x -> (match StarTransaction.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) (to_list (List.assoc "transactions" fields))) with Not_found -> raise (Type_error ("Missing required field 'transactions'", `Null))) in
+          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
+          Ok { transactions = transactions; unknown_fields }
+        with
+        | Not_found -> Error "Missing required field in StarTransactions"
+        | Type_error (msg, _) -> Error msg)
+    | _ -> Error "Expected JSON object for StarTransactions"
 end
 and PassportData : sig
   type t = {
@@ -13105,99 +12463,6 @@ end = struct
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for GiftInfo"
 end
-and OwnedGift : sig
-  type t = {
-    type_ : string;
-    gift : Gift.t option;
-    owned_gift_id : string option;
-    sender_user : User.t option;
-    send_date : int64 option;
-    text : string option;
-    entities : MessageEntity.t list option;
-    is_private : bool option;
-    is_saved : bool option;
-    can_be_upgraded : bool option;
-    was_refunded : bool option;
-    convert_star_count : int64 option;
-    prepaid_upgrade_star_count : int64 option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    type_ : string;
-    gift : Gift.t option;
-    owned_gift_id : string option;
-    sender_user : User.t option;
-    send_date : int64 option;
-    text : string option;
-    entities : MessageEntity.t list option;
-    is_private : bool option;
-    is_saved : bool option;
-    can_be_upgraded : bool option;
-    was_refunded : bool option;
-    convert_star_count : int64 option;
-    prepaid_upgrade_star_count : int64 option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("type", `String v.type_)
-      ] @
-      (match v.gift with None -> [] | Some x -> [("gift", Gift.to_yojson x)]) @
-      (match v.owned_gift_id with None -> [] | Some x -> [("owned_gift_id", `String x)]) @
-      (match v.sender_user with None -> [] | Some x -> [("sender_user", User.to_yojson x)]) @
-      (match v.send_date with None -> [] | Some x -> [("send_date", `Intlit (Int64.to_string x))]) @
-      (match v.text with None -> [] | Some x -> [("text", `String x)]) @
-      (match v.entities with None -> [] | Some x -> [("entities", `List (List.map (fun x -> MessageEntity.to_yojson x) x))]) @
-      (match v.is_private with None -> [] | Some x -> [("is_private", `Bool x)]) @
-      (match v.is_saved with None -> [] | Some x -> [("is_saved", `Bool x)]) @
-      (match v.can_be_upgraded with None -> [] | Some x -> [("can_be_upgraded", `Bool x)]) @
-      (match v.was_refunded with None -> [] | Some x -> [("was_refunded", `Bool x)]) @
-      (match v.convert_star_count with None -> [] | Some x -> [("convert_star_count", `Intlit (Int64.to_string x))]) @
-      (match v.prepaid_upgrade_star_count with None -> [] | Some x -> [("prepaid_upgrade_star_count", `Intlit (Int64.to_string x))]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
-          let type_ = (try (to_string (List.assoc "type" fields)) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "gift";
-          let gift = match List.assoc_opt "gift" fields with None | Some `Null -> None | Some x -> Some ((match Gift.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "owned_gift_id";
-          let owned_gift_id = match List.assoc_opt "owned_gift_id" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "sender_user";
-          let sender_user = match List.assoc_opt "sender_user" fields with None | Some `Null -> None | Some x -> Some ((match User.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "send_date";
-          let send_date = match List.assoc_opt "send_date" fields with None | Some `Null -> None | Some x -> Some ((match x with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "text";
-          let text = match List.assoc_opt "text" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "entities";
-          let entities = match List.assoc_opt "entities" fields with None | Some `Null -> None | Some x -> Some ((List.map (fun x -> (match MessageEntity.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) (to_list x))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "is_private";
-          let is_private = match List.assoc_opt "is_private" fields with None | Some `Null -> None | Some x -> Some ((to_bool x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "is_saved";
-          let is_saved = match List.assoc_opt "is_saved" fields with None | Some `Null -> None | Some x -> Some ((to_bool x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "can_be_upgraded";
-          let can_be_upgraded = match List.assoc_opt "can_be_upgraded" fields with None | Some `Null -> None | Some x -> Some ((to_bool x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "was_refunded";
-          let was_refunded = match List.assoc_opt "was_refunded" fields with None | Some `Null -> None | Some x -> Some ((to_bool x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "convert_star_count";
-          let convert_star_count = match List.assoc_opt "convert_star_count" fields with None | Some `Null -> None | Some x -> Some ((match x with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "prepaid_upgrade_star_count";
-          let prepaid_upgrade_star_count = match List.assoc_opt "prepaid_upgrade_star_count" fields with None | Some `Null -> None | Some x -> Some ((match x with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", x)))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { type_ = type_; gift = gift; owned_gift_id = owned_gift_id; sender_user = sender_user; send_date = send_date; text = text; entities = entities; is_private = is_private; is_saved = is_saved; can_be_upgraded = can_be_upgraded; was_refunded = was_refunded; convert_star_count = convert_star_count; prepaid_upgrade_star_count = prepaid_upgrade_star_count; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in OwnedGift"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for OwnedGift"
-end
 and OwnedGiftRegular : sig
   type t = {
     type_ : string;
@@ -13290,155 +12555,6 @@ end = struct
         | Not_found -> Error "Missing required field in OwnedGiftRegular"
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for OwnedGiftRegular"
-end
-and ChatBoostUpdated : sig
-  type t = {
-    chat : Chat.t;
-    boost : ChatBoost.t;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    chat : Chat.t;
-    boost : ChatBoost.t;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("chat", Chat.to_yojson v.chat);
-        ("boost", ChatBoost.to_yojson v.boost)
-      ] @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "chat";
-          let chat = (try (match Chat.of_yojson (List.assoc "chat" fields) with Ok v -> v | Error e -> raise (Type_error (e, (List.assoc "chat" fields)))) with Not_found -> raise (Type_error ("Missing required field 'chat'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "boost";
-          let boost = (try (match ChatBoost.of_yojson (List.assoc "boost" fields) with Ok v -> v | Error e -> raise (Type_error (e, (List.assoc "boost" fields)))) with Not_found -> raise (Type_error ("Missing required field 'boost'", `Null))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { chat = chat; boost = boost; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in ChatBoostUpdated"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for ChatBoostUpdated"
-end
-and UserChatBoosts : sig
-  type t = {
-    boosts : ChatBoost.t list;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    boosts : ChatBoost.t list;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("boosts", `List (List.map (fun x -> ChatBoost.to_yojson x) v.boosts))
-      ] @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "boosts";
-          let boosts = (try (List.map (fun x -> (match ChatBoost.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) (to_list (List.assoc "boosts" fields))) with Not_found -> raise (Type_error ("Missing required field 'boosts'", `Null))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { boosts = boosts; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in UserChatBoosts"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for UserChatBoosts"
-end
-and InlineQueryResult : sig
-  type t = {
-    type_ : string;
-    id : string;
-    title : string;
-    input_message_content : InputMessageContent.t;
-    reply_markup : InlineKeyboardMarkup.t option;
-    url : string option;
-    description : string option;
-    thumbnail_url : string option;
-    thumbnail_width : int64 option;
-    thumbnail_height : int64 option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    type_ : string;
-    id : string;
-    title : string;
-    input_message_content : InputMessageContent.t;
-    reply_markup : InlineKeyboardMarkup.t option;
-    url : string option;
-    description : string option;
-    thumbnail_url : string option;
-    thumbnail_width : int64 option;
-    thumbnail_height : int64 option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("type", `String v.type_);
-        ("id", `String v.id);
-        ("title", `String v.title);
-        ("input_message_content", InputMessageContent.to_yojson v.input_message_content)
-      ] @
-      (match v.reply_markup with None -> [] | Some x -> [("reply_markup", InlineKeyboardMarkup.to_yojson x)]) @
-      (match v.url with None -> [] | Some x -> [("url", `String x)]) @
-      (match v.description with None -> [] | Some x -> [("description", `String x)]) @
-      (match v.thumbnail_url with None -> [] | Some x -> [("thumbnail_url", `String x)]) @
-      (match v.thumbnail_width with None -> [] | Some x -> [("thumbnail_width", `Intlit (Int64.to_string x))]) @
-      (match v.thumbnail_height with None -> [] | Some x -> [("thumbnail_height", `Intlit (Int64.to_string x))]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
-          let type_ = (try (to_string (List.assoc "type" fields)) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "id";
-          let id = (try (to_string (List.assoc "id" fields)) with Not_found -> raise (Type_error ("Missing required field 'id'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "title";
-          let title = (try (to_string (List.assoc "title" fields)) with Not_found -> raise (Type_error ("Missing required field 'title'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "input_message_content";
-          let input_message_content = (try (match InputMessageContent.of_yojson (List.assoc "input_message_content" fields) with Ok v -> v | Error e -> raise (Type_error (e, (List.assoc "input_message_content" fields)))) with Not_found -> raise (Type_error ("Missing required field 'input_message_content'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "reply_markup";
-          let reply_markup = match List.assoc_opt "reply_markup" fields with None | Some `Null -> None | Some x -> Some ((match InlineKeyboardMarkup.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "url";
-          let url = match List.assoc_opt "url" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "description";
-          let description = match List.assoc_opt "description" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "thumbnail_url";
-          let thumbnail_url = match List.assoc_opt "thumbnail_url" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "thumbnail_width";
-          let thumbnail_width = match List.assoc_opt "thumbnail_width" fields with None | Some `Null -> None | Some x -> Some ((match x with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "thumbnail_height";
-          let thumbnail_height = match List.assoc_opt "thumbnail_height" fields with None | Some `Null -> None | Some x -> Some ((match x with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", x)))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { type_ = type_; id = id; title = title; input_message_content = input_message_content; reply_markup = reply_markup; url = url; description = description; thumbnail_url = thumbnail_url; thumbnail_width = thumbnail_width; thumbnail_height = thumbnail_height; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in InlineQueryResult"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for InlineQueryResult"
 end
 and InlineQueryResultArticle : sig
   type t = {
@@ -15115,84 +14231,6 @@ end = struct
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for InlineQueryResultCachedAudio"
 end
-and TransactionPartner : sig
-  type t = {
-    type_ : string;
-    transaction_type : string option;
-    user : User.t option;
-    affiliate : AffiliateInfo.t option;
-    invoice_payload : string option;
-    subscription_period : int64 option;
-    paid_media : PaidMedia.t list option;
-    paid_media_payload : string option;
-    gift : Gift.t option;
-    premium_subscription_duration : int64 option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    type_ : string;
-    transaction_type : string option;
-    user : User.t option;
-    affiliate : AffiliateInfo.t option;
-    invoice_payload : string option;
-    subscription_period : int64 option;
-    paid_media : PaidMedia.t list option;
-    paid_media_payload : string option;
-    gift : Gift.t option;
-    premium_subscription_duration : int64 option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("type", `String v.type_)
-      ] @
-      (match v.transaction_type with None -> [] | Some x -> [("transaction_type", `String x)]) @
-      (match v.user with None -> [] | Some x -> [("user", User.to_yojson x)]) @
-      (match v.affiliate with None -> [] | Some x -> [("affiliate", AffiliateInfo.to_yojson x)]) @
-      (match v.invoice_payload with None -> [] | Some x -> [("invoice_payload", `String x)]) @
-      (match v.subscription_period with None -> [] | Some x -> [("subscription_period", `Intlit (Int64.to_string x))]) @
-      (match v.paid_media with None -> [] | Some x -> [("paid_media", `List (List.map (fun x -> PaidMedia.to_yojson x) x))]) @
-      (match v.paid_media_payload with None -> [] | Some x -> [("paid_media_payload", `String x)]) @
-      (match v.gift with None -> [] | Some x -> [("gift", Gift.to_yojson x)]) @
-      (match v.premium_subscription_duration with None -> [] | Some x -> [("premium_subscription_duration", `Intlit (Int64.to_string x))]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "type";
-          let type_ = (try (to_string (List.assoc "type" fields)) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "transaction_type";
-          let transaction_type = match List.assoc_opt "transaction_type" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "user";
-          let user = match List.assoc_opt "user" fields with None | Some `Null -> None | Some x -> Some ((match User.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "affiliate";
-          let affiliate = match List.assoc_opt "affiliate" fields with None | Some `Null -> None | Some x -> Some ((match AffiliateInfo.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "invoice_payload";
-          let invoice_payload = match List.assoc_opt "invoice_payload" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "subscription_period";
-          let subscription_period = match List.assoc_opt "subscription_period" fields with None | Some `Null -> None | Some x -> Some ((match x with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "paid_media";
-          let paid_media = match List.assoc_opt "paid_media" fields with None | Some `Null -> None | Some x -> Some ((List.map (fun x -> (match PaidMedia.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) (to_list x))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "paid_media_payload";
-          let paid_media_payload = match List.assoc_opt "paid_media_payload" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "gift";
-          let gift = match List.assoc_opt "gift" fields with None | Some `Null -> None | Some x -> Some ((match Gift.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "premium_subscription_duration";
-          let premium_subscription_duration = match List.assoc_opt "premium_subscription_duration" fields with None | Some `Null -> None | Some x -> Some ((match x with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", x)))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { type_ = type_; transaction_type = transaction_type; user = user; affiliate = affiliate; invoice_payload = invoice_payload; subscription_period = subscription_period; paid_media = paid_media; paid_media_payload = paid_media_payload; gift = gift; premium_subscription_duration = premium_subscription_duration; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in TransactionPartner"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for TransactionPartner"
-end
 and TransactionPartnerUser : sig
   type t = {
     type_ : string;
@@ -15597,880 +14635,6 @@ end = struct
         | Not_found -> Error "Missing required field in OwnedGiftUnique"
         | Type_error (msg, _) -> Error msg)
     | _ -> Error "Expected JSON object for OwnedGiftUnique"
-end
-and OwnedGifts : sig
-  type t = {
-    total_count : int64;
-    gifts : OwnedGift.t list;
-    next_offset : string option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    total_count : int64;
-    gifts : OwnedGift.t list;
-    next_offset : string option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("total_count", `Intlit (Int64.to_string v.total_count));
-        ("gifts", `List (List.map (fun x -> OwnedGift.to_yojson x) v.gifts))
-      ] @
-      (match v.next_offset with None -> [] | Some x -> [("next_offset", `String x)]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "total_count";
-          let total_count = (try (match (List.assoc "total_count" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "total_count" fields)))) with Not_found -> raise (Type_error ("Missing required field 'total_count'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "gifts";
-          let gifts = (try (List.map (fun x -> (match OwnedGift.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) (to_list (List.assoc "gifts" fields))) with Not_found -> raise (Type_error ("Missing required field 'gifts'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "next_offset";
-          let next_offset = match List.assoc_opt "next_offset" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { total_count = total_count; gifts = gifts; next_offset = next_offset; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in OwnedGifts"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for OwnedGifts"
-end
-and StarTransaction : sig
-  type t = {
-    id : string;
-    amount : int64;
-    nanostar_amount : int64 option;
-    date : int64;
-    source : TransactionPartner.t option;
-    receiver : TransactionPartner.t option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    id : string;
-    amount : int64;
-    nanostar_amount : int64 option;
-    date : int64;
-    source : TransactionPartner.t option;
-    receiver : TransactionPartner.t option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("id", `String v.id);
-        ("amount", `Intlit (Int64.to_string v.amount));
-        ("date", `Intlit (Int64.to_string v.date))
-      ] @
-      (match v.nanostar_amount with None -> [] | Some x -> [("nanostar_amount", `Intlit (Int64.to_string x))]) @
-      (match v.source with None -> [] | Some x -> [("source", TransactionPartner.to_yojson x)]) @
-      (match v.receiver with None -> [] | Some x -> [("receiver", TransactionPartner.to_yojson x)]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "id";
-          let id = (try (to_string (List.assoc "id" fields)) with Not_found -> raise (Type_error ("Missing required field 'id'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "amount";
-          let amount = (try (match (List.assoc "amount" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "amount" fields)))) with Not_found -> raise (Type_error ("Missing required field 'amount'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "nanostar_amount";
-          let nanostar_amount = match List.assoc_opt "nanostar_amount" fields with None | Some `Null -> None | Some x -> Some ((match x with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "date";
-          let date = (try (match (List.assoc "date" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "date" fields)))) with Not_found -> raise (Type_error ("Missing required field 'date'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "source";
-          let source = match List.assoc_opt "source" fields with None | Some `Null -> None | Some x -> Some ((match TransactionPartner.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "receiver";
-          let receiver = match List.assoc_opt "receiver" fields with None | Some `Null -> None | Some x -> Some ((match TransactionPartner.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { id = id; amount = amount; nanostar_amount = nanostar_amount; date = date; source = source; receiver = receiver; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in StarTransaction"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for StarTransaction"
-end
-and StarTransactions : sig
-  type t = {
-    transactions : StarTransaction.t list;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    transactions : StarTransaction.t list;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("transactions", `List (List.map (fun x -> StarTransaction.to_yojson x) v.transactions))
-      ] @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "transactions";
-          let transactions = (try (List.map (fun x -> (match StarTransaction.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) (to_list (List.assoc "transactions" fields))) with Not_found -> raise (Type_error ("Missing required field 'transactions'", `Null))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { transactions = transactions; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in StarTransactions"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for StarTransactions"
-end
-and August152025 : sig
-  type t = {
-    update_id : int64;
-    message : Message.t option;
-    edited_message : Message.t option;
-    channel_post : Message.t option;
-    edited_channel_post : Message.t option;
-    business_connection : BusinessConnection.t option;
-    business_message : Message.t option;
-    edited_business_message : Message.t option;
-    deleted_business_messages : BusinessMessagesDeleted.t option;
-    message_reaction : MessageReactionUpdated.t option;
-    message_reaction_count : MessageReactionCountUpdated.t option;
-    inline_query : InlineQuery.t option;
-    chosen_inline_result : ChosenInlineResult.t option;
-    callback_query : CallbackQuery.t option;
-    shipping_query : ShippingQuery.t option;
-    pre_checkout_query : PreCheckoutQuery.t option;
-    purchased_paid_media : PaidMediaPurchased.t option;
-    poll : Poll.t option;
-    poll_answer : PollAnswer.t option;
-    my_chat_member : ChatMemberUpdated.t option;
-    chat_member : ChatMemberUpdated.t option;
-    chat_join_request : ChatJoinRequest.t option;
-    chat_boost : ChatBoostUpdated.t option;
-    removed_chat_boost : ChatBoostRemoved.t option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    update_id : int64;
-    message : Message.t option;
-    edited_message : Message.t option;
-    channel_post : Message.t option;
-    edited_channel_post : Message.t option;
-    business_connection : BusinessConnection.t option;
-    business_message : Message.t option;
-    edited_business_message : Message.t option;
-    deleted_business_messages : BusinessMessagesDeleted.t option;
-    message_reaction : MessageReactionUpdated.t option;
-    message_reaction_count : MessageReactionCountUpdated.t option;
-    inline_query : InlineQuery.t option;
-    chosen_inline_result : ChosenInlineResult.t option;
-    callback_query : CallbackQuery.t option;
-    shipping_query : ShippingQuery.t option;
-    pre_checkout_query : PreCheckoutQuery.t option;
-    purchased_paid_media : PaidMediaPurchased.t option;
-    poll : Poll.t option;
-    poll_answer : PollAnswer.t option;
-    my_chat_member : ChatMemberUpdated.t option;
-    chat_member : ChatMemberUpdated.t option;
-    chat_join_request : ChatJoinRequest.t option;
-    chat_boost : ChatBoostUpdated.t option;
-    removed_chat_boost : ChatBoostRemoved.t option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("update_id", `Intlit (Int64.to_string v.update_id))
-      ] @
-      (match v.message with None -> [] | Some x -> [("message", Message.to_yojson x)]) @
-      (match v.edited_message with None -> [] | Some x -> [("edited_message", Message.to_yojson x)]) @
-      (match v.channel_post with None -> [] | Some x -> [("channel_post", Message.to_yojson x)]) @
-      (match v.edited_channel_post with None -> [] | Some x -> [("edited_channel_post", Message.to_yojson x)]) @
-      (match v.business_connection with None -> [] | Some x -> [("business_connection", BusinessConnection.to_yojson x)]) @
-      (match v.business_message with None -> [] | Some x -> [("business_message", Message.to_yojson x)]) @
-      (match v.edited_business_message with None -> [] | Some x -> [("edited_business_message", Message.to_yojson x)]) @
-      (match v.deleted_business_messages with None -> [] | Some x -> [("deleted_business_messages", BusinessMessagesDeleted.to_yojson x)]) @
-      (match v.message_reaction with None -> [] | Some x -> [("message_reaction", MessageReactionUpdated.to_yojson x)]) @
-      (match v.message_reaction_count with None -> [] | Some x -> [("message_reaction_count", MessageReactionCountUpdated.to_yojson x)]) @
-      (match v.inline_query with None -> [] | Some x -> [("inline_query", InlineQuery.to_yojson x)]) @
-      (match v.chosen_inline_result with None -> [] | Some x -> [("chosen_inline_result", ChosenInlineResult.to_yojson x)]) @
-      (match v.callback_query with None -> [] | Some x -> [("callback_query", CallbackQuery.to_yojson x)]) @
-      (match v.shipping_query with None -> [] | Some x -> [("shipping_query", ShippingQuery.to_yojson x)]) @
-      (match v.pre_checkout_query with None -> [] | Some x -> [("pre_checkout_query", PreCheckoutQuery.to_yojson x)]) @
-      (match v.purchased_paid_media with None -> [] | Some x -> [("purchased_paid_media", PaidMediaPurchased.to_yojson x)]) @
-      (match v.poll with None -> [] | Some x -> [("poll", Poll.to_yojson x)]) @
-      (match v.poll_answer with None -> [] | Some x -> [("poll_answer", PollAnswer.to_yojson x)]) @
-      (match v.my_chat_member with None -> [] | Some x -> [("my_chat_member", ChatMemberUpdated.to_yojson x)]) @
-      (match v.chat_member with None -> [] | Some x -> [("chat_member", ChatMemberUpdated.to_yojson x)]) @
-      (match v.chat_join_request with None -> [] | Some x -> [("chat_join_request", ChatJoinRequest.to_yojson x)]) @
-      (match v.chat_boost with None -> [] | Some x -> [("chat_boost", ChatBoostUpdated.to_yojson x)]) @
-      (match v.removed_chat_boost with None -> [] | Some x -> [("removed_chat_boost", ChatBoostRemoved.to_yojson x)]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "update_id";
-          let update_id = (try (match (List.assoc "update_id" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "update_id" fields)))) with Not_found -> raise (Type_error ("Missing required field 'update_id'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "message";
-          let message = match List.assoc_opt "message" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "edited_message";
-          let edited_message = match List.assoc_opt "edited_message" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "channel_post";
-          let channel_post = match List.assoc_opt "channel_post" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "edited_channel_post";
-          let edited_channel_post = match List.assoc_opt "edited_channel_post" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "business_connection";
-          let business_connection = match List.assoc_opt "business_connection" fields with None | Some `Null -> None | Some x -> Some ((match BusinessConnection.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "business_message";
-          let business_message = match List.assoc_opt "business_message" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "edited_business_message";
-          let edited_business_message = match List.assoc_opt "edited_business_message" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "deleted_business_messages";
-          let deleted_business_messages = match List.assoc_opt "deleted_business_messages" fields with None | Some `Null -> None | Some x -> Some ((match BusinessMessagesDeleted.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "message_reaction";
-          let message_reaction = match List.assoc_opt "message_reaction" fields with None | Some `Null -> None | Some x -> Some ((match MessageReactionUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "message_reaction_count";
-          let message_reaction_count = match List.assoc_opt "message_reaction_count" fields with None | Some `Null -> None | Some x -> Some ((match MessageReactionCountUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "inline_query";
-          let inline_query = match List.assoc_opt "inline_query" fields with None | Some `Null -> None | Some x -> Some ((match InlineQuery.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "chosen_inline_result";
-          let chosen_inline_result = match List.assoc_opt "chosen_inline_result" fields with None | Some `Null -> None | Some x -> Some ((match ChosenInlineResult.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "callback_query";
-          let callback_query = match List.assoc_opt "callback_query" fields with None | Some `Null -> None | Some x -> Some ((match CallbackQuery.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "shipping_query";
-          let shipping_query = match List.assoc_opt "shipping_query" fields with None | Some `Null -> None | Some x -> Some ((match ShippingQuery.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "pre_checkout_query";
-          let pre_checkout_query = match List.assoc_opt "pre_checkout_query" fields with None | Some `Null -> None | Some x -> Some ((match PreCheckoutQuery.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "purchased_paid_media";
-          let purchased_paid_media = match List.assoc_opt "purchased_paid_media" fields with None | Some `Null -> None | Some x -> Some ((match PaidMediaPurchased.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "poll";
-          let poll = match List.assoc_opt "poll" fields with None | Some `Null -> None | Some x -> Some ((match Poll.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "poll_answer";
-          let poll_answer = match List.assoc_opt "poll_answer" fields with None | Some `Null -> None | Some x -> Some ((match PollAnswer.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "my_chat_member";
-          let my_chat_member = match List.assoc_opt "my_chat_member" fields with None | Some `Null -> None | Some x -> Some ((match ChatMemberUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "chat_member";
-          let chat_member = match List.assoc_opt "chat_member" fields with None | Some `Null -> None | Some x -> Some ((match ChatMemberUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "chat_join_request";
-          let chat_join_request = match List.assoc_opt "chat_join_request" fields with None | Some `Null -> None | Some x -> Some ((match ChatJoinRequest.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "chat_boost";
-          let chat_boost = match List.assoc_opt "chat_boost" fields with None | Some `Null -> None | Some x -> Some ((match ChatBoostUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "removed_chat_boost";
-          let removed_chat_boost = match List.assoc_opt "removed_chat_boost" fields with None | Some `Null -> None | Some x -> Some ((match ChatBoostRemoved.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { update_id = update_id; message = message; edited_message = edited_message; channel_post = channel_post; edited_channel_post = edited_channel_post; business_connection = business_connection; business_message = business_message; edited_business_message = edited_business_message; deleted_business_messages = deleted_business_messages; message_reaction = message_reaction; message_reaction_count = message_reaction_count; inline_query = inline_query; chosen_inline_result = chosen_inline_result; callback_query = callback_query; shipping_query = shipping_query; pre_checkout_query = pre_checkout_query; purchased_paid_media = purchased_paid_media; poll = poll; poll_answer = poll_answer; my_chat_member = my_chat_member; chat_member = chat_member; chat_join_request = chat_join_request; chat_boost = chat_boost; removed_chat_boost = removed_chat_boost; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in August 15, 2025"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for August 15, 2025"
-end
-and July32025 : sig
-  type t = {
-    update_id : int64;
-    message : Message.t option;
-    edited_message : Message.t option;
-    channel_post : Message.t option;
-    edited_channel_post : Message.t option;
-    business_connection : BusinessConnection.t option;
-    business_message : Message.t option;
-    edited_business_message : Message.t option;
-    deleted_business_messages : BusinessMessagesDeleted.t option;
-    message_reaction : MessageReactionUpdated.t option;
-    message_reaction_count : MessageReactionCountUpdated.t option;
-    inline_query : InlineQuery.t option;
-    chosen_inline_result : ChosenInlineResult.t option;
-    callback_query : CallbackQuery.t option;
-    shipping_query : ShippingQuery.t option;
-    pre_checkout_query : PreCheckoutQuery.t option;
-    purchased_paid_media : PaidMediaPurchased.t option;
-    poll : Poll.t option;
-    poll_answer : PollAnswer.t option;
-    my_chat_member : ChatMemberUpdated.t option;
-    chat_member : ChatMemberUpdated.t option;
-    chat_join_request : ChatJoinRequest.t option;
-    chat_boost : ChatBoostUpdated.t option;
-    removed_chat_boost : ChatBoostRemoved.t option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    update_id : int64;
-    message : Message.t option;
-    edited_message : Message.t option;
-    channel_post : Message.t option;
-    edited_channel_post : Message.t option;
-    business_connection : BusinessConnection.t option;
-    business_message : Message.t option;
-    edited_business_message : Message.t option;
-    deleted_business_messages : BusinessMessagesDeleted.t option;
-    message_reaction : MessageReactionUpdated.t option;
-    message_reaction_count : MessageReactionCountUpdated.t option;
-    inline_query : InlineQuery.t option;
-    chosen_inline_result : ChosenInlineResult.t option;
-    callback_query : CallbackQuery.t option;
-    shipping_query : ShippingQuery.t option;
-    pre_checkout_query : PreCheckoutQuery.t option;
-    purchased_paid_media : PaidMediaPurchased.t option;
-    poll : Poll.t option;
-    poll_answer : PollAnswer.t option;
-    my_chat_member : ChatMemberUpdated.t option;
-    chat_member : ChatMemberUpdated.t option;
-    chat_join_request : ChatJoinRequest.t option;
-    chat_boost : ChatBoostUpdated.t option;
-    removed_chat_boost : ChatBoostRemoved.t option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("update_id", `Intlit (Int64.to_string v.update_id))
-      ] @
-      (match v.message with None -> [] | Some x -> [("message", Message.to_yojson x)]) @
-      (match v.edited_message with None -> [] | Some x -> [("edited_message", Message.to_yojson x)]) @
-      (match v.channel_post with None -> [] | Some x -> [("channel_post", Message.to_yojson x)]) @
-      (match v.edited_channel_post with None -> [] | Some x -> [("edited_channel_post", Message.to_yojson x)]) @
-      (match v.business_connection with None -> [] | Some x -> [("business_connection", BusinessConnection.to_yojson x)]) @
-      (match v.business_message with None -> [] | Some x -> [("business_message", Message.to_yojson x)]) @
-      (match v.edited_business_message with None -> [] | Some x -> [("edited_business_message", Message.to_yojson x)]) @
-      (match v.deleted_business_messages with None -> [] | Some x -> [("deleted_business_messages", BusinessMessagesDeleted.to_yojson x)]) @
-      (match v.message_reaction with None -> [] | Some x -> [("message_reaction", MessageReactionUpdated.to_yojson x)]) @
-      (match v.message_reaction_count with None -> [] | Some x -> [("message_reaction_count", MessageReactionCountUpdated.to_yojson x)]) @
-      (match v.inline_query with None -> [] | Some x -> [("inline_query", InlineQuery.to_yojson x)]) @
-      (match v.chosen_inline_result with None -> [] | Some x -> [("chosen_inline_result", ChosenInlineResult.to_yojson x)]) @
-      (match v.callback_query with None -> [] | Some x -> [("callback_query", CallbackQuery.to_yojson x)]) @
-      (match v.shipping_query with None -> [] | Some x -> [("shipping_query", ShippingQuery.to_yojson x)]) @
-      (match v.pre_checkout_query with None -> [] | Some x -> [("pre_checkout_query", PreCheckoutQuery.to_yojson x)]) @
-      (match v.purchased_paid_media with None -> [] | Some x -> [("purchased_paid_media", PaidMediaPurchased.to_yojson x)]) @
-      (match v.poll with None -> [] | Some x -> [("poll", Poll.to_yojson x)]) @
-      (match v.poll_answer with None -> [] | Some x -> [("poll_answer", PollAnswer.to_yojson x)]) @
-      (match v.my_chat_member with None -> [] | Some x -> [("my_chat_member", ChatMemberUpdated.to_yojson x)]) @
-      (match v.chat_member with None -> [] | Some x -> [("chat_member", ChatMemberUpdated.to_yojson x)]) @
-      (match v.chat_join_request with None -> [] | Some x -> [("chat_join_request", ChatJoinRequest.to_yojson x)]) @
-      (match v.chat_boost with None -> [] | Some x -> [("chat_boost", ChatBoostUpdated.to_yojson x)]) @
-      (match v.removed_chat_boost with None -> [] | Some x -> [("removed_chat_boost", ChatBoostRemoved.to_yojson x)]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "update_id";
-          let update_id = (try (match (List.assoc "update_id" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "update_id" fields)))) with Not_found -> raise (Type_error ("Missing required field 'update_id'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "message";
-          let message = match List.assoc_opt "message" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "edited_message";
-          let edited_message = match List.assoc_opt "edited_message" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "channel_post";
-          let channel_post = match List.assoc_opt "channel_post" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "edited_channel_post";
-          let edited_channel_post = match List.assoc_opt "edited_channel_post" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "business_connection";
-          let business_connection = match List.assoc_opt "business_connection" fields with None | Some `Null -> None | Some x -> Some ((match BusinessConnection.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "business_message";
-          let business_message = match List.assoc_opt "business_message" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "edited_business_message";
-          let edited_business_message = match List.assoc_opt "edited_business_message" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "deleted_business_messages";
-          let deleted_business_messages = match List.assoc_opt "deleted_business_messages" fields with None | Some `Null -> None | Some x -> Some ((match BusinessMessagesDeleted.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "message_reaction";
-          let message_reaction = match List.assoc_opt "message_reaction" fields with None | Some `Null -> None | Some x -> Some ((match MessageReactionUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "message_reaction_count";
-          let message_reaction_count = match List.assoc_opt "message_reaction_count" fields with None | Some `Null -> None | Some x -> Some ((match MessageReactionCountUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "inline_query";
-          let inline_query = match List.assoc_opt "inline_query" fields with None | Some `Null -> None | Some x -> Some ((match InlineQuery.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "chosen_inline_result";
-          let chosen_inline_result = match List.assoc_opt "chosen_inline_result" fields with None | Some `Null -> None | Some x -> Some ((match ChosenInlineResult.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "callback_query";
-          let callback_query = match List.assoc_opt "callback_query" fields with None | Some `Null -> None | Some x -> Some ((match CallbackQuery.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "shipping_query";
-          let shipping_query = match List.assoc_opt "shipping_query" fields with None | Some `Null -> None | Some x -> Some ((match ShippingQuery.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "pre_checkout_query";
-          let pre_checkout_query = match List.assoc_opt "pre_checkout_query" fields with None | Some `Null -> None | Some x -> Some ((match PreCheckoutQuery.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "purchased_paid_media";
-          let purchased_paid_media = match List.assoc_opt "purchased_paid_media" fields with None | Some `Null -> None | Some x -> Some ((match PaidMediaPurchased.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "poll";
-          let poll = match List.assoc_opt "poll" fields with None | Some `Null -> None | Some x -> Some ((match Poll.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "poll_answer";
-          let poll_answer = match List.assoc_opt "poll_answer" fields with None | Some `Null -> None | Some x -> Some ((match PollAnswer.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "my_chat_member";
-          let my_chat_member = match List.assoc_opt "my_chat_member" fields with None | Some `Null -> None | Some x -> Some ((match ChatMemberUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "chat_member";
-          let chat_member = match List.assoc_opt "chat_member" fields with None | Some `Null -> None | Some x -> Some ((match ChatMemberUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "chat_join_request";
-          let chat_join_request = match List.assoc_opt "chat_join_request" fields with None | Some `Null -> None | Some x -> Some ((match ChatJoinRequest.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "chat_boost";
-          let chat_boost = match List.assoc_opt "chat_boost" fields with None | Some `Null -> None | Some x -> Some ((match ChatBoostUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "removed_chat_boost";
-          let removed_chat_boost = match List.assoc_opt "removed_chat_boost" fields with None | Some `Null -> None | Some x -> Some ((match ChatBoostRemoved.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { update_id = update_id; message = message; edited_message = edited_message; channel_post = channel_post; edited_channel_post = edited_channel_post; business_connection = business_connection; business_message = business_message; edited_business_message = edited_business_message; deleted_business_messages = deleted_business_messages; message_reaction = message_reaction; message_reaction_count = message_reaction_count; inline_query = inline_query; chosen_inline_result = chosen_inline_result; callback_query = callback_query; shipping_query = shipping_query; pre_checkout_query = pre_checkout_query; purchased_paid_media = purchased_paid_media; poll = poll; poll_answer = poll_answer; my_chat_member = my_chat_member; chat_member = chat_member; chat_join_request = chat_join_request; chat_boost = chat_boost; removed_chat_boost = removed_chat_boost; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in July 3, 2025"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for July 3, 2025"
-end
-and April112025 : sig
-  type t = {
-    update_id : int64;
-    message : Message.t option;
-    edited_message : Message.t option;
-    channel_post : Message.t option;
-    edited_channel_post : Message.t option;
-    business_connection : BusinessConnection.t option;
-    business_message : Message.t option;
-    edited_business_message : Message.t option;
-    deleted_business_messages : BusinessMessagesDeleted.t option;
-    message_reaction : MessageReactionUpdated.t option;
-    message_reaction_count : MessageReactionCountUpdated.t option;
-    inline_query : InlineQuery.t option;
-    chosen_inline_result : ChosenInlineResult.t option;
-    callback_query : CallbackQuery.t option;
-    shipping_query : ShippingQuery.t option;
-    pre_checkout_query : PreCheckoutQuery.t option;
-    purchased_paid_media : PaidMediaPurchased.t option;
-    poll : Poll.t option;
-    poll_answer : PollAnswer.t option;
-    my_chat_member : ChatMemberUpdated.t option;
-    chat_member : ChatMemberUpdated.t option;
-    chat_join_request : ChatJoinRequest.t option;
-    chat_boost : ChatBoostUpdated.t option;
-    removed_chat_boost : ChatBoostRemoved.t option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    update_id : int64;
-    message : Message.t option;
-    edited_message : Message.t option;
-    channel_post : Message.t option;
-    edited_channel_post : Message.t option;
-    business_connection : BusinessConnection.t option;
-    business_message : Message.t option;
-    edited_business_message : Message.t option;
-    deleted_business_messages : BusinessMessagesDeleted.t option;
-    message_reaction : MessageReactionUpdated.t option;
-    message_reaction_count : MessageReactionCountUpdated.t option;
-    inline_query : InlineQuery.t option;
-    chosen_inline_result : ChosenInlineResult.t option;
-    callback_query : CallbackQuery.t option;
-    shipping_query : ShippingQuery.t option;
-    pre_checkout_query : PreCheckoutQuery.t option;
-    purchased_paid_media : PaidMediaPurchased.t option;
-    poll : Poll.t option;
-    poll_answer : PollAnswer.t option;
-    my_chat_member : ChatMemberUpdated.t option;
-    chat_member : ChatMemberUpdated.t option;
-    chat_join_request : ChatJoinRequest.t option;
-    chat_boost : ChatBoostUpdated.t option;
-    removed_chat_boost : ChatBoostRemoved.t option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("update_id", `Intlit (Int64.to_string v.update_id))
-      ] @
-      (match v.message with None -> [] | Some x -> [("message", Message.to_yojson x)]) @
-      (match v.edited_message with None -> [] | Some x -> [("edited_message", Message.to_yojson x)]) @
-      (match v.channel_post with None -> [] | Some x -> [("channel_post", Message.to_yojson x)]) @
-      (match v.edited_channel_post with None -> [] | Some x -> [("edited_channel_post", Message.to_yojson x)]) @
-      (match v.business_connection with None -> [] | Some x -> [("business_connection", BusinessConnection.to_yojson x)]) @
-      (match v.business_message with None -> [] | Some x -> [("business_message", Message.to_yojson x)]) @
-      (match v.edited_business_message with None -> [] | Some x -> [("edited_business_message", Message.to_yojson x)]) @
-      (match v.deleted_business_messages with None -> [] | Some x -> [("deleted_business_messages", BusinessMessagesDeleted.to_yojson x)]) @
-      (match v.message_reaction with None -> [] | Some x -> [("message_reaction", MessageReactionUpdated.to_yojson x)]) @
-      (match v.message_reaction_count with None -> [] | Some x -> [("message_reaction_count", MessageReactionCountUpdated.to_yojson x)]) @
-      (match v.inline_query with None -> [] | Some x -> [("inline_query", InlineQuery.to_yojson x)]) @
-      (match v.chosen_inline_result with None -> [] | Some x -> [("chosen_inline_result", ChosenInlineResult.to_yojson x)]) @
-      (match v.callback_query with None -> [] | Some x -> [("callback_query", CallbackQuery.to_yojson x)]) @
-      (match v.shipping_query with None -> [] | Some x -> [("shipping_query", ShippingQuery.to_yojson x)]) @
-      (match v.pre_checkout_query with None -> [] | Some x -> [("pre_checkout_query", PreCheckoutQuery.to_yojson x)]) @
-      (match v.purchased_paid_media with None -> [] | Some x -> [("purchased_paid_media", PaidMediaPurchased.to_yojson x)]) @
-      (match v.poll with None -> [] | Some x -> [("poll", Poll.to_yojson x)]) @
-      (match v.poll_answer with None -> [] | Some x -> [("poll_answer", PollAnswer.to_yojson x)]) @
-      (match v.my_chat_member with None -> [] | Some x -> [("my_chat_member", ChatMemberUpdated.to_yojson x)]) @
-      (match v.chat_member with None -> [] | Some x -> [("chat_member", ChatMemberUpdated.to_yojson x)]) @
-      (match v.chat_join_request with None -> [] | Some x -> [("chat_join_request", ChatJoinRequest.to_yojson x)]) @
-      (match v.chat_boost with None -> [] | Some x -> [("chat_boost", ChatBoostUpdated.to_yojson x)]) @
-      (match v.removed_chat_boost with None -> [] | Some x -> [("removed_chat_boost", ChatBoostRemoved.to_yojson x)]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "update_id";
-          let update_id = (try (match (List.assoc "update_id" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "update_id" fields)))) with Not_found -> raise (Type_error ("Missing required field 'update_id'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "message";
-          let message = match List.assoc_opt "message" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "edited_message";
-          let edited_message = match List.assoc_opt "edited_message" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "channel_post";
-          let channel_post = match List.assoc_opt "channel_post" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "edited_channel_post";
-          let edited_channel_post = match List.assoc_opt "edited_channel_post" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "business_connection";
-          let business_connection = match List.assoc_opt "business_connection" fields with None | Some `Null -> None | Some x -> Some ((match BusinessConnection.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "business_message";
-          let business_message = match List.assoc_opt "business_message" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "edited_business_message";
-          let edited_business_message = match List.assoc_opt "edited_business_message" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "deleted_business_messages";
-          let deleted_business_messages = match List.assoc_opt "deleted_business_messages" fields with None | Some `Null -> None | Some x -> Some ((match BusinessMessagesDeleted.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "message_reaction";
-          let message_reaction = match List.assoc_opt "message_reaction" fields with None | Some `Null -> None | Some x -> Some ((match MessageReactionUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "message_reaction_count";
-          let message_reaction_count = match List.assoc_opt "message_reaction_count" fields with None | Some `Null -> None | Some x -> Some ((match MessageReactionCountUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "inline_query";
-          let inline_query = match List.assoc_opt "inline_query" fields with None | Some `Null -> None | Some x -> Some ((match InlineQuery.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "chosen_inline_result";
-          let chosen_inline_result = match List.assoc_opt "chosen_inline_result" fields with None | Some `Null -> None | Some x -> Some ((match ChosenInlineResult.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "callback_query";
-          let callback_query = match List.assoc_opt "callback_query" fields with None | Some `Null -> None | Some x -> Some ((match CallbackQuery.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "shipping_query";
-          let shipping_query = match List.assoc_opt "shipping_query" fields with None | Some `Null -> None | Some x -> Some ((match ShippingQuery.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "pre_checkout_query";
-          let pre_checkout_query = match List.assoc_opt "pre_checkout_query" fields with None | Some `Null -> None | Some x -> Some ((match PreCheckoutQuery.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "purchased_paid_media";
-          let purchased_paid_media = match List.assoc_opt "purchased_paid_media" fields with None | Some `Null -> None | Some x -> Some ((match PaidMediaPurchased.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "poll";
-          let poll = match List.assoc_opt "poll" fields with None | Some `Null -> None | Some x -> Some ((match Poll.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "poll_answer";
-          let poll_answer = match List.assoc_opt "poll_answer" fields with None | Some `Null -> None | Some x -> Some ((match PollAnswer.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "my_chat_member";
-          let my_chat_member = match List.assoc_opt "my_chat_member" fields with None | Some `Null -> None | Some x -> Some ((match ChatMemberUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "chat_member";
-          let chat_member = match List.assoc_opt "chat_member" fields with None | Some `Null -> None | Some x -> Some ((match ChatMemberUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "chat_join_request";
-          let chat_join_request = match List.assoc_opt "chat_join_request" fields with None | Some `Null -> None | Some x -> Some ((match ChatJoinRequest.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "chat_boost";
-          let chat_boost = match List.assoc_opt "chat_boost" fields with None | Some `Null -> None | Some x -> Some ((match ChatBoostUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "removed_chat_boost";
-          let removed_chat_boost = match List.assoc_opt "removed_chat_boost" fields with None | Some `Null -> None | Some x -> Some ((match ChatBoostRemoved.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { update_id = update_id; message = message; edited_message = edited_message; channel_post = channel_post; edited_channel_post = edited_channel_post; business_connection = business_connection; business_message = business_message; edited_business_message = edited_business_message; deleted_business_messages = deleted_business_messages; message_reaction = message_reaction; message_reaction_count = message_reaction_count; inline_query = inline_query; chosen_inline_result = chosen_inline_result; callback_query = callback_query; shipping_query = shipping_query; pre_checkout_query = pre_checkout_query; purchased_paid_media = purchased_paid_media; poll = poll; poll_answer = poll_answer; my_chat_member = my_chat_member; chat_member = chat_member; chat_join_request = chat_join_request; chat_boost = chat_boost; removed_chat_boost = removed_chat_boost; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in April 11, 2025"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for April 11, 2025"
-end
-and MakingRequestsWhenGettingUpdates : sig
-  type t = {
-    update_id : int64;
-    message : Message.t option;
-    edited_message : Message.t option;
-    channel_post : Message.t option;
-    edited_channel_post : Message.t option;
-    business_connection : BusinessConnection.t option;
-    business_message : Message.t option;
-    edited_business_message : Message.t option;
-    deleted_business_messages : BusinessMessagesDeleted.t option;
-    message_reaction : MessageReactionUpdated.t option;
-    message_reaction_count : MessageReactionCountUpdated.t option;
-    inline_query : InlineQuery.t option;
-    chosen_inline_result : ChosenInlineResult.t option;
-    callback_query : CallbackQuery.t option;
-    shipping_query : ShippingQuery.t option;
-    pre_checkout_query : PreCheckoutQuery.t option;
-    purchased_paid_media : PaidMediaPurchased.t option;
-    poll : Poll.t option;
-    poll_answer : PollAnswer.t option;
-    my_chat_member : ChatMemberUpdated.t option;
-    chat_member : ChatMemberUpdated.t option;
-    chat_join_request : ChatJoinRequest.t option;
-    chat_boost : ChatBoostUpdated.t option;
-    removed_chat_boost : ChatBoostRemoved.t option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    update_id : int64;
-    message : Message.t option;
-    edited_message : Message.t option;
-    channel_post : Message.t option;
-    edited_channel_post : Message.t option;
-    business_connection : BusinessConnection.t option;
-    business_message : Message.t option;
-    edited_business_message : Message.t option;
-    deleted_business_messages : BusinessMessagesDeleted.t option;
-    message_reaction : MessageReactionUpdated.t option;
-    message_reaction_count : MessageReactionCountUpdated.t option;
-    inline_query : InlineQuery.t option;
-    chosen_inline_result : ChosenInlineResult.t option;
-    callback_query : CallbackQuery.t option;
-    shipping_query : ShippingQuery.t option;
-    pre_checkout_query : PreCheckoutQuery.t option;
-    purchased_paid_media : PaidMediaPurchased.t option;
-    poll : Poll.t option;
-    poll_answer : PollAnswer.t option;
-    my_chat_member : ChatMemberUpdated.t option;
-    chat_member : ChatMemberUpdated.t option;
-    chat_join_request : ChatJoinRequest.t option;
-    chat_boost : ChatBoostUpdated.t option;
-    removed_chat_boost : ChatBoostRemoved.t option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("update_id", `Intlit (Int64.to_string v.update_id))
-      ] @
-      (match v.message with None -> [] | Some x -> [("message", Message.to_yojson x)]) @
-      (match v.edited_message with None -> [] | Some x -> [("edited_message", Message.to_yojson x)]) @
-      (match v.channel_post with None -> [] | Some x -> [("channel_post", Message.to_yojson x)]) @
-      (match v.edited_channel_post with None -> [] | Some x -> [("edited_channel_post", Message.to_yojson x)]) @
-      (match v.business_connection with None -> [] | Some x -> [("business_connection", BusinessConnection.to_yojson x)]) @
-      (match v.business_message with None -> [] | Some x -> [("business_message", Message.to_yojson x)]) @
-      (match v.edited_business_message with None -> [] | Some x -> [("edited_business_message", Message.to_yojson x)]) @
-      (match v.deleted_business_messages with None -> [] | Some x -> [("deleted_business_messages", BusinessMessagesDeleted.to_yojson x)]) @
-      (match v.message_reaction with None -> [] | Some x -> [("message_reaction", MessageReactionUpdated.to_yojson x)]) @
-      (match v.message_reaction_count with None -> [] | Some x -> [("message_reaction_count", MessageReactionCountUpdated.to_yojson x)]) @
-      (match v.inline_query with None -> [] | Some x -> [("inline_query", InlineQuery.to_yojson x)]) @
-      (match v.chosen_inline_result with None -> [] | Some x -> [("chosen_inline_result", ChosenInlineResult.to_yojson x)]) @
-      (match v.callback_query with None -> [] | Some x -> [("callback_query", CallbackQuery.to_yojson x)]) @
-      (match v.shipping_query with None -> [] | Some x -> [("shipping_query", ShippingQuery.to_yojson x)]) @
-      (match v.pre_checkout_query with None -> [] | Some x -> [("pre_checkout_query", PreCheckoutQuery.to_yojson x)]) @
-      (match v.purchased_paid_media with None -> [] | Some x -> [("purchased_paid_media", PaidMediaPurchased.to_yojson x)]) @
-      (match v.poll with None -> [] | Some x -> [("poll", Poll.to_yojson x)]) @
-      (match v.poll_answer with None -> [] | Some x -> [("poll_answer", PollAnswer.to_yojson x)]) @
-      (match v.my_chat_member with None -> [] | Some x -> [("my_chat_member", ChatMemberUpdated.to_yojson x)]) @
-      (match v.chat_member with None -> [] | Some x -> [("chat_member", ChatMemberUpdated.to_yojson x)]) @
-      (match v.chat_join_request with None -> [] | Some x -> [("chat_join_request", ChatJoinRequest.to_yojson x)]) @
-      (match v.chat_boost with None -> [] | Some x -> [("chat_boost", ChatBoostUpdated.to_yojson x)]) @
-      (match v.removed_chat_boost with None -> [] | Some x -> [("removed_chat_boost", ChatBoostRemoved.to_yojson x)]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "update_id";
-          let update_id = (try (match (List.assoc "update_id" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "update_id" fields)))) with Not_found -> raise (Type_error ("Missing required field 'update_id'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "message";
-          let message = match List.assoc_opt "message" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "edited_message";
-          let edited_message = match List.assoc_opt "edited_message" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "channel_post";
-          let channel_post = match List.assoc_opt "channel_post" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "edited_channel_post";
-          let edited_channel_post = match List.assoc_opt "edited_channel_post" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "business_connection";
-          let business_connection = match List.assoc_opt "business_connection" fields with None | Some `Null -> None | Some x -> Some ((match BusinessConnection.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "business_message";
-          let business_message = match List.assoc_opt "business_message" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "edited_business_message";
-          let edited_business_message = match List.assoc_opt "edited_business_message" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "deleted_business_messages";
-          let deleted_business_messages = match List.assoc_opt "deleted_business_messages" fields with None | Some `Null -> None | Some x -> Some ((match BusinessMessagesDeleted.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "message_reaction";
-          let message_reaction = match List.assoc_opt "message_reaction" fields with None | Some `Null -> None | Some x -> Some ((match MessageReactionUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "message_reaction_count";
-          let message_reaction_count = match List.assoc_opt "message_reaction_count" fields with None | Some `Null -> None | Some x -> Some ((match MessageReactionCountUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "inline_query";
-          let inline_query = match List.assoc_opt "inline_query" fields with None | Some `Null -> None | Some x -> Some ((match InlineQuery.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "chosen_inline_result";
-          let chosen_inline_result = match List.assoc_opt "chosen_inline_result" fields with None | Some `Null -> None | Some x -> Some ((match ChosenInlineResult.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "callback_query";
-          let callback_query = match List.assoc_opt "callback_query" fields with None | Some `Null -> None | Some x -> Some ((match CallbackQuery.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "shipping_query";
-          let shipping_query = match List.assoc_opt "shipping_query" fields with None | Some `Null -> None | Some x -> Some ((match ShippingQuery.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "pre_checkout_query";
-          let pre_checkout_query = match List.assoc_opt "pre_checkout_query" fields with None | Some `Null -> None | Some x -> Some ((match PreCheckoutQuery.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "purchased_paid_media";
-          let purchased_paid_media = match List.assoc_opt "purchased_paid_media" fields with None | Some `Null -> None | Some x -> Some ((match PaidMediaPurchased.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "poll";
-          let poll = match List.assoc_opt "poll" fields with None | Some `Null -> None | Some x -> Some ((match Poll.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "poll_answer";
-          let poll_answer = match List.assoc_opt "poll_answer" fields with None | Some `Null -> None | Some x -> Some ((match PollAnswer.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "my_chat_member";
-          let my_chat_member = match List.assoc_opt "my_chat_member" fields with None | Some `Null -> None | Some x -> Some ((match ChatMemberUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "chat_member";
-          let chat_member = match List.assoc_opt "chat_member" fields with None | Some `Null -> None | Some x -> Some ((match ChatMemberUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "chat_join_request";
-          let chat_join_request = match List.assoc_opt "chat_join_request" fields with None | Some `Null -> None | Some x -> Some ((match ChatJoinRequest.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "chat_boost";
-          let chat_boost = match List.assoc_opt "chat_boost" fields with None | Some `Null -> None | Some x -> Some ((match ChatBoostUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "removed_chat_boost";
-          let removed_chat_boost = match List.assoc_opt "removed_chat_boost" fields with None | Some `Null -> None | Some x -> Some ((match ChatBoostRemoved.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { update_id = update_id; message = message; edited_message = edited_message; channel_post = channel_post; edited_channel_post = edited_channel_post; business_connection = business_connection; business_message = business_message; edited_business_message = edited_business_message; deleted_business_messages = deleted_business_messages; message_reaction = message_reaction; message_reaction_count = message_reaction_count; inline_query = inline_query; chosen_inline_result = chosen_inline_result; callback_query = callback_query; shipping_query = shipping_query; pre_checkout_query = pre_checkout_query; purchased_paid_media = purchased_paid_media; poll = poll; poll_answer = poll_answer; my_chat_member = my_chat_member; chat_member = chat_member; chat_join_request = chat_join_request; chat_boost = chat_boost; removed_chat_boost = removed_chat_boost; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in Making requests when getting updates"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for Making requests when getting updates"
-end
-and DoINeedALocalBotAPIServer : sig
-  type t = {
-    update_id : int64;
-    message : Message.t option;
-    edited_message : Message.t option;
-    channel_post : Message.t option;
-    edited_channel_post : Message.t option;
-    business_connection : BusinessConnection.t option;
-    business_message : Message.t option;
-    edited_business_message : Message.t option;
-    deleted_business_messages : BusinessMessagesDeleted.t option;
-    message_reaction : MessageReactionUpdated.t option;
-    message_reaction_count : MessageReactionCountUpdated.t option;
-    inline_query : InlineQuery.t option;
-    chosen_inline_result : ChosenInlineResult.t option;
-    callback_query : CallbackQuery.t option;
-    shipping_query : ShippingQuery.t option;
-    pre_checkout_query : PreCheckoutQuery.t option;
-    purchased_paid_media : PaidMediaPurchased.t option;
-    poll : Poll.t option;
-    poll_answer : PollAnswer.t option;
-    my_chat_member : ChatMemberUpdated.t option;
-    chat_member : ChatMemberUpdated.t option;
-    chat_join_request : ChatJoinRequest.t option;
-    chat_boost : ChatBoostUpdated.t option;
-    removed_chat_boost : ChatBoostRemoved.t option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  val to_yojson : t -> Yojson.Safe.t
-  val of_yojson : Yojson.Safe.t -> (t, string) result
-end = struct
-  type t = {
-    update_id : int64;
-    message : Message.t option;
-    edited_message : Message.t option;
-    channel_post : Message.t option;
-    edited_channel_post : Message.t option;
-    business_connection : BusinessConnection.t option;
-    business_message : Message.t option;
-    edited_business_message : Message.t option;
-    deleted_business_messages : BusinessMessagesDeleted.t option;
-    message_reaction : MessageReactionUpdated.t option;
-    message_reaction_count : MessageReactionCountUpdated.t option;
-    inline_query : InlineQuery.t option;
-    chosen_inline_result : ChosenInlineResult.t option;
-    callback_query : CallbackQuery.t option;
-    shipping_query : ShippingQuery.t option;
-    pre_checkout_query : PreCheckoutQuery.t option;
-    purchased_paid_media : PaidMediaPurchased.t option;
-    poll : Poll.t option;
-    poll_answer : PollAnswer.t option;
-    my_chat_member : ChatMemberUpdated.t option;
-    chat_member : ChatMemberUpdated.t option;
-    chat_join_request : ChatJoinRequest.t option;
-    chat_boost : ChatBoostUpdated.t option;
-    removed_chat_boost : ChatBoostRemoved.t option;
-    unknown_fields : Telegram.Json_compat.Unknown_fields.t;
-  }
-  let to_yojson (v : t) : Yojson.Safe.t =
-    `Assoc (
-      [
-        ("update_id", `Intlit (Int64.to_string v.update_id))
-      ] @
-      (match v.message with None -> [] | Some x -> [("message", Message.to_yojson x)]) @
-      (match v.edited_message with None -> [] | Some x -> [("edited_message", Message.to_yojson x)]) @
-      (match v.channel_post with None -> [] | Some x -> [("channel_post", Message.to_yojson x)]) @
-      (match v.edited_channel_post with None -> [] | Some x -> [("edited_channel_post", Message.to_yojson x)]) @
-      (match v.business_connection with None -> [] | Some x -> [("business_connection", BusinessConnection.to_yojson x)]) @
-      (match v.business_message with None -> [] | Some x -> [("business_message", Message.to_yojson x)]) @
-      (match v.edited_business_message with None -> [] | Some x -> [("edited_business_message", Message.to_yojson x)]) @
-      (match v.deleted_business_messages with None -> [] | Some x -> [("deleted_business_messages", BusinessMessagesDeleted.to_yojson x)]) @
-      (match v.message_reaction with None -> [] | Some x -> [("message_reaction", MessageReactionUpdated.to_yojson x)]) @
-      (match v.message_reaction_count with None -> [] | Some x -> [("message_reaction_count", MessageReactionCountUpdated.to_yojson x)]) @
-      (match v.inline_query with None -> [] | Some x -> [("inline_query", InlineQuery.to_yojson x)]) @
-      (match v.chosen_inline_result with None -> [] | Some x -> [("chosen_inline_result", ChosenInlineResult.to_yojson x)]) @
-      (match v.callback_query with None -> [] | Some x -> [("callback_query", CallbackQuery.to_yojson x)]) @
-      (match v.shipping_query with None -> [] | Some x -> [("shipping_query", ShippingQuery.to_yojson x)]) @
-      (match v.pre_checkout_query with None -> [] | Some x -> [("pre_checkout_query", PreCheckoutQuery.to_yojson x)]) @
-      (match v.purchased_paid_media with None -> [] | Some x -> [("purchased_paid_media", PaidMediaPurchased.to_yojson x)]) @
-      (match v.poll with None -> [] | Some x -> [("poll", Poll.to_yojson x)]) @
-      (match v.poll_answer with None -> [] | Some x -> [("poll_answer", PollAnswer.to_yojson x)]) @
-      (match v.my_chat_member with None -> [] | Some x -> [("my_chat_member", ChatMemberUpdated.to_yojson x)]) @
-      (match v.chat_member with None -> [] | Some x -> [("chat_member", ChatMemberUpdated.to_yojson x)]) @
-      (match v.chat_join_request with None -> [] | Some x -> [("chat_join_request", ChatJoinRequest.to_yojson x)]) @
-      (match v.chat_boost with None -> [] | Some x -> [("chat_boost", ChatBoostUpdated.to_yojson x)]) @
-      (match v.removed_chat_boost with None -> [] | Some x -> [("removed_chat_boost", ChatBoostRemoved.to_yojson x)]) @
-      Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
-  let of_yojson (j : Yojson.Safe.t) : (t, string) result =
-    match j with
-    | `Assoc fields ->
-        let open Yojson.Safe.Util in
-        let uf = Telegram.Json_compat.Unknown_fields.create () in
-        (try
-          Telegram.Json_compat.Unknown_fields.mark_known uf "update_id";
-          let update_id = (try (match (List.assoc "update_id" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "update_id" fields)))) with Not_found -> raise (Type_error ("Missing required field 'update_id'", `Null))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "message";
-          let message = match List.assoc_opt "message" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "edited_message";
-          let edited_message = match List.assoc_opt "edited_message" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "channel_post";
-          let channel_post = match List.assoc_opt "channel_post" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "edited_channel_post";
-          let edited_channel_post = match List.assoc_opt "edited_channel_post" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "business_connection";
-          let business_connection = match List.assoc_opt "business_connection" fields with None | Some `Null -> None | Some x -> Some ((match BusinessConnection.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "business_message";
-          let business_message = match List.assoc_opt "business_message" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "edited_business_message";
-          let edited_business_message = match List.assoc_opt "edited_business_message" fields with None | Some `Null -> None | Some x -> Some ((match Message.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "deleted_business_messages";
-          let deleted_business_messages = match List.assoc_opt "deleted_business_messages" fields with None | Some `Null -> None | Some x -> Some ((match BusinessMessagesDeleted.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "message_reaction";
-          let message_reaction = match List.assoc_opt "message_reaction" fields with None | Some `Null -> None | Some x -> Some ((match MessageReactionUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "message_reaction_count";
-          let message_reaction_count = match List.assoc_opt "message_reaction_count" fields with None | Some `Null -> None | Some x -> Some ((match MessageReactionCountUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "inline_query";
-          let inline_query = match List.assoc_opt "inline_query" fields with None | Some `Null -> None | Some x -> Some ((match InlineQuery.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "chosen_inline_result";
-          let chosen_inline_result = match List.assoc_opt "chosen_inline_result" fields with None | Some `Null -> None | Some x -> Some ((match ChosenInlineResult.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "callback_query";
-          let callback_query = match List.assoc_opt "callback_query" fields with None | Some `Null -> None | Some x -> Some ((match CallbackQuery.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "shipping_query";
-          let shipping_query = match List.assoc_opt "shipping_query" fields with None | Some `Null -> None | Some x -> Some ((match ShippingQuery.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "pre_checkout_query";
-          let pre_checkout_query = match List.assoc_opt "pre_checkout_query" fields with None | Some `Null -> None | Some x -> Some ((match PreCheckoutQuery.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "purchased_paid_media";
-          let purchased_paid_media = match List.assoc_opt "purchased_paid_media" fields with None | Some `Null -> None | Some x -> Some ((match PaidMediaPurchased.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "poll";
-          let poll = match List.assoc_opt "poll" fields with None | Some `Null -> None | Some x -> Some ((match Poll.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "poll_answer";
-          let poll_answer = match List.assoc_opt "poll_answer" fields with None | Some `Null -> None | Some x -> Some ((match PollAnswer.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "my_chat_member";
-          let my_chat_member = match List.assoc_opt "my_chat_member" fields with None | Some `Null -> None | Some x -> Some ((match ChatMemberUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "chat_member";
-          let chat_member = match List.assoc_opt "chat_member" fields with None | Some `Null -> None | Some x -> Some ((match ChatMemberUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "chat_join_request";
-          let chat_join_request = match List.assoc_opt "chat_join_request" fields with None | Some `Null -> None | Some x -> Some ((match ChatJoinRequest.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "chat_boost";
-          let chat_boost = match List.assoc_opt "chat_boost" fields with None | Some `Null -> None | Some x -> Some ((match ChatBoostUpdated.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          Telegram.Json_compat.Unknown_fields.mark_known uf "removed_chat_boost";
-          let removed_chat_boost = match List.assoc_opt "removed_chat_boost" fields with None | Some `Null -> None | Some x -> Some ((match ChatBoostRemoved.of_yojson x with Ok v -> v | Error e -> raise (Type_error (e, x)))) in
-          let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
-          Ok { update_id = update_id; message = message; edited_message = edited_message; channel_post = channel_post; edited_channel_post = edited_channel_post; business_connection = business_connection; business_message = business_message; edited_business_message = edited_business_message; deleted_business_messages = deleted_business_messages; message_reaction = message_reaction; message_reaction_count = message_reaction_count; inline_query = inline_query; chosen_inline_result = chosen_inline_result; callback_query = callback_query; shipping_query = shipping_query; pre_checkout_query = pre_checkout_query; purchased_paid_media = purchased_paid_media; poll = poll; poll_answer = poll_answer; my_chat_member = my_chat_member; chat_member = chat_member; chat_join_request = chat_join_request; chat_boost = chat_boost; removed_chat_boost = removed_chat_boost; unknown_fields }
-        with
-        | Not_found -> Error "Missing required field in Do I need a Local Bot API Server"
-        | Type_error (msg, _) -> Error msg)
-    | _ -> Error "Expected JSON object for Do I need a Local Bot API Server"
 end
 and Update : sig
   type t = {

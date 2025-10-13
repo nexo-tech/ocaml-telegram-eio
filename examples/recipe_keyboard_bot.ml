@@ -67,6 +67,7 @@ module Settings = struct
 end
 
 let () =
+  Printexc.record_backtrace true;
   Eio.traceln "=== Keyboard Bot Starting ===";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
@@ -80,7 +81,10 @@ let () =
 
   Eio.traceln "🤖 Keyboard Bot Started";
 
+  let session_store = Verbose_session.Memory_store.create () in
+
   Verbose_bot.make ~env ~client
+  |> Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store
 
   (* /start - main menu *)
   |> Verbose_bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
@@ -121,97 +125,89 @@ let () =
     )
 
   (* Callback: menu:main *)
-  |> Verbose_bot.on_callback (fun ctx data ->
-      if data = "menu:main" then (
-        let open Verbose_bot.Ctx in
+  |> Verbose_bot.on_callback_data "menu:main" (fun ctx ->
+      let open Verbose_bot.Ctx in
+      Eio.traceln "[menu:main] Showing main menu";
 
-        let keyboard = KB.inline [
-          [KB.callback ~text:"⚙️ Settings" ~data:"menu:settings"];
-          [KB.callback ~text:"👤 Profile" ~data:"menu:profile"];
-          [KB.callback ~text:"❓ Help" ~data:"menu:help"];
-        ] in
+      let keyboard = KB.inline [
+        [KB.callback ~text:"⚙️ Settings" ~data:"menu:settings"];
+        [KB.callback ~text:"👤 Profile" ~data:"menu:profile"];
+        [KB.callback ~text:"❓ Help" ~data:"menu:help"];
+      ] in
 
-        match edit ~keyboard ctx "📱 Main Menu" with
-        | Ok _ -> Eio.traceln "[menu:main] ✓"; Ok ()
-        | Error e -> Eio.traceln "[menu:main] ✗ %a" Error.pp e; Ok ()
-      ) else Ok ()
+      match edit ~keyboard ctx "📱 Main Menu" with
+      | Ok _ -> Eio.traceln "[menu:main] ✓"; Ok ()
+      | Error e -> Eio.traceln "[menu:main] ✗ %a" Error.pp e; Ok ()
     )
 
   (* Callback: menu:settings *)
-  |> Verbose_bot.on_callback (fun ctx data ->
-      if data = "menu:settings" then (
-        let open Verbose_bot.Ctx in
-        let settings = session_get_or ctx settings_key ~default:Settings.default in
+  |> Verbose_bot.on_callback_data "menu:settings" (fun ctx ->
+      let open Verbose_bot.Ctx in
+      let settings = session_get_or ctx settings_key ~default:Settings.default in
+      Eio.traceln "[menu:settings] notifications=%b" settings.notifications;
 
-        let notif_text = if settings.notifications
-          then "🔔 Notifications: ON" else "🔕 Notifications: OFF" in
+      let notif_text = if settings.notifications
+        then "🔔 Notifications: ON" else "🔕 Notifications: OFF" in
 
-        let keyboard = KB.inline [
-          [KB.callback ~text:notif_text ~data:"toggle_notif"];
-          [KB.callback ~text:("🌐 " ^ settings.language) ~data:"lang"];
-          [KB.callback ~text:("🎨 " ^ settings.theme) ~data:"theme"];
-          [KB.callback ~text:"← Back" ~data:"menu:main"];
-        ] in
+      let keyboard = KB.inline [
+        [KB.callback ~text:notif_text ~data:"toggle_notif"];
+        [KB.callback ~text:("🌐 " ^ settings.language) ~data:"lang"];
+        [KB.callback ~text:("🎨 " ^ settings.theme) ~data:"theme"];
+        [KB.callback ~text:"← Back" ~data:"menu:main"];
+      ] in
 
-        match edit ~keyboard ctx "⚙️ Settings" with
-        | Ok _ -> Ok ()
-        | Error e -> Eio.traceln "[menu:settings] Error: %a" Error.pp e; Ok ()
-      ) else Ok ()
+      match edit ~keyboard ctx "⚙️ Settings" with
+      | Ok _ -> Eio.traceln "[menu:settings] ✓"; Ok ()
+      | Error e -> Eio.traceln "[menu:settings] ✗ %a" Error.pp e; Ok ()
     )
 
   (* Callback: toggle_notif *)
-  |> Verbose_bot.on_callback (fun ctx data ->
-      if data = "toggle_notif" then (
-        let open Verbose_bot.Ctx in
-        let settings = session_get_or ctx settings_key ~default:Settings.default in
-        let updated = Settings.toggle_notif settings in
-        session_set ctx settings_key updated;
-        Eio.traceln "[toggle_notif] %b → %b" settings.notifications updated.notifications;
+  |> Verbose_bot.on_callback_data "toggle_notif" (fun ctx ->
+      let open Verbose_bot.Ctx in
+      let settings = session_get_or ctx settings_key ~default:Settings.default in
+      let updated = Settings.toggle_notif settings in
+      session_set ctx settings_key updated;
+      Eio.traceln "[toggle_notif] %b → %b" settings.notifications updated.notifications;
 
-        let notif_text = if updated.notifications
-          then "🔔 Notifications: ON" else "🔕 Notifications: OFF" in
+      let notif_text = if updated.notifications
+        then "🔔 Notifications: ON" else "🔕 Notifications: OFF" in
 
-        let keyboard = KB.inline [
-          [KB.callback ~text:notif_text ~data:"toggle_notif"];
-          [KB.callback ~text:("🌐 " ^ updated.language) ~data:"lang"];
-          [KB.callback ~text:("🎨 " ^ updated.theme) ~data:"theme"];
-          [KB.callback ~text:"← Back" ~data:"menu:main"];
-        ] in
+      let keyboard = KB.inline [
+        [KB.callback ~text:notif_text ~data:"toggle_notif"];
+        [KB.callback ~text:("🌐 " ^ updated.language) ~data:"lang"];
+        [KB.callback ~text:("🎨 " ^ updated.theme) ~data:"theme"];
+        [KB.callback ~text:"← Back" ~data:"menu:main"];
+      ] in
 
-        match edit ~keyboard ctx "⚙️ Settings (toggled!)" with
-        | Ok _ -> Ok ()
-        | Error e -> Eio.traceln "[toggle_notif] Error: %a" Error.pp e; Ok ()
-      ) else Ok ()
+      match edit ~keyboard ctx "⚙️ Settings (toggled!)" with
+      | Ok _ -> Eio.traceln "[toggle_notif] ✓"; Ok ()
+      | Error e -> Eio.traceln "[toggle_notif] ✗ %a" Error.pp e; Ok ()
     )
 
   (* Callback: menu:profile *)
-  |> Verbose_bot.on_callback (fun ctx data ->
-      if data = "menu:profile" then (
-        let open Verbose_bot.Ctx in
+  |> Verbose_bot.on_callback_data "menu:profile" (fun ctx ->
+      let open Verbose_bot.Ctx in
 
-        let keyboard = KB.inline [
-          [KB.callback ~text:"← Back" ~data:"menu:main"];
-        ] in
+      let keyboard = KB.inline [
+        [KB.callback ~text:"← Back" ~data:"menu:main"];
+      ] in
 
-        match edit ~keyboard ctx "👤 Profile\n\nProfile features coming soon!" with
-        | Ok _ -> Ok ()
-        | Error e -> Eio.traceln "[menu:profile] Error: %a" Error.pp e; Ok ()
-      ) else Ok ()
+      match edit ~keyboard ctx "👤 Profile\n\nProfile features coming soon!" with
+      | Ok _ -> Eio.traceln "[menu:profile] ✓"; Ok ()
+      | Error e -> Eio.traceln "[menu:profile] ✗ %a" Error.pp e; Ok ()
     )
 
   (* Callback: menu:help *)
-  |> Verbose_bot.on_callback (fun ctx data ->
-      if data = "menu:help" then (
-        let open Verbose_bot.Ctx in
+  |> Verbose_bot.on_callback_data "menu:help" (fun ctx ->
+      let open Verbose_bot.Ctx in
 
-        let keyboard = KB.inline [
-          [KB.callback ~text:"← Back" ~data:"menu:main"];
-        ] in
+      let keyboard = KB.inline [
+        [KB.callback ~text:"← Back" ~data:"menu:main"];
+      ] in
 
-        match edit ~keyboard ctx "❓ Help\n\nCommands:\n/start - Main menu\n/settings - Settings" with
-        | Ok _ -> Ok ()
-        | Error e -> Eio.traceln "[menu:help] Error: %a" Error.pp e; Ok ()
-      ) else Ok ()
+      match edit ~keyboard ctx "❓ Help\n\nCommands:\n/start - Main menu\n/settings - Settings" with
+      | Ok _ -> Eio.traceln "[menu:help] ✓"; Ok ()
+      | Error e -> Eio.traceln "[menu:help] ✗ %a" Error.pp e; Ok ()
     )
 
   |> Verbose_bot.run

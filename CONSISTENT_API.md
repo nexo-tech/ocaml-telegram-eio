@@ -527,7 +527,25 @@ Goal: Implement every example from documentation in `examples/` directory with a
   - Example compiles without errors/warnings (zero compilation issues)
 
 ### Phase 1.1.3: API Components
-- [ ] Task 1.1.3.1: `docs/keyboard_api.mld` - Keyboard creation examples
+- [x] Task 1.1.3.1: `docs/keyboard_api.mld` - Keyboard creation examples
+  - Created `examples/keyboard_api_demo.ml` - Comprehensive keyboard API demonstration
+  - **Basic inline keyboards**: Callback buttons with data
+  - **URL buttons**: External links and deep links
+  - **Layout helpers**: Grid (KB.Layout.grid ~columns:3), vertical, horizontal
+  - **Common patterns**:
+    - KB.Patterns.yes_no - Yes/No confirmation dialogs
+    - KB.Patterns.confirm - Confirm/Cancel buttons
+    - KB.Patterns.pagination - Smart prev/next navigation (hides disabled buttons)
+    - KB.Patterns.number_grid - Phone-style number pad
+    - KB.Patterns.menu_with_back - Vertical menu with back button
+  - **Reply keyboards**: KB.reply for system keyboard replacement, KB.remove to hide
+  - **Interactive demonstrations**: Menu-driven exploration of all keyboard features
+  - **Commands**: /start (main menu), with callback-driven navigation through features
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Logs include: [inline_basic], [inline_url], [layouts], [patterns], [reply], [menu]
+    - Button selection logging, navigation tracking
+    - Success/error logging for all operations
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.3.2: `docs/command_dsl.mld` - Command DSL examples
 - [ ] Task 1.1.3.3: `docs/message_handling.mld` - Message handling patterns
 - [ ] Task 1.1.3.4: `docs/callback_queries.mld` - Callback query handling

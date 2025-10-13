@@ -186,6 +186,7 @@ module type S = sig
   val on_text : ([ `Chat ] ctx -> string -> (unit, Telegram.Error.t) result) -> bot -> bot
   val on_message : ([ `Chat ] ctx -> Telegram_generated.Gen_types.Message.t -> (unit, Telegram.Error.t) result) -> bot -> bot
   val on_callback : ([ `Chat ] ctx -> string -> (unit, Telegram.Error.t) result) -> bot -> bot
+  val on_callback_data : string -> ([ `Chat ] ctx -> (unit, Telegram.Error.t) result) -> bot -> bot
   val on_photo : ([ `Chat ] ctx -> Telegram_generated.Gen_types.PhotoSize.t list -> (unit, Telegram.Error.t) result) -> bot -> bot
 
   val use : [ `Chat ] Middleware.t -> bot -> bot
@@ -1330,9 +1331,78 @@ let on_text handler bot =
 let on_message handler bot =
   on Event.message handler bot
 
-(** Add a callback query handler to the bot *)
+(** Helper: enrich context from callback_query *)
+let enrich_callback_context ctx cbq =
+  let open Telegram_generated.Gen_types in
+  let CallbackQuery.{ from = user; message = msg_opt; _ } = cbq in
+
+  (* Build user info *)
+  let User.{ id = user_id; username; _ } = user in
+  let user_info = Telegram.Types.{
+    id = Telegram.Id.User.of_int user_id;
+    username = username;
+  } in
+
+  (* Build chat and message info if message is available *)
+  let (chat_id_opt, message_opt, full_msg_opt) = match msg_opt with
+    | Some (msg : Message.t) ->
+        (* Extract from Message *)
+        let Message.{ chat; message_id; text; _ } = msg in
+        let Chat.{ id; _ } = chat in
+        let chat_id = Telegram.Id.Chat.of_int id in
+        let message = Telegram.Types.{
+          message_id = Int64.to_int message_id;
+          chat_id;
+          text;
+        } in
+        (Some chat_id, Some message, Some msg)
+    | None -> (None, None, None)
+  in
+
+  (* Return enriched context - preserve client, env, and session from original *)
+  {
+    ctx with
+    user = Some user_info;
+    chat = chat_id_opt;
+    msg = message_opt;
+    full_message = full_msg_opt;
+  }
+
+(** Add a callback query handler for specific callback data *)
+let on_callback_data expected_data handler bot =
+  let callback_event = Event.when_ Event.any (fun upd ->
+    match upd.Telegram_generated.Gen_types.Update.callback_query with
+    | Some cbq ->
+        let data = Option.value cbq.Telegram_generated.Gen_types.CallbackQuery.data ~default:"" in
+        let matches = data = expected_data in
+        Log.debug "on_callback_data filter: expected=\"%s\", actual=\"%s\", matches=%b"
+          expected_data data matches;
+        matches
+    | None -> false
+  ) in
+  let wrapped_handler ctx upd =
+    Log.debug "on_callback_data wrapped_handler called for: \"%s\"" expected_data;
+    match upd.Telegram_generated.Gen_types.Update.callback_query with
+    | Some cbq ->
+        Log.debug "on_callback_data: enriching context";
+        let enriched_ctx = enrich_callback_context ctx cbq in
+        Log.debug "on_callback_data: calling user handler";
+        (try
+          let result = handler enriched_ctx in
+          Log.debug "on_callback_data: handler returned %s" (match result with Ok () -> "Ok" | Error _ -> "Error");
+          result
+        with exn ->
+          Log.error "on_callback_data: handler threw exception: %s" (Printexc.to_string exn);
+          Log.error "on_callback_data: backtrace: %s" (Printexc.get_backtrace ());
+          Error (Internal_error ("Handler exception: " ^ Printexc.to_string exn)))
+    | None ->
+        Log.debug "on_callback_data: no callback_query found";
+        Ok ()
+  in
+  on callback_event wrapped_handler bot
+
+(** Add a callback query handler to the bot (receives all callbacks with data) *)
 let on_callback handler bot =
-  (* Create a filter on callback_query updates that extracts the data *)
   let callback_event = Event.when_ Event.any (fun upd ->
     match upd.Telegram_generated.Gen_types.Update.callback_query with
     | Some _ -> true
@@ -1341,8 +1411,9 @@ let on_callback handler bot =
   let wrapped_handler ctx upd =
     match upd.Telegram_generated.Gen_types.Update.callback_query with
     | Some cbq ->
+        let enriched_ctx = enrich_callback_context ctx cbq in
         let data = Option.value cbq.Telegram_generated.Gen_types.CallbackQuery.data ~default:"" in
-        handler ctx data
+        handler enriched_ctx data
     | None -> Ok ()
   in
   on callback_event wrapped_handler bot
