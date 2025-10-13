@@ -280,7 +280,37 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - Admin access logging (granted/denied)
     - Subscription changes logging (add/remove)
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.2.8: `docs/recipe_poll_quiz_bot.mld` - Polls and quizzes
+- [x] Task 1.1.2.8: `docs/recipe_poll_quiz_bot.mld` - Polls and quizzes
+  - Created `examples/recipe_poll_quiz_bot.ml` - Comprehensive poll and quiz system
+  - **Simple polls**: /poll command with multiple options
+  - **Multiple answer polls**: /multipoll with allows_multiple_answers
+  - **Timed polls**: /timedpoll with open_period (auto-close)
+  - **Quiz mode**: /quiz command with correct answers and explanations
+    - Non-anonymous mode for vote tracking
+    - correct_option_id for marking right answer
+    - HTML explanation with explanation_parse_mode
+  - **Vote tracking**: VoteTracker module for non-anonymous polls
+    - poll_id -> (user_id -> option_ids) mapping
+    - Tracks PollAnswer updates
+    - Aggregates vote counts per option
+  - **Poll metadata storage**: PollMeta module
+    - Stores chat_id, message_id, poll_type, correct_option
+    - Required for stopping polls via stop_poll API
+  - **Results display**: /results command stops poll and shows final counts
+  - **Quiz leaderboard**: /leaderboard command ranks users by correct answers
+    - Scores quiz based on correct_option_id
+    - Formats with medal emojis (🥇🥈🥉)
+    - Shows correct/incorrect status per user
+  - **Poll management**: /list command shows all active polls
+  - **Commands**: /start, /help, /poll, /multipoll, /timedpoll, /quiz, /results, /leaderboard, /list
+  - **Result-based handlers**: All handlers return `(unit, Error.t) result`
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Comprehensive Eio.traceln logging at every step
+    - Logs include: [Handler], [PollOption], [PollMeta], [VoteTracker], [Leaderboard], [Builder], [Init], [Polling]
+    - Poll creation logging (question, options count, poll_type)
+    - Vote tracking logging (poll_id, user_id, option_ids)
+    - Leaderboard scoring logging (correct answers, rankings)
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.2.9: `docs/recipe_inline_bot.mld` - Inline queries
 - [ ] Task 1.1.2.10: `docs/recipe_group_management_bot.mld` - Group admin features
 - [ ] Task 1.1.2.11: `docs/recipe_payment_bot.mld` - Payment integration
@@ -343,10 +373,10 @@ Every example must:
 ## Progress Tracking
 
 **Total Tasks**: 35
-**Completed**: 9
+**Completed**: 10
 **In Progress**: 0
-**Remaining**: 26
-**Progress**: 26% (9/35)
+**Remaining**: 25
+**Progress**: 29% (10/35)
 
 ---
 
