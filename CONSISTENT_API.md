@@ -416,7 +416,60 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - CAPTCHA flow logging (pending users, verification, cleanup)
     - Permission change logging (ban, mute, promote, etc.)
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.2.11: `docs/recipe_payment_bot.mld` - Payment integration
+- [x] Task 1.1.2.11: `docs/recipe_payment_bot.mld` - Payment integration
+  - Created `examples/recipe_payment_bot.ml` - Comprehensive payment system
+  - **Product catalog**: Multiple products with pricing and metadata
+    - Product type with id, name, description, price_cents, currency, emoji, requires_shipping
+    - ProductCatalog module with find, list_all, format_catalog
+    - 4 demo products (Basic Plan, Pro Plan, T-Shirt, Sticker Pack)
+  - **Invoice creation**: LabeledPrice and send_invoice
+    - PriceHelper module for creating labeled prices
+    - product_prices function to generate price list
+    - with_tax function to add tax (8% demo)
+    - Support for max_tip_amount and suggested_tip_amounts
+    - Flexible shipping option (is_flexible flag)
+  - **Payment links**: create_invoice_link for shareable URLs
+    - /link command generates shareable payment links
+    - Links include product info and pricing
+    - HTML formatted with clickable URLs
+  - **Order management**: Order tracking and fulfillment
+    - OrderManager module with Hashtbl storage
+    - Order status: Pending, AwaitingPayment, Paid, Fulfilled, Refunded
+    - create, find, update_status, mark_paid operations
+    - User order history with get_user_orders
+    - Charge ID tracking (telegram_payment_charge_id, provider_payment_charge_id)
+  - **Shipping queries**: Shipping options based on address
+    - ShippingHelper module with shipping_option constructor
+    - Standard ($5), Express ($15), International ($25) options
+    - Address-based logic (US, North America, International)
+    - answer_shipping_query with ok:true/false
+  - **Pre-checkout validation**: Order and amount validation
+    - Validates order exists in OrderManager
+    - Validates total_amount matches expected
+    - answer_pre_checkout_query with approval/rejection
+    - Error messages for invalid payload or price mismatch
+  - **Successful payment**: Payment confirmation and fulfillment
+    - successful_payment event handling
+    - Order marked as paid with charge IDs
+    - Automatic fulfillment (demo)
+    - Confirmation message with order details
+  - **Payment provider**: Configurable provider token
+    - PaymentProvider module with get_provider_token
+    - PAYMENT_PROVIDER_TOKEN environment variable
+    - Test token fallback for development
+    - Stars support flag (ENABLE_STARS)
+  - **Commands**: /start, /products, /buy, /link, /orders, /help
+  - **Event handlers**: shipping_query, pre_checkout_query, successful_payment
+  - **Result-based handlers**: All handlers return `(unit, Error.t) result`
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Comprehensive Eio.traceln logging at every step
+    - Logs include: [Handler], [ProductCatalog], [OrderManager], [PriceHelper], [ShippingHelper], [PaymentProvider], [Builder], [Init], [Polling]
+    - Product lookup logging (id, name, price)
+    - Order creation logging (order_id, product, amount)
+    - Shipping option logging (country, options available)
+    - Pre-checkout validation logging (order, amount match)
+    - Payment processing logging (charge IDs, fulfillment)
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.2.12: `docs/recipe_games_bot.mld` - Game bot
 
 ### Phase 1.1.3: API Components
@@ -476,10 +529,10 @@ Every example must:
 ## Progress Tracking
 
 **Total Tasks**: 35
-**Completed**: 12
+**Completed**: 13
 **In Progress**: 0
-**Remaining**: 23
-**Progress**: 34% (12/35)
+**Remaining**: 22
+**Progress**: 37% (13/35)
 
 ---
 
