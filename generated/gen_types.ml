@@ -6744,7 +6744,7 @@ end = struct
 end
 and MaybeInaccessibleMessage : sig
   type t = {
-    type_ : string;
+    type_ : string option;  (* Optional - not all variants have type field *)
     offset : int64 option;
     length : int64 option;
     url : string option;
@@ -6757,7 +6757,7 @@ and MaybeInaccessibleMessage : sig
   val of_yojson : Yojson.Safe.t -> (t, string) result
 end = struct
   type t = {
-    type_ : string;
+    type_ : string option;  (* Optional - not all variants have type field *)
     offset : int64 option;
     length : int64 option;
     url : string option;
@@ -6768,9 +6768,8 @@ end = struct
   }
   let to_yojson (v : t) : Yojson.Safe.t =
     `Assoc (
-      [
-        ("type", `String v.type_)
-      ] @
+      [] @
+      (match v.type_ with None -> [] | Some x -> [("type", `String x)]) @
       (match v.offset with None -> [] | Some x -> [("offset", `Intlit (Int64.to_string x))]) @
       (match v.length with None -> [] | Some x -> [("length", `Intlit (Int64.to_string x))]) @
       (match v.url with None -> [] | Some x -> [("url", `String x)]) @
@@ -6785,7 +6784,7 @@ end = struct
         let uf = Telegram.Json_compat.Unknown_fields.create () in
         (try
           Telegram.Json_compat.Unknown_fields.mark_known uf "type";
-          let type_ = (try (to_string (List.assoc "type" fields)) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
+          let type_ = match List.assoc_opt "type" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
           Telegram.Json_compat.Unknown_fields.mark_known uf "offset";
           let offset = match List.assoc_opt "offset" fields with None | Some `Null -> None | Some x -> Some ((match x with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", x)))) in
           Telegram.Json_compat.Unknown_fields.mark_known uf "length";
