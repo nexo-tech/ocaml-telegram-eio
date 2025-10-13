@@ -359,7 +359,63 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - Pagination logging (offset, page size, total)
     - Chosen result logging (result_id, user_id)
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.2.10: `docs/recipe_group_management_bot.mld` - Group admin features
+- [x] Task 1.1.2.10: `docs/recipe_group_management_bot.mld` - Group admin features
+  - Created `examples/recipe_group_management_bot.ml` - Comprehensive group administration system
+  - **Admin permission checks**: Verify admin status before actions
+    - AdminCheck module with get_chat_member API
+    - Creator/Administrator/NotAdmin status detection
+    - Granular permission checks (delete_messages, restrict_members, promote_members)
+    - require_admin and require_admin_with_permission guards
+  - **Ban/unban members**: Temporary and permanent bans
+    - ban_chat_member with until_date for temporary bans
+    - revoke_messages flag to delete message history
+    - unban_chat_member with only_if_banned flag
+    - Reply-to-message targeting
+  - **Kick members**: Remove without ban
+    - Ban + immediate unban pattern
+    - Reply-to-message targeting
+  - **Mute/unmute**: Temporary message restrictions
+    - restrict_chat_member with ChatPermissions
+    - can_send_messages = false for mute
+    - Temporary mute with until_date
+    - Restore permissions with unmute
+  - **Promote/demote admins**: Granular admin permissions
+    - promote_chat_member with fine-grained rights
+    - can_delete_messages, can_restrict_members, can_manage_chat, can_manage_topics
+    - Demote by promoting with no permissions
+  - **Pin/unpin messages**: Message pinning
+    - pin_chat_message with reply targeting
+    - unpin_chat_message for specific message
+    - unpin_all_chat_messages when no reply
+  - **Chat permissions**: Lockdown and unlock
+    - set_chat_permissions for chat-wide settings
+    - Lockdown mode (all messages blocked)
+    - Unlock mode (restore normal permissions)
+  - **Anti-spam detection**: Automatic spam filtering
+    - SpamDetector module with heuristics
+    - Entity count, URL detection, mention count
+    - Automatic message deletion
+    - Warning messages to group
+  - **CAPTCHA verification**: New member verification
+    - Automatic read-only mode for new members
+    - Inline keyboard with "I'm Human" button
+    - Callback-based verification
+    - Permission restoration on success
+    - Background cleanup fiber for expired verifications
+  - **Warning system**: Non-destructive warnings
+    - Reply-based targeting
+    - HTML formatted warning messages
+  - **Commands**: /start, /ban, /unban, /kick, /mute, /unmute, /promote, /demote, /pin, /unpin, /lockdown, /unlock, /warn
+  - **Event handlers**: new_chat_members, spam detection, CAPTCHA callbacks
+  - **Result-based handlers**: All handlers return `(unit, Error.t) result`
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Comprehensive Eio.traceln logging at every step
+    - Logs include: [Handler], [AdminCheck], [SpamDetector], [CaptchaVerification], [Permissions], [Builder], [Init], [Polling]
+    - Admin check logging (status, permissions)
+    - Spam detection logging (entity counts, URLs, mentions)
+    - CAPTCHA flow logging (pending users, verification, cleanup)
+    - Permission change logging (ban, mute, promote, etc.)
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.2.11: `docs/recipe_payment_bot.mld` - Payment integration
 - [ ] Task 1.1.2.12: `docs/recipe_games_bot.mld` - Game bot
 
@@ -420,10 +476,10 @@ Every example must:
 ## Progress Tracking
 
 **Total Tasks**: 35
-**Completed**: 11
+**Completed**: 12
 **In Progress**: 0
-**Remaining**: 24
-**Progress**: 31% (11/35)
+**Remaining**: 23
+**Progress**: 34% (12/35)
 
 ---
 
