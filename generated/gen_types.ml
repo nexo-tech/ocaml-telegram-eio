@@ -867,7 +867,7 @@ end
 and BackgroundFill : sig
   type t = {
     type_ : string;
-    color : int64;
+    color : int64 option;  (* Optional - only in BackgroundFillSolid *)
     unknown_fields : Telegram.Json_compat.Unknown_fields.t;
   }
   val to_yojson : t -> Yojson.Safe.t
@@ -875,15 +875,15 @@ and BackgroundFill : sig
 end = struct
   type t = {
     type_ : string;
-    color : int64;
+    color : int64 option;  (* Optional - only in BackgroundFillSolid *)
     unknown_fields : Telegram.Json_compat.Unknown_fields.t;
   }
   let to_yojson (v : t) : Yojson.Safe.t =
     `Assoc (
       [
-        ("type", `String v.type_);
-        ("color", `Intlit (Int64.to_string v.color))
+        ("type", `String v.type_)
       ] @
+      (match v.color with None -> [] | Some x -> [("color", `Intlit (Int64.to_string x))]) @
       Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
   let of_yojson (j : Yojson.Safe.t) : (t, string) result =
     match j with
@@ -894,7 +894,7 @@ end = struct
           Telegram.Json_compat.Unknown_fields.mark_known uf "type";
           let type_ = (try (to_string (List.assoc "type" fields)) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
           Telegram.Json_compat.Unknown_fields.mark_known uf "color";
-          let color = (try (match (List.assoc "color" fields) with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", (List.assoc "color" fields)))) with Not_found -> raise (Type_error ("Missing required field 'color'", `Null))) in
+          let color = match List.assoc_opt "color" fields with None | Some `Null -> None | Some x -> Some ((match x with `Int i -> Int64.of_int i | `Intlit s -> Int64.of_string s | _ -> raise (Type_error ("Expected int", x)))) in
           let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
           Ok { type_ = type_; color = color; unknown_fields }
         with
@@ -2472,7 +2472,7 @@ end
 and ReactionType : sig
   type t = {
     type_ : string;
-    emoji : string;
+    emoji : string option;  (* Optional - only in ReactionTypeEmoji *)
     unknown_fields : Telegram.Json_compat.Unknown_fields.t;
   }
   val to_yojson : t -> Yojson.Safe.t
@@ -2480,15 +2480,15 @@ and ReactionType : sig
 end = struct
   type t = {
     type_ : string;
-    emoji : string;
+    emoji : string option;  (* Optional - only in ReactionTypeEmoji *)
     unknown_fields : Telegram.Json_compat.Unknown_fields.t;
   }
   let to_yojson (v : t) : Yojson.Safe.t =
     `Assoc (
       [
-        ("type", `String v.type_);
-        ("emoji", `String v.emoji)
+        ("type", `String v.type_)
       ] @
+      (match v.emoji with None -> [] | Some x -> [("emoji", `String x)]) @
       Telegram.Json_compat.Unknown_fields.to_assoc v.unknown_fields)
   let of_yojson (j : Yojson.Safe.t) : (t, string) result =
     match j with
@@ -2499,7 +2499,7 @@ end = struct
           Telegram.Json_compat.Unknown_fields.mark_known uf "type";
           let type_ = (try (to_string (List.assoc "type" fields)) with Not_found -> raise (Type_error ("Missing required field 'type'", `Null))) in
           Telegram.Json_compat.Unknown_fields.mark_known uf "emoji";
-          let emoji = (try (to_string (List.assoc "emoji" fields)) with Not_found -> raise (Type_error ("Missing required field 'emoji'", `Null))) in
+          let emoji = match List.assoc_opt "emoji" fields with None | Some `Null -> None | Some x -> Some ((to_string x)) in
           let unknown_fields = Telegram.Json_compat.Unknown_fields.capture uf fields in
           Ok { type_ = type_; emoji = emoji; unknown_fields }
         with
