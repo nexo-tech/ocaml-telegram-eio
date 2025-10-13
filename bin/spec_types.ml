@@ -89,17 +89,17 @@ let scan_types_section s =
                        (match find_sub s "<table" ~from:h_end with
                         | None ->
                             let open Telegram.Spec_ast in
-                            loop ({ anchor; title = String.trim title; fields = [] } :: acc) (h_end + 5)
+                            loop ({ anchor; title = String.trim title; fields = []; is_union = false } :: acc) (h_end + 5)
                         | Some t_start ->
                             (match find_sub s "</table>" ~from:t_start with
                              | None ->
                                  let open Telegram.Spec_ast in
-                                 loop ({ anchor; title = String.trim title; fields = [] } :: acc) (h_end + 5)
+                                 loop ({ anchor; title = String.trim title; fields = []; is_union = false } :: acc) (h_end + 5)
                              | Some t_end ->
                                  let tbl = String.sub s t_start (t_end - t_start + 8) in
                                  let fields = parse_table tbl in
                                  let open Telegram.Spec_ast in
-                                 loop ({ anchor; title = String.trim title; fields } :: acc) (h_end + 5))))))
+                                 loop ({ anchor; title = String.trim title; fields; is_union = false } :: acc) (h_end + 5))))))
   in
   loop [] 0
 

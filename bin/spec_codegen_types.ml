@@ -49,6 +49,16 @@ let parse_types s : Telegram.Spec_ast.tdef list =
                   | None -> List.rev acc
                   | Some h_end ->
                       let title = strip_tags (String.sub s a_end (h_end - a_end)) |> String.trim in
+                      (* Check if this is a discriminated union type by looking for "can be one of" *)
+                      let is_union =
+                        match find_sub s "<table" ~from:h_end with
+                        | Some t_start ->
+                            let desc_section = String.sub s h_end (t_start - h_end) |> String.lowercase_ascii in
+                            String.length desc_section > 0 &&
+                            (find_sub desc_section "can be one of" <> None ||
+                             find_sub desc_section "one of the following" <> None)
+                        | None -> false
+                      in
                       let table =
                         match find_sub s "<table" ~from:h_end with
                         | Some t_start -> (match find_sub s "</table>" ~from:t_start with None -> None | Some t_end -> Some (String.sub s t_start (t_end - t_start + 8)))
@@ -89,7 +99,7 @@ let parse_types s : Telegram.Spec_ast.tdef list =
                                  List.filter_map parse_row data_rows
                              | _ -> [])
                       in
-                      let def = (let open Telegram.Spec_ast in { anchor; title; fields }) in
+                      let def = (let open Telegram.Spec_ast in { anchor; title; fields; is_union }) in
                       loop (def :: acc) (h_end + 5))))
   in
   loop [] 0
@@ -145,7 +155,9 @@ let gen_ml defs =
           let fname = ocaml_field_name f.name in
           let ocaml_t = parse_type f.typ |> to_ocaml_type in
           let ocaml_t = if String.equal ocaml_t (mname ^ ".t") then "t" else ocaml_t in
-          let ocaml_t = if f.optional then ocaml_t ^ " option" else ocaml_t in
+          (* For union types, make all fields optional except type_ *)
+          let is_optional = f.optional || (d.is_union && f.name <> "type") in
+          let ocaml_t = if is_optional then ocaml_t ^ " option" else ocaml_t in
           Buffer.add_string b ("    " ^ fname ^ " : " ^ ocaml_t ^ ";\n")
         ) d.fields;
         Buffer.add_string b "    unknown_fields : Telegram.Json_compat.Unknown_fields.t;\n";
@@ -177,8 +189,13 @@ let gen_ml defs =
     ) else (
       Buffer.add_string b "  let to_yojson (v : t) : Yojson.Safe.t =\n";
       (* Separate required and optional fields for cleaner code generation *)
-      let required_fields = List.filter (fun (f:Telegram.Spec_ast.field) -> not f.optional) d.fields in
-      let optional_fields = List.filter (fun (f:Telegram.Spec_ast.field) -> f.optional) d.fields in
+      (* For union types, all fields except type_ are optional *)
+      let required_fields = List.filter (fun (f:Telegram.Spec_ast.field) ->
+        not f.optional && not (d.is_union && f.name <> "type")
+      ) d.fields in
+      let optional_fields = List.filter (fun (f:Telegram.Spec_ast.field) ->
+        f.optional || (d.is_union && f.name <> "type")
+      ) d.fields in
 
       Buffer.add_string b "    `Assoc (\n";
 
@@ -258,7 +275,9 @@ let gen_ml defs =
           | TUnion _ -> Printf.sprintf "(to_string %s)" json_expr
         in
         Buffer.add_string b (Printf.sprintf "          Telegram.Json_compat.Unknown_fields.mark_known uf \"%s\";\n" json_name);
-        if f.optional then
+        (* For union types, make all fields optional except type_ *)
+        let is_optional = f.optional || (d.is_union && f.name <> "type") in
+        if is_optional then
           Buffer.add_string b (Printf.sprintf "          let %s = match List.assoc_opt \"%s\" fields with None | Some `Null -> None | Some x -> Some (%s) in\n"
             fname json_name (gen_decoder typ "x"))
         else
