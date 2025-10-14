@@ -604,7 +604,49 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - Message operation logging (send, edit, delete)
     - Success/error logging for all operations
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.3.4: `docs/callback_queries.mld` - Callback query handling
+- [x] Task 1.1.3.4: `docs/callback_queries.mld` - Callback query handling
+  - Created `examples/callback_queries_demo.ml` - Comprehensive callback query demonstration
+  - **Basic callback handling**: on_callback_data API for specific button presses
+    - Simple string data callbacks (simple:a, simple:b, simple:c)
+    - Clean handler routing with on_callback_data
+    - Message editing in response to callbacks
+  - **Structured callback data**: Delimiter-based encoding (action:type:id)
+    - Pattern: edit:post:42, delete:post:42, view:comment:7
+    - String.split_on_char parsing
+    - Dynamic callback data generation
+  - **Type-safe callback encoding**: ADT-based encoding/decoding
+    - CallbackAction type: Like, Unlike, Delete, Edit, ViewItem
+    - encode/decode functions with pattern matching
+    - Compile-time safety for callback structure
+    - ViewItem with embedded page context
+  - **State management**: Session-based state tracking
+    - liked_items list stored in session
+    - current_page tracking for pagination
+    - Toggle state (notifications_enabled)
+    - Persistent state across callbacks
+  - **Confirmation pattern**: Two-step destructive action confirmation
+    - Initial request shows item to delete
+    - Confirmation dialog with Yes/Cancel
+    - delete_confirmed and delete_cancelled handlers
+    - Prevents accidental deletions
+  - **Pagination pattern**: Smart prev/next navigation
+    - KB.Patterns.pagination helper
+    - Hides disabled buttons (no prev on first page)
+    - Session state for current page
+    - Dynamic page navigation
+  - **Toggle pattern**: Stateful button state changes
+    - Notification toggle demonstration
+    - Session storage for toggle state
+    - Button text updates based on state
+    - Visual feedback (ON/OFF with emojis)
+  - **Commands**: /start (main menu with interactive callback navigation)
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Logs include: [/start], [demo:simple], [demo:structured], [demo:typed], [demo:confirm], [demo:paginate], [demo:toggle], [simple:a/b/c], [structured], [typed], [confirm], [delete_confirmed], [delete_cancelled], [page], [toggle], [demo:menu]
+    - Callback data logging (parsing, state changes)
+    - Navigation logging (page changes, menu transitions)
+    - State mutation logging (toggle, likes, page)
+    - Success/error logging for all operations
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.3.5: `docs/media_files.mld` - Media handling examples
 - [ ] Task 1.1.3.6: `docs/update_processing.mld` - Update processing patterns
 - [ ] Task 1.1.3.7: `docs/error_handling.mld` - Error handling examples
