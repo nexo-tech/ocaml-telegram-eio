@@ -1097,7 +1097,68 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - Request counting logging
     - Success/error logging for all operations
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.4.4: `docs/testing_patterns.mld` - Testing examples
+- [x] Task 1.1.4.4: `docs/testing_patterns.mld` - Testing examples
+  - Created `examples/testing_patterns_demo.ml` - Comprehensive testing patterns demonstration
+  - **Pure business logic**: Separated from I/O for testability
+    - BusinessLogic module contains only pure functions
+    - validate_name: name length validation
+    - validate_email: email format validation
+    - parse_price: price string parsing
+    - parse_bool: boolean string parsing
+    - calculate_discount: discount calculation
+    - format_greeting: greeting message generation
+    - All functions are pure (no I/O, no side effects)
+  - **Testable validation functions**: Result-based validation
+    - validation_error ADT: EmptyName, NameTooLong, InvalidEmail, InvalidPrice, InvalidBoolean
+    - Functions return Result.t for explicit error handling
+    - error_to_message converts errors to user messages
+    - Easy to write unit tests (no mocking needed)
+  - **Self-testing module**: Runtime test execution
+    - SelfTest module runs tests in the bot
+    - run_test executes test function, catches exceptions
+    - test_result type: name, passed, message
+    - run_all_tests executes complete test suite
+    - format_results creates test report
+  - **Pure function tests**: Demonstrates testable patterns
+    - test_name_validation: Tests valid, empty, and long names
+    - test_email_validation: Tests valid and invalid emails
+    - test_discount_calculation: Tests premium and regular pricing
+    - test_args_parsing: Tests Bot.Args functions (expect_1, parse_int, join_rest)
+    - All tests verify pure function behavior
+  - **Testable handlers**: Handlers use pure logic
+    - /register: Uses validate_name, validate_email, format_greeting
+    - /calculate: Uses parse_price, parse_bool, calculate_discount
+    - /validate_email: Tests email validation live
+    - /validate_name: Tests name validation live
+    - Handlers orchestrate pure functions (thin I/O layer)
+  - **Self-test commands**: Interactive testing
+    - /self_test: Runs all tests, shows results
+    - /test_validation: Tests validators only
+    - /test_args: Tests Args module
+    - /test_calculation: Tests calculations
+    - Results show PASSED/FAILED status
+    - Useful for demonstrating test execution
+  - **Testable design principles**: Separation of concerns
+    - Business logic in pure functions
+    - I/O in handlers (thin layer)
+    - Validation separate from execution
+    - Easy to test without Telegram API
+    - No mocking required for business logic
+  - **Test result reporting**: Clear test output
+    - PASSED/FAILED status for each test
+    - Error messages on failure
+    - Exception handling in test runner
+    - Summary with pass/fail count
+    - Demonstrates test reporting patterns
+  - **Commands**: /start, /self_test, /test_validation, /test_args, /test_calculation, /register, /calculate, /validate_email, /validate_name
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Logs include: [/start], [/self_test], [/test_validation], [/test_args], [/test_calculation], [/register], [/calculate], [/validate_email], [/validate_name], [BusinessLogic], [SelfTest]
+    - Business logic execution logging (function calls, inputs)
+    - Test execution logging (running, passed, failed)
+    - Validation logging (valid/invalid inputs)
+    - Calculation logging (prices, discounts)
+    - Success/error logging for all operations
+  - Example compiles without errors/warnings (zero compilation issues)
 
 ### Phase 1.1.5: Use Cases
 - [ ] Task 1.1.5.1: `docs/usecase_utility_bots.mld` - Utility bot examples
