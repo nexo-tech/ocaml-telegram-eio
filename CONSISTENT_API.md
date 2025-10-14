@@ -647,7 +647,49 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - State mutation logging (toggle, likes, page)
     - Success/error logging for all operations
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.3.5: `docs/media_files.mld` - Media handling examples
+- [x] Task 1.1.3.5: `docs/media_files.mld` - Media handling examples
+  - Created `examples/media_files_demo.ml` - Comprehensive media handling demonstration
+  - **Sending photos**: Multiple input methods
+    - Photo from URL (send_photo with URL string)
+    - Photo from file_id (reuse received photo - instant, no upload)
+    - Caption support with HTML formatting
+  - **Sending documents**: File upload and management
+    - Generate text file with Filename.temp_file
+    - send_document with local file path
+    - Automatic cleanup with Sys.remove
+    - Custom captions
+  - **Sending albums**: Media groups with multiple photos
+    - Album.create, Album.add, Album.build pipeline
+    - Album.photo with individual captions
+    - Input_file.url for URL-based album items
+    - Sends 2-10 items as grouped media
+  - **File downloads**: Download API demonstration
+    - Download.get_file for file information
+    - Download.get_and_download_string for small files (<100KB)
+    - Download.download_url_from_info for direct URLs
+    - Download content preview (first 100 bytes)
+  - **File information extraction**: Metadata from received files
+    - PhotoSize analysis (dimensions, file_size, file_id)
+    - Document info (filename, MIME type, size)
+    - Video metadata (dimensions, duration, size)
+    - file_unique_id for deduplication
+  - **Session-based file_id storage**: Reusable file references
+    - last_photo_key stores most recent photo file_id
+    - last_document_key for document tracking
+    - Enables instant resend without re-upload
+  - **Interactive callbacks**: Actions on received files
+    - "Resend This Photo" button with embedded file_id
+    - "Get File Info" button for detailed metadata
+    - Callback data encoding: resend_photo:file_id
+  - **Commands**: /start, /send_photo_url, /send_document, /send_album, /file_info
+  - **Message handlers**: on_photo, on_message (documents, videos)
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Logs include: [/start], [/send_photo_url], [/send_document], [/send_album], [/file_info], [on_photo], [on_document], [on_video], [resend_photo], [get_file_info]
+    - File operation logging (send, download, cleanup)
+    - File metadata logging (size, dimensions, MIME type)
+    - Download logging (bytes downloaded, previews)
+    - Success/error logging for all operations
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.3.6: `docs/update_processing.mld` - Update processing patterns
 - [ ] Task 1.1.3.7: `docs/error_handling.mld` - Error handling examples
 - [ ] Task 1.1.3.8: `docs/session_management.mld` - Session management examples
