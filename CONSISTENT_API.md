@@ -1026,7 +1026,77 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - Command execution logging per module
     - Success/error logging for all operations
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.4.3: `docs/middleware_architecture.mld` - Middleware examples
+- [x] Task 1.1.4.3: `docs/middleware_architecture.mld` - Middleware examples
+  - Created `examples/middleware_architecture_demo.ml` - Comprehensive middleware demonstration
+  - **Custom middleware creation**: Middleware.make with hooks
+    - logging_mw: Before/after logging with named loggers
+    - admin_only_mw: Admin authorization check
+    - premium_only_mw: Premium subscription check
+    - enrich_timestamp_mw: Adds request timestamp to session
+    - request_counter_mw: Counts requests per user
+    - Each middleware has before/after/on_error hooks
+  - **Before hooks**: Request validation and context enrichment
+    - Admin/premium checks reject unauthorized users
+    - Returns Error to stop handler execution
+    - Timestamp enrichment adds data to session
+    - Request counter increments before handler
+    - Logs show before hook execution
+  - **After hooks**: Post-processing and cleanup
+    - Logging middleware logs completion
+    - Timestamp middleware calculates duration
+    - After hooks run only on success
+    - Logs show after hook execution
+  - **Error hooks**: Exception handling
+    - logging_mw logs exceptions with name
+    - /error_test demonstrates error middleware
+    - on_error catches handler exceptions
+    - Prevents error propagation
+  - **Middleware composition**: Layered middleware application
+    - Bot.use applies middleware to preceding command
+    - /layered has 3 middleware: logging + counter + timestamp
+    - Execution order: before(mw1) → before(mw2) → before(mw3) → handler → after(mw3) → after(mw2) → after(mw1)
+    - Logs show execution order clearly
+  - **Authorization middleware**: Role-based access control
+    - admin_only_mw checks ADMIN_USER_IDS environment variable
+    - premium_only_mw checks PREMIUM_USER_IDS
+    - Before hook returns Error to reject request
+    - User sees "Access required" message
+    - Handler never executes if auth fails
+  - **Context enrichment**: Session-based enrichment
+    - enrich_timestamp_mw adds timestamp to session
+    - Handler can access enriched data
+    - /enriched displays timestamp added by middleware
+    - Demonstrates middleware modifying context
+  - **Request counting**: Per-user request tracking
+    - request_counter_mw increments session counter
+    - /counted displays request number
+    - Each user has independent counter
+    - Demonstrates stateful middleware
+  - **Per-command middleware**: Selective application
+    - /start - No middleware
+    - /public - Logging only
+    - /admin - Admin authorization
+    - /premium - Premium authorization
+    - /enriched - Timestamp enrichment
+    - /counted - Request counter
+    - /layered - 3 middleware combined
+    - Each command has different middleware stack
+  - **Middleware execution visibility**: Comprehensive logging
+    - Before hook logs: "BEFORE hook - Handler starting"
+    - After hook logs: "AFTER hook - Handler completed successfully"
+    - Error hook logs: "ERROR hook - Handler failed: ..."
+    - Duration calculation in timestamp middleware
+    - Access control logs (granted/denied)
+  - **Commands**: /start, /public, /logged, /enriched, /admin, /premium, /counted, /error_test, /layered, /middleware_info
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Logs include: [Handler], [CustomMiddleware], [Middleware:*]
+    - Middleware creation logging
+    - Hook execution logging (before/after/error)
+    - Authorization logging (granted/denied)
+    - Duration calculation logging
+    - Request counting logging
+    - Success/error logging for all operations
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.4.4: `docs/testing_patterns.mld` - Testing examples
 
 ### Phase 1.1.5: Use Cases
