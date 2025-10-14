@@ -1419,7 +1419,62 @@ Goal: Implement every example from documentation in `examples/` directory with a
   - Example compiles without errors/warnings (zero compilation issues)
 
 ### Phase 1.1.6: Project Setup & Development
-- [ ] Task 1.1.6.1: `docs/project_structure.mld` - Project structure examples
+- [x] Task 1.1.6.1: `docs/project_structure.mld` - Project structure examples
+  - Created `examples/project_structure_demo.ml` - Comprehensive project structure demonstration
+  - **Small bot structure**: Single-file pattern for simple bots (<200 lines)
+    - Template shows bin/main.ml with everything in one file
+    - Use case: Learning, prototypes, single-purpose bots
+    - Advantages: Simple, no overhead, fast iteration
+  - **Medium bot structure**: Module-per-feature pattern (200-1000 lines)
+    - lib/ directory with config, types, commands, callbacks, keyboards
+    - bin/ directory for entry point
+    - test/ directory for tests
+    - Use case: Feature-rich bots, team projects
+    - Advantages: Clear module boundaries, testable components, reusable library
+  - **Large bot structure**: Layered architecture (1000+ lines)
+    - lib/domain/ for business logic
+    - lib/bot/ for Telegram handlers
+    - lib/storage/ for persistence
+    - lib/utils/ for shared utilities
+    - Separate config/ directory
+    - Use case: Production bots, complex business logic, multiple developers
+    - Advantages: Clear layering, isolated testing, team scalability
+  - **Dune configuration examples**: Complete build setup
+    - dune-project with package metadata and dependencies
+    - lib/dune for library configuration
+    - bin/dune for executable configuration
+    - Shows ocaml_telegram_eio dependencies
+    - Examples with ocaml >= 5.1.0, eio >= 0.12
+  - **Module organization patterns**: Three organization strategies
+    - By feature: user_commands, admin_commands, payment_flow
+    - By layer: domain/, bot/, storage/, utils/
+    - By update type: commands, callbacks, inline, messages
+    - Recommendations for each bot size
+  - **Best practices guide**: Project organization recommendations
+    - Separation of concerns (business logic, bot handlers, storage)
+    - Module naming conventions (commands.ml, callbacks.ml, types.ml)
+    - Testing structure (test/ directory, test_<module>.ml naming)
+    - Configuration management (env vars for secrets, config files for settings)
+    - Documentation (README, module docstrings, examples)
+  - **Self-documenting bot**: Meta example explaining its own structure
+    - /this_bot shows how this demo is organized
+    - Demonstrates single-file pattern
+    - Explains module organization within file
+    - Notes on when to split into multiple files
+  - **Interactive exploration**: Menu-driven structure learning
+    - Inline keyboard with structure types
+    - Small/Medium/Large buttons
+    - Dune config, best practices, modules buttons
+    - Edit-in-place navigation
+    - All templates accessible via callbacks
+  - **Commands**: /start, /small, /medium, /large, /this_bot, /dune_config, /best_practices, /modules
+  - **Callback handlers**: structure:small, structure:medium, structure:large, info:dune, info:practices, info:modules
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Logs include: [/start], [/small], [/medium], [/large], [/this_bot], [/dune_config], [/best_practices], [/modules], [structure:*], [info:*]
+    - Command execution logging
+    - Template display logging
+    - Success/error logging for all operations
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.6.2: `docs/development_workflow.mld` - Development workflow examples
 - [ ] Task 1.1.6.3: `docs/migration.mld` - Migration examples
 
