@@ -690,7 +690,53 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - Download logging (bytes downloaded, previews)
     - Success/error logging for all operations
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.3.6: `docs/update_processing.mld` - Update processing patterns
+- [x] Task 1.1.3.6: `docs/update_processing.mld` - Update processing patterns
+  - Created `examples/update_processing_demo.ml` - Comprehensive update processing demonstration
+  - **Update type detection**: Different handlers for different update types
+    - on_message handler for all messages (with command filtering)
+    - Event.when_ filter for edited_message updates
+    - on_callback for callback_query updates
+    - Demonstrates single update triggering multiple handlers
+  - **Update statistics tracking**: Live statistics module
+    - Messages, edits, callbacks, inline queries counters
+    - Stats.increment_* functions called from handlers
+    - /stats command shows real-time statistics
+    - Reset functionality via callback button
+  - **Event-based routing**: Bot DSL event matchers
+    - Event.any with when_ filter for edited_message detection
+    - on_message for all message updates
+    - on_callback_data for specific callbacks
+    - on_callback for general callback logging
+    - Demonstrates handler composition
+  - **Multiple handlers per update**: Same update processed by multiple routes
+    - Message updates trigger both on_message (stats) and command handlers
+    - Callback updates trigger both specific handler and general logger
+    - Shows routing system processes all matching handlers
+  - **Edited message handling**: Detection and response
+    - Filter with Event.when_ for edited_message field
+    - Extracts edited text and message_id
+    - Replies with edit notification
+    - Increments edit counter
+  - **Update type explanation**: /update_types command
+    - Documents all Telegram update types
+    - Message, callback_query, inline_query, etc.
+    - Group management updates
+    - Payment updates
+    - Poll updates
+  - **Interactive statistics**: Real-time update counting
+    - Separate counters for messages, edits, callbacks
+    - Refresh button updates stats display
+    - Reset button clears all counters
+    - Session-independent (uses module-level refs)
+  - **Commands**: /start, /update_types, /edit_test, /stats
+  - **Callback handlers**: test:button, show:stats, reset:stats, general callback logger
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Logs include: [/start], [/update_types], [/edit_test], [/stats], [on_message], [edited_message], [test:button], [show:stats], [reset:stats], [on_callback]
+    - Update type logging (message, edited_message, callback_query)
+    - Statistics mutation logging (increments, resets)
+    - Message ID logging for tracking
+    - Success/error logging for all operations
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.3.7: `docs/error_handling.mld` - Error handling examples
 - [ ] Task 1.1.3.8: `docs/session_management.mld` - Session management examples
 - [ ] Task 1.1.3.9: `docs/state_machines.mld` - State machine examples
