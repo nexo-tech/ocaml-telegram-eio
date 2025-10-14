@@ -1283,7 +1283,71 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - Pagination logging (offset, page size)
     - Success/error logging for all operations
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.5.3: `docs/usecase_entertainment_bots.mld` - Entertainment bot examples
+- [x] Task 1.1.5.3: `docs/usecase_entertainment_bots.mld` - Entertainment bot examples
+  - Created `examples/usecase_entertainment_bots_demo.ml` - Comprehensive entertainment bots demonstration
+  - **Quiz bot**: Multiple choice questions with scoring
+    - Question bank with 5 questions
+    - question type: id, text, options, correct_index, explanation
+    - Inline keyboard for answer selection (A/B/C/D buttons)
+    - Session-based quiz state tracking
+    - Immediate feedback (✅ Correct / ❌ Wrong)
+    - Explanations shown for correct answers
+    - Automatic next question after answer
+    - /quiz command starts quiz
+  - **Score tracking**: Per-user scoring system
+    - quiz_state: current_question_id, correct_index, questions_asked, correct_answers
+    - Session storage for active quiz state
+    - /score command shows current score and accuracy percentage
+    - Real-time score updates after each answer
+    - /reset_score clears quiz progress
+  - **Leaderboard**: Global ranking system
+    - Hashtbl storage: user_id -> (username, score)
+    - Leaderboard.update_score updates after each correct answer
+    - Leaderboard.top_n returns top N scorers
+    - /leaderboard shows top 10 with medals (🥇🥈🥉)
+    - Sorted by score descending
+    - Shows username and points
+  - **Random facts**: Educational fact generator
+    - Facts module with 8 programming/tech facts
+    - /fact command returns random fact
+    - No repetition tracking (pure random)
+    - Emoji-enhanced facts
+  - **Jokes**: Programming humor
+    - Jokes module with 6 programming jokes
+    - /joke command returns random joke with emoji
+    - Light, developer-focused humor
+  - **Riddles**: Brain teasers with reveal
+    - Riddles module with question/answer pairs
+    - /riddle shows question with "Show Answer" button
+    - Answer stored in session (riddle_answer_key)
+    - riddle:answer callback reveals solution
+    - Interactive two-step engagement
+  - **Interactive quiz flow**: Seamless question progression
+    - Answer callback: quiz:answer:<qid>:<idx>
+    - Validates question ID to prevent stale answers
+    - Shows feedback + score + next question in one message
+    - Edits message with next question (no spam)
+    - Continuous quiz flow without /quiz between questions
+  - **Question bank management**: Organized question storage
+    - QuestionBank.pick_random for random selection
+    - QuestionBank.find_by_id for explanation lookup
+    - Questions have optional explanations
+    - Easy to extend question bank
+  - **Session-based state**: Per-user quiz state
+    - quiz_state_key stores current quiz session
+    - Tracks question ID to prevent duplicate answers
+    - Stores running score and question count
+    - Independent state per user
+  - **Commands**: /start, /quiz, /score, /leaderboard, /fact, /joke, /riddle, /reset_score
+  - **Callback handlers**: quiz:answer:<qid>:<idx>, riddle:answer, action:quiz, action:fact, action:joke, action:riddle, action:leaderboard
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Logs include: [/start], [/quiz], [/score], [/leaderboard], [/fact], [/joke], [/riddle], [/reset_score], [QuestionBank], [Facts], [Jokes], [Leaderboard], [quiz:answer], [riddle:answer], [action:*]
+    - Question selection logging (ID, bank size)
+    - Answer validation logging (correct/wrong, scores)
+    - Leaderboard update logging (user, score)
+    - Fact/joke selection logging
+    - Success/error logging for all operations
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.5.4: `docs/usecase_integration_bots.mld` - Integration bot examples
 
 ### Phase 1.1.6: Project Setup & Development
