@@ -848,7 +848,67 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - Value logging (names, counters, preferences)
     - Success/error logging for all operations
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.3.9: `docs/state_machines.mld` - State machine examples
+- [x] Task 1.1.3.9: `docs/state_machines.mld` - State machine examples
+  - Created `examples/state_machines_demo.ml` - Comprehensive state machine demonstration
+  - **Simple enum-based state machine**: Registration flow
+    - States: Idle, AwaitingName, AwaitingAge, AwaitingConfirmation, Complete
+    - Linear state transitions
+    - Session-based state storage
+    - Validation at each step (age must be integer)
+    - Confirmation with inline keyboard
+    - Cancel button to abort flow
+  - **State with embedded data**: Order flow (shopping cart)
+    - States: Browsing, ViewingItem(item), InCart(items), CheckingOut(items, total), Complete
+    - Item database with id, name, price
+    - Cart accumulation across states
+    - State carries data (viewed item, cart items, total)
+    - Interactive item selection via callbacks
+    - Add to cart, view cart, checkout actions
+  - **Branching conversation flow**: Support ticket system
+    - States: Idle, SelectingCategory, CollectingDetails(category), AwaitingResponse(category, details), Resolved
+    - Three category branches: Technical, Billing, General
+    - Category selection via inline keyboard
+    - Details collection via text input
+    - State carries category context through flow
+    - Resolution button to complete ticket
+  - **State transition logging**: Verbose state change tracking
+    - Logs every transition: "StateA → StateB"
+    - Logs state data (item IDs, cart contents, categories)
+    - state_to_string helpers for debugging
+    - /state_info shows current state of all machines
+  - **Text routing based on state**: Intelligent message handling
+    - on_text handler checks active state machines
+    - Routes to Registration if AwaitingName/Age
+    - Routes to Support if CollectingDetails
+    - Multiple state machines can be active simultaneously
+    - Clean fallthrough when no machine is active
+  - **State validation**: Invalid transition prevention
+    - AwaitingConfirmation only accepts button input
+    - Complete state rejects further input
+    - Age validation (must be integer)
+    - Empty cart prevents checkout
+  - **Interactive state visualization**: /state_info command
+    - Shows current state of all three state machines
+    - Demonstrates independent state tracking
+    - Useful for debugging conversation flows
+  - **Global reset**: /reset command
+    - Resets all state machines to initial state
+    - Clears all associated session data
+    - Allows fresh start without restart
+  - **Session persistence**: State stored between messages
+    - Each state machine has dedicated session key
+    - State survives bot restarts (with persistent store)
+    - Per-user session isolation
+  - **Commands**: /start, /register, /order, /support, /state_info, /reset
+  - **Callback handlers**: reg:confirm, reg:cancel, order:view:*, order:add:*, order:menu, order:cart, order:checkout, order:pay, order:cancel, support:tech, support:billing, support:general, support:resolve, demo:*
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Logs include: [/start], [/reset], [Registration], [Order], [Support], [state_info], [demo:*]
+    - State transition logging (StateA → StateB)
+    - Input validation logging
+    - Cart operations logging (add, view, checkout)
+    - Category selection logging
+    - Success/error logging for all operations
+  - Example compiles without errors/warnings (zero compilation issues)
 
 ### Phase 1.1.4: Advanced Patterns
 - [ ] Task 1.1.4.1: `docs/concurrency_patterns.mld` - Concurrency examples
