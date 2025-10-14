@@ -1221,7 +1221,68 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - Text operation logging (input, output)
     - Success/error logging for all operations
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.5.2: `docs/usecase_content_bots.mld` - Content bot examples
+- [x] Task 1.1.5.2: `docs/usecase_content_bots.mld` - Content bot examples
+  - Created `examples/usecase_content_bots_demo.ml` - Comprehensive content bots demonstration
+  - **Content library**: Curated content items with metadata
+    - content_item type: id, title, description, category, tags, url, published
+    - 5 sample items covering different categories
+    - Categories: Tutorial, Advanced, Reference
+    - Tags for flexible filtering
+    - Published timestamp for sorting
+  - **Search functionality**: Full-text search across title, description, tags
+    - /search command searches all fields
+    - Case-insensitive matching with contains_substring
+    - Results displayed as inline keyboard buttons
+    - No results message when search yields nothing
+  - **Category filtering**: Browse by category
+    - /category command lists categories or filters
+    - ContentLibrary.by_category filters items
+    - ContentLibrary.categories returns unique categories
+    - Category buttons for quick filtering
+  - **Pagination**: Browse content with prev/next
+    - pagination_keyboard helper creates nav buttons
+    - Page size: 3 items per page
+    - Smart button hiding (no prev on first page, no next on last)
+    - Session stores current offset
+    - browse:page:<offset> callbacks for navigation
+  - **Subscription management**: Daily digest subscriptions
+    - Subscriptions module with Hashtbl storage
+    - /subscribe adds user to subscriber list
+    - /unsubscribe removes user
+    - /status shows subscription status and total subscribers
+    - Session tracks subscription state
+  - **Daily digest scheduling**: Background periodic task
+    - Eio.Fiber.fork with global_sw for bot lifetime
+    - Runs every 2 minutes (demo mode, use 86400 for daily)
+    - Sends latest 3 items to all subscribers
+    - Concurrent message sending to subscribers
+    - Logs digest delivery per user
+  - **Latest content**: Time-based sorting
+    - ContentLibrary.latest returns N most recent items
+    - Sorted by published timestamp
+    - /latest command shows 5 most recent
+    - Inline buttons for each item
+  - **Content viewing**: Detailed item display
+    - view:<id> callbacks show full item details
+    - format_item creates formatted display
+    - Shows title, description, category, tags, link
+    - HTML formatting for rich display
+  - **Interactive browsing**: Inline keyboard navigation
+    - /browse shows paginated list
+    - Item buttons for viewing
+    - Prev/Next navigation buttons
+    - Category selection buttons
+    - Subscribe button in main menu
+  - **Commands**: /start, /browse, /search, /category, /latest, /subscribe, /unsubscribe, /status
+  - **Callback handlers**: view:<id>, browse:page:<offset>, cat:<category>, action:browse, action:categories, action:subscribe
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Logs include: [/start], [/browse], [/search], [/category], [/latest], [/subscribe], [/unsubscribe], [/status], [ContentLibrary], [Subscriptions], [Background], [view], [browse:page], [cat], [action:*]
+    - Content library logging (search, filter, latest)
+    - Subscription logging (subscribe, unsubscribe, count)
+    - Background task logging (digest delivery)
+    - Pagination logging (offset, page size)
+    - Success/error logging for all operations
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.5.3: `docs/usecase_entertainment_bots.mld` - Entertainment bot examples
 - [ ] Task 1.1.5.4: `docs/usecase_integration_bots.mld` - Integration bot examples
 
