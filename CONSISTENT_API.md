@@ -1348,7 +1348,75 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - Fact/joke selection logging
     - Success/error logging for all operations
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.5.4: `docs/usecase_integration_bots.mld` - Integration bot examples
+- [x] Task 1.1.5.4: `docs/usecase_integration_bots.mld` - Integration bot examples
+  - Created `examples/usecase_integration_bots_demo.ml` - Comprehensive integration bots demonstration
+  - **GitHub webhook simulation**: Repository event handling
+    - event_type ADT: Push, PullRequest, Issue, Release
+    - event type: event_type, repo, author, message, url
+    - format_event creates formatted notification
+    - webhook:push simulates push event
+    - webhook:pr simulates pull request event
+    - Emoji-based event type indicators
+  - **CI/CD integration**: Build status monitoring
+    - build_status ADT: Pending, Running, Success, Failed, Canceled
+    - build type: project, branch, status, started_at, duration
+    - /ci_status command checks current build
+    - /trigger_ci triggers new build (admin-only)
+    - format_build creates status display
+    - Simulated build state with ref
+  - **Database query bot**: Safe whitelisted queries
+    - Whitelisted queries: user_count, active_users, recent_messages
+    - /db_query command runs safe queries only
+    - Query validation prevents arbitrary SQL
+    - format_results creates table display
+    - Returns structured data (key-value rows)
+    - Error handling for unknown queries
+  - **Backend API gateway**: Proxy commands to backend
+    - BackendAPI.call simulates API requests
+    - api_response type: success, message, data
+    - /api_call command proxies to backend
+    - Endpoints: users, create_item, stats
+    - format_response creates API result display
+    - Error handling for unknown endpoints
+  - **Admin authorization**: Protected integration commands
+    - AdminAuth module with ADMIN_USER_IDS env var
+    - /trigger_ci requires admin access
+    - is_admin checks user ID against whitelist
+    - Access denied for non-admins
+  - **Interactive integration UI**: Menu-driven exploration
+    - Main menu with integration type buttons
+    - GitHub: Push/PR event simulation buttons
+    - Database: Query selection buttons
+    - API: Endpoint selection buttons
+    - CI/CD: Status display
+    - All accessible via callbacks
+  - **Simulation patterns**: Demonstrable without external services
+    - GitHub events simulated with mock data
+    - CI/CD status tracked in mutable ref
+    - Database queries return hardcoded results
+    - API calls return simulated responses
+    - Allows testing integration patterns offline
+  - **Error handling**: Graceful external service failures
+    - Database.run_query returns Result.t
+    - BackendAPI.call returns Result.t
+    - Error messages shown to users
+    - Logging shows failure details
+  - **Integration status overview**: /integration_status command
+    - Shows status of all integrations
+    - CI/CD current build info
+    - Database query count
+    - Backend API connection status
+    - GitHub webhook status
+    - Useful for monitoring integrations
+  - **Commands**: /start, /ci_status, /db_query, /api_call, /webhook_test, /integration_status, /trigger_ci (admin)
+  - **Callback handlers**: action:ci_status, action:db_query, action:api_call, action:github, db:<query>, api:<endpoint>, webhook:push, webhook:pr
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Logs include: [/start], [/ci_status], [/db_query], [/api_call], [/webhook_test], [/integration_status], [/trigger_ci], [GitHub], [CICD], [Database], [BackendAPI], [AdminAuth], [action:*], [db], [api], [webhook:*]
+    - Integration operation logging (GitHub events, CI builds, DB queries, API calls)
+    - Admin authorization logging (granted/denied)
+    - Simulation logging (events, builds, queries, API responses)
+    - Success/error logging for all operations
+  - Example compiles without errors/warnings (zero compilation issues)
 
 ### Phase 1.1.6: Project Setup & Development
 - [ ] Task 1.1.6.1: `docs/project_structure.mld` - Project structure examples
