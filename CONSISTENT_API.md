@@ -792,7 +792,62 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - Fallback transition logging
     - Success/error logging for all operations
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.3.8: `docs/session_management.mld` - Session management examples
+- [x] Task 1.1.3.8: `docs/session_management.mld` - Session management examples
+  - Created `examples/session_management_demo.ml` - Comprehensive session management demonstration
+  - **Typed session keys**: Phantom types for compile-time safety
+    - name_key: string key for user names
+    - counter_key: int key for counters
+    - prefs_key: preferences record key
+    - wizard_*_key: Keys for multi-step wizard state
+    - Type safety prevents mixing data types
+  - **Basic session operations**: Complete API demonstration
+    - session_get: Retrieve optional value by key
+    - session_set: Store value for key
+    - session_delete: Remove key from session
+    - session_exists: Check if key is present
+    - session_clear: Remove all session data
+    - session_get_or: Get with default value
+    - session_modify: Update value with function (creates if missing)
+  - **Session middleware**: Automatic session loading/saving
+    - with_sessions integrates Memory_store
+    - Session loaded before handler executes
+    - Session saved after handler completes
+    - Per-user session isolation
+  - **User preferences storage**: Complex type in session
+    - preferences type: language, notifications, theme
+    - /preferences command with interactive editing
+    - Toggle notifications via callback
+    - Demonstrates storing structured data
+  - **Multi-step wizard**: Stateful conversation flow
+    - wizard_step ADT: Idle, AskingName, AskingAge, AskingCity
+    - /wizard initiates flow
+    - on_text handler routes based on current step
+    - State transitions: Idle → AskingName → AskingAge → AskingCity → Idle
+    - Cancellation with wizard:cancel callback
+    - Collects name, age, city across multiple messages
+  - **Session inspection**: /session_info command
+    - Shows all stored keys and values
+    - Demonstrates session introspection
+    - Useful for debugging session state
+  - **Session operations demo**: Specialized commands
+    - /set_name, /get_name: Basic get/set pattern
+    - /counter: Increment with get_or
+    - /modify_demo: Demonstrates modify function
+    - /exists_demo: Key existence checking
+    - /clear_session: Clear all data
+  - **Per-user isolation**: Each user has independent session
+    - User ID automatically extracted from context
+    - Sessions don't interfere between users
+    - Demonstrated via counter (each user counts independently)
+  - **Commands**: /start, /set_name, /get_name, /counter, /preferences, /wizard, /session_info, /clear_session, /modify_demo, /exists_demo
+  - **Callback handlers**: pref:toggle_notif, wizard:cancel
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Logs include: [/start], [/set_name], [/get_name], [/counter], [/preferences], [/wizard], [/session_info], [/clear_session], [/modify_demo], [/exists_demo], [pref:toggle_notif], [wizard:cancel], [wizard]
+    - Session operation logging (get, set, delete, modify)
+    - State transition logging (wizard steps)
+    - Value logging (names, counters, preferences)
+    - Success/error logging for all operations
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.3.9: `docs/state_machines.mld` - State machine examples
 
 ### Phase 1.1.4: Advanced Patterns
