@@ -1161,7 +1161,66 @@ Goal: Implement every example from documentation in `examples/` directory with a
   - Example compiles without errors/warnings (zero compilation issues)
 
 ### Phase 1.1.5: Use Cases
-- [ ] Task 1.1.5.1: `docs/usecase_utility_bots.mld` - Utility bot examples
+- [x] Task 1.1.5.1: `docs/usecase_utility_bots.mld` - Utility bot examples
+  - Created `examples/usecase_utility_bots_demo.ml` - Comprehensive utility bots demonstration
+  - **Calculator bot**: Expression evaluation with recursive descent parser
+    - /calc command supports +, -, *, /, parentheses
+    - Tokenizer converts string to token stream
+    - Recursive descent parser: parse_expr, parse_term, parse_factor
+    - Operator precedence: *, / before +, -
+    - Error handling: ParseError for invalid expressions, division by zero
+    - Examples: "2 + 3", "10 * (5 + 2)", "100 / 4 - 5"
+  - **Unit converter bot**: Temperature, distance, weight conversions
+    - /convert command: /convert <value> <from> <to>
+    - Temperature: Celsius ↔ Fahrenheit
+    - Distance: kilometers ↔ miles
+    - Weight: kilograms ↔ pounds
+    - Bidirectional conversion (km→mi and mi→km)
+    - Case-insensitive unit matching
+    - Error handling for unknown unit pairs
+  - **Random utilities**: Dice, coin flip, random numbers, random choice
+    - /roll_dice: Random 1-6 with dice emoji (⚀-⚅)
+    - /flip_coin: Random Heads/Tails
+    - /random <min> <max>: Random integer in range
+    - /choose <options...>: Random choice from list
+    - Random.self_init for seed initialization
+  - **Time utilities**: Current time and Unix timestamps
+    - /time: Shows local time (HH:MM:SS), date (YYYY-MM-DD), Unix timestamp
+    - /timestamp: Unix timestamp in seconds
+    - Unix.localtime for formatting
+    - Demonstrates time-related utilities
+  - **Text utilities**: Word count, reverse, case conversion
+    - /wordcount: Count words and characters
+    - /reverse: Reverse text string
+    - /upper: Convert to uppercase
+    - /lower: Convert to lowercase
+    - String manipulation utilities
+  - **Pure utility functions**: Testable business logic
+    - Calculator.eval: Pure expression evaluation
+    - UnitConverter.convert: Pure conversion logic
+    - TextUtils module: Pure text functions
+    - All utilities are pure functions (no I/O in logic)
+    - Easy to test without Telegram API
+  - **Error handling**: Graceful error messages
+    - Calculator: Parse errors, division by zero
+    - Unit converter: Unknown unit pairs
+    - Random: Invalid integer arguments
+    - Clear, user-friendly error messages
+  - **Input validation**: Argument checking
+    - /calc requires expression
+    - /convert requires 3 arguments (value, from, to)
+    - /random requires 2 integers with min < max
+    - /choose requires 2+ options
+    - Usage examples shown on invalid input
+  - **Commands**: /start, /calc, /convert, /roll_dice, /flip_coin, /random, /choose, /time, /timestamp, /wordcount, /reverse, /upper, /lower
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Logs include: [/start], [/calc], [/convert], [/roll_dice], [/flip_coin], [/random], [/choose], [/time], [/timestamp], [/wordcount], [/reverse], [/upper], [/lower], [Calculator], [UnitConverter]
+    - Expression evaluation logging (tokenizing, parsing, result)
+    - Conversion logging (input, output, units)
+    - Random generation logging (results, ranges)
+    - Text operation logging (input, output)
+    - Success/error logging for all operations
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.5.2: `docs/usecase_content_bots.mld` - Content bot examples
 - [ ] Task 1.1.5.3: `docs/usecase_entertainment_bots.mld` - Entertainment bot examples
 - [ ] Task 1.1.5.4: `docs/usecase_integration_bots.mld` - Integration bot examples
