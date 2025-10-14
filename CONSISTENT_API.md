@@ -911,7 +911,72 @@ Goal: Implement every example from documentation in `examples/` directory with a
   - Example compiles without errors/warnings (zero compilation issues)
 
 ### Phase 1.1.4: Advanced Patterns
-- [ ] Task 1.1.4.1: `docs/concurrency_patterns.mld` - Concurrency examples
+- [x] Task 1.1.4.1: `docs/concurrency_patterns.mld` - Concurrency examples
+  - Created `examples/concurrency_patterns_demo.ml` - Comprehensive concurrency demonstration
+  - **Fiber creation**: Lightweight concurrent tasks with Eio.Fiber.fork
+    - Spawn multiple fibers in a switch
+    - Fibers run concurrently
+    - Switch waits for all fibers to complete
+    - demo:fiber spawns 3 fibers with different delays (0.5s, 1.0s, 1.5s)
+    - Logs show concurrent execution
+  - **Promises for fiber results**: Returning values from fibers
+    - Promise.create () returns (promise, resolver)
+    - Fiber computes value and calls Promise.resolve
+    - Main fiber awaits Promise.await
+    - demo:promise spawns 3 computing fibers, collects results
+    - Demonstrates parallel computation with value collection
+  - **Semaphores for rate limiting**: Bounded concurrency
+    - Eio.Semaphore.make creates semaphore with max permits
+    - Acquire/release pattern for bounded parallelism
+    - demo:rate_limit shows 5 operations limited to 2 concurrent
+    - Logs show operations waiting for permits
+    - Prevents overwhelming API with too many concurrent requests
+  - **Concurrent broadcast**: Parallel message sending
+    - demo:broadcast sends to multiple chats concurrently
+    - Semaphore limits concurrent sends to 5
+    - Promise.await collects all results
+    - Reports success/failure count
+    - Demonstrates production broadcast pattern
+  - **Mutex-protected shared state**: Thread-safe statistics
+    - Stats module with messages_sent, broadcasts_sent, fibers_spawned
+    - Eio.Mutex.use_rw for write operations
+    - Eio.Mutex.use_ro for read operations
+    - All increments are mutex-protected
+    - /stats shows real-time statistics
+  - **Background periodic tasks**: Long-running background fibers
+    - Eio.Fiber.fork with global_sw for bot lifetime
+    - Periodic task runs every 60 seconds
+    - Logs statistics summary
+    - Demonstrates background monitoring pattern
+  - **Timeout pattern**: Racing fibers for time limits
+    - demo:timeout demonstrates timeout vs completion race
+    - Two fibers: one does work (5s), one waits for timeout (2s)
+    - First to complete resolves shared promise
+    - Shows timeout wins (2s < 5s)
+    - Demonstrates racing pattern for time limits
+  - **Concurrent operations**: Parallel execution with result collection
+    - demo:concurrent_ops runs 3 operations concurrently
+    - Operations have different durations (0.3s, 0.5s, 0.7s)
+    - Total time ~0.7s (not 1.5s sequential)
+    - Promises collect all results
+    - Demonstrates speedup from parallelism
+  - **Structured concurrency**: Eio.Switch lifecycle management
+    - All fibers spawned within switches
+    - Switch waits for all fibers before exiting
+    - Automatic cleanup and cancellation
+    - Nested switches (global_sw for background tasks)
+    - on_release handlers for cleanup
+  - **Commands**: /start, /stats, /subscribe
+  - **Callback handlers**: demo:fiber, demo:promise, demo:broadcast, demo:rate_limit, demo:stats, demo:timeout, demo:concurrent_ops
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Logs include: [/start], [/stats], [/subscribe], [demo:*], [Background], [Fiber N], [Promise fiber N], [Broadcast N], [RateLimit N], [Timeout], [ConcurrentOp N], [Stats]
+    - Fiber lifecycle logging (started, completed, duration)
+    - Semaphore operation logging (waiting, acquired, released)
+    - Promise resolution logging
+    - Statistics mutation logging (mutex-protected increments)
+    - Background task logging (periodic reports)
+    - Success/error logging for all operations
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.4.2: `docs/bot_composition.mld` - Bot composition patterns
 - [ ] Task 1.1.4.3: `docs/middleware_architecture.mld` - Middleware examples
 - [ ] Task 1.1.4.4: `docs/testing_patterns.mld` - Testing examples
