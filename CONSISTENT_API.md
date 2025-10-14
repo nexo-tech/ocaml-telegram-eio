@@ -737,7 +737,61 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - Message ID logging for tracking
     - Success/error logging for all operations
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.3.7: `docs/error_handling.mld` - Error handling examples
+- [x] Task 1.1.3.7: `docs/error_handling.mld` - Error handling examples
+  - Created `examples/error_handling_demo.ml` - Comprehensive error handling demonstration
+  - **Result type patterns**: Explicit error handling with match
+    - All API operations return (result, Error.t) result
+    - Match on Ok/Error for explicit handling
+    - Nested match for multi-step operations
+  - **Error classification**: Retryable vs non-retryable
+    - Error.is_retryable function checks transient errors
+    - Retryable: Timeout, Http_error 5xx, Api_error 429
+    - Non-retryable: 400, 401, 403, 404, Decode_error
+  - **User-friendly error messages**: ErrorMessages module
+    - Converts technical errors to user-readable messages
+    - Pattern matches on error codes and descriptions
+    - Special handling for common cases (blocked, kicked, not found)
+    - Rate limit messages with retry_after hint
+  - **Global error handler**: on_error catches uncaught exceptions
+    - Logs exception with backtrace
+    - Attempts to notify user
+    - Prevents bot crash from handler exceptions
+  - **Graceful degradation**: Fallback patterns
+    - /send_with_fallback demonstrates fallback chain
+    - Primary operation → fallback on error
+    - Multiple fallback levels
+  - **Error recovery with retry**: Retry logic for transient errors
+    - /recover command demonstrates retry pattern
+    - Checks is_retryable before retry
+    - Exponential backoff with sleep
+    - Max attempts limit (3 retries)
+  - **Partial success handling**: Operations with multiple failures
+    - /partial command shows batch operation results
+    - Collects successes and failures separately
+    - Reports summary of partial success
+    - Demonstrates filter_map pattern
+  - **Monadic error propagation**: Early return on first error
+    - /monadic demonstrates chain of operations
+    - Nested match for sequential operations
+    - Error stops propagation immediately
+    - Shows manual Result chaining
+  - **Simulated errors**: Testing error paths
+    - /send_invalid triggers real API error (invalid chat_id)
+    - /trigger_error throws exception for on_error testing
+    - /recover uses Random.bool for simulated failures
+  - **Error type education**: /error_types command
+    - Documents all Error.t variants
+    - Explains retryable vs non-retryable
+    - HTTP status code meanings
+    - Library-specific errors
+  - **Commands**: /start, /send_ok, /send_invalid, /send_with_fallback, /trigger_error, /error_types, /monadic, /recover, /partial, /help
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Logs include: [/start], [/send_ok], [/send_invalid], [/send_with_fallback], [/trigger_error], [/error_types], [/monadic], [/recover], [/partial], [/help], [on_error]
+    - Error logging with technical details
+    - Retry attempt logging
+    - Fallback transition logging
+    - Success/error logging for all operations
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.3.8: `docs/session_management.mld` - Session management examples
 - [ ] Task 1.1.3.9: `docs/state_machines.mld` - State machine examples
 
