@@ -977,7 +977,55 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - Background task logging (periodic reports)
     - Success/error logging for all operations
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.4.2: `docs/bot_composition.mld` - Bot composition patterns
+- [x] Task 1.1.4.2: `docs/bot_composition.mld` - Bot composition patterns
+  - Created `examples/bot_composition_demo.ml` - Comprehensive bot composition demonstration
+  - **Modular route design**: Feature-based module organization
+    - UserCommands module: /profile, /settings
+    - AdminCommands module: /admin_stats, /broadcast_test
+    - HelpCommands module: /help, /about
+    - GamesCommands module: /roll_dice, /flip_coin (conditional)
+    - UtilsCommands module: /time, /ping
+    - Each module has build function that extends bot
+  - **Builder pattern composition**: Pipelined module composition
+    - Bot.make |> with_sessions |> UserCommands.build |> AdminCommands.build |> ...
+    - Clean, declarative bot assembly
+    - Each module adds its routes via pipeline
+    - Demonstrates functional composition
+  - **Feature flags**: Conditional module enabling
+    - FeatureFlags.is_enabled checks environment variables
+    - ENABLE_GAMES controls Games module
+    - GamesCommands.build returns bot unchanged if disabled
+    - /modules command shows enabled/disabled status
+  - **Admin authorization**: Role-based access control
+    - AdminAuth module with is_admin check
+    - ADMIN_USER_IDS environment variable (comma-separated)
+    - require_admin wrapper for protected commands
+    - Access denied message for non-admins
+  - **Module isolation**: Independent feature modules
+    - Each module is self-contained
+    - Modules can be enabled/disabled independently
+    - Clear separation of concerns
+    - Easy to test modules in isolation
+  - **Module registry visualization**: /modules command
+    - Lists all modules with status
+    - Shows feature flag configuration
+    - Displays enabled/disabled state
+    - Documents module purpose
+  - **Startup logging**: Module composition visibility
+    - Logs each module as it's built
+    - Shows feature flag evaluation
+    - Displays admin configuration
+    - Clear composition sequence in logs
+  - **Commands**: /start, /modules, /profile, /settings, /admin_stats, /broadcast_test, /help, /about, /roll_dice, /flip_coin, /time, /ping
+  - **Callback handlers**: setting:notifications, setting:language
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Logs include: [Main], [FeatureFlags], [AdminAuth], [UserCommands], [AdminCommands], [HelpCommands], [GamesCommands], [UtilsCommands]
+    - Module composition logging (build sequence)
+    - Feature flag evaluation logging
+    - Admin access control logging (granted/denied)
+    - Command execution logging per module
+    - Success/error logging for all operations
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.4.3: `docs/middleware_architecture.mld` - Middleware examples
 - [ ] Task 1.1.4.4: `docs/testing_patterns.mld` - Testing examples
 
