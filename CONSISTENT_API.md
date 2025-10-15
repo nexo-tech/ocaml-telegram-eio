@@ -1475,7 +1475,78 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - Template display logging
     - Success/error logging for all operations
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.6.2: `docs/development_workflow.mld` - Development workflow examples
+- [x] Task 1.1.6.2: `docs/development_workflow.mld` - Development workflow examples
+  - Created `examples/development_workflow_demo.ml` - Comprehensive development workflow demonstration
+  - **Local development setup**: Complete guide for running bots locally
+    - Build commands: dune build
+    - Run commands: dune exec bin/main.exe
+    - Watch mode: dune build --watch
+    - Auto-restart with entr: find . -name "*.ml" | entr -r dune exec
+    - Environment file loading
+  - **Logging techniques**: Multiple logging strategies
+    - Eio.traceln for simple logging
+    - Functor-based logging with Log.Make
+    - Log levels: Debug, Info, Warn, Error
+    - Conditional debug mode with DEBUG env var
+    - /log_example demonstrates logging in action
+  - **Debugging strategies**: Debug techniques and tools
+    - Print full update JSON with to_yojson
+    - Interactive REPL testing with dune utop
+    - Breakpoints with assert false
+    - Exception backtraces with Printexc.record_backtrace
+    - Save problematic updates to JSON files
+  - **Testing workflow**: Test execution and organization
+    - Run all tests: dune runtest
+    - Run specific test: dune exec test/test_*.exe
+    - Watch mode for tests: dune runtest --watch
+    - Coverage with bisect_ppx
+    - Interactive testing in utop
+    - Best practices guide
+  - **Performance monitoring**: Runtime statistics tracking
+    - Request timing with Unix.gettimeofday
+    - Memory usage with Gc.stat
+    - Update rate tracking (updates/minute)
+    - Heap size monitoring
+    - GC collection statistics
+    - /performance command shows live stats
+  - **Environment configuration**: Environment variable management
+    - check_env function validates configuration
+    - Shows TELEGRAM_BOT_TOKEN status
+    - Shows DEBUG mode status
+    - Shows LOG_LEVEL setting
+    - /env_check command displays config status
+  - **Bot diagnostics**: Runtime health checks
+    - Diagnostics.runtime_info shows OCaml version, heap, GC stats
+    - Uptime tracking from start_time
+    - Total updates counter
+    - Update rate calculation
+    - /diagnostics command shows full report
+  - **Self-demonstrating workflows**: Interactive workflow examples
+    - /log_example triggers logging and shows console output
+    - /error_example demonstrates error handling with logging
+    - Logs show execution flow in real-time
+    - Check console to see logging output
+  - **Interactive documentation**: Menu-driven learning
+    - Setup, Logging, Debugging, Testing, Monitoring guides
+    - All accessible via inline keyboard
+    - Edit-in-place navigation
+    - Comprehensive templates for each topic
+  - **Statistics tracking**: Live bot metrics
+    - total_updates ref tracks all updates
+    - start_time for uptime calculation
+    - Rate calculation (updates/min)
+    - GC statistics via Gc.stat
+    - Performance command shows real-time metrics
+  - **Commands**: /start, /env_check, /diagnostics, /log_example, /error_example, /performance
+  - **Callback handlers**: guide:setup, guide:logging, guide:debugging, guide:testing, guide:monitoring, action:env_check, action:diagnostics
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Logs include: [/start], [/env_check], [/diagnostics], [/log_example], [/error_example], [/performance], [guide:*], [action:*]
+    - Demonstrates logging in practice
+    - Update counter logging
+    - Error handling logging
+    - Environment check logging
+    - Success/error logging for all operations
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.6.3: `docs/migration.mld` - Migration examples
 
 ### Phase 1.1.7: Reference & FAQ
