@@ -1657,7 +1657,59 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - FAQ display logging
     - Success/error logging for all operations
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.7.2: `docs/index.mld` - Index page examples
+- [x] Task 1.1.7.2: `docs/index.mld` - Index page examples
+  - Created `examples/index_demo.ml` - Comprehensive documentation index demonstration
+  - **Documentation index**: Navigable catalog of all documentation
+    - doc_page type: id, title, description, section
+    - 24 documentation pages across 6 sections
+    - Sections: Getting Started, API Guides, Advanced Patterns, Recipes, Use Cases, Reference
+  - **Section organization**: Hierarchical documentation structure
+    - Getting Started: Getting Started, Core Concepts, Quick Start Tutorial
+    - API Guides: Message Handling, Command DSL, Keyboard API, Callback Queries, Media Files
+    - Advanced Patterns: State Machines, Middleware, Error Handling, Concurrency, Session Management
+    - Recipes: Echo Bot, Keyboard Bot, File Bot, Payment Bot
+    - Use Cases: Utility Bots, Content Bots, Entertainment Bots, Integration Bots
+    - Reference: Migration Guide, FAQ
+  - **Interactive navigation**: Hierarchical menu system
+    - Main index shows all sections
+    - Section view lists pages in that section
+    - Page view shows description and details
+    - Back buttons for hierarchy navigation
+    - Browse by section or search
+  - **Search functionality**: Full-text documentation search
+    - /search_docs command searches titles and descriptions
+    - Case-insensitive matching
+    - Results displayed as inline buttons
+    - Shows section context in results
+  - **Library overview**: Quick introduction
+    - Overview callback shows library features
+    - 449 types, 232 methods
+    - Type-safe API, Eio concurrency, production-ready
+    - Comprehensive test suite
+    - Documentation page count
+  - **Quick access commands**: Direct navigation
+    - /overview for library introduction
+    - /search_docs for keyword search
+    - Section callbacks from main menu
+  - **Page metadata**: Rich page information
+    - Title, description, section
+    - Each page has clear description
+    - Section context always visible
+  - **Easy to extend**: Simple documentation management
+    - Add pages to DocIndex.pages list
+    - Automatic section detection
+    - Search includes new pages
+    - No code changes for new docs
+  - **Commands**: /start, /overview, /search_docs
+  - **Callback handlers**: section:<name>, page:<id>, info:overview, action:index, action:search_prompt
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Logs include: [/start], [/overview], [/search_docs], [section], [page], [info:overview], [action:*]
+    - Documentation navigation logging
+    - Search operation logging (query, result count)
+    - Section filtering logging
+    - Page display logging
+    - Success/error logging for all operations
+  - Example compiles without errors/warnings (zero compilation issues)
 
 ## API Design Principles
 
