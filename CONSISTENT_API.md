@@ -1547,7 +1547,61 @@ Goal: Implement every example from documentation in `examples/` directory with a
     - Environment check logging
     - Success/error logging for all operations
   - Example compiles without errors/warnings (zero compilation issues)
-- [ ] Task 1.1.6.3: `docs/migration.mld` - Migration examples
+- [x] Task 1.1.6.3: `docs/migration.mld` - Migration examples
+  - Created `examples/migration_guide_demo.ml` - Comprehensive migration guide demonstration
+  - **Lwt to Eio migration**: Concurrency pattern changes
+    - Sequential operations: No let%lwt needed, direct-style code
+    - Parallel operations: Lwt.both vs Eio.Fiber.both
+    - Key advantage: Code looks synchronous, easier to read
+    - Better error traces and debugging
+  - **Raw API to typed methods**: Type-safe migration
+    - Before: Manual JSON construction with `Assoc
+    - After: Typed Gen_methods.send_message with named parameters
+    - Advantages: Type safety, autocomplete, no manual JSON, compile-time errors
+    - Generated from Telegram API specification
+  - **ID type safety**: Phantom types for ID safety
+    - Before: Raw int64 chat_id and user_id (easy to mix up)
+    - After: Id.Chat.of_int vs Id.User.of_int (type system prevents mixing)
+    - Support for usernames: Id.Chat.of_string "@channel"
+    - Compile-time prevention of ID mixups
+  - **Error handling migration**: Exception to Result types
+    - Before: try/catch with exceptions
+    - After: Result.t with explicit Ok/Error matching
+    - Advantages: Explicit in types, no hidden control flow, compiler ensures handling
+    - Better composition with monadic operations
+  - **Concurrency pattern migration**: Lwt/Async to Eio
+    - Spawning tasks: Lwt.async vs Eio.Fiber.fork with Switch
+    - Timeouts: Lwt.pick vs Eio.Time.with_timeout
+    - Synchronization: Lwt_mvar/Lwt_mutex vs Eio.Mutex/Semaphore/Promise
+    - Key advantage: Structured concurrency with automatic cleanup
+  - **Bot DSL migration**: Manual routing to declarative DSL
+    - Before: Manual message.text parsing with if/match
+    - After: Bot.make |> command |> run builder pattern
+    - Advantages: Declarative routing, no manual parsing, type-safe handlers, middleware
+  - **Key design differences**: Five major improvements
+    - Direct-style code: No monadic bind operators
+    - Structured concurrency: Switches, automatic cleanup, cancellation propagation
+    - Result types: Explicit error handling
+    - Phantom types: Type-safe IDs (Chat.k Id.t vs User.k Id.t)
+    - Bot DSL: Declarative routing with middleware
+  - **Before/after comparisons**: Side-by-side code examples
+    - Each template shows old code vs new code
+    - Highlights syntax differences
+    - Explains advantages of new approach
+    - Real-world migration scenarios
+  - **Interactive migration guide**: Menu-driven learning
+    - 7 migration topics accessible via inline keyboard
+    - Lwt→Eio, Raw→Typed, ID types, Errors, Concurrency, Bot DSL, Differences
+    - Edit-in-place navigation
+    - Complete before/after examples
+  - **Commands**: /start, /lwt_to_eio, /raw_to_typed, /id_types, /error_handling, /concurrency, /bot_dsl, /key_differences
+  - **Callback handlers**: guide:lwt_eio, guide:raw_typed, guide:id_types, guide:errors, guide:concurrency, guide:bot_dsl, guide:differences
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Logs include: [/start], [/lwt_to_eio], [/raw_to_typed], [/id_types], [/error_handling], [/concurrency], [/bot_dsl], [/key_differences], [guide:*]
+    - Command execution logging
+    - Template display logging
+    - Success/error logging for all operations
+  - Example compiles without errors/warnings (zero compilation issues)
 
 ### Phase 1.1.7: Reference & FAQ
 - [ ] Task 1.1.7.1: `docs/faq.mld` - FAQ code examples
