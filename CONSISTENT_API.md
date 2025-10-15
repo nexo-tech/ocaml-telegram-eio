@@ -1604,7 +1604,59 @@ Goal: Implement every example from documentation in `examples/` directory with a
   - Example compiles without errors/warnings (zero compilation issues)
 
 ### Phase 1.1.7: Reference & FAQ
-- [ ] Task 1.1.7.1: `docs/faq.mld` - FAQ code examples
+- [x] Task 1.1.7.1: `docs/faq.mld` - FAQ code examples
+  - Created `examples/faq_demo.ml` - Comprehensive FAQ bot demonstration
+  - **FAQ database**: 12 frequently asked questions organized by category
+    - faq_entry type: id, question, answer, category, keywords
+    - Categories: General, Installation, Usage, Architecture, Troubleshooting
+    - Keywords for search optimization
+    - Code examples embedded in answers
+  - **Category organization**: Questions grouped by topic
+    - General: What is ocaml-telegram-eio?, Why Eio?, OCaml version
+    - Installation: How to install?, Get bot token, Dependencies
+    - Usage: Simple bot, Send photos, Keyboards
+    - Architecture: Telegram.* vs Tg.*, Phantom types
+    - Troubleshooting: No updates, Conflict error
+  - **Search functionality**: Full-text search across questions, answers, keywords
+    - /search command with query parameter
+    - Case-insensitive matching with contains_substring
+    - Searches question text, answer text, and keywords
+    - Results displayed as inline keyboard buttons
+  - **Interactive navigation**: Menu-driven FAQ exploration
+    - Main menu with category buttons
+    - Category view lists questions in that category
+    - Question view shows full answer with code examples
+    - Back buttons for navigation hierarchy
+    - Browse all option shows all FAQs
+  - **Code examples in answers**: Embedded code snippets
+    - HTML &lt;code&gt; formatting for code blocks
+    - Before/after comparisons (Lwt vs Eio)
+    - Command examples with proper escaping
+    - Installation commands
+    - Usage examples
+  - **Quick access commands**: Direct category access
+    - /troubleshooting for common issues
+    - /general, /installation, /usage, /architecture (via callbacks)
+    - /search for keyword search
+  - **Answer formatting**: Rich HTML formatting
+    - Bold headers with &lt;b&gt;
+    - Code blocks with &lt;code&gt;
+    - Lists with bullet points
+    - Clear structure and readability
+  - **FAQ management**: Easy to extend
+    - Add new entries to FAQ.entries list
+    - Automatic category detection
+    - Search automatically includes new FAQs
+    - No code changes needed for new FAQs
+  - **Commands**: /start, /search, /troubleshooting
+  - **Callback handlers**: category:<name>, faq:<id>, action:categories, action:browse_all, action:search_prompt
+  - **Functor-based verbose logging**: Verbose_bot with Debug level
+    - Logs include: [/start], [/search], [/troubleshooting], [category], [faq], [action:*]
+    - Search operation logging (query, result count)
+    - Category filtering logging
+    - FAQ display logging
+    - Success/error logging for all operations
+  - Example compiles without errors/warnings (zero compilation issues)
 - [ ] Task 1.1.7.2: `docs/index.mld` - Index page examples
 
 ## API Design Principles
