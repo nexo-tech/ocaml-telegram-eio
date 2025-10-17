@@ -228,6 +228,7 @@ module type S = sig
   val on_callback : ([ `Chat ] ctx -> string -> (unit, Telegram.Error.t) result) -> bot -> bot
   val on_callback_data : string -> ([ `Chat ] ctx -> (unit, Telegram.Error.t) result) -> bot -> bot
   val on_photo : ([ `Chat ] ctx -> Telegram_generated.Gen_types.PhotoSize.t list -> (unit, Telegram.Error.t) result) -> bot -> bot
+  val on_document : ([ `Chat ] ctx -> Telegram_generated.Gen_types.Document.t -> (unit, Telegram.Error.t) result) -> bot -> bot
 
   val use : [ `Chat ] Middleware.t -> bot -> bot
   val scope : [ `Chat ] Middleware.t list -> bot -> bot

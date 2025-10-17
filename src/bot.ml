@@ -188,6 +188,7 @@ module type S = sig
   val on_callback : ([ `Chat ] ctx -> string -> (unit, Telegram.Error.t) result) -> bot -> bot
   val on_callback_data : string -> ([ `Chat ] ctx -> (unit, Telegram.Error.t) result) -> bot -> bot
   val on_photo : ([ `Chat ] ctx -> Telegram_generated.Gen_types.PhotoSize.t list -> (unit, Telegram.Error.t) result) -> bot -> bot
+  val on_document : ([ `Chat ] ctx -> Telegram_generated.Gen_types.Document.t -> (unit, Telegram.Error.t) result) -> bot -> bot
 
   val use : [ `Chat ] Middleware.t -> bot -> bot
   val scope : [ `Chat ] Middleware.t list -> bot -> bot
@@ -402,6 +403,43 @@ module Event = struct
   let ( & ) a b = Combine (a, b)
   let when_ event predicate = Filter (event, predicate)
 
+  (* Helper: enrich context from callback_query *)
+  let enrich_callback_context ctx cbq =
+    let open Telegram_generated.Gen_types in
+    let CallbackQuery.{ from = user; message = msg_opt; _ } = cbq in
+
+    (* Build user info *)
+    let User.{ id = user_id; username; _ } = user in
+    let user_info = Telegram.Types.{
+      id = Telegram.Id.User.of_int user_id;
+      username = username;
+    } in
+
+    (* Build chat and message info if message is available *)
+    let (chat_id_opt, message_opt, full_msg_opt) = match msg_opt with
+      | Some (msg : Message.t) ->
+          (* Extract from Message *)
+          let Message.{ chat; message_id; text; _ } = msg in
+          let Chat.{ id; _ } = chat in
+          let chat_id = Telegram.Id.Chat.of_int id in
+          let message = Telegram.Types.{
+            message_id = Int64.to_int message_id;
+            chat_id;
+            text;
+          } in
+          (Some chat_id, Some message, Some msg)
+      | None -> (None, None, None)
+    in
+
+    (* Return enriched context - preserve client, env, and session from original *)
+    {
+      ctx with
+      user = Some user_info;
+      chat = chat_id_opt;
+      msg = message_opt;
+      full_message = full_msg_opt;
+    }
+
   (* Internal: match an update against an event matcher *)
   let rec match_event : type a. a t -> Telegram_generated.Gen_types.Update.t -> (a * [ `Chat ] ctx) option =
     fun event upd_param ->
@@ -445,7 +483,12 @@ module Event = struct
             full_message = None;
             session = None;
           } in
-          Some (upd_param, ctx)
+          (* If this is a callback_query, enrich context immediately so middleware can access user *)
+          let enriched_ctx = match upd_param.Telegram_generated.Gen_types.Update.callback_query with
+            | Some cbq -> enrich_callback_context ctx cbq
+            | None -> ctx
+          in
+          Some (upd_param, enriched_ctx)
 
       | Message ->
           let open Telegram_generated.Gen_types in
@@ -1331,43 +1374,6 @@ let on_text handler bot =
 let on_message handler bot =
   on Event.message handler bot
 
-(** Helper: enrich context from callback_query *)
-let enrich_callback_context ctx cbq =
-  let open Telegram_generated.Gen_types in
-  let CallbackQuery.{ from = user; message = msg_opt; _ } = cbq in
-
-  (* Build user info *)
-  let User.{ id = user_id; username; _ } = user in
-  let user_info = Telegram.Types.{
-    id = Telegram.Id.User.of_int user_id;
-    username = username;
-  } in
-
-  (* Build chat and message info if message is available *)
-  let (chat_id_opt, message_opt, full_msg_opt) = match msg_opt with
-    | Some (msg : Message.t) ->
-        (* Extract from Message *)
-        let Message.{ chat; message_id; text; _ } = msg in
-        let Chat.{ id; _ } = chat in
-        let chat_id = Telegram.Id.Chat.of_int id in
-        let message = Telegram.Types.{
-          message_id = Int64.to_int message_id;
-          chat_id;
-          text;
-        } in
-        (Some chat_id, Some message, Some msg)
-    | None -> (None, None, None)
-  in
-
-  (* Return enriched context - preserve client, env, and session from original *)
-  {
-    ctx with
-    user = Some user_info;
-    chat = chat_id_opt;
-    msg = message_opt;
-    full_message = full_msg_opt;
-  }
-
 (** Add a callback query handler for specific callback data *)
 let on_callback_data expected_data handler bot =
   let callback_event = Event.when_ Event.any (fun upd ->
@@ -1380,24 +1386,18 @@ let on_callback_data expected_data handler bot =
         matches
     | None -> false
   ) in
-  let wrapped_handler ctx upd =
+  let wrapped_handler ctx _upd =
+    (* Context is already enriched by match_event *)
     Log.debug "on_callback_data wrapped_handler called for: \"%s\"" expected_data;
-    match upd.Telegram_generated.Gen_types.Update.callback_query with
-    | Some cbq ->
-        Log.debug "on_callback_data: enriching context";
-        let enriched_ctx = enrich_callback_context ctx cbq in
-        Log.debug "on_callback_data: calling user handler";
-        (try
-          let result = handler enriched_ctx in
-          Log.debug "on_callback_data: handler returned %s" (match result with Ok () -> "Ok" | Error _ -> "Error");
-          result
-        with exn ->
-          Log.error "on_callback_data: handler threw exception: %s" (Printexc.to_string exn);
-          Log.error "on_callback_data: backtrace: %s" (Printexc.get_backtrace ());
-          Error (Internal_error ("Handler exception: " ^ Printexc.to_string exn)))
-    | None ->
-        Log.debug "on_callback_data: no callback_query found";
-        Ok ()
+    Log.debug "on_callback_data: calling user handler";
+    (try
+      let result = handler ctx in
+      Log.debug "on_callback_data: handler returned %s" (match result with Ok () -> "Ok" | Error _ -> "Error");
+      result
+    with exn ->
+      Log.error "on_callback_data: handler threw exception: %s" (Printexc.to_string exn);
+      Log.error "on_callback_data: backtrace: %s" (Printexc.get_backtrace ());
+      Error (Internal_error ("Handler exception: " ^ Printexc.to_string exn)))
   in
   on callback_event wrapped_handler bot
 
@@ -1409,11 +1409,11 @@ let on_callback handler bot =
     | None -> false
   ) in
   let wrapped_handler ctx upd =
+    (* Context is already enriched by match_event *)
     match upd.Telegram_generated.Gen_types.Update.callback_query with
     | Some cbq ->
-        let enriched_ctx = enrich_callback_context ctx cbq in
         let data = Option.value cbq.Telegram_generated.Gen_types.CallbackQuery.data ~default:"" in
-        handler enriched_ctx data
+        handler ctx data
     | None -> Ok ()
   in
   on callback_event wrapped_handler bot
@@ -1432,6 +1432,21 @@ let on_photo handler bot =
     | None -> Ok ()
   in
   on photo_event wrapped_handler bot
+
+(** Add a document message handler to the bot *)
+let on_document handler bot =
+  (* Filter messages that have documents *)
+  let document_event = Event.when_ Event.message (fun msg ->
+    match msg.Telegram_generated.Gen_types.Message.document with
+    | Some _ -> true
+    | None -> false
+  ) in
+  let wrapped_handler ctx msg =
+    match msg.Telegram_generated.Gen_types.Message.document with
+    | Some document -> handler ctx document
+    | None -> Ok ()
+  in
+  on document_event wrapped_handler bot
 
 (** Middleware integration *)
 

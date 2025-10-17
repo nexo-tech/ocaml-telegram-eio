@@ -71,12 +71,10 @@ let _add_file storage entry =
   Eio.traceln "[Storage] Adding file: name=%s, size=%Ld" entry.file_name entry.file_size;
   { storage with files = entry :: storage.files }
 
-let remove_file storage file_id =
-  Eio.traceln "[Storage] Removing file: file_id=%s" file_id;
-  { storage with files = List.filter (fun e -> e.file_id <> file_id) storage.files }
-
-(* File cache for quick access *)
-let file_cache = Hashtbl.create 1000
+let remove_file_at_index storage index =
+  Eio.traceln "[Storage] Removing file at index: %d" index;
+  let files = storage.files |> List.filteri (fun i _ -> i <> index) in
+  { storage with files }
 
 let empty_album = {
   items = [];
@@ -93,16 +91,17 @@ let create_file_list_keyboard storage =
     storage.files
     |> List.mapi (fun i entry ->
         let size_mb = Int64.to_float entry.file_size /. 1_000_000.0 in
+        let index = string_of_int i in
         [
           Tg.Keyboard.callback
             ~text:(Printf.sprintf "%d. %s (%.1f MB)" (i + 1) entry.file_name size_mb)
-            ~data:("file:view:" ^ entry.file_id);
+            ~data:("file:view:" ^ index);
           Tg.Keyboard.callback
             ~text:"⬇️"
-            ~data:("file:download:" ^ entry.file_id);
+            ~data:("file:download:" ^ index);
           Tg.Keyboard.callback
             ~text:"🗑"
-            ~data:("file:delete:" ^ entry.file_id);
+            ~data:("file:delete:" ^ index);
         ]
       )
   in
@@ -253,9 +252,116 @@ let build_routes telegram_client bot =
   )
   |>
 
-  (* Note: Document and photo upload handlers would require Event.document and Event.photo
-     which are not yet implemented in the library. This is a simplified version focusing
-     on the core file management features using commands and callbacks. *)
+  (* Handle document uploads *)
+  Verbose_bot.on_document (fun ctx document ->
+    Eio.traceln "[Handler] Document received: file_id=%s, file_name=%s, size=%Ld"
+      document.file_id
+      (Option.value document.file_name ~default:"unnamed")
+      (Option.value document.file_size ~default:0L);
+
+    let open Verbose_bot.Ctx in
+    let storage = session_get_or ctx storage_key ~default:empty_storage in
+
+    (* Create file entry *)
+    let entry = {
+      file_id = document.file_id;
+      file_name = Option.value document.file_name ~default:"unnamed";
+      file_size = Option.value document.file_size ~default:0L;
+      mime_type = Option.value document.mime_type ~default:"application/octet-stream";
+      uploaded_at = Unix.time ();
+      user_id = 0L;
+    } in
+
+    (* Store in session *)
+    let updated = { storage with files = entry :: storage.files } in
+    session_set ctx storage_key updated;
+
+    Eio.traceln "[Handler] Document stored: total_files=%d" (List.length updated.files);
+
+    let* () = reply_ ctx
+      (Printf.sprintf "✓ Document uploaded: %s (%s)"
+         entry.file_name
+         (format_size entry.file_size))
+    in
+    Ok ()
+  )
+  |>
+
+  (* Handle photo uploads *)
+  Verbose_bot.on_photo (fun ctx photos ->
+    Eio.traceln "[Handler] Photo received: %d sizes available" (List.length photos);
+
+    let open Verbose_bot.Ctx in
+
+    (* Get the largest photo *)
+    let largest_photo =
+      List.fold_left (fun acc photo ->
+        match acc with
+        | None -> Some photo
+        | Some prev ->
+            if photo.Telegram_generated.Gen_types.PhotoSize.file_size > prev.Telegram_generated.Gen_types.PhotoSize.file_size
+            then Some photo
+            else Some prev
+      ) None photos
+    in
+
+    match largest_photo with
+    | None ->
+        Eio.traceln "[Handler] No photo found in list";
+        let* () = reply_ ctx "❌ No photo received" in
+        Ok ()
+    | Some photo ->
+        Eio.traceln "[Handler] Largest photo: file_id=%s, size=%Ld"
+          photo.file_id
+          (Option.value photo.file_size ~default:0L);
+
+        let storage = session_get_or ctx storage_key ~default:empty_storage in
+
+        (* Create file entry for photo *)
+        let entry = {
+          file_id = photo.file_id;
+          file_name = Printf.sprintf "photo_%s.jpg" photo.file_unique_id;
+          file_size = Option.value photo.file_size ~default:0L;
+          mime_type = "image/jpeg";
+          uploaded_at = Unix.time ();
+          user_id = 0L;
+        } in
+
+        (* Check if building an album *)
+        let album_state = session_get_or ctx album_key ~default:empty_album in
+
+        if List.length album_state.items > 0 && List.length album_state.items < album_state.max_items then begin
+          (* Add to album *)
+          let updated_album = { album_state with items = photo.file_id :: album_state.items } in
+          session_set ctx album_key updated_album;
+
+          Eio.traceln "[Handler] Photo added to album: %d/%d photos"
+            (List.length updated_album.items) album_state.max_items;
+
+          let keyboard = create_album_keyboard updated_album in
+          let* () = reply_ ctx
+            ~keyboard
+            (Printf.sprintf "📸 Photo %d/%d added to album"
+               (List.length updated_album.items)
+               album_state.max_items)
+          in
+          Ok ()
+        end else begin
+          (* Store as regular file *)
+          let updated = { storage with files = entry :: storage.files } in
+          session_set ctx storage_key updated;
+
+          Eio.traceln "[Handler] Photo stored: total_files=%d" (List.length updated.files);
+
+          let* () = reply_ ctx
+            (Printf.sprintf "✓ Photo uploaded: %s (%s)"
+               entry.file_name
+               (format_size entry.file_size))
+          in
+          Ok ()
+        end
+  )
+  |>
 
   (* Handle text messages as fallback *)
   Verbose_bot.on_text (fun ctx text ->
@@ -266,102 +372,124 @@ let build_routes telegram_client bot =
   )
   |>
 
-  (* Download file *)
+  (* Handle all file-related callbacks in one handler *)
   Verbose_bot.on_callback (fun ctx data ->
-    if not (String.starts_with ~prefix:"file:download:" data) then Ok () else begin
-    
+    Eio.traceln "[Callback] File handler received: data='%s'" data;
     let open Verbose_bot.Ctx in
-    let file_id = String.sub data 14 (String.length data - 14) in
-    Eio.traceln "[Handler] Download requested: file_id=%s" file_id;
 
-    (* Find file entry *)
-    match Hashtbl.find_opt file_cache file_id with
-    | Some entry ->
-        Eio.traceln "[Handler] File found in cache: name=%s" entry.file_name;
+    (* Download file *)
+    if String.starts_with ~prefix:"file:download:" data then begin
+      let index_str = String.sub data 14 (String.length data - 14) in
+      Eio.traceln "[Handler] Download requested: index=%s" index_str;
 
-        let chat_id = chat ctx in
+      let storage = session_get_or ctx storage_key ~default:empty_storage in
+      match int_of_string_opt index_str with
+      | None ->
+          Eio.traceln "[Handler] Invalid index: %s" index_str;
+          let* _msg = answer ctx "Invalid file index" in
+          Ok ()
+      | Some index ->
+          match List.nth_opt storage.files index with
+          | None ->
+              Eio.traceln "[Handler] File not found at index %d" index;
+              let* _msg = answer ctx "File not found" in
+              Ok ()
+          | Some entry ->
+              Eio.traceln "[Handler] File found: name=%s" entry.file_name;
 
-        Eio.traceln "[Handler] Sending document via API: chat_id=%s"
-          (Telegram.Id.to_string chat_id);
+              let chat_id = chat ctx in
+              Eio.traceln "[Handler] Sending document via API: chat_id=%s"
+                (Telegram.Id.to_string chat_id);
 
-            (match Telegram_generated.Gen_methods.send_document telegram_client
-                     ~chat_id
-                     ~document:file_id
-                     ~caption:(Printf.sprintf "📥 %s" entry.file_name)
-                     ()
-            with
-            | Ok _ ->
-                Eio.traceln "[Handler] Document sent successfully";
-                let* _msg = answer ctx "✓ File sent" in
-                Ok ()
-            | Error err ->
-                Eio.traceln "[Handler] Failed to send document: %a" Telegram.Error.pp err;
-                let* _msg = answer ctx "Failed to send file" in
-                Ok ())
-
-    | None ->
-        Eio.traceln "[Handler] File not found in cache: file_id=%s" file_id;
-        let* _msg = answer ctx "File not found" in
-        Ok ()
+              (match Telegram_generated.Gen_methods.send_document telegram_client
+                       ~chat_id
+                       ~document:entry.file_id
+                       ~caption:(Printf.sprintf "📥 %s" entry.file_name)
+                       ()
+              with
+              | Ok _ ->
+                  Eio.traceln "[Handler] Document sent successfully";
+                  let* _msg = answer ctx "✓ File sent" in
+                  Ok ()
+              | Error err ->
+                  Eio.traceln "[Handler] Failed to send document: %a" Telegram.Error.pp err;
+                  let* _msg = answer ctx "Failed to send file" in
+                  Ok ())
     end
-  )
-  |>
 
-  (* Delete file *)
-  Verbose_bot.on_callback (fun ctx data ->
-    if not (String.starts_with ~prefix:"file:delete:" data) then Ok () else begin
-    let open Verbose_bot.Ctx in
-    let file_id = String.sub data 12 (String.length data - 12) in
-    Eio.traceln "[Handler] Delete requested: file_id=%s" file_id;
-    let storage = session_get_or ctx storage_key ~default:empty_storage in
+    (* Delete file *)
+    else if String.starts_with ~prefix:"file:delete:" data then begin
+      let index_str = String.sub data 12 (String.length data - 12) in
+      Eio.traceln "[Handler] Delete requested: index=%s" index_str;
 
-    let updated = remove_file storage file_id in
-    session_set ctx storage_key updated;
+      let storage = session_get_or ctx storage_key ~default:empty_storage in
 
-    Hashtbl.remove file_cache file_id;
-    Eio.traceln "[Handler] File removed from storage and cache";
+      match int_of_string_opt index_str with
+      | None ->
+          Eio.traceln "[Handler] Invalid index: %s" index_str;
+          let* _msg = answer ctx "Invalid file index" in
+          Ok ()
+      | Some index ->
+          if index < 0 || index >= List.length storage.files then begin
+            Eio.traceln "[Handler] Index out of bounds: %d" index;
+            let* _msg = answer ctx "File not found" in
+            Ok ()
+          end else begin
+            let updated = remove_file_at_index storage index in
+            session_set ctx storage_key updated;
 
-    let keyboard = create_file_list_keyboard updated in
-    let* () = edit ctx
-      ~keyboard
-      (Printf.sprintf "📁 Your Files (%d)" (List.length updated.files))
-    in
-    let* _msg = answer ctx "✓ File deleted" in
-    Eio.traceln "[Handler] File deletion completed";
-    Ok ()
+            Eio.traceln "[Handler] File removed from storage";
+
+            let keyboard = create_file_list_keyboard updated in
+            let* () = edit ctx
+              ~keyboard
+              (Printf.sprintf "📁 Your Files (%d)" (List.length updated.files))
+            in
+            let* _msg = answer ctx "✓ File deleted" in
+            Eio.traceln "[Handler] File deletion completed";
+            Ok ()
+          end
     end
-  )
-  |>
 
-  (* View file details *)
-  Verbose_bot.on_callback (fun ctx data ->
-    if not (String.starts_with ~prefix:"file:view:" data) then Ok () else begin
-    let open Verbose_bot.Ctx in
-    let file_id = String.sub data 10 (String.length data - 10) in
-    Eio.traceln "[Handler] View details requested: file_id=%s" file_id;
+    (* View file details *)
+    else if String.starts_with ~prefix:"file:view:" data then begin
+      let index_str = String.sub data 10 (String.length data - 10) in
+      Eio.traceln "[Handler] View details requested: index=%s" index_str;
 
-    match Hashtbl.find_opt file_cache file_id with
-    | Some entry ->
-        let details = Printf.sprintf
-          "📄 File Details\n\n\
-           Name: %s\n\
-           Size: %s\n\
-           Type: %s\n\
-           Uploaded: %s"
-          entry.file_name
-          (format_size entry.file_size)
-          entry.mime_type
-          (format_timestamp entry.uploaded_at)
-        in
+      let storage = session_get_or ctx storage_key ~default:empty_storage in
+      match int_of_string_opt index_str with
+      | None ->
+          Eio.traceln "[Handler] Invalid index: %s" index_str;
+          let* _msg = answer ctx "Invalid file index" in
+          Ok ()
+      | Some index ->
+          match List.nth_opt storage.files index with
+          | None ->
+              Eio.traceln "[Handler] File not found at index %d" index;
+              let* _msg = answer ctx "File not found" in
+              Ok ()
+          | Some entry ->
+              let details = Printf.sprintf
+                "📄 File Details\n\n\
+                 Name: %s\n\
+                 Size: %s\n\
+                 Type: %s\n\
+                 Uploaded: %s"
+                entry.file_name
+                (format_size entry.file_size)
+                entry.mime_type
+                (format_timestamp entry.uploaded_at)
+              in
 
-        Eio.traceln "[Handler] Showing file details: name=%s" entry.file_name;
-        let* _msg = answer ctx details in
-        Ok ()
+              Eio.traceln "[Handler] Showing file details: name=%s" entry.file_name;
+              let* _msg = answer ctx details in
+              Ok ()
+    end
 
-    | None ->
-        Eio.traceln "[Handler] File not found in cache: file_id=%s" file_id;
-        let* _msg = answer ctx "File not found" in
-        Ok ()
+    (* Not a file-related callback, pass through *)
+    else begin
+      Eio.traceln "[Callback] Not a file-related callback, skipping";
+      Ok ()
     end
   )
   |>
@@ -472,10 +600,20 @@ let () =
   (* Phase 2: Build bot with functional API *)
   Eio.traceln "[Init] Building bot";
 
+  (* Create session store *)
+  let session_store = Verbose_session.Memory_store.create () in
+  Eio.traceln "[Init] Session store created";
+
   let bot = Verbose_bot.make ~env ~client:telegram_client in
+  let bot = Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store bot in
+  let bot = Verbose_bot.on_error (fun _ctx exn ->
+      Eio.traceln "❌ ERROR in handler: %s" (Printexc.to_string exn);
+      Eio.traceln "Backtrace: %s" (Printexc.get_backtrace ());
+    ) bot
+  in
   let bot = build_routes telegram_client bot in
 
-  Eio.traceln "[Init] Bot created successfully";
+  Eio.traceln "[Init] Bot created successfully with session support";
 
   (* Phase 3: Run polling *)
   Eio.traceln "";
