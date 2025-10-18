@@ -32,12 +32,12 @@
   - [x] Fix GitHub URLs (currently placeholder "yourusername")
   - [x] Add badges for build status, coverage (when CI is set up)
 
-- [ ] Task 1.3: Consolidate CONSISTENT_API.md into ROADMAP.md
-  - [ ] Rename `CONSISTENT_API.md` → `ROADMAP.md`
-  - [ ] Keep only Phase 1 checklist (documentation examples implementation)
-  - [ ] Add Phase 2 section for remaining library work from old PLAN.md
-  - [ ] Clean up verbose task descriptions to be concise
-  - [ ] Result: Single roadmap file tracking all remaining work
+- [x] Task 1.3: Consolidate CONSISTENT_API.md into ROADMAP.md
+  - [x] Rename `CONSISTENT_API.md` → `ROADMAP.md`
+  - [x] Keep only Phase 1 checklist (documentation examples implementation)
+  - [x] Add Phase 2 section for remaining library work from old PLAN.md
+  - [x] Clean up verbose task descriptions to be concise
+  - [x] Result: Single roadmap file tracking all remaining work
 
 - [ ] Task 1.4: Consolidate CLAUDE.md into CONTRIBUTING.md
   - [ ] Move "Task Completion Policy" to CONTRIBUTING.md
