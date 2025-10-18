@@ -39,12 +39,12 @@
   - [x] Clean up verbose task descriptions to be concise
   - [x] Result: Single roadmap file tracking all remaining work
 
-- [ ] Task 1.4: Consolidate CLAUDE.md into CONTRIBUTING.md
-  - [ ] Move "Task Completion Policy" to CONTRIBUTING.md
-  - [ ] Move "Result-Based Error Handling" to CONTRIBUTING.md or new ARCHITECTURE.md
-  - [ ] Move "Error Handling in Documentation Examples" to CONTRIBUTING.md
-  - [ ] Keep CLAUDE.md minimal (just Claude-specific automation instructions)
-  - [ ] Result: Human contributors see full guide in CONTRIBUTING.md
+- [x] Task 1.4: Consolidate CLAUDE.md into CONTRIBUTING.md
+  - [x] Move "Task Completion Policy" to CONTRIBUTING.md
+  - [x] Move "Result-Based Error Handling" to CONTRIBUTING.md or new ARCHITECTURE.md
+  - [x] Move "Error Handling in Documentation Examples" to CONTRIBUTING.md
+  - [x] Keep CLAUDE.md minimal (just Claude-specific automation instructions)
+  - [x] Result: Human contributors see full guide in CONTRIBUTING.md
 
 ### Phase 2: Examples Organization
 

@@ -1,51 +1,38 @@
-# Task Completion Policy
+# Claude Code Automation Instructions
 
-## Requirements
+This file contains instructions for Claude Code AI assistant when working on this project.
 
-1. Understand library implementation & public API (generated methods + ergonomic wrappers)
-2. Documentation code snippets must compile
-3. Examples use high-level public API with consistent interface
-4. If docs use non-existent API that's nicer than generated API, implement it
-5. API must be powerful monadic/functional/combinator style (like Haskell) - elegant and simple
-6. Code compiles with zero warnings
-7. Library code passes 100% tests, write new tests if new api/implementation is
-   introduced
-8. Public API changes require documentation updates
-9. Mark the task checked in the .md file - [x]
-10. Commit when task successfully completed
-11. all code examples must have the most verbose logging configured (to
-    effectively troubleshoot all the issues)
+**For human contributors**: See [CONTRIBUTING.md](CONTRIBUTING.md) for development workflow, coding standards, and best practices.
+
+---
+
+## Task Completion Protocol
+
+When completing tasks from ROADMAP.md or CLEANUP.md, follow this protocol:
+
+1. **Understand library implementation & public API** (generated methods + ergonomic wrappers)
+2. **Documentation code snippets must compile**
+3. **Examples use high-level public API** with consistent interface
+4. **If docs use non-existent API** that's nicer than generated API, implement it
+5. **API must be powerful monadic/functional/combinator style** (like Haskell) - elegant and simple
+6. **Code compiles with zero warnings**
+7. **Library code passes 100% tests**, write new tests if new api/implementation is introduced
+8. **Public API changes require documentation updates**
+9. **Mark the task checked** in the .md file - `[x]`
+10. **Commit when task successfully completed**
+11. **All code examples must have the most verbose logging configured** (to effectively troubleshoot all the issues)
+
+---
 
 ## Result-Based Error Handling (NO EXCEPTIONS)
 
 **CRITICAL RULE**: This library uses `Result.t` for ALL error handling. Exceptions are FORBIDDEN except at the top-level boundary.
 
-### Core Principles
+See [CONTRIBUTING.md](CONTRIBUTING.md#result-based-error-handling) for full error handling guidelines.
 
-1. **All operations return Result**: Public API functions return `(ok_type, Error.t) result`
-2. **No internal exceptions**: Never use `failwith`, `raise`, `invalid_arg`, etc. inside library code
-3. **Exceptions only at boundaries**: Only catch exceptions at FFI/IO boundaries and convert to Result
-4. **Monadic composition**: Use `let*` syntax and bind/map operators for chaining
+### Quick Reference
 
-### Why No Exceptions?
-
-❌ **Exceptions are bad because:**
-- Hidden control flow - unclear when functions can fail
-- Lost context - stack unwinding loses intermediate state
-- Difficult composition - can't chain with `|>` or monadic operators
-- Runtime surprises - compile-time safety lost
-- Messy error handling - try/catch scattered everywhere
-
-✅ **Result is good because:**
-- Explicit in types - `('a, 'e) result` shows function can fail
-- Composable - works with `let*`, `>>=`, `>>|`, `|>`
-- Type-safe - compiler ensures errors are handled
-- Traceable - errors propagate through call chain
-- Testable - easy to test error cases
-
-### Handler Signature
-
-Handlers MUST return `(unit, Error.t) result`:
+**Handler Signature**: Handlers MUST return `(unit, Error.t) result`:
 
 ```ocaml
 (* CORRECT ✅ *)
@@ -64,9 +51,7 @@ Handlers MUST return `(unit, Error.t) result`:
   )
 ```
 
-### Context Accessors Return Result
-
-All Ctx functions that can fail MUST return Result:
+**Context Accessors Return Result**: All Ctx functions that can fail MUST return Result:
 
 ```ocaml
 (* CORRECT ✅ *)
@@ -75,19 +60,11 @@ val env : 'a t -> (Client.env, Error.t) result
 val chat : [ `Chat ] t -> (Id.Chat.k Id.t, Error.t) result
 val message : [ `Chat ] t -> (message, Error.t) result
 val require_user : 'a t -> (user, Error.t) result
-
-(* WRONG ❌ - using exceptions internally *)
-let client c = match c.client with
-  | Some cl -> cl
-  | None -> failwith "client not set"  (* BAD! Should return Error *)
 ```
 
-### Error Propagation Pattern
-
-Use monadic binding to propagate errors:
+**Error Propagation**: Use monadic binding to propagate errors:
 
 ```ocaml
-(* Pattern: Early return on error *)
 let handle_command ctx args =
   let open Ctx in
   let* user = require_user ctx in
@@ -95,13 +72,9 @@ let handle_command ctx args =
   let* message = message ctx in
   let* () = reply_ ctx (Printf.sprintf "Hello %s!" user.username) in
   Ok ()
-
-(* Errors automatically propagate up - no try/catch needed! *)
 ```
 
-### Converting to Result (Internal Library Code)
-
-When calling functions that might fail:
+**Converting to Result**: When calling functions that might fail:
 
 ```ocaml
 (* CORRECT ✅ *)
@@ -115,9 +88,7 @@ let parse_int s =
   int_of_string s  (* Can throw Failure exception! *)
 ```
 
-### Exception Boundary (Top-Level Only)
-
-Only at the very top level (dispatch_update) should we catch exceptions:
+**Exception Boundary**: Only at the very top level (dispatch_update) should we catch exceptions:
 
 ```ocaml
 (* dispatch_update - top-level boundary *)
@@ -139,37 +110,7 @@ let dispatch_update client env routes update =
   try_routes routes
 ```
 
-### Don't Use reply_or_fail Pattern
-
-The old `reply_or_fail` pattern converts Result to exception - this is WRONG:
-
-```ocaml
-(* WRONG ❌ - defeats the purpose of Result *)
-let reply_or_fail ctx text =
-  match Ctx.reply ctx text with
-  | Ok msg -> msg
-  | Error err -> raise (Failure ...)  (* BAD! Converting Result to exception *)
-
-(* Use this instead: *)
-let _ = reply_or_fail ctx "Hello!" in  (* Error hidden! *)
-
-(* CORRECT ✅ - keep Result and propagate *)
-let handle ctx =
-  let* () = Ctx.reply_ ctx "Hello!" in  (* Errors propagate naturally *)
-  Ok ()
-```
-
-### Migration Checklist
-
-When refactoring to Result-based:
-
-- [ ] Replace all `failwith` with `Error (...)`
-- [ ] Replace all `raise` with `Error (...)`
-- [ ] Replace all `invalid_arg` with `Error (Invalid_argument ...)`
-- [ ] Change function signatures from `'a` to `('a, Error.t) result`
-- [ ] Add `let*` bindings for error propagation
-- [ ] Update tests to expect Result types
-- [ ] Update examples to use monadic composition
+---
 
 ## Error Handling in Documentation Examples
 
@@ -221,8 +162,7 @@ do_critical_work ()
 
 ### Why This Matters
 
-`Result.t` in OCaml is not automatically executed. Using `ignore` on a Result
-means the computation never runs - the message is never sent!
+`Result.t` in OCaml is not automatically executed. Using `ignore` on a Result means the computation never runs - the message is never sent!
 
 Always match on Result values to:
 1. Actually execute the operation
@@ -236,6 +176,8 @@ All examples in documentation and in `examples/` directory must:
 - Actually work when run
 - Handle errors explicitly
 - Show best practices
+
+---
 
 ## Global Error Handler Pattern
 
@@ -297,4 +239,3 @@ Common issues:
 - Not handling Result.t at all (operation never runs)
 - Error thrown but no error handler (error lost)
 - Token invalid (check API errors)
-
