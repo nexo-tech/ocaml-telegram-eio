@@ -3,10 +3,13 @@
 (version 0.1.0)
 (generate_opam_files true)
 
-(source (github yourusername/ocaml-telegram-eio))
+(source (github oleg-nexo/ocaml_telegram_eio))
 (license MIT)
 (authors "Oleg Pustovit <oleg@nexo.sh>")
 (maintainers "Oleg Pustovit <oleg@nexo.sh>")
+(homepage "https://github.com/oleg-nexo/ocaml_telegram_eio")
+(bug_reports "https://github.com/oleg-nexo/ocaml_telegram_eio/issues")
+(documentation "https://oleg-nexo.github.io/ocaml_telegram_eio/")
 
 (package
  (name ocaml_telegram_eio)

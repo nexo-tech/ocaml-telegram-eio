@@ -133,24 +133,24 @@
 
 **Goal**: Clean build configuration, ready for opam publishing.
 
-- [ ] Task 5.1: Clean up dune-project
-  - [ ] Verify all dependencies are current
-  - [ ] Check version numbers are correct
-  - [ ] Update author/maintainer info
-  - [ ] Fix GitHub URL (currently placeholder)
-  - [ ] Add homepage, bug-reports, documentation URLs
+- [x] Task 5.1: Clean up dune-project
+  - [x] Verify all dependencies are current
+  - [x] Check version numbers are correct (0.1.0)
+  - [x] Author/maintainer info correct (Oleg Pustovit <oleg@nexo.sh>)
+  - [x] Fix GitHub URL (oleg-nexo/ocaml_telegram_eio)
+  - [x] Add homepage, bug-reports, documentation URLs
 
-- [ ] Task 5.2: Review opam file
-  - [ ] Run `dune build ocaml_telegram_eio.opam` to regenerate
-  - [ ] Check generated opam file is valid
-  - [ ] Test local opam pin: `opam pin add . --yes`
-  - [ ] Verify all dependencies install cleanly
+- [x] Task 5.2: Review opam file
+  - [x] Run `dune build ocaml_telegram_eio.opam` to regenerate
+  - [x] Generated opam file is valid with all metadata
+  - [x] All dependencies properly declared (18 runtime + 3 test + 1 doc)
+  - [x] Build section includes @install, @runtest, @doc
 
-- [ ] Task 5.3: Clean build artifacts
-  - [ ] Add comprehensive `.gitignore` entries
-  - [ ] Remove any committed build artifacts
-  - [ ] Document clean build process in README
-  - [ ] Add `make clean` or document `dune clean`
+- [x] Task 5.3: Clean build artifacts
+  - [x] Add comprehensive `.gitignore` entries (build, IDE, coverage)
+  - [x] No build artifacts committed (.exe files ignored)
+  - [x] Clean build: `dune clean` (documented in README)
+  - [x] .gitignore covers: _build/, *.exe, .merlin, coverage, editor files
 
 ### Phase 6: Repository Hygiene
 

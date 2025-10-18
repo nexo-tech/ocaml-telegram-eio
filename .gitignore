@@ -1,4 +1,39 @@
-_build
+# Build artifacts
+_build/
 *.exe
-.envrc
+*.o
+*.a
+*.so
+*.cmi
+*.cmo
+*.cmx
+*.cmt
+*.cmti
+*.mli.d
+*.ml.d
 
+# Dune cache
+.dune/
+
+# Environment
+.envrc
+.env
+
+# Editor/IDE
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.sublime-*
+.DS_Store
+
+# Merlin
+.merlin
+
+# Coverage
+bisect*.coverage
+_coverage/
+
+# Documentation build artifacts (committed separately if needed)
+# _doc/
