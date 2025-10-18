@@ -2,6 +2,7 @@
 
 [![OCaml](https://img.shields.io/badge/OCaml-5.1%2B-orange.svg)](https://ocaml.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/oleg-nexo/ocaml_telegram_eio/ci.yml?branch=dev)](https://github.com/oleg-nexo/ocaml_telegram_eio/actions)
 
 Type-safe Telegram Bot API client for OCaml using Eio.
 
@@ -24,45 +25,42 @@ Type-safe Telegram Bot API client for OCaml using Eio.
 opam install ocaml_telegram_eio
 ```
 
-### Simple Echo Bot
+### Hello World Bot
+
+The simplest bot - responds to `/start` command:
 
 ```ocaml
+open Telegram
+
 let () =
-  let token = Sys.getenv "<TELEGRAM_BOT_TOKEN>" in
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
 
   Eio_main.run @@ fun env ->
-  let client = Telegram.Client.create ~env ~token () in
+  let client = Client.create ~env ~token () in
 
-  let handler update =
-    let open Telegram_generated.Gen_types in
-    match update.Update.message with
-    | Some msg ->
-        let chat_id = Telegram.Id.Chat.of_int msg.Message.chat.Chat.id in
-        let text = Option.value msg.Message.text ~default:"" in
-        if text <> "" then
-          ignore (Gen_methods.send_message client ~chat_id
-                   ~text:("Echo: " ^ text) ())
-    | None -> ()
-  in
-
-  Tg.Polling.run client ~handler
+  Bot.make ~env ~client
+  |> Bot.command "start" (fun ctx _args ->
+      match Bot.Ctx.reply ctx "Hello! I'm your bot." with
+      | Ok _ -> ()
+      | Error err -> Eio.traceln "Error: %a" Error.pp err
+    )
+  |> Bot.run
 ```
 
 Run it:
 
 ```bash
 export TELEGRAM_BOT_TOKEN="your_token_here"
-dune exec examples/echo_bot.exe
+dune exec examples/hello_world.exe
 ```
 
 ## Documentation
 
 - **[Getting Started Guide](docs/)** - Installation and first bot
-- **[API Reference](https://yourusername.github.io/ocaml-telegram-eio/)** - Full API documentation
-- **[Migration Guide](docs/MIGRATION.md)** - Migrating from Lwt/Async or other libraries
-- **[FAQ](docs/FAQ.md)** - Frequently asked questions
-- **[Examples](examples/)** - Working bot examples
+- **[API Reference](docs/)** - Full API documentation (build with `dune build @doc`)
+- **[Examples](examples/)** - 40+ working bot examples
 - **[CHANGELOG](CHANGELOG.md)** - Version history and release notes
+- **[CONTRIBUTING](CONTRIBUTING.md)** - Development workflow and guidelines
 - **[VERSIONING](VERSIONING.md)** - Semantic versioning policy
 - **[COMPATIBILITY](COMPATIBILITY.md)** - Bot API compatibility and update policy
 
@@ -92,12 +90,31 @@ Tg.Keyboard.inline [[...]]         (* Inline keyboards *)
 
 ## Examples
 
-See the [`examples/`](examples/) directory for complete, runnable examples:
+See the [`examples/`](examples/) directory for 40+ complete, runnable examples:
 
+### Basic Examples
+- **[hello_world.ml](examples/hello_world.ml)** - Simplest bot with `/start` command
 - **[echo_bot.ml](examples/echo_bot.ml)** - Simple echo bot with long polling
 - **[command_bot.ml](examples/command_bot.ml)** - Command routing and argument parsing
 - **[keyboard_bot.ml](examples/keyboard_bot.ml)** - Interactive keyboards and callbacks
 - **[file_bot.ml](examples/file_bot.ml)** - File uploads and downloads
+
+### Recipe Examples (Cookbook)
+- **[recipe_echo_bot.ml](examples/recipe_echo_bot.ml)** - Feature-rich echo with transformations
+- **[recipe_command_bot.ml](examples/recipe_command_bot.ml)** - Multi-command bot with help system
+- **[recipe_keyboard_bot.ml](examples/recipe_keyboard_bot.ml)** - Advanced keyboard patterns
+- **[recipe_file_bot.ml](examples/recipe_file_bot.ml)** - Complete file handling example
+- **[recipe_webhook_bot.ml](examples/recipe_webhook_bot.ml)** - Webhook deployment example
+
+### Advanced Tutorials
+- **[task_1_1_3_*.ml](examples/)** - Comprehensive tutorials covering:
+  - Keyboard API, Command DSL, Message Handling
+  - Callback Queries, Media Files, Update Processing
+  - Error Handling, Session Management, State Machines
+  - Concurrency Patterns, Bot Composition, Middleware
+  - Testing Patterns, Use Cases, Development Workflow
+
+See [`examples/README.md`](examples/README.md) for the complete index.
 
 ## Requirements
 
@@ -111,8 +128,8 @@ See the [`examples/`](examples/) directory for complete, runnable examples:
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/ocaml-telegram-eio.git
-cd ocaml-telegram-eio
+git clone https://github.com/oleg-nexo/ocaml_telegram_eio.git
+cd ocaml_telegram_eio
 
 # Install dependencies
 opam install --deps-only .
@@ -147,12 +164,14 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development workflow.
 **Version 0.1.0** - Alpha
 
 - ✅ Core functionality complete
-- ✅ All Bot API types and methods implemented
+- ✅ All Bot API types and methods implemented (449 types, 232 methods)
+- ✅ High-level Bot DSL with functional builder pattern
 - ✅ Comprehensive test coverage
-- ⚠️ High-level Bot DSL partially implemented
-- ⚠️ Some production features pending (rate limiting, retry policies)
+- ✅ 40+ working examples with detailed documentation
+- ⚠️ Some production features pending (advanced rate limiting)
 
-See [PLAN.md](PLAN.md) for detailed roadmap (45/92 tasks complete, 49%).
+**Documentation Progress**: 37/37 tasks complete (100%) - see [CONSISTENT_API.md](CONSISTENT_API.md)
+**Cleanup Progress**: 2/38 tasks complete (5%) - see [CLEANUP.md](CLEANUP.md)
 
 ## License
 
@@ -162,7 +181,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-1. Report bugs or request features via [GitHub Issues](https://github.com/yourusername/ocaml-telegram-eio/issues)
+1. Report bugs or request features via [GitHub Issues](https://github.com/oleg-nexo/ocaml_telegram_eio/issues)
 2. Submit pull requests with tests and documentation
 3. Follow the existing code style and conventions
 

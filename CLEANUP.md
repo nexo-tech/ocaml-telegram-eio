@@ -23,14 +23,14 @@
     - `INTEGRATION_TESTING.md` - testing notes, should be in CONTRIBUTING.md
   - [x] Result: Single `archive/` folder with historical design docs
 
-- [ ] Task 1.2: Update README.md to match current state
-  - [ ] Remove references to archived planning docs
-  - [ ] Update project status (current completion percentage from CONSISTENT_API.md)
-  - [ ] Update examples list to match actual `examples/` directory
-  - [ ] Add clear "Quick Start" with simplest working example
-  - [ ] Add link to generated API docs
-  - [ ] Fix GitHub URLs (currently placeholder "yourusername")
-  - [ ] Add badges for build status, coverage (when CI is set up)
+- [x] Task 1.2: Update README.md to match current state
+  - [x] Remove references to archived planning docs
+  - [x] Update project status (current completion percentage from CONSISTENT_API.md)
+  - [x] Update examples list to match actual `examples/` directory
+  - [x] Add clear "Quick Start" with simplest working example
+  - [x] Add link to generated API docs
+  - [x] Fix GitHub URLs (currently placeholder "yourusername")
+  - [x] Add badges for build status, coverage (when CI is set up)
 
 - [ ] Task 1.3: Consolidate CONSISTENT_API.md into ROADMAP.md
   - [ ] Rename `CONSISTENT_API.md` → `ROADMAP.md`
