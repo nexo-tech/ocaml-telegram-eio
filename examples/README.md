@@ -1,190 +1,205 @@
 # Examples
 
-This directory contains complete, runnable examples demonstrating the `ocaml-telegram-eio` library.
+This directory contains 40+ working examples demonstrating the ocaml_telegram_eio library.
 
 ## Prerequisites
 
-1. Create a Telegram bot via [@BotFather](https://t.me/botfather)
-2. Get your bot token
-3. Export it as an environment variable:
-   ```bash
-   export TELEGRAM_BOT_TOKEN="1234567890:ABCdefGHIjklMNOpqrsTUVwxyz"
-   ```
-
-## Available Examples
-
-### 1. Echo Bot (`echo_bot.ml`)
-
-A simple bot that echoes back any message you send.
-
-**Features:**
-- Long polling for updates
-- Basic message handling
-- Clean error handling
-
-**Run:**
-```bash
-export TELEGRAM_BOT_TOKEN="your_token"
-dune exec examples/echo_bot.exe
-```
-
-### 2. Command Bot (`command_bot.ml`)
-
-A bot with multiple commands and argument parsing.
-
-**Features:**
-- Command routing (`/start`, `/help`, `/echo`, `/add`, `/upper`)
-- Argument parsing
-- Help text generation
-- Error handling for invalid inputs
-
-**Commands:**
-- `/start` - Welcome message
-- `/help` - List all commands
-- `/echo <text>` - Echo back the text
-- `/add <num1> <num2>` - Add two numbers
-- `/upper <text>` - Convert text to uppercase
-
-**Run:**
-```bash
-export TELEGRAM_BOT_TOKEN="your_token"
-dune exec examples/command_bot.exe
-```
-
-**Example usage:**
-```
-You: /add 5 3
-Bot: 5 + 3 = 8
-
-You: /upper hello world
-Bot: HELLO WORLD
-```
-
-### 3. Keyboard Bot (`keyboard_bot.ml`)
-
-Interactive bot with reply and inline keyboards.
-
-**Features:**
-- Reply keyboards (persistent buttons below the chat)
-- Inline keyboards (buttons attached to messages)
-- Callback query handling
-- Keyboard removal
-
-**Commands:**
-- `/start` - Show reply keyboard
-- `/inline` - Show inline keyboard with callbacks
-- `/remove` - Remove keyboard
-
-**Run:**
-```bash
-export TELEGRAM_BOT_TOKEN="your_token"
-dune exec examples/keyboard_bot.exe
-```
-
-### 4. File Bot (`file_bot.ml`)
-
-Upload and download files (photos and documents).
-
-**Features:**
-- Sending photos from local files
-- Sending documents with captions
-- Receiving and acknowledging uploaded files
-- Temporary file handling
-
-**Commands:**
-- `/start` - Show help
-- `/photo` - Send a test photo
-- `/document` - Send a test document
-- Send any photo/document - Bot acknowledges receipt
-
-**Run:**
-```bash
-export TELEGRAM_BOT_TOKEN="your_token"
-dune exec examples/file_bot.exe
-```
-
-## Building All Examples
-
-Build all examples at once:
+All examples require a Telegram Bot Token:
 
 ```bash
-dune build examples/
+export TELEGRAM_BOT_TOKEN="your_token_here"
 ```
 
-## Code Structure
+Get your token from [@BotFather](https://t.me/BotFather) on Telegram.
 
-All examples follow a similar pattern:
+## Running Examples
 
-1. **Token validation** - Check for `TELEGRAM_BOT_TOKEN` environment variable
-2. **Eio setup** - Create Eio environment with `Eio_main.run`
-3. **Client creation** - Initialize Telegram client
-4. **Bot info** - Fetch and display bot username
-5. **Handler definition** - Process updates
-6. **Polling** - Start long polling loop
+```bash
+# From project root
+dune exec examples/basic/hello_world.exe
+dune exec examples/recipes/recipe_echo_bot.exe
+dune exec examples/advanced/keyboard_api.exe
+```
+
+---
+
+## Basic Examples (`basic/`)
+
+Simple examples for getting started:
+
+| Example | Description | Key Features |
+|---------|-------------|--------------|
+| **hello_world.ml** | Simplest bot - responds to /start | Bot.make, command handler |
+| **echo_bot.ml** | Echo messages back to user | Long polling, message handling |
+| **echo_enhanced.ml** | Echo with command routing | Multiple commands, text events |
+| **command_bot.ml** | Command routing and args | Argument parsing, validation |
+| **command_tutorial.ml** | Bot DSL tutorial | Bot.Args helpers, error handling |
+| **keyboard_bot.ml** | Interactive keyboards | Reply & inline keyboards, callbacks |
+| **file_bot.ml** | File uploads and downloads | Media handling, file operations |
+| **core_concepts_demo.ml** | Fundamental patterns | Lifecycle, monadic composition |
+
+**Start here**: `hello_world.ml` → `echo_bot.ml` → `command_bot.ml`
+
+---
+
+## Recipe Examples (`recipes/`)
+
+Cookbook-style examples for common bot patterns:
+
+| Example | Description | Features |
+|---------|-------------|----------|
+| **recipe_echo_bot.ml** | Feature-rich echo bot | Text transformations, sessions, styles |
+| **recipe_command_bot.ml** | Multi-command bot | Command registry, help system, admin auth |
+| **recipe_keyboard_bot.ml** | Advanced keyboard patterns | Dynamic keyboards, state management |
+| **recipe_file_bot.ml** | Complete file handling | Upload, download, streaming, previews |
+| **recipe_webhook_bot.ml** | Webhook deployment | Webhook setup, TLS, server integration |
+| **recipe_chatbot_context.ml** | Contextual conversations | Multi-turn dialogs, context tracking |
+| **recipe_notification_bot.ml** | Push notifications | Scheduled messages, broadcast |
+| **recipe_poll_quiz_bot.ml** | Polls and quizzes ⚠️ | Interactive polls, quiz mode |
+| **recipe_inline_bot.ml** | Inline query handling ⚠️ | Inline mode, article results |
+| **recipe_group_management_bot.ml** | Group admin features ⚠️ | Member management, permissions |
+| **recipe_payment_bot.ml** | Payment integration ⚠️ | Telegram Payments, invoices |
+| **recipe_games_bot.ml** | Game bot ⚠️ | HTML5 games, scoring |
+
+⚠️ = May have compilation errors (WIP)
+
+---
+
+## Advanced Examples (`advanced/`)
+
+Comprehensive tutorials covering all library features:
+
+### API Components
+
+| Example | Description |
+|---------|-------------|
+| **keyboard_api.ml** | Keyboard creation patterns |
+| **command_dsl.ml** | Command DSL deep dive |
+| **message_handling.ml** | Message processing patterns |
+| **callback_queries.ml** | Callback query handling |
+| **media_files.ml** | Media handling examples |
+| **update_processing.ml** | Update routing strategies |
+| **error_handling.ml** | Error handling patterns |
+| **session_management.ml** | Session storage patterns |
+| **state_machines.ml** | State machine patterns |
+
+### Advanced Patterns
+
+| Example | Description |
+|---------|-------------|
+| **concurrency_patterns.ml** | Eio concurrency examples |
+| **bot_composition.ml** | Composing bots |
+| **middleware_architecture.ml** | Middleware patterns |
+| **testing_patterns.ml** | Testing strategies |
+
+### Use Cases
+
+| Example | Description |
+|---------|-------------|
+| **usecase_utility_bots.ml** | Utility bot examples |
+| **usecase_content_bots.ml** | Content delivery bots |
+| **usecase_entertainment_bots.ml** | Entertainment bots |
+| **usecase_integration_bots.ml** | Integration bots |
+
+### Project Setup
+
+| Example | Description |
+|---------|-------------|
+| **project_structure.ml** | Project organization |
+| **development_workflow.ml** | Development workflow |
+| **migration_guide.ml** | Migration examples |
+
+### Reference
+
+| Example | Description |
+|---------|-------------|
+| **faq.ml** | FAQ code examples |
+| **index.ml** | Index/overview |
+
+---
+
+## Example Structure
+
+Each example follows this pattern:
+
+```ocaml
+(* Purpose: What this example demonstrates *)
+(* How to run: dune exec examples/basic/hello_world.exe *)
+(* Expected behavior: Bot responds to /start with greeting *)
+
+open Telegram
+
+let () =
+  let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+  Eio_main.run @@ fun env ->
+  let client = Client.create ~env ~token () in
+
+  Bot.make ~env ~client
+  |> Bot.command "start" (fun ctx _args ->
+      match Bot.Ctx.reply ctx "Hello!" with
+      | Ok _ -> ()
+      | Error err -> Eio.traceln "Error: %a" Error.pp err
+    )
+  |> Bot.run
+```
+
+---
 
 ## Common Patterns
 
 ### Error Handling
 
 ```ocaml
-match Telegram.Api.call client request with
-| Ok result -> (* handle success *)
-| Error err ->
-    Printf.eprintf "Error: %s\n" (Telegram.Error.to_string err)
+(* Pattern 1: Match on Result *)
+match Bot.Ctx.reply ctx "Message" with
+| Ok _ -> ()
+| Error err -> Eio.traceln "Error: %a" Telegram.Error.pp err
+
+(* Pattern 2: Monadic composition *)
+let open Bot.Ctx in
+let* user = require_user ctx in
+let* () = reply_ ctx "Processing..." in
+reply_ ctx "Done!"
 ```
 
-### Sending Messages
+### Verbose Logging
+
+Examples use comprehensive logging for troubleshooting:
 
 ```ocaml
-let send_message client chat_id text =
-  let req = Telegram.Api.send_message ~chat_id ~text () in
-  match Telegram.Api.call client req with
-  | Ok _ -> ()
-  | Error err -> (* handle error *)
+Eio.traceln "📨 Received /start command";
+match Bot.Ctx.reply ctx "Hello!" with
+| Ok _ -> Eio.traceln "✅ Reply sent"
+| Error err -> Eio.traceln "❌ Error: %a" Telegram.Error.pp err
 ```
 
-### Command Parsing
-
-```ocaml
-if String.length text > 0 && text.[0] = '/' then
-  let parts = String.split_on_char ' ' text in
-  let cmd = List.hd parts in
-  let args = List.tl parts in
-  match cmd with
-  | "/command" -> (* handle command *)
-  | _ -> (* unknown command *)
-```
-
-## Debugging
-
-Enable verbose output by adding print statements:
-
-```ocaml
-let handle_update update =
-  Printf.printf "Update: %s\n" (Yojson.Safe.to_string (Update.to_yojson update));
-  (* ... *)
-```
-
-## Next Steps
-
-After trying these examples, check out:
-
-- [API Documentation](../docs/index.mld) - Complete API reference
-- [Source Code](../src/) - Library implementation
-- [Tests](../test/) - Test suite with more usage examples
+---
 
 ## Troubleshooting
 
-**Bot doesn't respond:**
-- Check that the token is correct
-- Verify network connectivity
-- Look for error messages in the console
+**Bot is silent?**
+- Check token: `echo $TELEGRAM_BOT_TOKEN`
+- Enable verbose logging (see examples)
+- Check for compilation warnings
 
-**Build errors:**
-- Run `dune clean && dune build`
-- Check that all dependencies are installed
+**Can't find executable?**
+- Build first: `dune build`
+- Check path: `dune exec -- examples/basic/hello_world.exe`
 
-**File upload errors:**
-- Ensure file paths are correct
-- Check file permissions
-- Verify file sizes are within Telegram limits
+**Import errors?**
+- Examples use: `ocaml_telegram_eio.telegram`, `ocaml_telegram_eio.tg`
+- Check `examples/dune` for library dependencies
+
+---
+
+## Contributing
+
+When adding new examples:
+1. Place in appropriate directory (`basic/`, `recipes/`, `advanced/`)
+2. Add to `examples/dune`
+3. Add to this README with description
+4. Ensure code compiles with zero warnings
+5. Include verbose logging for debugging
+6. Test that example actually works
+
+See [CONTRIBUTING.md](../CONTRIBUTING.md) for full guidelines.

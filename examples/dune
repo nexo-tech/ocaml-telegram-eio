@@ -1,18 +1,32 @@
-(executables
- (names
-  ; Legacy examples (no task numbers)
-  hello_world echo_bot echo_enhanced command_bot command_tutorial keyboard_bot file_bot core_concepts_demo
-  ; Phase 1.1.2: Recipe examples
-  recipe_echo_bot recipe_command_bot recipe_keyboard_bot recipe_file_bot recipe_webhook_bot recipe_chatbot_context recipe_notification_bot recipe_poll_quiz_bot recipe_inline_bot recipe_group_management_bot recipe_payment_bot recipe_games_bot
-  ; Phase 1.1.3: API Components
-  task_1_1_3_1_keyboard_api task_1_1_3_2_command_dsl task_1_1_3_3_message_handling task_1_1_3_4_callback_queries task_1_1_3_5_media_files task_1_1_3_6_update_processing task_1_1_3_7_error_handling task_1_1_3_8_session_management task_1_1_3_9_state_machines
-  ; Phase 1.1.4: Advanced Patterns
-  task_1_1_4_1_concurrency_patterns task_1_1_4_2_bot_composition task_1_1_4_3_middleware_architecture task_1_1_4_4_testing_patterns
-  ; Phase 1.1.5: Use Cases
-  task_1_1_5_1_usecase_utility_bots task_1_1_5_2_usecase_content_bots task_1_1_5_3_usecase_entertainment_bots task_1_1_5_4_usecase_integration_bots
-  ; Phase 1.1.6: Project Setup & Development
-  task_1_1_6_1_project_structure task_1_1_6_2_development_workflow task_1_1_6_3_migration_guide
-  ; Phase 1.1.7: Reference & FAQ
-  task_1_1_7_1_faq task_1_1_7_2_index)
- (libraries ocaml_telegram_eio.telegram ocaml_telegram_eio.tg ocaml_telegram_eio.generated eio_main str)
- (promote (until-clean)))
+(subdir basic
+ (executables
+  (names hello_world echo_bot echo_enhanced command_bot command_tutorial keyboard_bot file_bot core_concepts_demo)
+  (libraries ocaml_telegram_eio.telegram ocaml_telegram_eio.tg ocaml_telegram_eio.generated eio_main str)
+  (promote (until-clean))))
+
+(subdir recipes
+ (executables
+  (names
+   recipe_echo_bot recipe_command_bot recipe_keyboard_bot recipe_file_bot
+   recipe_webhook_bot recipe_chatbot_context recipe_notification_bot
+   recipe_poll_quiz_bot recipe_inline_bot recipe_group_management_bot
+   recipe_payment_bot recipe_games_bot)
+  (libraries ocaml_telegram_eio.telegram ocaml_telegram_eio.tg ocaml_telegram_eio.generated eio_main str)
+  (promote (until-clean))))
+
+(subdir advanced
+ (executables
+  (names
+   ; API Components
+   keyboard_api command_dsl message_handling callback_queries media_files
+   update_processing error_handling session_management state_machines
+   ; Advanced Patterns
+   concurrency_patterns bot_composition middleware_architecture testing_patterns
+   ; Use Cases
+   usecase_utility_bots usecase_content_bots usecase_entertainment_bots usecase_integration_bots
+   ; Project Setup
+   project_structure development_workflow migration_guide
+   ; Reference
+   faq index)
+  (libraries ocaml_telegram_eio.telegram ocaml_telegram_eio.tg ocaml_telegram_eio.generated eio_main str)
+  (promote (until-clean))))
