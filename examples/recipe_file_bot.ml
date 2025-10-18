@@ -43,6 +43,7 @@ type user_storage = {
 type album_state = {
   items : string list;  (* File IDs *)
   max_items : int;
+  active : bool;  (* Is album building active? *)
 }
 
 (* Session keys *)
@@ -79,6 +80,7 @@ let remove_file_at_index storage index =
 let empty_album = {
   items = [];
   max_items = 10;
+  active = false;
 }
 
 (** {1 Keyboard Builders} *)
@@ -238,15 +240,35 @@ let build_routes telegram_client bot =
 
   (* Start album builder *)
   Verbose_bot.command "album" (fun ctx _args ->
-    Eio.traceln "[Handler] /album command received - starting album builder";
+    Eio.traceln "[Handler] /album command received";
     let open Verbose_bot.Ctx in
-    session_set ctx album_key empty_album;
 
-    let keyboard = create_album_keyboard empty_album in
-    let* () = reply_ ctx
-      ~keyboard
-      "📸 Album Builder\n\nSend photos to add to album (2-10 photos)"
+    (* Get current album state or create new one *)
+    let current_album = session_get_or ctx album_key ~default:empty_album in
+    Eio.traceln "[Handler] Current album state: active=%b, items=%d, max=%d"
+      current_album.active (List.length current_album.items) current_album.max_items;
+
+    (* If album is not active, activate it *)
+    let active_album =
+      if not current_album.active then begin
+        Eio.traceln "[Handler] Activating new album builder";
+        { empty_album with active = true }
+      end else begin
+        Eio.traceln "[Handler] Album already active with %d photos" (List.length current_album.items);
+        current_album
+      end
     in
+    session_set ctx album_key active_album;
+
+    let keyboard = create_album_keyboard active_album in
+    let message =
+      if List.length active_album.items = 0 then
+        "📸 Album Builder\n\nSend photos to add to album (2-10 photos)"
+      else
+        Printf.sprintf "📸 Album Builder\n\n%d photo(s) added. Send more or click 'Send Album' when ready."
+          (List.length active_album.items)
+    in
+    let* () = reply_ ctx ~keyboard message in
     Eio.traceln "[Handler] /album command completed";
     Ok ()
   )
@@ -330,7 +352,10 @@ let build_routes telegram_client bot =
         (* Check if building an album *)
         let album_state = session_get_or ctx album_key ~default:empty_album in
 
-        if List.length album_state.items > 0 && List.length album_state.items < album_state.max_items then begin
+        Eio.traceln "[Handler] Album state check: active=%b, items=%d, max=%d"
+          album_state.active (List.length album_state.items) album_state.max_items;
+
+        if album_state.active && List.length album_state.items < album_state.max_items then begin
           (* Add to album *)
           let updated_album = { album_state with items = photo.file_id :: album_state.items } in
           session_set ctx album_key updated_album;
@@ -351,7 +376,7 @@ let build_routes telegram_client bot =
           let updated = { storage with files = entry :: storage.files } in
           session_set ctx storage_key updated;
 
-          Eio.traceln "[Handler] Photo stored: total_files=%d" (List.length updated.files);
+          Eio.traceln "[Handler] Photo stored as file: total_files=%d" (List.length updated.files);
 
           let* () = reply_ ctx
             (Printf.sprintf "✓ Photo uploaded: %s (%s)"
