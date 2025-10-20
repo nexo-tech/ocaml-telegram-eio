@@ -23,17 +23,13 @@ open Tg
 (* Configure verbose logging with flo *)
 let () = Flo.set_level Severity.Debug
 
-(** {1 Helper Functions} *)
-
-let unknown () = Telegram.Json_compat.Unknown_fields.create ()
-
 (** {1 Admin Permission Verification} *)
 
 module AdminCheck = struct
   type admin_status =
-    | NotAdmin
+    | NotAdmin [@warning "-37"]
     | Admin of { can_delete_messages : bool; can_restrict_members : bool; can_promote_members : bool }
-    | Creator
+    | Creator [@warning "-37"]
 
   let check_admin _client _chat_id _user_id =
     (* FIXME: get_chat_member API needs to be updated to return ChatMember *)
@@ -137,7 +133,7 @@ end
 
 module CaptchaVerification = struct
   type pending_user = {
-    user_id : int64;
+    _user_id : int64;
     chat_id : Id.Chat.k Id.t;
     joined_at : float;
   }
@@ -146,12 +142,12 @@ module CaptchaVerification = struct
   let verification_timeout = 300.0  (* 5 minutes *)
 
   let add_pending user_id chat_id =
-    let entry = { user_id; chat_id; joined_at = Unix.time () } in
+    let entry = { _user_id = user_id; chat_id; joined_at = Unix.time () } in
     Hashtbl.replace pending_users user_id entry;
     Eio.traceln "[CaptchaVerification] Added pending user: user_id=%Ld, chat_id=%a"
       user_id Id.pp chat_id
 
-  let is_pending user_id =
+  let _is_pending user_id =
     Hashtbl.mem pending_users user_id
 
   let verify_user user_id =
@@ -181,7 +177,7 @@ module CaptchaVerification = struct
     if List.length !to_remove > 0 then
       Eio.traceln "[CaptchaVerification] Cleanup complete: removed %d expired users" (List.length !to_remove)
 
-  let create_captcha_keyboard user_id =
+  let _create_captcha_keyboard user_id =
     Eio.traceln "[CaptchaVerification] Creating CAPTCHA keyboard for user_id=%Ld" user_id;
     let open Telegram_generated.Gen_types in
 
@@ -311,7 +307,7 @@ let handle_start ctx _args =
   Eio.traceln "[Handler] ✅ Welcome message sent";
   Ok ()
 
-let handle_ban ctx args =
+let handle_ban_command ctx update args =
   Eio.traceln "[Handler] /ban command triggered with args: [%s]"
     (String.concat " " args);
 
@@ -322,42 +318,46 @@ let handle_ban ctx args =
 
   let client = client ctx in
   let chat_id = chat ctx in
-  let msg = message ctx in
 
-  match msg.reply_to_message with
+  match update.Telegram_generated.Gen_types.Update.message with
   | None ->
-      Eio.traceln "[Handler] ❌ No reply message";
-      let* _ = answer ctx "Reply to a user's message to ban them." in
+      Eio.traceln "[Handler] ❌ No message in update";
       Ok ()
-  | Some replied ->
-      (match replied.from with
-       | None ->
-           Eio.traceln "[Handler] ❌ No user in replied message";
-           let* _ = answer ctx "Cannot identify user to ban." in
-           Ok ()
-       | Some target_user ->
-           let minutes = match args with
-             | [m] -> (match int_of_string_opt m with Some n -> n | None -> 60)
-             | _ -> 60  (* Default 60 minutes *)
-           in
+  | Some msg ->
+      match msg.reply_to_message with
+      | None ->
+          Eio.traceln "[Handler] ❌ No reply message";
+          let* _ = answer ctx "Reply to a user's message to ban them." in
+          Ok ()
+      | Some replied ->
+          (match replied.from with
+           | None ->
+               Eio.traceln "[Handler] ❌ No user in replied message";
+               let* _ = answer ctx "Cannot identify user to ban." in
+               Ok ()
+           | Some target_user ->
+               let minutes = match args with
+                 | [m] -> (match int_of_string_opt m with Some n -> n | None -> 60)
+                 | _ -> 60  (* Default 60 minutes *)
+               in
 
-           let until_date = Int64.(add (of_int (int_of_float (Unix.time ()))) (of_int (minutes * 60))) in
+               let until_date = Int64.(add (of_int (int_of_float (Unix.time ()))) (of_int (minutes * 60))) in
 
-           Eio.traceln "[Handler] Banning user: user_id=%Ld, minutes=%d, until=%Ld"
-             target_user.id minutes until_date;
+               Eio.traceln "[Handler] Banning user: user_id=%Ld, minutes=%d, until=%Ld"
+                 target_user.id minutes until_date;
 
-           let* () = Telegram_generated.Gen_methods.ban_chat_member client
-             ~chat_id ~user_id:target_user.id ~until_date ~revoke_messages:true () in
+               let* _result = Telegram_generated.Gen_methods.ban_chat_member client
+                 ~chat_id ~user_id:target_user.id ~until_date ~revoke_messages:true () in
 
-           let ban_text = Printf.sprintf
-             "🚫 User banned for %d minutes.\nUser ID: %Ld"
-             minutes target_user.id
-           in
+               let ban_text = Printf.sprintf
+                 "🚫 User banned for %d minutes.\nUser ID: %Ld"
+                 minutes target_user.id
+               in
 
-           let* _ = answer ctx ban_text in
-           Eio.traceln "[Handler] ✅ User banned successfully";
-           Ok ()
-      )
+               let* _ = answer ctx ban_text in
+               Eio.traceln "[Handler] ✅ User banned successfully";
+               Ok ()
+          )
 
 let handle_unban ctx args =
   Eio.traceln "[Handler] /unban command triggered";
@@ -380,7 +380,7 @@ let handle_unban ctx args =
        | Some user_id ->
            Eio.traceln "[Handler] Unbanning user: user_id=%Ld" user_id;
 
-           let* () = Telegram_generated.Gen_methods.unban_chat_member client
+           let* _result = Telegram_generated.Gen_methods.unban_chat_member client
              ~chat_id ~user_id ~only_if_banned:true () in
 
            let* _ = answer ctx (Printf.sprintf "✅ User %Ld unbanned." user_id) in
@@ -388,7 +388,7 @@ let handle_unban ctx args =
            Ok ()
       )
 
-let handle_kick ctx _args =
+let handle_kick_command ctx update _args =
   Eio.traceln "[Handler] /kick command triggered";
   let open Bot.Ctx in
 
@@ -396,33 +396,35 @@ let handle_kick ctx _args =
 
   let client = client ctx in
   let chat_id = chat ctx in
-  let msg = message ctx in
 
-  match msg.reply_to_message with
-  | None ->
-      let* _ = answer ctx "Reply to a user's message to kick them." in
-      Ok ()
-  | Some replied ->
-      (match replied.from with
-       | None ->
-           let* _ = answer ctx "Cannot identify user to kick." in
-           Ok ()
-       | Some target_user ->
-           Eio.traceln "[Handler] Kicking user: user_id=%Ld" target_user.id;
+  match update.Telegram_generated.Gen_types.Update.message with
+  | None -> Ok ()
+  | Some msg ->
+      match msg.reply_to_message with
+      | None ->
+          let* _ = answer ctx "Reply to a user's message to kick them." in
+          Ok ()
+      | Some replied ->
+          (match replied.from with
+           | None ->
+               let* _ = answer ctx "Cannot identify user to kick." in
+               Ok ()
+           | Some target_user ->
+               Eio.traceln "[Handler] Kicking user: user_id=%Ld" target_user.id;
 
-           (* Ban and immediately unban = kick *)
-           let* () = Telegram_generated.Gen_methods.ban_chat_member client
-             ~chat_id ~user_id:target_user.id () in
+               (* Ban and immediately unban = kick *)
+               let* _result1 = Telegram_generated.Gen_methods.ban_chat_member client
+                 ~chat_id ~user_id:target_user.id () in
 
-           let* () = Telegram_generated.Gen_methods.unban_chat_member client
-             ~chat_id ~user_id:target_user.id () in
+               let* _result2 = Telegram_generated.Gen_methods.unban_chat_member client
+                 ~chat_id ~user_id:target_user.id () in
 
-           let* _ = answer ctx (Printf.sprintf "👋 User kicked.\nUser ID: %Ld" target_user.id) in
-           Eio.traceln "[Handler] ✅ User kicked successfully";
-           Ok ()
-      )
+               let* _ = answer ctx (Printf.sprintf "👋 User kicked.\nUser ID: %Ld" target_user.id) in
+               Eio.traceln "[Handler] ✅ User kicked successfully";
+               Ok ()
+          )
 
-let handle_mute ctx args =
+let handle_mute_command ctx update args =
   Eio.traceln "[Handler] /mute command triggered";
   let open Bot.Ctx in
 
@@ -430,37 +432,39 @@ let handle_mute ctx args =
 
   let client = client ctx in
   let chat_id = chat ctx in
-  let msg = message ctx in
 
-  match msg.reply_to_message with
-  | None ->
-      let* _ = answer ctx "Reply to a user's message to mute them." in
-      Ok ()
-  | Some replied ->
-      (match replied.from with
-       | None ->
-           let* _ = answer ctx "Cannot identify user to mute." in
-           Ok ()
-       | Some target_user ->
-           let minutes = match args with
-             | [m] -> (match int_of_string_opt m with Some n -> n | None -> 60)
-             | _ -> 60
-           in
+  match update.Telegram_generated.Gen_types.Update.message with
+  | None -> Ok ()
+  | Some msg ->
+      match msg.reply_to_message with
+      | None ->
+          let* _ = answer ctx "Reply to a user's message to mute them." in
+          Ok ()
+      | Some replied ->
+          (match replied.from with
+           | None ->
+               let* _ = answer ctx "Cannot identify user to mute." in
+               Ok ()
+           | Some target_user ->
+               let minutes = match args with
+                 | [m] -> (match int_of_string_opt m with Some n -> n | None -> 60)
+                 | _ -> 60
+               in
 
-           let until_date = Int64.(add (of_int (int_of_float (Unix.time ()))) (of_int (minutes * 60))) in
+               let until_date = Int64.(add (of_int (int_of_float (Unix.time ()))) (of_int (minutes * 60))) in
 
-           Eio.traceln "[Handler] Muting user: user_id=%Ld, minutes=%d" target_user.id minutes;
+               Eio.traceln "[Handler] Muting user: user_id=%Ld, minutes=%d" target_user.id minutes;
 
-           let perms = Permissions.muted () in
-           let* () = Telegram_generated.Gen_methods.restrict_chat_member client
-             ~chat_id ~user_id:target_user.id ~permissions:perms ~until_date () in
+               let perms = Permissions.muted () in
+               let* _result = Telegram_generated.Gen_methods.restrict_chat_member client
+                 ~chat_id ~user_id:target_user.id ~permissions:perms ~until_date () in
 
-           let* _ = answer ctx (Printf.sprintf "🔇 User muted for %d minutes." minutes) in
-           Eio.traceln "[Handler] ✅ User muted successfully";
-           Ok ()
-      )
+               let* _ = answer ctx (Printf.sprintf "🔇 User muted for %d minutes." minutes) in
+               Eio.traceln "[Handler] ✅ User muted successfully";
+               Ok ()
+          )
 
-let handle_unmute ctx _args =
+let handle_unmute_command ctx update _args =
   Eio.traceln "[Handler] /unmute command triggered";
   let open Bot.Ctx in
 
@@ -468,28 +472,30 @@ let handle_unmute ctx _args =
 
   let client = client ctx in
   let chat_id = chat ctx in
-  let msg = message ctx in
 
-  match msg.reply_to_message with
-  | None ->
-      let* _ = answer ctx "Reply to a user's message to unmute them." in
-      Ok ()
-  | Some replied ->
-      (match replied.from with
-       | None ->
-           let* _ = answer ctx "Cannot identify user to unmute." in
-           Ok ()
-       | Some target_user ->
-           Eio.traceln "[Handler] Unmuting user: user_id=%Ld" target_user.id;
+  match update.Telegram_generated.Gen_types.Update.message with
+  | None -> Ok ()
+  | Some msg ->
+      match msg.reply_to_message with
+      | None ->
+          let* _ = answer ctx "Reply to a user's message to unmute them." in
+          Ok ()
+      | Some replied ->
+          (match replied.from with
+           | None ->
+               let* _ = answer ctx "Cannot identify user to unmute." in
+               Ok ()
+           | Some target_user ->
+               Eio.traceln "[Handler] Unmuting user: user_id=%Ld" target_user.id;
 
-           let perms = Permissions.restored () in
-           let* () = Telegram_generated.Gen_methods.restrict_chat_member client
-             ~chat_id ~user_id:target_user.id ~permissions:perms () in
+               let perms = Permissions.restored () in
+               let* _result = Telegram_generated.Gen_methods.restrict_chat_member client
+                 ~chat_id ~user_id:target_user.id ~permissions:perms () in
 
-           let* _ = answer ctx "🔊 User unmuted." in
-           Eio.traceln "[Handler] ✅ User unmuted successfully";
-           Ok ()
-      )
+               let* _ = answer ctx "🔊 User unmuted." in
+               Eio.traceln "[Handler] ✅ User unmuted successfully";
+               Ok ()
+          )
 
 let handle_promote ctx args =
   Eio.traceln "[Handler] /promote command triggered";
@@ -512,7 +518,7 @@ let handle_promote ctx args =
        | Some user_id ->
            Eio.traceln "[Handler] Promoting user: user_id=%Ld" user_id;
 
-           let* () = Telegram_generated.Gen_methods.promote_chat_member client
+           let* _result = Telegram_generated.Gen_methods.promote_chat_member client
              ~chat_id ~user_id
              ~can_delete_messages:true
              ~can_restrict_members:true
@@ -547,7 +553,7 @@ let handle_demote ctx args =
            Eio.traceln "[Handler] Demoting user: user_id=%Ld" user_id;
 
            (* Promote with no permissions = demote *)
-           let* () = Telegram_generated.Gen_methods.promote_chat_member client
+           let* _result = Telegram_generated.Gen_methods.promote_chat_member client
              ~chat_id ~user_id
              ~can_delete_messages:false
              ~can_restrict_members:false
@@ -559,7 +565,7 @@ let handle_demote ctx args =
            Ok ()
       )
 
-let handle_pin ctx _args =
+let handle_pin_command ctx update _args =
   Eio.traceln "[Handler] /pin command triggered";
   let open Bot.Ctx in
 
@@ -567,23 +573,25 @@ let handle_pin ctx _args =
 
   let client = client ctx in
   let chat_id = chat ctx in
-  let msg = message ctx in
 
-  match msg.reply_to_message with
-  | None ->
-      let* _ = answer ctx "Reply to a message to pin it." in
-      Ok ()
-  | Some replied ->
-      Eio.traceln "[Handler] Pinning message: message_id=%Ld" replied.message_id;
+  match update.Telegram_generated.Gen_types.Update.message with
+  | None -> Ok ()
+  | Some msg ->
+      match msg.reply_to_message with
+      | None ->
+          let* _ = answer ctx "Reply to a message to pin it." in
+          Ok ()
+      | Some replied ->
+          Eio.traceln "[Handler] Pinning message: message_id=%Ld" replied.message_id;
 
-      let* () = Telegram_generated.Gen_methods.pin_chat_message client
-        ~chat_id ~message_id:replied.message_id ~disable_notification:false () in
+          let* _result = Telegram_generated.Gen_methods.pin_chat_message client
+            ~chat_id ~message_id:replied.message_id ~disable_notification:false () in
 
-      let* _ = answer ctx "📌 Message pinned." in
-      Eio.traceln "[Handler] ✅ Message pinned successfully";
-      Ok ()
+          let* _ = answer ctx "📌 Message pinned." in
+          Eio.traceln "[Handler] ✅ Message pinned successfully";
+          Ok ()
 
-let handle_unpin ctx _args =
+let handle_unpin_command ctx update _args =
   Eio.traceln "[Handler] /unpin command triggered";
   let open Bot.Ctx in
 
@@ -591,27 +599,29 @@ let handle_unpin ctx _args =
 
   let client = client ctx in
   let chat_id = chat ctx in
-  let msg = message ctx in
 
-  match msg.reply_to_message with
-  | None ->
-      (* Unpin all if no specific message *)
-      Eio.traceln "[Handler] Unpinning all messages";
+  match update.Telegram_generated.Gen_types.Update.message with
+  | None -> Ok ()
+  | Some msg ->
+      match msg.reply_to_message with
+      | None ->
+          (* Unpin all if no specific message *)
+          Eio.traceln "[Handler] Unpinning all messages";
 
-      let* () = Telegram_generated.Gen_methods.unpin_all_chat_messages client ~chat_id () in
+          let* _result = Telegram_generated.Gen_methods.unpin_all_chat_messages client ~chat_id () in
 
-      let* _ = answer ctx "📌 All messages unpinned." in
-      Eio.traceln "[Handler] ✅ All messages unpinned";
-      Ok ()
-  | Some replied ->
-      Eio.traceln "[Handler] Unpinning specific message: message_id=%Ld" replied.message_id;
+          let* _ = answer ctx "📌 All messages unpinned." in
+          Eio.traceln "[Handler] ✅ All messages unpinned";
+          Ok ()
+      | Some replied ->
+          Eio.traceln "[Handler] Unpinning specific message: message_id=%Ld" replied.message_id;
 
-      let* () = Telegram_generated.Gen_methods.unpin_chat_message client
-        ~chat_id ~message_id:replied.message_id () in
+          let* _result = Telegram_generated.Gen_methods.unpin_chat_message client
+            ~chat_id ~message_id:replied.message_id () in
 
-      let* _ = answer ctx "📌 Message unpinned." in
-      Eio.traceln "[Handler] ✅ Message unpinned successfully";
-      Ok ()
+          let* _ = answer ctx "📌 Message unpinned." in
+          Eio.traceln "[Handler] ✅ Message unpinned successfully";
+          Ok ()
 
 let handle_lockdown ctx _args =
   Eio.traceln "[Handler] /lockdown command triggered";
@@ -625,7 +635,7 @@ let handle_lockdown ctx _args =
   Eio.traceln "[Handler] Locking down chat";
 
   let perms = Permissions.lockdown () in
-  let* () = Telegram_generated.Gen_methods.set_chat_permissions client
+  let* _result = Telegram_generated.Gen_methods.set_chat_permissions client
     ~chat_id ~permissions:perms () in
 
   let* _ = answer ctx "🔒 <b>Chat locked down.</b>\n\nOnly admins can send messages." in
@@ -644,44 +654,45 @@ let handle_unlock ctx _args =
   Eio.traceln "[Handler] Unlocking chat";
 
   let perms = Permissions.restored () in
-  let* () = Telegram_generated.Gen_methods.set_chat_permissions client
+  let* _result = Telegram_generated.Gen_methods.set_chat_permissions client
     ~chat_id ~permissions:perms () in
 
   let* _ = answer ctx "🔓 <b>Chat unlocked.</b>\n\nMembers can send messages again." in
   Eio.traceln "[Handler] ✅ Chat unlocked";
   Ok ()
 
-let handle_warn ctx _args =
+let handle_warn_command ctx update _args =
   Eio.traceln "[Handler] /warn command triggered";
   let open Bot.Ctx in
 
   let* () = AdminCheck.require_admin ctx in
 
-  let msg = message ctx in
+  match update.Telegram_generated.Gen_types.Update.message with
+  | None -> Ok ()
+  | Some msg ->
+      match msg.reply_to_message with
+      | None ->
+          let* _ = answer ctx "Reply to a user's message to warn them." in
+          Ok ()
+      | Some replied ->
+          (match replied.from with
+           | None ->
+               let* _ = answer ctx "Cannot identify user to warn." in
+               Ok ()
+           | Some target_user ->
+               let username = match target_user.username with
+                 | Some u -> "@" ^ u
+                 | None -> Printf.sprintf "User %Ld" target_user.id
+               in
 
-  match msg.reply_to_message with
-  | None ->
-      let* _ = answer ctx "Reply to a user's message to warn them." in
-      Ok ()
-  | Some replied ->
-      (match replied.from with
-       | None ->
-           let* _ = answer ctx "Cannot identify user to warn." in
-           Ok ()
-       | Some target_user ->
-           let username = match target_user.username with
-             | Some u -> "@" ^ u
-             | None -> Printf.sprintf "User %Ld" target_user.id
-           in
+               Eio.traceln "[Handler] Warning user: user_id=%Ld" target_user.id;
 
-           Eio.traceln "[Handler] Warning user: user_id=%Ld" target_user.id;
+               let warn_text = Printf.sprintf "⚠️ <b>Warning</b>\n\n%s, please follow the group rules." username in
 
-           let warn_text = Printf.sprintf "⚠️ <b>Warning</b>\n\n%s, please follow the group rules." username in
-
-           let* _ = answer ctx warn_text in
-           Eio.traceln "[Handler] ✅ Warning issued";
-           Ok ()
-      )
+               let* _ = answer ctx warn_text in
+               Eio.traceln "[Handler] ✅ Warning issued";
+               Ok ()
+          )
 
 (** {1 Event Handlers} *)
 
@@ -705,7 +716,7 @@ let handle_new_member ctx update =
              let perms = Permissions.read_only () in
              (match Telegram_generated.Gen_methods.restrict_chat_member client
                       ~chat_id ~user_id:new_user.id ~permissions:perms () with
-              | Ok () ->
+              | Ok _result ->
                   Eio.traceln "[Handler] ✅ Restricted new user to read-only";
                   CaptchaVerification.add_pending new_user.id chat_id
               | Error err ->
@@ -728,7 +739,7 @@ let handle_spam_detection ctx update =
   | Some msg when SpamDetector.is_spam msg ->
       Eio.traceln "[Handler] ⚠️  Spam detected, deleting message: message_id=%Ld" msg.message_id;
 
-      let* () = Telegram_generated.Gen_methods.delete_message client
+      let* _result = Telegram_generated.Gen_methods.delete_message client
         ~chat_id ~message_id:msg.message_id () in
 
       let* _ = send ctx "🗑️ Spam message removed. Please respect the rules." in
@@ -759,7 +770,7 @@ let handle_captcha_callback ctx callback_query =
              Eio.traceln "[Handler] ⚠️  Wrong user clicked CAPTCHA: expected=%Ld, got=%Ld"
                user_id clicker_user.id;
 
-             let* () = Telegram_generated.Gen_methods.answer_callback_query client
+             let* _result = Telegram_generated.Gen_methods.answer_callback_query client
                ~callback_query_id:callback_query.id
                ~text:"This verification is not for you."
                ~show_alert:true
@@ -769,7 +780,7 @@ let handle_captcha_callback ctx callback_query =
              match CaptchaVerification.verify_user user_id with
              | None ->
                  Eio.traceln "[Handler] ⚠️  User not in pending list";
-                 let* () = Telegram_generated.Gen_methods.answer_callback_query client
+                 let* _result = Telegram_generated.Gen_methods.answer_callback_query client
                    ~callback_query_id:callback_query.id
                    ~text:"Verification expired or already completed."
                    () in
@@ -779,10 +790,10 @@ let handle_captcha_callback ctx callback_query =
 
                  (* Restore permissions *)
                  let perms = Permissions.restored () in
-                 let* () = Telegram_generated.Gen_methods.restrict_chat_member client
+                 let* _result = Telegram_generated.Gen_methods.restrict_chat_member client
                    ~chat_id ~user_id ~permissions:perms () in
 
-                 let* () = Telegram_generated.Gen_methods.answer_callback_query client
+                 let* _result = Telegram_generated.Gen_methods.answer_callback_query client
                    ~callback_query_id:callback_query.id
                    ~text:"✅ Verification successful! You can now chat."
                    () in
@@ -794,6 +805,33 @@ let handle_captcha_callback ctx callback_query =
   | _ ->
       Ok ()
 
+(** {1 Command Helpers} *)
+
+(* Helper to check if a message has a specific command *)
+let has_command msg command_name =
+  match msg.Telegram_generated.Gen_types.Message.text with
+  | Some text ->
+      let text = String.trim text in
+      String.starts_with ~prefix:command_name text &&
+      (String.length text = String.length command_name ||
+       match String.get text (String.length command_name) with
+       | ' ' | '@' -> true
+       | _ -> false)
+  | None -> false
+
+(* Helper to parse command arguments *)
+let parse_args msg =
+  match msg.Telegram_generated.Gen_types.Message.text with
+  | Some text ->
+      let text = String.trim text in
+      (* Find first space after command *)
+      (try
+         let space_idx = String.index text ' ' in
+         let args_str = String.trim (String.sub text (space_idx + 1) (String.length text - space_idx - 1)) in
+         if args_str = "" then [] else String.split_on_char ' ' args_str
+       with Not_found -> [])
+  | None -> []
+
 (** {1 Build Routes} *)
 
 let build_routes bot =
@@ -803,19 +841,40 @@ let build_routes bot =
   let bot = bot |> Bot.command "start" handle_start in
   Eio.traceln "[Builder] ✅ Registered /start";
 
-  let bot = bot |> Bot.command "ban" handle_ban in
+  (* Commands that need reply_to_message access use Bot.on Event.any *)
+  let bot = bot |> Bot.on Bot.Event.any (fun ctx update ->
+    match update.Telegram_generated.Gen_types.Update.message with
+    | Some msg when has_command msg "/ban" ->
+        handle_ban_command ctx update (parse_args msg)
+    | _ -> Ok ()
+  ) in
   Eio.traceln "[Builder] ✅ Registered /ban";
 
   let bot = bot |> Bot.command "unban" handle_unban in
   Eio.traceln "[Builder] ✅ Registered /unban";
 
-  let bot = bot |> Bot.command "kick" handle_kick in
+  let bot = bot |> Bot.on Bot.Event.any (fun ctx update ->
+    match update.Telegram_generated.Gen_types.Update.message with
+    | Some msg when has_command msg "/kick" ->
+        handle_kick_command ctx update (parse_args msg)
+    | _ -> Ok ()
+  ) in
   Eio.traceln "[Builder] ✅ Registered /kick";
 
-  let bot = bot |> Bot.command "mute" handle_mute in
+  let bot = bot |> Bot.on Bot.Event.any (fun ctx update ->
+    match update.Telegram_generated.Gen_types.Update.message with
+    | Some msg when has_command msg "/mute" ->
+        handle_mute_command ctx update (parse_args msg)
+    | _ -> Ok ()
+  ) in
   Eio.traceln "[Builder] ✅ Registered /mute";
 
-  let bot = bot |> Bot.command "unmute" handle_unmute in
+  let bot = bot |> Bot.on Bot.Event.any (fun ctx update ->
+    match update.Telegram_generated.Gen_types.Update.message with
+    | Some msg when has_command msg "/unmute" ->
+        handle_unmute_command ctx update (parse_args msg)
+    | _ -> Ok ()
+  ) in
   Eio.traceln "[Builder] ✅ Registered /unmute";
 
   let bot = bot |> Bot.command "promote" handle_promote in
@@ -824,10 +883,20 @@ let build_routes bot =
   let bot = bot |> Bot.command "demote" handle_demote in
   Eio.traceln "[Builder] ✅ Registered /demote";
 
-  let bot = bot |> Bot.command "pin" handle_pin in
+  let bot = bot |> Bot.on Bot.Event.any (fun ctx update ->
+    match update.Telegram_generated.Gen_types.Update.message with
+    | Some msg when has_command msg "/pin" ->
+        handle_pin_command ctx update (parse_args msg)
+    | _ -> Ok ()
+  ) in
   Eio.traceln "[Builder] ✅ Registered /pin";
 
-  let bot = bot |> Bot.command "unpin" handle_unpin in
+  let bot = bot |> Bot.on Bot.Event.any (fun ctx update ->
+    match update.Telegram_generated.Gen_types.Update.message with
+    | Some msg when has_command msg "/unpin" ->
+        handle_unpin_command ctx update (parse_args msg)
+    | _ -> Ok ()
+  ) in
   Eio.traceln "[Builder] ✅ Registered /unpin";
 
   let bot = bot |> Bot.command "lockdown" handle_lockdown in
@@ -836,17 +905,26 @@ let build_routes bot =
   let bot = bot |> Bot.command "unlock" handle_unlock in
   Eio.traceln "[Builder] ✅ Registered /unlock";
 
-  let bot = bot |> Bot.command "warn" handle_warn in
+  let bot = bot |> Bot.on Bot.Event.any (fun ctx update ->
+    match update.Telegram_generated.Gen_types.Update.message with
+    | Some msg when has_command msg "/warn" ->
+        handle_warn_command ctx update (parse_args msg)
+    | _ -> Ok ()
+  ) in
   Eio.traceln "[Builder] ✅ Registered /warn";
 
   (* Event handlers *)
-  let bot = bot |> Bot.on_any handle_new_member in
+  let bot = bot |> Bot.on Bot.Event.any handle_new_member in
   Eio.traceln "[Builder] ✅ Registered new member handler";
 
-  let bot = bot |> Bot.on_any handle_spam_detection in
+  let bot = bot |> Bot.on Bot.Event.any handle_spam_detection in
   Eio.traceln "[Builder] ✅ Registered spam detection handler";
 
-  let bot = bot |> Bot.on_callback handle_captcha_callback in
+  let bot = bot |> Bot.on Bot.Event.any (fun ctx update ->
+    match update.Telegram_generated.Gen_types.Update.callback_query with
+    | Some callback_query -> handle_captcha_callback ctx callback_query
+    | None -> Ok ()
+  ) in
   Eio.traceln "[Builder] ✅ Registered CAPTCHA callback handler";
 
   Eio.traceln "[Builder] All routes registered";
