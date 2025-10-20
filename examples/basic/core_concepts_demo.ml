@@ -58,9 +58,12 @@ let () =
 
   (* We can query the current level *)
   let current_level = Flo.get_level () in
-  Printf.printf "🔧 Flo log level configured: %s\n" (Severity.to_string current_level);
-  Printf.printf "   This demonstrates Flo.set_level and Flo.get_level\n";
-  Printf.printf "   Available levels: Trace < Debug < Info < Success < Warn < Error < Fatal\n\n"
+  Flo.info_fields "Flo log level configured" ~fields:[
+    ("level", Flo.Value.string (Severity.to_string current_level));
+  ];
+  Flo.info "This demonstrates Flo.set_level and Flo.get_level";
+  Flo.info "Available levels: Trace < Debug < Info < Success < Warn < Error < Fatal";
+  Flo.info ""
 
 (** Business logic layer - pure functions without Telegram-specific code *)
 module Logic = struct

@@ -33,12 +33,12 @@ module AdminCheck = struct
 
   let check_admin _client _chat_id _user_id =
     (* FIXME: get_chat_member API needs to be updated to return ChatMember *)
-    Eio.traceln "[AdminCheck] FIXME: Admin checking temporarily disabled due to API mismatch";
+    Flo.debug "[AdminCheck] FIXME: Admin checking temporarily disabled due to API mismatch";
     (* For now, return a default admin status to allow compilation *)
     Ok (Admin { can_delete_messages = false; can_restrict_members = false; can_promote_members = false })
 
   let require_admin ctx =
-    Eio.traceln "[AdminCheck] Verifying admin permissions";
+    Flo.debug "[AdminCheck] Verifying admin permissions";
     let open Bot.Ctx in
     let client = client ctx in
     let chat_id = chat ctx in
@@ -46,18 +46,18 @@ module AdminCheck = struct
 
     match check_admin client chat_id user.id with
     | Ok (Admin _ | Creator) ->
-        Eio.traceln "[AdminCheck] ✅ User is authorized";
+        Flo.success "[AdminCheck] ✅ User is authorized";
         Ok ()
     | Ok NotAdmin ->
-        Eio.traceln "[AdminCheck] ❌ User is not an admin";
+        Flo.error "[AdminCheck] ❌ User is not an admin";
         let* _ = answer ctx "⚠️ This command requires admin privileges." in
         Error (Error.Internal_error "Not an admin")
     | Error err ->
-        Eio.traceln "[AdminCheck] ❌ Error checking admin status";
+        Flo.error "[AdminCheck] ❌ Error checking admin status";
         Error err
 
   let require_admin_with_permission ~permission ctx =
-    Eio.traceln "[AdminCheck] Verifying admin permission: %s" permission;
+    Flo.debugf "[AdminCheck] Verifying admin permission: %s" permission;
     let open Bot.Ctx in
     let client = client ctx in
     let chat_id = chat ctx in
@@ -65,7 +65,7 @@ module AdminCheck = struct
 
     match check_admin client chat_id user.id with
     | Ok Creator ->
-        Eio.traceln "[AdminCheck] ✅ User is creator (all permissions)";
+        Flo.success "[AdminCheck] ✅ User is creator (all permissions)";
         Ok ()
     | Ok (Admin perms) ->
         let has_permission = match permission with
@@ -75,15 +75,15 @@ module AdminCheck = struct
           | _ -> false
         in
         if has_permission then begin
-          Eio.traceln "[AdminCheck] ✅ User has required permission: %s" permission;
+          Flo.successf "[AdminCheck] ✅ User has required permission: %s" permission;
           Ok ()
         end else begin
-          Eio.traceln "[AdminCheck] ❌ User lacks required permission: %s" permission;
+          Flo.errorf "[AdminCheck] ❌ User lacks required permission: %s" permission;
           let* _ = answer ctx (Printf.sprintf "⚠️ You need '%s' permission for this." permission) in
           Error (Error.Internal_error "Missing permission")
         end
     | Ok NotAdmin ->
-        Eio.traceln "[AdminCheck] ❌ User is not an admin";
+        Flo.error "[AdminCheck] ❌ User is not an admin";
         let* _ = answer ctx "⚠️ This command requires admin privileges." in
         Error (Error.Internal_error "Not an admin")
     | Error err ->
@@ -123,7 +123,7 @@ module SpamDetector = struct
       (has_url && text_len < 20)  (* Short message with URL *)
     in
 
-    Eio.traceln "[SpamDetector] Message %Ld: spam=%b (entities=%d, mentions=%d, urls=%b, len=%d)"
+    Flo.debugf "[SpamDetector] Message %Ld: spam=%b (entities=%d, mentions=%d, urls=%b, len=%d)"
       msg.message_id is_spam entity_count mention_count has_url text_len;
 
     is_spam
@@ -144,8 +144,8 @@ module CaptchaVerification = struct
   let add_pending user_id chat_id =
     let entry = { _user_id = user_id; chat_id; joined_at = Unix.time () } in
     Hashtbl.replace pending_users user_id entry;
-    Eio.traceln "[CaptchaVerification] Added pending user: user_id=%Ld, chat_id=%a"
-      user_id Id.pp chat_id
+    Flo.debugf "[CaptchaVerification] Added pending user: user_id=%Ld, chat_id=%s"
+      user_id (Format.asprintf "%a" Id.pp chat_id)
 
   let _is_pending user_id =
     Hashtbl.mem pending_users user_id
@@ -154,10 +154,10 @@ module CaptchaVerification = struct
     match Hashtbl.find_opt pending_users user_id with
     | Some entry ->
         Hashtbl.remove pending_users user_id;
-        Eio.traceln "[CaptchaVerification] ✅ Verified user: user_id=%Ld" user_id;
+        Flo.successf "[CaptchaVerification] ✅ Verified user: user_id=%Ld" user_id;
         Some entry.chat_id
     | None ->
-        Eio.traceln "[CaptchaVerification] ⚠️  User not in pending list: user_id=%Ld" user_id;
+        Flo.debugf "[CaptchaVerification] ⚠️  User not in pending list: user_id=%Ld" user_id;
         None
 
   let cleanup_expired () =
@@ -171,14 +171,14 @@ module CaptchaVerification = struct
 
     List.iter (fun user_id ->
       Hashtbl.remove pending_users user_id;
-      Eio.traceln "[CaptchaVerification] 🧹 Removed expired pending user: user_id=%Ld" user_id
+      Flo.debugf "[CaptchaVerification] 🧹 Removed expired pending user: user_id=%Ld" user_id
     ) !to_remove;
 
     if List.length !to_remove > 0 then
-      Eio.traceln "[CaptchaVerification] Cleanup complete: removed %d expired users" (List.length !to_remove)
+      Flo.debugf "[CaptchaVerification] Cleanup complete: removed %d expired users" (List.length !to_remove)
 
   let _create_captcha_keyboard user_id =
-    Eio.traceln "[CaptchaVerification] Creating CAPTCHA keyboard for user_id=%Ld" user_id;
+    Flo.debugf "[CaptchaVerification] Creating CAPTCHA keyboard for user_id=%Ld" user_id;
     let open Telegram_generated.Gen_types in
 
     InlineKeyboardMarkup.{
@@ -206,7 +206,7 @@ end
 
 module Permissions = struct
   let muted () =
-    Eio.traceln "[Permissions] Creating muted permissions";
+    Flo.debug "[Permissions] Creating muted permissions";
     let open Telegram_generated.Gen_types in
     ChatPermissions.{
       can_send_messages = Some false;
@@ -227,11 +227,11 @@ module Permissions = struct
     }
 
   let read_only () =
-    Eio.traceln "[Permissions] Creating read-only permissions (CAPTCHA mode)";
+    Flo.debug "[Permissions] Creating read-only permissions (CAPTCHA mode)";
     muted ()
 
   let restored () =
-    Eio.traceln "[Permissions] Creating restored permissions";
+    Flo.debug "[Permissions] Creating restored permissions";
     let open Telegram_generated.Gen_types in
     ChatPermissions.{
       can_send_messages = Some true;
@@ -252,7 +252,7 @@ module Permissions = struct
     }
 
   let lockdown () =
-    Eio.traceln "[Permissions] Creating lockdown permissions";
+    Flo.debug "[Permissions] Creating lockdown permissions";
     let open Telegram_generated.Gen_types in
     ChatPermissions.{
       can_send_messages = Some false;
@@ -276,7 +276,7 @@ end
 (** {1 Command Handlers} *)
 
 let handle_start ctx _args =
-  Eio.traceln "[Handler] /start command triggered";
+  Flo.debug "[Handler] /start command triggered";
   let open Bot.Ctx in
 
   let welcome_text =
@@ -304,11 +304,11 @@ let handle_start ctx _args =
   in
 
   let* _msg = answer ctx welcome_text in
-  Eio.traceln "[Handler] ✅ Welcome message sent";
+  Flo.success "[Handler] ✅ Welcome message sent";
   Ok ()
 
 let handle_ban_command ctx update args =
-  Eio.traceln "[Handler] /ban command triggered with args: [%s]"
+  Flo.debugf "[Handler] /ban command triggered with args: [%s]"
     (String.concat " " args);
 
   let open Bot.Ctx in
@@ -321,18 +321,18 @@ let handle_ban_command ctx update args =
 
   match update.Telegram_generated.Gen_types.Update.message with
   | None ->
-      Eio.traceln "[Handler] ❌ No message in update";
+      Flo.error "[Handler] ❌ No message in update";
       Ok ()
   | Some msg ->
       match msg.reply_to_message with
       | None ->
-          Eio.traceln "[Handler] ❌ No reply message";
+          Flo.error "[Handler] ❌ No reply message";
           let* _ = answer ctx "Reply to a user's message to ban them." in
           Ok ()
       | Some replied ->
           (match replied.from with
            | None ->
-               Eio.traceln "[Handler] ❌ No user in replied message";
+               Flo.error "[Handler] ❌ No user in replied message";
                let* _ = answer ctx "Cannot identify user to ban." in
                Ok ()
            | Some target_user ->
@@ -343,7 +343,7 @@ let handle_ban_command ctx update args =
 
                let until_date = Int64.(add (of_int (int_of_float (Unix.time ()))) (of_int (minutes * 60))) in
 
-               Eio.traceln "[Handler] Banning user: user_id=%Ld, minutes=%d, until=%Ld"
+               Flo.debugf "[Handler] Banning user: user_id=%Ld, minutes=%d, until=%Ld"
                  target_user.id minutes until_date;
 
                let* _result = Telegram_generated.Gen_methods.ban_chat_member client
@@ -355,12 +355,12 @@ let handle_ban_command ctx update args =
                in
 
                let* _ = answer ctx ban_text in
-               Eio.traceln "[Handler] ✅ User banned successfully";
+               Flo.success "[Handler] ✅ User banned successfully";
                Ok ()
           )
 
 let handle_unban ctx args =
-  Eio.traceln "[Handler] /unban command triggered";
+  Flo.debug "[Handler] /unban command triggered";
   let open Bot.Ctx in
 
   let* () = AdminCheck.require_admin_with_permission ~permission:"restrict_members" ctx in
@@ -378,18 +378,18 @@ let handle_unban ctx args =
            let* _ = answer ctx "Invalid user ID." in
            Ok ()
        | Some user_id ->
-           Eio.traceln "[Handler] Unbanning user: user_id=%Ld" user_id;
+           Flo.debugf "[Handler] Unbanning user: user_id=%Ld" user_id;
 
            let* _result = Telegram_generated.Gen_methods.unban_chat_member client
              ~chat_id ~user_id ~only_if_banned:true () in
 
            let* _ = answer ctx (Printf.sprintf "✅ User %Ld unbanned." user_id) in
-           Eio.traceln "[Handler] ✅ User unbanned successfully";
+           Flo.success "[Handler] ✅ User unbanned successfully";
            Ok ()
       )
 
 let handle_kick_command ctx update _args =
-  Eio.traceln "[Handler] /kick command triggered";
+  Flo.debug "[Handler] /kick command triggered";
   let open Bot.Ctx in
 
   let* () = AdminCheck.require_admin_with_permission ~permission:"restrict_members" ctx in
@@ -410,7 +410,7 @@ let handle_kick_command ctx update _args =
                let* _ = answer ctx "Cannot identify user to kick." in
                Ok ()
            | Some target_user ->
-               Eio.traceln "[Handler] Kicking user: user_id=%Ld" target_user.id;
+               Flo.debugf "[Handler] Kicking user: user_id=%Ld" target_user.id;
 
                (* Ban and immediately unban = kick *)
                let* _result1 = Telegram_generated.Gen_methods.ban_chat_member client
@@ -420,12 +420,12 @@ let handle_kick_command ctx update _args =
                  ~chat_id ~user_id:target_user.id () in
 
                let* _ = answer ctx (Printf.sprintf "👋 User kicked.\nUser ID: %Ld" target_user.id) in
-               Eio.traceln "[Handler] ✅ User kicked successfully";
+               Flo.success "[Handler] ✅ User kicked successfully";
                Ok ()
           )
 
 let handle_mute_command ctx update args =
-  Eio.traceln "[Handler] /mute command triggered";
+  Flo.debug "[Handler] /mute command triggered";
   let open Bot.Ctx in
 
   let* () = AdminCheck.require_admin_with_permission ~permission:"restrict_members" ctx in
@@ -453,19 +453,19 @@ let handle_mute_command ctx update args =
 
                let until_date = Int64.(add (of_int (int_of_float (Unix.time ()))) (of_int (minutes * 60))) in
 
-               Eio.traceln "[Handler] Muting user: user_id=%Ld, minutes=%d" target_user.id minutes;
+               Flo.debugf "[Handler] Muting user: user_id=%Ld, minutes=%d" target_user.id minutes;
 
                let perms = Permissions.muted () in
                let* _result = Telegram_generated.Gen_methods.restrict_chat_member client
                  ~chat_id ~user_id:target_user.id ~permissions:perms ~until_date () in
 
                let* _ = answer ctx (Printf.sprintf "🔇 User muted for %d minutes." minutes) in
-               Eio.traceln "[Handler] ✅ User muted successfully";
+               Flo.success "[Handler] ✅ User muted successfully";
                Ok ()
           )
 
 let handle_unmute_command ctx update _args =
-  Eio.traceln "[Handler] /unmute command triggered";
+  Flo.debug "[Handler] /unmute command triggered";
   let open Bot.Ctx in
 
   let* () = AdminCheck.require_admin_with_permission ~permission:"restrict_members" ctx in
@@ -486,19 +486,19 @@ let handle_unmute_command ctx update _args =
                let* _ = answer ctx "Cannot identify user to unmute." in
                Ok ()
            | Some target_user ->
-               Eio.traceln "[Handler] Unmuting user: user_id=%Ld" target_user.id;
+               Flo.debugf "[Handler] Unmuting user: user_id=%Ld" target_user.id;
 
                let perms = Permissions.restored () in
                let* _result = Telegram_generated.Gen_methods.restrict_chat_member client
                  ~chat_id ~user_id:target_user.id ~permissions:perms () in
 
                let* _ = answer ctx "🔊 User unmuted." in
-               Eio.traceln "[Handler] ✅ User unmuted successfully";
+               Flo.success "[Handler] ✅ User unmuted successfully";
                Ok ()
           )
 
 let handle_promote ctx args =
-  Eio.traceln "[Handler] /promote command triggered";
+  Flo.debug "[Handler] /promote command triggered";
   let open Bot.Ctx in
 
   let* () = AdminCheck.require_admin_with_permission ~permission:"promote_members" ctx in
@@ -516,7 +516,7 @@ let handle_promote ctx args =
            let* _ = answer ctx "Invalid user ID." in
            Ok ()
        | Some user_id ->
-           Eio.traceln "[Handler] Promoting user: user_id=%Ld" user_id;
+           Flo.debugf "[Handler] Promoting user: user_id=%Ld" user_id;
 
            let* _result = Telegram_generated.Gen_methods.promote_chat_member client
              ~chat_id ~user_id
@@ -527,12 +527,12 @@ let handle_promote ctx args =
              () in
 
            let* _ = answer ctx (Printf.sprintf "⬆️ User %Ld promoted to admin." user_id) in
-           Eio.traceln "[Handler] ✅ User promoted successfully";
+           Flo.success "[Handler] ✅ User promoted successfully";
            Ok ()
       )
 
 let handle_demote ctx args =
-  Eio.traceln "[Handler] /demote command triggered";
+  Flo.debug "[Handler] /demote command triggered";
   let open Bot.Ctx in
 
   let* () = AdminCheck.require_admin_with_permission ~permission:"promote_members" ctx in
@@ -550,7 +550,7 @@ let handle_demote ctx args =
            let* _ = answer ctx "Invalid user ID." in
            Ok ()
        | Some user_id ->
-           Eio.traceln "[Handler] Demoting user: user_id=%Ld" user_id;
+           Flo.debugf "[Handler] Demoting user: user_id=%Ld" user_id;
 
            (* Promote with no permissions = demote *)
            let* _result = Telegram_generated.Gen_methods.promote_chat_member client
@@ -561,12 +561,12 @@ let handle_demote ctx args =
              () in
 
            let* _ = answer ctx (Printf.sprintf "⬇️ User %Ld demoted." user_id) in
-           Eio.traceln "[Handler] ✅ User demoted successfully";
+           Flo.success "[Handler] ✅ User demoted successfully";
            Ok ()
       )
 
 let handle_pin_command ctx update _args =
-  Eio.traceln "[Handler] /pin command triggered";
+  Flo.debug "[Handler] /pin command triggered";
   let open Bot.Ctx in
 
   let* () = AdminCheck.require_admin_with_permission ~permission:"delete_messages" ctx in
@@ -582,17 +582,17 @@ let handle_pin_command ctx update _args =
           let* _ = answer ctx "Reply to a message to pin it." in
           Ok ()
       | Some replied ->
-          Eio.traceln "[Handler] Pinning message: message_id=%Ld" replied.message_id;
+          Flo.debugf "[Handler] Pinning message: message_id=%Ld" replied.message_id;
 
           let* _result = Telegram_generated.Gen_methods.pin_chat_message client
             ~chat_id ~message_id:replied.message_id ~disable_notification:false () in
 
           let* _ = answer ctx "📌 Message pinned." in
-          Eio.traceln "[Handler] ✅ Message pinned successfully";
+          Flo.success "[Handler] ✅ Message pinned successfully";
           Ok ()
 
 let handle_unpin_command ctx update _args =
-  Eio.traceln "[Handler] /unpin command triggered";
+  Flo.debug "[Handler] /unpin command triggered";
   let open Bot.Ctx in
 
   let* () = AdminCheck.require_admin_with_permission ~permission:"delete_messages" ctx in
@@ -606,25 +606,25 @@ let handle_unpin_command ctx update _args =
       match msg.reply_to_message with
       | None ->
           (* Unpin all if no specific message *)
-          Eio.traceln "[Handler] Unpinning all messages";
+          Flo.debug "[Handler] Unpinning all messages";
 
           let* _result = Telegram_generated.Gen_methods.unpin_all_chat_messages client ~chat_id () in
 
           let* _ = answer ctx "📌 All messages unpinned." in
-          Eio.traceln "[Handler] ✅ All messages unpinned";
+          Flo.success "[Handler] ✅ All messages unpinned";
           Ok ()
       | Some replied ->
-          Eio.traceln "[Handler] Unpinning specific message: message_id=%Ld" replied.message_id;
+          Flo.debugf "[Handler] Unpinning specific message: message_id=%Ld" replied.message_id;
 
           let* _result = Telegram_generated.Gen_methods.unpin_chat_message client
             ~chat_id ~message_id:replied.message_id () in
 
           let* _ = answer ctx "📌 Message unpinned." in
-          Eio.traceln "[Handler] ✅ Message unpinned successfully";
+          Flo.success "[Handler] ✅ Message unpinned successfully";
           Ok ()
 
 let handle_lockdown ctx _args =
-  Eio.traceln "[Handler] /lockdown command triggered";
+  Flo.debug "[Handler] /lockdown command triggered";
   let open Bot.Ctx in
 
   let* () = AdminCheck.require_admin ctx in
@@ -632,18 +632,18 @@ let handle_lockdown ctx _args =
   let client = client ctx in
   let chat_id = chat ctx in
 
-  Eio.traceln "[Handler] Locking down chat";
+  Flo.debug "[Handler] Locking down chat";
 
   let perms = Permissions.lockdown () in
   let* _result = Telegram_generated.Gen_methods.set_chat_permissions client
     ~chat_id ~permissions:perms () in
 
   let* _ = answer ctx "🔒 <b>Chat locked down.</b>\n\nOnly admins can send messages." in
-  Eio.traceln "[Handler] ✅ Chat locked down";
+  Flo.success "[Handler] ✅ Chat locked down";
   Ok ()
 
 let handle_unlock ctx _args =
-  Eio.traceln "[Handler] /unlock command triggered";
+  Flo.debug "[Handler] /unlock command triggered";
   let open Bot.Ctx in
 
   let* () = AdminCheck.require_admin ctx in
@@ -651,18 +651,18 @@ let handle_unlock ctx _args =
   let client = client ctx in
   let chat_id = chat ctx in
 
-  Eio.traceln "[Handler] Unlocking chat";
+  Flo.debug "[Handler] Unlocking chat";
 
   let perms = Permissions.restored () in
   let* _result = Telegram_generated.Gen_methods.set_chat_permissions client
     ~chat_id ~permissions:perms () in
 
   let* _ = answer ctx "🔓 <b>Chat unlocked.</b>\n\nMembers can send messages again." in
-  Eio.traceln "[Handler] ✅ Chat unlocked";
+  Flo.success "[Handler] ✅ Chat unlocked";
   Ok ()
 
 let handle_warn_command ctx update _args =
-  Eio.traceln "[Handler] /warn command triggered";
+  Flo.debug "[Handler] /warn command triggered";
   let open Bot.Ctx in
 
   let* () = AdminCheck.require_admin ctx in
@@ -685,19 +685,19 @@ let handle_warn_command ctx update _args =
                  | None -> Printf.sprintf "User %Ld" target_user.id
                in
 
-               Eio.traceln "[Handler] Warning user: user_id=%Ld" target_user.id;
+               Flo.debugf "[Handler] Warning user: user_id=%Ld" target_user.id;
 
                let warn_text = Printf.sprintf "⚠️ <b>Warning</b>\n\n%s, please follow the group rules." username in
 
                let* _ = answer ctx warn_text in
-               Eio.traceln "[Handler] ✅ Warning issued";
+               Flo.success "[Handler] ✅ Warning issued";
                Ok ()
           )
 
 (** {1 Event Handlers} *)
 
 let handle_new_member ctx update =
-  Eio.traceln "[Handler] New chat member event";
+  Flo.debug "[Handler] New chat member event";
   let open Bot.Ctx in
 
   let client = client ctx in
@@ -708,7 +708,7 @@ let handle_new_member ctx update =
       (match msg.new_chat_members with
        | Some new_members when List.length new_members > 0 ->
            List.iter (fun (new_user : Telegram_generated.Gen_types.User.t) ->
-             Eio.traceln "[Handler] New member joined: user_id=%Ld, username=%s"
+             Flo.debugf "[Handler] New member joined: user_id=%Ld, username=%s"
                new_user.id
                (Option.value ~default:"none" new_user.username);
 
@@ -717,10 +717,10 @@ let handle_new_member ctx update =
              (match Telegram_generated.Gen_methods.restrict_chat_member client
                       ~chat_id ~user_id:new_user.id ~permissions:perms () with
               | Ok _result ->
-                  Eio.traceln "[Handler] ✅ Restricted new user to read-only";
+                  Flo.success "[Handler] ✅ Restricted new user to read-only";
                   CaptchaVerification.add_pending new_user.id chat_id
               | Error err ->
-                  Eio.traceln "[Handler] ❌ Failed to restrict user: %a" Error.pp err
+                  Flo.errorf "[Handler] ❌ Failed to restrict user: %s" (Format.asprintf "%a" Error.pp err)
              );
            ) new_members;
            Ok ()
@@ -729,7 +729,7 @@ let handle_new_member ctx update =
   | None -> Ok ()
 
 let handle_spam_detection ctx update =
-  Eio.traceln "[Handler] Checking message for spam";
+  Flo.debug "[Handler] Checking message for spam";
   let open Bot.Ctx in
 
   let client = client ctx in
@@ -737,19 +737,19 @@ let handle_spam_detection ctx update =
 
   match update.Telegram_generated.Gen_types.Update.message with
   | Some msg when SpamDetector.is_spam msg ->
-      Eio.traceln "[Handler] ⚠️  Spam detected, deleting message: message_id=%Ld" msg.message_id;
+      Flo.debugf "[Handler] ⚠️  Spam detected, deleting message: message_id=%Ld" msg.message_id;
 
       let* _result = Telegram_generated.Gen_methods.delete_message client
         ~chat_id ~message_id:msg.message_id () in
 
       let* _ = send ctx "🗑️ Spam message removed. Please respect the rules." in
-      Eio.traceln "[Handler] ✅ Spam message deleted";
+      Flo.success "[Handler] ✅ Spam message deleted";
       Ok ()
   | _ ->
       Ok ()
 
 let handle_captcha_callback ctx callback_query =
-  Eio.traceln "[Handler] Handling CAPTCHA callback";
+  Flo.debug "[Handler] Handling CAPTCHA callback";
   let open Bot.Ctx in
 
   let client = client ctx in
@@ -762,12 +762,12 @@ let handle_captcha_callback ctx callback_query =
       let user_id_str = String.sub callback_data 7 (String.length callback_data - 7) in
       (match Int64.of_string_opt user_id_str with
        | None ->
-           Eio.traceln "[Handler] ❌ Invalid user ID in callback data";
+           Flo.error "[Handler] ❌ Invalid user ID in callback data";
            Ok ()
        | Some user_id ->
            (* Check if clicker is the pending user *)
            if clicker_user.id <> user_id then begin
-             Eio.traceln "[Handler] ⚠️  Wrong user clicked CAPTCHA: expected=%Ld, got=%Ld"
+             Flo.debugf "[Handler] ⚠️  Wrong user clicked CAPTCHA: expected=%Ld, got=%Ld"
                user_id clicker_user.id;
 
              let* _result = Telegram_generated.Gen_methods.answer_callback_query client
@@ -779,14 +779,14 @@ let handle_captcha_callback ctx callback_query =
            end else begin
              match CaptchaVerification.verify_user user_id with
              | None ->
-                 Eio.traceln "[Handler] ⚠️  User not in pending list";
+                 Flo.debug "[Handler] ⚠️  User not in pending list";
                  let* _result = Telegram_generated.Gen_methods.answer_callback_query client
                    ~callback_query_id:callback_query.id
                    ~text:"Verification expired or already completed."
                    () in
                  Ok ()
              | Some chat_id ->
-                 Eio.traceln "[Handler] ✅ Verified user, restoring permissions";
+                 Flo.success "[Handler] ✅ Verified user, restoring permissions";
 
                  (* Restore permissions *)
                  let perms = Permissions.restored () in
@@ -798,7 +798,7 @@ let handle_captcha_callback ctx callback_query =
                    ~text:"✅ Verification successful! You can now chat."
                    () in
 
-                 Eio.traceln "[Handler] ✅ User permissions restored";
+                 Flo.success "[Handler] ✅ User permissions restored";
                  Ok ()
            end
       )
@@ -835,11 +835,11 @@ let parse_args msg =
 (** {1 Build Routes} *)
 
 let build_routes bot =
-  Eio.traceln "[Builder] Registering routes...";
+  Flo.debug "[Builder] Registering routes...";
 
   (* Commands *)
   let bot = bot |> Bot.command "start" handle_start in
-  Eio.traceln "[Builder] ✅ Registered /start";
+  Flo.success "[Builder] ✅ Registered /start";
 
   (* Commands that need reply_to_message access use Bot.on Event.any *)
   let bot = bot |> Bot.on Bot.Event.any (fun ctx update ->
@@ -848,10 +848,10 @@ let build_routes bot =
         handle_ban_command ctx update (parse_args msg)
     | _ -> Ok ()
   ) in
-  Eio.traceln "[Builder] ✅ Registered /ban";
+  Flo.success "[Builder] ✅ Registered /ban";
 
   let bot = bot |> Bot.command "unban" handle_unban in
-  Eio.traceln "[Builder] ✅ Registered /unban";
+  Flo.success "[Builder] ✅ Registered /unban";
 
   let bot = bot |> Bot.on Bot.Event.any (fun ctx update ->
     match update.Telegram_generated.Gen_types.Update.message with
@@ -859,7 +859,7 @@ let build_routes bot =
         handle_kick_command ctx update (parse_args msg)
     | _ -> Ok ()
   ) in
-  Eio.traceln "[Builder] ✅ Registered /kick";
+  Flo.success "[Builder] ✅ Registered /kick";
 
   let bot = bot |> Bot.on Bot.Event.any (fun ctx update ->
     match update.Telegram_generated.Gen_types.Update.message with
@@ -867,7 +867,7 @@ let build_routes bot =
         handle_mute_command ctx update (parse_args msg)
     | _ -> Ok ()
   ) in
-  Eio.traceln "[Builder] ✅ Registered /mute";
+  Flo.success "[Builder] ✅ Registered /mute";
 
   let bot = bot |> Bot.on Bot.Event.any (fun ctx update ->
     match update.Telegram_generated.Gen_types.Update.message with
@@ -875,13 +875,13 @@ let build_routes bot =
         handle_unmute_command ctx update (parse_args msg)
     | _ -> Ok ()
   ) in
-  Eio.traceln "[Builder] ✅ Registered /unmute";
+  Flo.success "[Builder] ✅ Registered /unmute";
 
   let bot = bot |> Bot.command "promote" handle_promote in
-  Eio.traceln "[Builder] ✅ Registered /promote";
+  Flo.success "[Builder] ✅ Registered /promote";
 
   let bot = bot |> Bot.command "demote" handle_demote in
-  Eio.traceln "[Builder] ✅ Registered /demote";
+  Flo.success "[Builder] ✅ Registered /demote";
 
   let bot = bot |> Bot.on Bot.Event.any (fun ctx update ->
     match update.Telegram_generated.Gen_types.Update.message with
@@ -889,7 +889,7 @@ let build_routes bot =
         handle_pin_command ctx update (parse_args msg)
     | _ -> Ok ()
   ) in
-  Eio.traceln "[Builder] ✅ Registered /pin";
+  Flo.success "[Builder] ✅ Registered /pin";
 
   let bot = bot |> Bot.on Bot.Event.any (fun ctx update ->
     match update.Telegram_generated.Gen_types.Update.message with
@@ -897,13 +897,13 @@ let build_routes bot =
         handle_unpin_command ctx update (parse_args msg)
     | _ -> Ok ()
   ) in
-  Eio.traceln "[Builder] ✅ Registered /unpin";
+  Flo.success "[Builder] ✅ Registered /unpin";
 
   let bot = bot |> Bot.command "lockdown" handle_lockdown in
-  Eio.traceln "[Builder] ✅ Registered /lockdown";
+  Flo.success "[Builder] ✅ Registered /lockdown";
 
   let bot = bot |> Bot.command "unlock" handle_unlock in
-  Eio.traceln "[Builder] ✅ Registered /unlock";
+  Flo.success "[Builder] ✅ Registered /unlock";
 
   let bot = bot |> Bot.on Bot.Event.any (fun ctx update ->
     match update.Telegram_generated.Gen_types.Update.message with
@@ -911,73 +911,73 @@ let build_routes bot =
         handle_warn_command ctx update (parse_args msg)
     | _ -> Ok ()
   ) in
-  Eio.traceln "[Builder] ✅ Registered /warn";
+  Flo.success "[Builder] ✅ Registered /warn";
 
   (* Event handlers *)
   let bot = bot |> Bot.on Bot.Event.any handle_new_member in
-  Eio.traceln "[Builder] ✅ Registered new member handler";
+  Flo.success "[Builder] ✅ Registered new member handler";
 
   let bot = bot |> Bot.on Bot.Event.any handle_spam_detection in
-  Eio.traceln "[Builder] ✅ Registered spam detection handler";
+  Flo.success "[Builder] ✅ Registered spam detection handler";
 
   let bot = bot |> Bot.on Bot.Event.any (fun ctx update ->
     match update.Telegram_generated.Gen_types.Update.callback_query with
     | Some callback_query -> handle_captcha_callback ctx callback_query
     | None -> Ok ()
   ) in
-  Eio.traceln "[Builder] ✅ Registered CAPTCHA callback handler";
+  Flo.success "[Builder] ✅ Registered CAPTCHA callback handler";
 
-  Eio.traceln "[Builder] All routes registered";
+  Flo.debug "[Builder] All routes registered";
   bot
 
 (** {1 Main Entry Point} *)
 
 let () =
   Eio_main.run @@ fun env ->
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                  Group Management Bot                            ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
-  Eio.traceln "";
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                  Group Management Bot                            ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.debug "";
 
   (* Phase 1: Initialize *)
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                     Phase 1: Initialize                          ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                     Phase 1: Initialize                          ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
 
   let token =
     match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t ->
-        Eio.traceln "[Init] ✅ Token loaded from environment";
+        Flo.info "[Init] ✅ Token loaded from environment";
         t
     | None ->
-        Eio.traceln "[Init] ❌ TELEGRAM_BOT_TOKEN not set";
+        Flo.info "[Init] ❌ TELEGRAM_BOT_TOKEN not set";
         failwith "TELEGRAM_BOT_TOKEN environment variable not set"
   in
 
   let telegram_client = Telegram.Client.create ~env ~token () in
-  Eio.traceln "[Init] Client created successfully";
+  Flo.info "[Init] Client created successfully";
 
   (* Phase 2: Build bot *)
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                     Phase 2: Build Bot                           ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                     Phase 2: Build Bot                           ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
 
   let bot = Bot.make ~env ~client:telegram_client in
   let bot = build_routes bot in
 
-  Eio.traceln "[Init] Bot created successfully";
+  Flo.info "[Init] Bot created successfully";
 
   (* Phase 3: Start background tasks and polling *)
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║              Phase 3: Start Background Tasks & Polling           ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║              Phase 3: Start Background Tasks & Polling           ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
 
   Eio.Switch.run @@ fun sw ->
     (* Start CAPTCHA cleanup fiber *)
-    Eio.traceln "[Init] Starting CAPTCHA cleanup fiber";
+    Flo.info "[Init] Starting CAPTCHA cleanup fiber";
     Eio.Fiber.fork ~sw (fun () ->
       let rec cleanup_loop () =
         Eio.Time.sleep (Eio.Stdenv.clock env) 60.0;  (* Every minute *)
@@ -988,25 +988,25 @@ let () =
     );
 
     (* Start polling *)
-    Eio.traceln "[Polling] Starting long polling...";
-    Eio.traceln "[Polling] Bot is ready to receive updates";
-    Eio.traceln "";
-    Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-    Eio.traceln "║                     Bot is Ready!                                ║";
-    Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
-    Eio.traceln "[Polling] Waiting for messages...";
-    Eio.traceln "";
-    Eio.traceln "Features:";
-    Eio.traceln "  - Admin permission checks (creator/administrator)";
-    Eio.traceln "  - Ban/unban/kick members (temporary restrictions)";
-    Eio.traceln "  - Mute/unmute members (temporary mute)";
-    Eio.traceln "  - Promote/demote admins (granular permissions)";
-    Eio.traceln "  - Pin/unpin messages";
-    Eio.traceln "  - Lockdown/unlock chat (read-only mode)";
-    Eio.traceln "  - Anti-spam detection and deletion";
-    Eio.traceln "  - CAPTCHA verification for new members";
-    Eio.traceln "  - Warning system";
-    Eio.traceln "  - Result-based error handling";
-    Eio.traceln "";
+    Flo.info "[Polling] Starting long polling...";
+    Flo.info "[Polling] Bot is ready to receive updates";
+    Flo.debug "";
+    Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+    Flo.info "║                     Bot is Ready!                                ║";
+    Flo.info "╚══════════════════════════════════════════════════════════════════╝";
+    Flo.info "[Polling] Waiting for messages...";
+    Flo.debug "";
+    Flo.info "Features:";
+    Flo.debug "  - Admin permission checks (creator/administrator)";
+    Flo.debug "  - Ban/unban/kick members (temporary restrictions)";
+    Flo.debug "  - Mute/unmute members (temporary mute)";
+    Flo.debug "  - Promote/demote admins (granular permissions)";
+    Flo.debug "  - Pin/unpin messages";
+    Flo.debug "  - Lockdown/unlock chat (read-only mode)";
+    Flo.debug "  - Anti-spam detection and deletion";
+    Flo.debug "  - CAPTCHA verification for new members";
+    Flo.debug "  - Warning system";
+    Flo.debug "  - Result-based error handling";
+    Flo.debug "";
 
     Bot.run bot

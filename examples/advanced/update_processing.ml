@@ -74,7 +74,7 @@ end
 
 let () =
   Printexc.record_backtrace true;
-  Eio.traceln "=== Update Processing Demo Starting ===";
+  Flo.info "=== Update Processing Demo Starting ===";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t -> t
@@ -84,7 +84,7 @@ let () =
   Eio_main.run @@ fun env ->
   let client = Client.create ~env ~token () in
 
-  Eio.traceln "🤖 Update Processing Demo Bot Started";
+  Flo.info "🤖 Update Processing Demo Bot Started";
 
   let session_store = Session.Memory_store.create () in
 
@@ -94,7 +94,7 @@ let () =
   (* /start - Show bot information *)
   |> Bot.command "start" ~desc:"Show bot information" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/start] Showing information";
+      Flo.debug "[/start] Showing information";
 
       Stats.increment_messages ();
 
@@ -115,14 +115,14 @@ let () =
       ] in
 
       match send ~keyboard ctx text with
-      | Ok _ -> Eio.traceln "[/start] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/start] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/start] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/start] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /update_types - Explain update types *)
   |> Bot.command "update_types" ~desc:"Explain update types" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/update_types] Explaining update types";
+      Flo.debug "[/update_types] Explaining update types";
 
       Stats.increment_messages ();
 
@@ -148,14 +148,14 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[/update_types] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/update_types] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/update_types] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/update_types] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /edit_test - Send editable message *)
   |> Bot.command "edit_test" ~desc:"Send message you can edit" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/edit_test] Sending editable message";
+      Flo.debug "[/edit_test] Sending editable message";
 
       Stats.increment_messages ();
 
@@ -167,14 +167,14 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[/edit_test] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/edit_test] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/edit_test] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/edit_test] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /stats - Show update statistics *)
   |> Bot.command "stats" ~desc:"Show update statistics" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/stats] Showing statistics";
+      Flo.debug "[/stats] Showing statistics";
 
       Stats.increment_messages ();
 
@@ -186,8 +186,8 @@ let () =
       ] in
 
       match send ~keyboard ctx text with
-      | Ok _ -> Eio.traceln "[/stats] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/stats] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/stats] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/stats] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Handle ALL messages for logging/stats *)
@@ -202,7 +202,7 @@ let () =
 
       if not is_command then (
         Stats.increment_messages ();
-        Eio.traceln "[on_message] Update type: message, message_id=%Ld" msg.message_id
+        Flo.debugf "[on_message] Update type: message, message_id=%Ld" msg.message_id
       );
 
       Ok ()
@@ -221,7 +221,7 @@ let () =
           Stats.increment_edits ();
 
           let open Telegram_generated.Gen_types.Message in
-          Eio.traceln "[edited_message] Update type: edited_message, message_id=%Ld" msg.message_id;
+          Flo.debugf "[edited_message] Update type: edited_message, message_id=%Ld" msg.message_id;
 
           let text = match msg.text with
             | Some t -> t
@@ -238,8 +238,8 @@ let () =
           in
 
           (match reply ctx response with
-           | Ok _ -> Eio.traceln "[edited_message] ✓"; Ok ()
-           | Error e -> Eio.traceln "[edited_message] ✗ %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[edited_message] ✓"; Ok ()
+           | Error e -> Flo.debugf "[edited_message] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | None -> Ok ()
     )
@@ -250,11 +250,11 @@ let () =
 
       Stats.increment_callbacks ();
 
-      Eio.traceln "[test:button] Button pressed";
+      Flo.debug "[test:button] Button pressed";
 
       match edit ctx "✅ Button pressed!\n\nThis was a callback_query update." with
-      | Ok () -> Eio.traceln "[test:button] ✓"; Ok ()
-      | Error e -> Eio.traceln "[test:button] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[test:button] ✓"; Ok ()
+      | Error e -> Flo.debugf "[test:button] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: show:stats *)
@@ -263,7 +263,7 @@ let () =
 
       Stats.increment_callbacks ();
 
-      Eio.traceln "[show:stats] Refreshing statistics";
+      Flo.debug "[show:stats] Refreshing statistics";
 
       let text = Stats.summary () in
 
@@ -273,15 +273,15 @@ let () =
       ] in
 
       match edit ~keyboard ctx text with
-      | Ok () -> Eio.traceln "[show:stats] ✓"; Ok ()
-      | Error e -> Eio.traceln "[show:stats] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[show:stats] ✓"; Ok ()
+      | Error e -> Flo.debugf "[show:stats] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: reset:stats *)
   |> Bot.on_callback_data "reset:stats" (fun ctx ->
       let open Bot.Ctx in
 
-      Eio.traceln "[reset:stats] Resetting statistics";
+      Flo.debug "[reset:stats] Resetting statistics";
 
       Stats.reset ();
 
@@ -290,13 +290,13 @@ let () =
       ] in
 
       match edit ~keyboard ctx "🔄 Statistics reset!\n\nAll counters set to zero." with
-      | Ok () -> Eio.traceln "[reset:stats] ✓"; Ok ()
-      | Error e -> Eio.traceln "[reset:stats] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[reset:stats] ✓"; Ok ()
+      | Error e -> Flo.debugf "[reset:stats] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Log all callbacks for demonstration *)
   |> Bot.on_callback (fun _ctx data ->
-      Eio.traceln "[on_callback] Received callback_query with data: %s" data;
+      Flo.debugf "[on_callback] Received callback_query with data: %s" data;
       Ok ()
     )
 

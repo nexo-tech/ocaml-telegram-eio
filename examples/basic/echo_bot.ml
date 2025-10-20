@@ -11,6 +11,9 @@
       dune exec examples/echo_bot.exe
 *)
 
+(* Configure verbose logging *)
+let () = Flo.set_level Severity.Info
+
 let () =
   (* Get bot token from environment *)
   let token =
@@ -31,13 +34,15 @@ let () =
   (* Print bot info *)
   (match Telegram_generated.Gen_methods.get_me client () with
    | Ok me ->
-       Printf.printf "Bot started: @%s (%s)\n"
-         (Option.value me.Telegram_generated.Gen_types.User.username ~default:"unknown")
-         me.Telegram_generated.Gen_types.User.first_name;
-       Printf.printf "Send me a message and I'll echo it back!\n";
-       flush stdout
+       Flo.info_fields "Bot started" ~fields:[
+         ("username", Flo.Value.string (Option.value me.Telegram_generated.Gen_types.User.username ~default:"unknown"));
+         ("first_name", Flo.Value.string me.Telegram_generated.Gen_types.User.first_name);
+       ];
+       Flo.info "Send me a message and I'll echo it back!"
    | Error err ->
-       Printf.eprintf "Failed to get bot info: %s\n" (Format.asprintf "%a" Telegram.Error.pp err);
+       Flo.error_fields "Failed to get bot info" ~fields:[
+         Flo_semconv.error_message (Format.asprintf "%a" Telegram.Error.pp err);
+       ];
        exit 1
   );
 
@@ -53,22 +58,24 @@ let () =
 
         (* Ignore empty messages *)
         if text <> "" then (
-          Printf.printf "Received: %s\n" text;
-          flush stdout;
+          Flo.info_fields "Received message" ~fields:[
+            ("text", Flo.Value.string text);
+          ];
 
           (* Echo back *)
           let response_text = "You said: " ^ text in
 
           match Telegram_generated.Gen_methods.send_message client ~chat_id ~text:response_text () with
-          | Ok _ -> ()
+          | Ok _ -> Flo.debug "Echo sent successfully"
           | Error err ->
-              Printf.eprintf "Failed to send message: %s\n" (Format.asprintf "%a" Telegram.Error.pp err)
+              Flo.error_fields "Failed to send message" ~fields:[
+                Flo_semconv.error_message (Format.asprintf "%a" Telegram.Error.pp err);
+              ]
         )
     | None -> ()
   in
 
   (* Start polling *)
-  Printf.printf "Polling for updates...\n";
-  flush stdout;
+  Flo.info "Polling for updates...";
 
   Tg.Polling.run client ~handler:handle_update

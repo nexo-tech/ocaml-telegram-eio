@@ -52,7 +52,7 @@ module Calculator = struct
 
   (** Tokenize expression string *)
   let tokenize s =
-    Eio.traceln "[Calculator] Tokenizing: %s" s;
+    Flo.debugf "[Calculator] Tokenizing: %s" s;
     let buf = Buffer.create 16 in
     let flush_num acc =
       if Buffer.length buf > 0 then
@@ -139,23 +139,23 @@ module Calculator = struct
 
   (** Evaluate expression *)
   let eval expr =
-    Eio.traceln "[Calculator] Evaluating: %s" expr;
+    Flo.debugf "[Calculator] Evaluating: %s" expr;
     try
       let tokens = tokenize expr in
       let (result, pos) = parse_expr tokens 0 in
       if pos < List.length tokens then
         Error "Unexpected tokens after expression"
       else (
-        Eio.traceln "[Calculator] Result: %g" result;
+        Flo.debugf "[Calculator] Result: %g" result;
         Ok result
       )
     with
     | ParseError msg ->
-        Eio.traceln "[Calculator] Parse error: %s" msg;
+        Flo.debugf "[Calculator] Parse error: %s" msg;
         Error msg
     | exn ->
         let msg = Printexc.to_string exn in
-        Eio.traceln "[Calculator] Error: %s" msg;
+        Flo.debugf "[Calculator] Error: %s" msg;
         Error msg
 end
 
@@ -175,7 +175,7 @@ module UnitConverter = struct
 
   (** Convert units *)
   let convert value from_unit to_unit =
-    Eio.traceln "[UnitConverter] Converting: %.4g %s to %s" value from_unit to_unit;
+    Flo.debugf "[UnitConverter] Converting: %.4g %s to %s" value from_unit to_unit;
 
     let from_lower = String.lowercase_ascii from_unit in
     let to_lower = String.lowercase_ascii to_unit in
@@ -224,7 +224,7 @@ end
 let () =
   Printexc.record_backtrace true;
   Random.self_init ();
-  Eio.traceln "=== Utility Bots Demo Starting ===";
+  Flo.info "=== Utility Bots Demo Starting ===";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t -> t
@@ -234,7 +234,7 @@ let () =
   Eio_main.run @@ fun env ->
   let client = Client.create ~env ~token () in
 
-  Eio.traceln "🤖 Utility Bots Demo Started";
+  Flo.info "🤖 Utility Bots Demo Started";
 
   let session_store = Session.Memory_store.create () in
 
@@ -244,7 +244,7 @@ let () =
   (* /start - Main menu *)
   |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/start] Showing main menu";
+      Flo.debug "[/start] Showing main menu";
 
       let text =
         "🛠️ <b>Utility Bots Demo</b>\n\n\
@@ -267,14 +267,14 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[/start] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/start] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/start] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/start] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /calc - Calculator *)
   |> Bot.command "calc" ~desc:"Calculate expression" (fun ctx args ->
       let open Bot.Ctx in
-      Eio.traceln "[/calc] Calculating expression";
+      Flo.debug "[/calc] Calculating expression";
 
       match args with
       | [] ->
@@ -287,30 +287,30 @@ let () =
              Supports: +, -, *, /, ()"
            with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/calc] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/calc] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | _ ->
           let expr = String.concat " " args in
 
           (match Calculator.eval expr with
            | Ok result ->
-               Eio.traceln "[/calc] Success: %s = %g" expr result;
+               Flo.debugf "[/calc] Success: %s = %g" expr result;
                let response = Printf.sprintf "🧮 %s = %g" expr result in
                (match reply ctx response with
-                | Ok _ -> Eio.traceln "[/calc] ✓"; Ok ()
-                | Error e -> Eio.traceln "[/calc] ✗ %a" Error.pp e; Ok ())
+                | Ok _ -> Flo.debug "[/calc] ✓"; Ok ()
+                | Error e -> Flo.debugf "[/calc] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
            | Error msg ->
-               Eio.traceln "[/calc] Error: %s" msg;
+               Flo.debugf "[/calc] Error: %s" msg;
                (match reply ctx (Printf.sprintf "❌ %s" msg) with
                 | Ok _ -> Ok ()
-                | Error e -> Eio.traceln "[/calc] ✗ %a" Error.pp e; Ok ()))
+                | Error e -> Flo.debugf "[/calc] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()))
     )
 
   (* /convert - Unit converter *)
   |> Bot.command "convert" ~desc:"Convert units" (fun ctx args ->
       let open Bot.Ctx in
-      Eio.traceln "[/convert] Converting units";
+      Flo.debug "[/convert] Converting units";
 
       match args with
       | [value_str; from_unit; to_unit] ->
@@ -318,25 +318,25 @@ let () =
            | None ->
                (match reply ctx "❌ Value must be a number" with
                 | Ok _ -> Ok ()
-                | Error e -> Eio.traceln "[/convert] ✗ %a" Error.pp e; Ok ())
+                | Error e -> Flo.debugf "[/convert] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
            | Some value ->
                (match UnitConverter.convert value from_unit to_unit with
                 | Ok (result, unit) ->
-                    Eio.traceln "[/convert] %g %s = %g %s" value from_unit result unit;
+                    Flo.debugf "[/convert] %g %s = %g %s" value from_unit result unit;
                     let response = Printf.sprintf "↔️ %.4g %s = %.4g %s" value from_unit result unit in
                     (match reply ctx response with
-                     | Ok _ -> Eio.traceln "[/convert] ✓"; Ok ()
-                     | Error e -> Eio.traceln "[/convert] ✗ %a" Error.pp e; Ok ())
+                     | Ok _ -> Flo.debug "[/convert] ✓"; Ok ()
+                     | Error e -> Flo.debugf "[/convert] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
                 | Error msg ->
-                    Eio.traceln "[/convert] Error: %s" msg;
+                    Flo.debugf "[/convert] Error: %s" msg;
                     (match reply ctx
                       ("❌ " ^ msg ^ "\n\n\
                         Supported: C↔F, km↔mi, kg↔lb")
                      with
                      | Ok _ -> Ok ()
-                     | Error e -> Eio.traceln "[/convert] ✗ %a" Error.pp e; Ok ())))
+                     | Error e -> Flo.debugf "[/convert] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())))
 
       | _ ->
           (match reply ctx
@@ -348,14 +348,14 @@ let () =
              Supported: C↔F, km↔mi, kg↔lb"
            with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/convert] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/convert] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
     )
 
   (* /roll_dice - Random dice *)
   |> Bot.command "roll_dice" ~desc:"Roll a dice" (fun ctx _args ->
       let open Bot.Ctx in
       let result = Random.int 6 + 1 in
-      Eio.traceln "[/roll_dice] Rolled: %d" result;
+      Flo.debugf "[/roll_dice] Rolled: %d" result;
 
       let emoji = match result with
         | 1 -> "⚀"
@@ -370,27 +370,27 @@ let () =
       let response = Printf.sprintf "%s You rolled a %d!" emoji result in
 
       match reply ctx response with
-      | Ok _ -> Eio.traceln "[/roll_dice] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/roll_dice] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/roll_dice] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/roll_dice] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /flip_coin - Random coin flip *)
   |> Bot.command "flip_coin" ~desc:"Flip a coin" (fun ctx _args ->
       let open Bot.Ctx in
       let result = if Random.bool () then "Heads" else "Tails" in
-      Eio.traceln "[/flip_coin] Result: %s" result;
+      Flo.debugf "[/flip_coin] Result: %s" result;
 
       let response = Printf.sprintf "🪙 %s!" result in
 
       match reply ctx response with
-      | Ok _ -> Eio.traceln "[/flip_coin] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/flip_coin] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/flip_coin] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/flip_coin] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /random - Random number in range *)
   |> Bot.command "random" ~desc:"Random number in range" (fun ctx args ->
       let open Bot.Ctx in
-      Eio.traceln "[/random] Generating random number";
+      Flo.debug "[/random] Generating random number";
 
       match args with
       | [min_str; max_str] ->
@@ -398,18 +398,18 @@ let () =
            | Some min_val, Some max_val when min_val < max_val ->
                let range = max_val - min_val + 1 in
                let result = Random.int range + min_val in
-               Eio.traceln "[/random] Generated: %d (range: %d-%d)" result min_val max_val;
+               Flo.debugf "[/random] Generated: %d (range: %d-%d)" result min_val max_val;
 
                let response = Printf.sprintf "🎲 Random number: %d\n(Range: %d-%d)" result min_val max_val in
 
                (match reply ctx response with
-                | Ok _ -> Eio.traceln "[/random] ✓"; Ok ()
-                | Error e -> Eio.traceln "[/random] ✗ %a" Error.pp e; Ok ())
+                | Ok _ -> Flo.debug "[/random] ✓"; Ok ()
+                | Error e -> Flo.debugf "[/random] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
            | _, _ ->
                (match reply ctx "❌ Both arguments must be valid integers with min < max" with
                 | Ok _ -> Ok ()
-                | Error e -> Eio.traceln "[/random] ✗ %a" Error.pp e; Ok ()))
+                | Error e -> Flo.debugf "[/random] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()))
 
       | _ ->
           (match reply ctx
@@ -417,13 +417,13 @@ let () =
              Example: /random 1 100"
            with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/random] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/random] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
     )
 
   (* /choose - Random choice *)
   |> Bot.command "choose" ~desc:"Choose random option" (fun ctx args ->
       let open Bot.Ctx in
-      Eio.traceln "[/choose] Choosing from %d options" (List.length args);
+      Flo.debugf "[/choose] Choosing from %d options" (List.length args);
 
       match args with
       | [] | [_] ->
@@ -432,23 +432,23 @@ let () =
              Example: /choose Pizza Burger Salad"
            with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/choose] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/choose] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | options ->
           let choice = List.nth options (Random.int (List.length options)) in
-          Eio.traceln "[/choose] Selected: %s" choice;
+          Flo.debugf "[/choose] Selected: %s" choice;
 
           let response = Printf.sprintf "🎯 I choose: <b>%s</b>" choice in
 
           (match reply ctx response with
-           | Ok _ -> Eio.traceln "[/choose] ✓"; Ok ()
-           | Error e -> Eio.traceln "[/choose] ✗ %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[/choose] ✓"; Ok ()
+           | Error e -> Flo.debugf "[/choose] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
     )
 
   (* /time - Current time *)
   |> Bot.command "time" ~desc:"Show current time" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/time] Showing current time";
+      Flo.debug "[/time] Showing current time";
 
       let now = Unix.time () in
       let tm = Unix.localtime now in
@@ -464,40 +464,40 @@ let () =
       in
 
       match reply ctx response with
-      | Ok _ -> Eio.traceln "[/time] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/time] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/time] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/time] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /timestamp - Unix timestamp *)
   |> Bot.command "timestamp" ~desc:"Unix timestamp" (fun ctx _args ->
       let open Bot.Ctx in
       let timestamp = Unix.time () |> int_of_float in
-      Eio.traceln "[/timestamp] Current timestamp: %d" timestamp;
+      Flo.debugf "[/timestamp] Current timestamp: %d" timestamp;
 
       let response = Printf.sprintf "⏱️ Unix timestamp: %d" timestamp in
 
       match reply ctx response with
-      | Ok _ -> Eio.traceln "[/timestamp] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/timestamp] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/timestamp] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/timestamp] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /wordcount - Count words *)
   |> Bot.command "wordcount" ~desc:"Count words in text" (fun ctx args ->
       let open Bot.Ctx in
-      Eio.traceln "[/wordcount] Counting words";
+      Flo.debug "[/wordcount] Counting words";
 
       match args with
       | [] ->
           (match reply ctx "Usage: /wordcount <text...>" with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/wordcount] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/wordcount] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | _ ->
           let text = String.concat " " args in
           let words = TextUtils.word_count text in
           let chars = TextUtils.char_count text in
 
-          Eio.traceln "[/wordcount] Words: %d, Chars: %d" words chars;
+          Flo.debugf "[/wordcount] Words: %d, Chars: %d" words chars;
 
           let response = Printf.sprintf
             "📊 <b>Text Statistics</b>\n\n\
@@ -508,32 +508,32 @@ let () =
           in
 
           (match reply ctx response with
-           | Ok _ -> Eio.traceln "[/wordcount] ✓"; Ok ()
-           | Error e -> Eio.traceln "[/wordcount] ✗ %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[/wordcount] ✓"; Ok ()
+           | Error e -> Flo.debugf "[/wordcount] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
     )
 
   (* /reverse - Reverse text *)
   |> Bot.command "reverse" ~desc:"Reverse text" (fun ctx args ->
       let open Bot.Ctx in
-      Eio.traceln "[/reverse] Reversing text";
+      Flo.debug "[/reverse] Reversing text";
 
       match args with
       | [] ->
           (match reply ctx "Usage: /reverse <text...>" with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/reverse] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/reverse] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | _ ->
           let text = String.concat " " args in
           let reversed = TextUtils.reverse text in
 
-          Eio.traceln "[/reverse] %s → %s" text reversed;
+          Flo.debugf "[/reverse] %s → %s" text reversed;
 
           let response = Printf.sprintf "🔄 %s" reversed in
 
           (match reply ctx response with
-           | Ok _ -> Eio.traceln "[/reverse] ✓"; Ok ()
-           | Error e -> Eio.traceln "[/reverse] ✗ %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[/reverse] ✓"; Ok ()
+           | Error e -> Flo.debugf "[/reverse] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
     )
 
   (* /upper - Uppercase text *)
@@ -544,7 +544,7 @@ let () =
       | [] ->
           (match reply ctx "Usage: /upper <text...>" with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/upper] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/upper] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | _ ->
           let text = String.concat " " args in
@@ -553,8 +553,8 @@ let () =
           let response = Printf.sprintf "🔠 %s" upper in
 
           (match reply ctx response with
-           | Ok _ -> Eio.traceln "[/upper] ✓"; Ok ()
-           | Error e -> Eio.traceln "[/upper] ✗ %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[/upper] ✓"; Ok ()
+           | Error e -> Flo.debugf "[/upper] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
     )
 
   (* /lower - Lowercase text *)
@@ -565,7 +565,7 @@ let () =
       | [] ->
           (match reply ctx "Usage: /lower <text...>" with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/lower] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/lower] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | _ ->
           let text = String.concat " " args in
@@ -574,8 +574,8 @@ let () =
           let response = Printf.sprintf "🔡 %s" lower in
 
           (match reply ctx response with
-           | Ok _ -> Eio.traceln "[/lower] ✓"; Ok ()
-           | Error e -> Eio.traceln "[/lower] ✗ %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[/lower] ✓"; Ok ()
+           | Error e -> Flo.debugf "[/lower] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
     )
 
   |> Bot.run

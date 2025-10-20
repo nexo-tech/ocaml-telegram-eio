@@ -47,26 +47,26 @@ module CustomMiddleware = struct
 
   (** Logging middleware - logs before and after handler *)
   let logging_mw name =
-    Eio.traceln "[CustomMiddleware] Creating logging middleware: %s" name;
+    Flo.debugf "[CustomMiddleware] Creating logging middleware: %s" name;
     Middleware.make
       ~before:(fun ctx ->
-        Eio.traceln "[Middleware:%s] BEFORE hook - Handler starting" name;
+        Flo.debugf "[Middleware:%s] BEFORE hook - Handler starting" name;
         Ok ctx
       )
       ~after:(fun _ctx ->
-        Eio.traceln "[Middleware:%s] AFTER hook - Handler completed successfully" name
+        Flo.debugf "[Middleware:%s] AFTER hook - Handler completed successfully" name
       )
       ~on_error:(fun _ctx exn ->
-        Eio.traceln "[Middleware:%s] ERROR hook - Handler failed: %s" name (Printexc.to_string exn)
+        Flo.debugf "[Middleware:%s] ERROR hook - Handler failed: %s" name (Printexc.to_string exn)
       )
       name
 
   (** Admin check middleware *)
   let admin_only_mw admin_ids =
-    Eio.traceln "[CustomMiddleware] Creating admin-only middleware (%d admins)" (List.length admin_ids);
+    Flo.debugf "[CustomMiddleware] Creating admin-only middleware (%d admins)" (List.length admin_ids);
     Middleware.make
       ~before:(fun ctx ->
-        Eio.traceln "[Middleware:admin_only] Checking admin status";
+        Flo.debug "[Middleware:admin_only] Checking admin status";
         match Ctx.user ctx with
         | Some user ->
             let user_id_str = Id.to_string user.id in
@@ -75,27 +75,27 @@ module CustomMiddleware = struct
             ) admin_ids in
 
             if is_admin then (
-              Eio.traceln "[Middleware:admin_only] ✓ Admin access granted to %s"
+              Flo.debugf "[Middleware:admin_only] ✓ Admin access granted to %s"
                 (Option.value user.username ~default:"<unknown>");
               Ok ctx
             ) else (
-              Eio.traceln "[Middleware:admin_only] ✗ Admin access denied to %s"
+              Flo.debugf "[Middleware:admin_only] ✗ Admin access denied to %s"
                 (Option.value user.username ~default:"<unknown>");
               let _ = Ctx.reply ctx "❌ Admin access required." in
               Error "Not admin"
             )
         | None ->
-            Eio.traceln "[Middleware:admin_only] ✗ No user in context";
+            Flo.debug "[Middleware:admin_only] ✗ No user in context";
             Error "No user"
       )
       "admin_only"
 
   (** Premium user check middleware *)
   let premium_only_mw premium_ids =
-    Eio.traceln "[CustomMiddleware] Creating premium-only middleware (%d premium users)" (List.length premium_ids);
+    Flo.debugf "[CustomMiddleware] Creating premium-only middleware (%d premium users)" (List.length premium_ids);
     Middleware.make
       ~before:(fun ctx ->
-        Eio.traceln "[Middleware:premium_only] Checking premium status";
+        Flo.debug "[Middleware:premium_only] Checking premium status";
         match Ctx.user ctx with
         | Some user ->
             let user_id_str = Id.to_string user.id in
@@ -104,10 +104,10 @@ module CustomMiddleware = struct
             ) premium_ids in
 
             if is_premium then (
-              Eio.traceln "[Middleware:premium_only] ✓ Premium access granted";
+              Flo.debug "[Middleware:premium_only] ✓ Premium access granted";
               Ok ctx
             ) else (
-              Eio.traceln "[Middleware:premium_only] ✗ Premium access denied";
+              Flo.debug "[Middleware:premium_only] ✗ Premium access denied";
               let _ = Ctx.reply ctx "❌ Premium subscription required." in
               Error "Not premium"
             )
@@ -119,11 +119,11 @@ module CustomMiddleware = struct
   (** Context enrichment middleware - adds request timestamp *)
   let enrich_timestamp_mw =
     let timestamp_key = Session.make ~name:"request_timestamp" in
-    Eio.traceln "[CustomMiddleware] Creating timestamp enrichment middleware";
+    Flo.debug "[CustomMiddleware] Creating timestamp enrichment middleware";
     Middleware.make
       ~before:(fun ctx ->
         let timestamp = Unix.time () in
-        Eio.traceln "[Middleware:enrich_timestamp] Adding timestamp: %.0f" timestamp;
+        Flo.debugf "[Middleware:enrich_timestamp] Adding timestamp: %.0f" timestamp;
         Ctx.session_set ctx timestamp_key timestamp;
         Ok ctx
       )
@@ -131,7 +131,7 @@ module CustomMiddleware = struct
         match Ctx.session_get ctx timestamp_key with
         | Some start_time ->
             let duration = Unix.time () -. start_time in
-            Eio.traceln "[Middleware:enrich_timestamp] Request duration: %.3fs" duration
+            Flo.debugf "[Middleware:enrich_timestamp] Request duration: %.3fs" duration
         | None -> ()
       )
       "enrich_timestamp"
@@ -139,12 +139,12 @@ module CustomMiddleware = struct
   (** Request counter middleware *)
   let request_counter_mw =
     let counter_key = Session.make ~name:"request_count" in
-    Eio.traceln "[CustomMiddleware] Creating request counter middleware";
+    Flo.debug "[CustomMiddleware] Creating request counter middleware";
     Middleware.make
       ~before:(fun ctx ->
         let current = Ctx.session_get_or ctx counter_key ~default:0 in
         let new_count = current + 1 in
-        Eio.traceln "[Middleware:request_counter] Request #%d for this user" new_count;
+        Flo.debugf "[Middleware:request_counter] Request #%d for this user" new_count;
         Ctx.session_set ctx counter_key new_count;
         Ok ctx
       )
@@ -176,7 +176,7 @@ end
 
 let () =
   Printexc.record_backtrace true;
-  Eio.traceln "=== Middleware Architecture Demo Starting ===";
+  Flo.info "=== Middleware Architecture Demo Starting ===";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t -> t
@@ -186,12 +186,12 @@ let () =
   Eio_main.run @@ fun env ->
   let client = Client.create ~env ~token () in
 
-  Eio.traceln "🤖 Middleware Architecture Demo Bot Started";
-  Eio.traceln "";
-  Eio.traceln "=== Configuration ===";
-  Eio.traceln "Admin users: %d configured" (List.length (Auth.admin_user_ids ()));
-  Eio.traceln "Premium users: %d configured" (List.length (Auth.premium_user_ids ()));
-  Eio.traceln "";
+  Flo.info "🤖 Middleware Architecture Demo Bot Started";
+  Flo.debug "";
+  Flo.info "=== Configuration ===";
+  Flo.debugf "Admin users: %d configured" (List.length (Auth.admin_user_ids ()));
+  Flo.debugf "Premium users: %d configured" (List.length (Auth.premium_user_ids ()));
+  Flo.debug "";
 
   let session_store = Session.Memory_store.create () in
 
@@ -202,7 +202,7 @@ let () =
   let enrich_mw = CustomMiddleware.enrich_timestamp_mw in
   let counter_mw = CustomMiddleware.request_counter_mw in
 
-  Eio.traceln "=== Building Bot with Middleware ===";
+  Flo.info "=== Building Bot with Middleware ===";
 
   Bot.make ~env ~client
   |> Bot.with_sessions (module Session.Memory_store) session_store
@@ -210,7 +210,7 @@ let () =
   (* /start - No middleware *)
   |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[Handler] /start (no middleware)";
+      Flo.debug "[Handler] /start (no middleware)";
 
       let text =
         "🛡️ <b>Middleware Architecture Demo</b>\n\n\
@@ -228,29 +228,29 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[Handler] /start ✓"; Ok ()
-      | Error e -> Eio.traceln "[Handler] /start ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[Handler] /start ✓"; Ok ()
+      | Error e -> Flo.debugf "[Handler] /start ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /public - Logging middleware only *)
   |> Bot.command "public" ~desc:"Public command with logging" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[Handler] /public executing";
+      Flo.debug "[Handler] /public executing";
 
       match reply ctx
         "✅ Public command executed!\n\n\
          This command has logging middleware.\n\
          Check logs to see before/after hooks."
       with
-      | Ok _ -> Eio.traceln "[Handler] /public ✓"; Ok ()
-      | Error e -> Eio.traceln "[Handler] /public ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[Handler] /public ✓"; Ok ()
+      | Error e -> Flo.debugf "[Handler] /public ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
   |> Bot.use logging_mw
 
   (* /logged - Detailed logging *)
   |> Bot.command "logged" ~desc:"Command with detailed logging" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[Handler] /logged executing";
+      Flo.debug "[Handler] /logged executing";
 
       match reply ctx
         "📝 Logged command executed!\n\n\
@@ -258,15 +258,15 @@ let () =
          After hook will log exit.\n\
          Check logs for full execution trace."
       with
-      | Ok _ -> Eio.traceln "[Handler] /logged ✓"; Ok ()
-      | Error e -> Eio.traceln "[Handler] /logged ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[Handler] /logged ✓"; Ok ()
+      | Error e -> Flo.debugf "[Handler] /logged ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
   |> Bot.use (CustomMiddleware.logging_mw "detailed")
 
   (* /enriched - Context enrichment *)
   |> Bot.command "enriched" ~desc:"Context enrichment middleware" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[Handler] /enriched executing";
+      Flo.debug "[Handler] /enriched executing";
 
       let timestamp_key = Session.make ~name:"request_timestamp" in
       let timestamp = session_get ctx timestamp_key in
@@ -284,45 +284,45 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[Handler] /enriched ✓"; Ok ()
-      | Error e -> Eio.traceln "[Handler] /enriched ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[Handler] /enriched ✓"; Ok ()
+      | Error e -> Flo.debugf "[Handler] /enriched ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
   |> Bot.use enrich_mw
 
   (* /admin - Admin-only command *)
   |> Bot.command "admin" ~desc:"Admin-only command" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[Handler] /admin executing (admin-only)";
+      Flo.debug "[Handler] /admin executing (admin-only)";
 
       match reply ctx
         "👑 Admin command executed!\n\n\
          Admin middleware verified your permissions.\n\
          Non-admins will be rejected before this handler runs."
       with
-      | Ok _ -> Eio.traceln "[Handler] /admin ✓"; Ok ()
-      | Error e -> Eio.traceln "[Handler] /admin ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[Handler] /admin ✓"; Ok ()
+      | Error e -> Flo.debugf "[Handler] /admin ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
   |> Bot.use admin_mw
 
   (* /premium - Premium-only command *)
   |> Bot.command "premium" ~desc:"Premium-only command" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[Handler] /premium executing (premium-only)";
+      Flo.debug "[Handler] /premium executing (premium-only)";
 
       match reply ctx
         "💎 Premium command executed!\n\n\
          Premium middleware verified your subscription.\n\
          Set PREMIUM_USER_IDS to test this feature."
       with
-      | Ok _ -> Eio.traceln "[Handler] /premium ✓"; Ok ()
-      | Error e -> Eio.traceln "[Handler] /premium ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[Handler] /premium ✓"; Ok ()
+      | Error e -> Flo.debugf "[Handler] /premium ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
   |> Bot.use premium_mw
 
   (* /counted - Request counter middleware *)
   |> Bot.command "counted" ~desc:"Command with request counter" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[Handler] /counted executing";
+      Flo.debug "[Handler] /counted executing";
 
       let counter_key = Session.make ~name:"request_count" in
       let count = session_get_or ctx counter_key ~default:0 in
@@ -335,14 +335,14 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[Handler] /counted ✓"; Ok ()
-      | Error e -> Eio.traceln "[Handler] /counted ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[Handler] /counted ✓"; Ok ()
+      | Error e -> Flo.debugf "[Handler] /counted ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
   |> Bot.use counter_mw
 
   (* /error_test - Test error middleware *)
   |> Bot.command "error_test" ~desc:"Test error handling middleware" (fun _ctx _args ->
-      Eio.traceln "[Handler] /error_test throwing exception";
+      Flo.debug "[Handler] /error_test throwing exception";
       failwith "This is a test exception to demonstrate error middleware!"
     )
   |> Bot.use (CustomMiddleware.logging_mw "error_handler")
@@ -350,7 +350,7 @@ let () =
   (* /layered - Multiple middleware layers *)
   |> Bot.command "layered" ~desc:"Multiple middleware layers" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[Handler] /layered executing";
+      Flo.debug "[Handler] /layered executing";
 
       let counter_key = Session.make ~name:"request_count" in
       let count = session_get_or ctx counter_key ~default:0 in
@@ -369,8 +369,8 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[Handler] /layered ✓"; Ok ()
-      | Error e -> Eio.traceln "[Handler] /layered ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[Handler] /layered ✓"; Ok ()
+      | Error e -> Flo.debugf "[Handler] /layered ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
   |> Bot.use (CustomMiddleware.logging_mw "layer1")
   |> Bot.use counter_mw
@@ -379,7 +379,7 @@ let () =
   (* /middleware_info - Show middleware information *)
   |> Bot.command "middleware_info" ~desc:"Middleware stack information" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[Handler] /middleware_info showing info";
+      Flo.debug "[Handler] /middleware_info showing info";
 
       let text =
         "📋 <b>Middleware Architecture</b>\n\n\
@@ -401,8 +401,8 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[Handler] /middleware_info ✓"; Ok ()
-      | Error e -> Eio.traceln "[Handler] /middleware_info ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[Handler] /middleware_info ✓"; Ok ()
+      | Error e -> Flo.debugf "[Handler] /middleware_info ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.run

@@ -67,7 +67,7 @@ let likes_key = Session.make ~name:"liked_items"
 
 let () =
   Printexc.record_backtrace true;
-  Eio.traceln "=== Callback Queries Demo Starting ===";
+  Flo.info "=== Callback Queries Demo Starting ===";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t -> t
@@ -77,7 +77,7 @@ let () =
   Eio_main.run @@ fun env ->
   let client = Client.create ~env ~token () in
 
-  Eio.traceln "🤖 Callback Queries Demo Bot Started";
+  Flo.info "🤖 Callback Queries Demo Bot Started";
 
   let session_store = Session.Memory_store.create () in
 
@@ -87,7 +87,7 @@ let () =
   (* /start - Main menu *)
   |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/start] Showing main menu";
+      Flo.debug "[/start] Showing main menu";
 
       let keyboard = KB.inline [
         [KB.callback ~text:"📝 Simple Callbacks" ~data:"demo:simple"];
@@ -99,14 +99,14 @@ let () =
       ] in
 
       match send ~keyboard ctx "🎮 Callback Queries Demo\n\nChoose a demonstration:" with
-      | Ok _ -> Eio.traceln "[/start] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/start] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/start] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/start] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: demo:simple *)
   |> Bot.on_callback_data "demo:simple" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[demo:simple] Showing simple callbacks";
+      Flo.debug "[demo:simple] Showing simple callbacks";
 
       let keyboard = KB.inline [
         [KB.callback ~text:"Button A" ~data:"simple:a"];
@@ -120,39 +120,39 @@ let () =
          These buttons use simple string data.\n\
          Press any button to see the result."
       with
-      | Ok () -> Eio.traceln "[demo:simple] ✓"; Ok ()
-      | Error e -> Eio.traceln "[demo:simple] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[demo:simple] ✓"; Ok ()
+      | Error e -> Flo.debugf "[demo:simple] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Handle simple button presses *)
   |> Bot.on_callback_data "simple:a" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[simple:a] Button A pressed";
+      Flo.debug "[simple:a] Button A pressed";
       match edit ctx "✅ You pressed Button A!" with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[simple:a] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[simple:a] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback_data "simple:b" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[simple:b] Button B pressed";
+      Flo.debug "[simple:b] Button B pressed";
       match edit ctx "✅ You pressed Button B!" with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[simple:b] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[simple:b] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback_data "simple:c" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[simple:c] Button C pressed";
+      Flo.debug "[simple:c] Button C pressed";
       match edit ctx "✅ You pressed Button C!" with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[simple:c] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[simple:c] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: demo:structured *)
   |> Bot.on_callback_data "demo:structured" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[demo:structured] Showing structured data";
+      Flo.debug "[demo:structured] Showing structured data";
 
       let keyboard = KB.inline [
         [KB.callback ~text:"Edit Post #42" ~data:"edit:post:42"];
@@ -166,8 +166,8 @@ let () =
          Format: action:type:id\n\
          The data contains multiple values separated by colons."
       with
-      | Ok () -> Eio.traceln "[demo:structured] ✓"; Ok ()
-      | Error e -> Eio.traceln "[demo:structured] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[demo:structured] ✓"; Ok ()
+      | Error e -> Flo.debugf "[demo:structured] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Handle structured callbacks with parsing *)
@@ -176,22 +176,22 @@ let () =
 
       match String.split_on_char ':' data with
       | ["edit"; typ; id] ->
-          Eio.traceln "[structured] Edit %s #%s" typ id;
+          Flo.debugf "[structured] Edit %s #%s" typ id;
           (match edit ctx (Printf.sprintf "✏️ Editing %s #%s" typ id) with
            | Ok () -> Ok ()
-           | Error e -> Eio.traceln "[structured] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[structured] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | ["delete"; typ; id] ->
-          Eio.traceln "[structured] Delete %s #%s" typ id;
+          Flo.debugf "[structured] Delete %s #%s" typ id;
           (match edit ctx (Printf.sprintf "🗑️ Deleted %s #%s" typ id) with
            | Ok () -> Ok ()
-           | Error e -> Eio.traceln "[structured] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[structured] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | ["view"; typ; id] ->
-          Eio.traceln "[structured] View %s #%s" typ id;
+          Flo.debugf "[structured] View %s #%s" typ id;
           (match edit ctx (Printf.sprintf "👁️ Viewing %s #%s" typ id) with
            | Ok () -> Ok ()
-           | Error e -> Eio.traceln "[structured] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[structured] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | _ ->
           (* Not a structured callback *)
@@ -201,7 +201,7 @@ let () =
   (* Callback: demo:typed *)
   |> Bot.on_callback_data "demo:typed" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[demo:typed] Showing type-safe callbacks";
+      Flo.debug "[demo:typed] Showing type-safe callbacks";
 
       let keyboard = KB.inline [
         [KB.callback ~text:"👍 Like Item #5" ~data:(CallbackAction.encode (CallbackAction.Like 5))];
@@ -215,8 +215,8 @@ let () =
          These callbacks use a typed ADT for encoding/decoding.\n\
          Compile-time safety for callback data structure."
       with
-      | Ok () -> Eio.traceln "[demo:typed] ✓"; Ok ()
-      | Error e -> Eio.traceln "[demo:typed] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[demo:typed] ✓"; Ok ()
+      | Error e -> Flo.debugf "[demo:typed] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Handle typed callbacks *)
@@ -225,7 +225,7 @@ let () =
 
       match CallbackAction.decode data with
       | Some (CallbackAction.Like id) ->
-          Eio.traceln "[typed] Like item %d" id;
+          Flo.debugf "[typed] Like item %d" id;
 
           (* Get current likes from session *)
           let likes = session_get_or ctx likes_key ~default:[] in
@@ -234,10 +234,10 @@ let () =
 
           (match edit ctx (Printf.sprintf "👍 You liked item #%d!\n\nTotal items liked: %d" id (List.length updated_likes)) with
            | Ok () -> Ok ()
-           | Error e -> Eio.traceln "[typed] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[typed] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | Some (CallbackAction.Unlike id) ->
-          Eio.traceln "[typed] Unlike item %d" id;
+          Flo.debugf "[typed] Unlike item %d" id;
 
           let likes = session_get_or ctx likes_key ~default:[] in
           let updated_likes = List.filter ((<>) id) likes in
@@ -245,22 +245,22 @@ let () =
 
           (match edit ctx (Printf.sprintf "💔 You unliked item #%d\n\nTotal items liked: %d" id (List.length updated_likes)) with
            | Ok () -> Ok ()
-           | Error e -> Eio.traceln "[typed] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[typed] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | Some (CallbackAction.Edit id) ->
-          Eio.traceln "[typed] Edit item %d" id;
+          Flo.debugf "[typed] Edit item %d" id;
           (match edit ctx (Printf.sprintf "✏️ Editing item #%d\n\n(Edit interface would appear here)" id) with
            | Ok () -> Ok ()
-           | Error e -> Eio.traceln "[typed] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[typed] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | Some (CallbackAction.Delete id) ->
-          Eio.traceln "[typed] Delete item %d" id;
+          Flo.debugf "[typed] Delete item %d" id;
           (match edit ctx (Printf.sprintf "🗑️ Item #%d deleted" id) with
            | Ok () -> Ok ()
-           | Error e -> Eio.traceln "[typed] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[typed] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | Some (CallbackAction.ViewItem { item_id; page }) ->
-          Eio.traceln "[typed] View item %d from page %d" item_id page;
+          Flo.debugf "[typed] View item %d from page %d" item_id page;
 
           let keyboard = KB.inline [
             [KB.callback ~text:"← Back to Page" ~data:(Printf.sprintf "page:%d" page)];
@@ -268,7 +268,7 @@ let () =
 
           (match edit ~keyboard ctx (Printf.sprintf "👁️ Viewing Item #%d\n\n(From page %d)" item_id page) with
            | Ok () -> Ok ()
-           | Error e -> Eio.traceln "[typed] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[typed] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | None ->
           (* Not a typed callback *)
@@ -278,7 +278,7 @@ let () =
   (* Callback: demo:confirm *)
   |> Bot.on_callback_data "demo:confirm" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[demo:confirm] Showing confirmation pattern";
+      Flo.debug "[demo:confirm] Showing confirmation pattern";
 
       let keyboard = KB.inline [
         [KB.callback ~text:"🗑️ Delete Item" ~data:"confirm:delete:123"];
@@ -289,8 +289,8 @@ let () =
         "✅ Confirmation Pattern\n\n\
          This demonstrates the confirmation pattern for destructive actions."
       with
-      | Ok () -> Eio.traceln "[demo:confirm] ✓"; Ok ()
-      | Error e -> Eio.traceln "[demo:confirm] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[demo:confirm] ✓"; Ok ()
+      | Error e -> Flo.debugf "[demo:confirm] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Handle initial delete request - show confirmation *)
@@ -299,7 +299,7 @@ let () =
 
       match String.split_on_char ':' data with
       | ["confirm"; "delete"; id] ->
-          Eio.traceln "[confirm] Requesting confirmation for delete:%s" id;
+          Flo.debugf "[confirm] Requesting confirmation for delete:%s" id;
 
           let keyboard = KB.inline [
             [
@@ -310,7 +310,7 @@ let () =
 
           (match edit ~keyboard ctx (Printf.sprintf "⚠️ Delete item #%s?\n\nThis action cannot be undone!" id) with
            | Ok () -> Ok ()
-           | Error e -> Eio.traceln "[confirm] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[confirm] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | _ -> Ok ()
     )
@@ -321,27 +321,27 @@ let () =
 
       if String.starts_with ~prefix:"delete_confirmed:" data then (
         let id = String.sub data 17 (String.length data - 17) in
-        Eio.traceln "[delete_confirmed] Deleting item %s" id;
+        Flo.debugf "[delete_confirmed] Deleting item %s" id;
 
         (match edit ctx (Printf.sprintf "✅ Item #%s deleted successfully!" id) with
          | Ok () -> Ok ()
-         | Error e -> Eio.traceln "[delete_confirmed] ✗ %a" Error.pp e; Ok ())
+         | Error e -> Flo.debugf "[delete_confirmed] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
       ) else Ok ()
     )
 
   |> Bot.on_callback_data "delete_cancelled" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[delete_cancelled] Deletion cancelled";
+      Flo.debug "[delete_cancelled] Deletion cancelled";
 
       match edit ctx "❌ Deletion cancelled" with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[delete_cancelled] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[delete_cancelled] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: demo:paginate *)
   |> Bot.on_callback_data "demo:paginate" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[demo:paginate] Showing pagination pattern";
+      Flo.debug "[demo:paginate] Showing pagination pattern";
 
       (* Reset to page 1 *)
       session_set ctx page_key 1;
@@ -359,8 +359,8 @@ let () =
          Current page: 1 of 5\n\n\
          Smart pagination hides disabled buttons (no prev on page 1)."
       with
-      | Ok () -> Eio.traceln "[demo:paginate] ✓"; Ok ()
-      | Error e -> Eio.traceln "[demo:paginate] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[demo:paginate] ✓"; Ok ()
+      | Error e -> Flo.debugf "[demo:paginate] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Handle page navigation *)
@@ -370,7 +370,7 @@ let () =
       if String.starts_with ~prefix:"page:" data then (
         let page_str = String.sub data 5 (String.length data - 5) in
         let page = int_of_string page_str in
-        Eio.traceln "[page] Navigating to page %d" page;
+        Flo.debugf "[page] Navigating to page %d" page;
 
         (* Save current page in session *)
         session_set ctx page_key page;
@@ -386,14 +386,14 @@ let () =
 
         (match edit ~keyboard ctx (Printf.sprintf "📄 Current page: %d of %d" page total_pages) with
          | Ok () -> Ok ()
-         | Error e -> Eio.traceln "[page] ✗ %a" Error.pp e; Ok ())
+         | Error e -> Flo.debugf "[page] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
       ) else Ok ()
     )
 
   (* Callback: demo:toggle *)
   |> Bot.on_callback_data "demo:toggle" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[demo:toggle] Showing toggle pattern";
+      Flo.debug "[demo:toggle] Showing toggle pattern";
 
       (* Initialize toggle state *)
       let notifications_key = Session.make ~name:"notifications_enabled" in
@@ -411,8 +411,8 @@ let () =
          Press the button to toggle the state.\n\
          State is stored in session."
       with
-      | Ok () -> Eio.traceln "[demo:toggle] ✓"; Ok ()
-      | Error e -> Eio.traceln "[demo:toggle] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[demo:toggle] ✓"; Ok ()
+      | Error e -> Flo.debugf "[demo:toggle] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Handle toggle *)
@@ -424,7 +424,7 @@ let () =
       let new_state = not enabled in
       session_set ctx notifications_key new_state;
 
-      Eio.traceln "[toggle] Notifications: %b → %b" enabled new_state;
+      Flo.debugf "[toggle] Notifications: %b → %b" enabled new_state;
 
       let button_text = if new_state then "🔔 Notifications: ON" else "🔕 Notifications: OFF" in
 
@@ -439,14 +439,14 @@ let () =
            Notifications are now: %s"
           (if new_state then "ON ✅" else "OFF ❌"))
       with
-      | Ok () -> Eio.traceln "[toggle] ✓"; Ok ()
-      | Error e -> Eio.traceln "[toggle] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[toggle] ✓"; Ok ()
+      | Error e -> Flo.debugf "[toggle] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: demo:menu - Back to main menu *)
   |> Bot.on_callback_data "demo:menu" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[demo:menu] Returning to main menu";
+      Flo.debug "[demo:menu] Returning to main menu";
 
       let keyboard = KB.inline [
         [KB.callback ~text:"📝 Simple Callbacks" ~data:"demo:simple"];
@@ -458,8 +458,8 @@ let () =
       ] in
 
       match edit ~keyboard ctx "🎮 Callback Queries Demo\n\nChoose a demonstration:" with
-      | Ok () -> Eio.traceln "[demo:menu] ✓"; Ok ()
-      | Error e -> Eio.traceln "[demo:menu] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[demo:menu] ✓"; Ok ()
+      | Error e -> Flo.debugf "[demo:menu] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.run

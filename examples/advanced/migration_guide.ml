@@ -221,7 +221,7 @@ end
 
 let () =
   Printexc.record_backtrace true;
-  Eio.traceln "=== Migration Guide Demo Starting ===";
+  Flo.info "=== Migration Guide Demo Starting ===";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t -> t
@@ -231,7 +231,7 @@ let () =
   Eio_main.run @@ fun env ->
   let client = Client.create ~env ~token () in
 
-  Eio.traceln "🤖 Migration Guide Demo Started";
+  Flo.info "🤖 Migration Guide Demo Started";
 
   let session_store = Session.Memory_store.create () in
 
@@ -241,7 +241,7 @@ let () =
   (* /start - Main menu *)
   |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/start] Showing main menu";
+      Flo.debug "[/start] Showing main menu";
 
       let keyboard = KB.inline [
         [KB.callback ~text:"🔄 Lwt to Eio" ~data:"guide:lwt_eio"];
@@ -266,78 +266,78 @@ let () =
       in
 
       match send ~keyboard ctx text with
-      | Ok _ -> Eio.traceln "[/start] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/start] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/start] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/start] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /lwt_to_eio - Lwt to Eio guide *)
   |> Bot.command "lwt_to_eio" ~desc:"Lwt to Eio migration" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/lwt_to_eio] Showing Lwt to Eio guide";
+      Flo.debug "[/lwt_to_eio] Showing Lwt to Eio guide";
 
       match reply ctx Templates.lwt_to_eio with
-      | Ok _ -> Eio.traceln "[/lwt_to_eio] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/lwt_to_eio] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/lwt_to_eio] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/lwt_to_eio] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /raw_to_typed - Raw to typed guide *)
   |> Bot.command "raw_to_typed" ~desc:"Raw API to typed methods" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/raw_to_typed] Showing raw to typed guide";
+      Flo.debug "[/raw_to_typed] Showing raw to typed guide";
 
       match reply ctx Templates.raw_to_typed with
-      | Ok _ -> Eio.traceln "[/raw_to_typed] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/raw_to_typed] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/raw_to_typed] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/raw_to_typed] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /id_types - ID types guide *)
   |> Bot.command "id_types" ~desc:"ID type safety migration" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/id_types] Showing ID types guide";
+      Flo.debug "[/id_types] Showing ID types guide";
 
       match reply ctx Templates.id_types_guide with
-      | Ok _ -> Eio.traceln "[/id_types] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/id_types] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/id_types] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/id_types] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /error_handling - Error handling guide *)
   |> Bot.command "error_handling" ~desc:"Error handling migration" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/error_handling] Showing error handling guide";
+      Flo.debug "[/error_handling] Showing error handling guide";
 
       match reply ctx Templates.error_handling_migration with
-      | Ok _ -> Eio.traceln "[/error_handling] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/error_handling] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/error_handling] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/error_handling] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /concurrency - Concurrency patterns *)
   |> Bot.command "concurrency" ~desc:"Concurrency migration" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/concurrency] Showing concurrency patterns";
+      Flo.debug "[/concurrency] Showing concurrency patterns";
 
       match reply ctx Templates.concurrency_patterns with
-      | Ok _ -> Eio.traceln "[/concurrency] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/concurrency] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/concurrency] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/concurrency] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /bot_dsl - Bot DSL guide *)
   |> Bot.command "bot_dsl" ~desc:"Bot DSL migration" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/bot_dsl] Showing Bot DSL guide";
+      Flo.debug "[/bot_dsl] Showing Bot DSL guide";
 
       match reply ctx Templates.bot_dsl_migration with
-      | Ok _ -> Eio.traceln "[/bot_dsl] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/bot_dsl] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/bot_dsl] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/bot_dsl] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /key_differences - Key differences *)
   |> Bot.command "key_differences" ~desc:"Key design differences" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/key_differences] Showing key differences";
+      Flo.debug "[/key_differences] Showing key differences";
 
       match reply ctx Templates.key_differences with
-      | Ok _ -> Eio.traceln "[/key_differences] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/key_differences] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/key_differences] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/key_differences] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback handlers for guides *)
@@ -345,49 +345,49 @@ let () =
       let open Bot.Ctx in
       match edit ctx Templates.lwt_to_eio with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[guide:lwt_eio] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[guide:lwt_eio] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback_data "guide:raw_typed" (fun ctx ->
       let open Bot.Ctx in
       match edit ctx Templates.raw_to_typed with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[guide:raw_typed] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[guide:raw_typed] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback_data "guide:id_types" (fun ctx ->
       let open Bot.Ctx in
       match edit ctx Templates.id_types_guide with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[guide:id_types] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[guide:id_types] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback_data "guide:errors" (fun ctx ->
       let open Bot.Ctx in
       match edit ctx Templates.error_handling_migration with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[guide:errors] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[guide:errors] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback_data "guide:concurrency" (fun ctx ->
       let open Bot.Ctx in
       match edit ctx Templates.concurrency_patterns with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[guide:concurrency] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[guide:concurrency] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback_data "guide:bot_dsl" (fun ctx ->
       let open Bot.Ctx in
       match edit ctx Templates.bot_dsl_migration with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[guide:bot_dsl] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[guide:bot_dsl] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback_data "guide:differences" (fun ctx ->
       let open Bot.Ctx in
       match edit ctx Templates.key_differences with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[guide:differences] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[guide:differences] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.run

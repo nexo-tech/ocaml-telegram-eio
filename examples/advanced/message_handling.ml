@@ -76,7 +76,7 @@ end
 
 let () =
   Printexc.record_backtrace true;
-  Eio.traceln "=== Message Handling Demo Starting ===";
+  Flo.info "=== Message Handling Demo Starting ===";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t -> t
@@ -86,14 +86,14 @@ let () =
   Eio_main.run @@ fun env ->
   let client = Client.create ~env ~token () in
 
-  Eio.traceln "🤖 Message Handling Demo Bot Started";
+  Flo.info "🤖 Message Handling Demo Bot Started";
 
   Bot.make ~env ~client
 
   (* /start - Welcome *)
   |> Bot.command "start" ~desc:"Show welcome message" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/start] Sending welcome";
+      Flo.debug "[/start] Sending welcome";
 
       let user_opt = user ctx in
       let username = match user_opt with
@@ -104,14 +104,14 @@ let () =
       let text = Templates.welcome username in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[/start] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/start] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/start] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/start] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /format_html - Demonstrate HTML formatting *)
   |> Bot.command "format_html" ~desc:"Show HTML formatting examples" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/format_html] Demonstrating HTML formatting";
+      Flo.debug "[/format_html] Demonstrating HTML formatting";
 
       let text =
         Html.bold "Bold text" ^ "\n" ^
@@ -124,14 +124,14 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[/format_html] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/format_html] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/format_html] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/format_html] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /format_markdown - Demonstrate MarkdownV2 formatting *)
   |> Bot.command "format_markdown" ~desc:"Show MarkdownV2 examples" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/format_markdown] Demonstrating MarkdownV2";
+      Flo.debug "[/format_markdown] Demonstrating MarkdownV2";
 
       (* MarkdownV2 requires escaping special chars *)
       let text =
@@ -147,14 +147,14 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[/format_markdown] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/format_markdown] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/format_markdown] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/format_markdown] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /entities - Extract and display entities from next message *)
   |> Bot.command "entities" ~desc:"Show entity extraction" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/entities] Requesting entities";
+      Flo.debug "[/entities] Requesting entities";
 
       match reply ctx
         "Send me a message with:\n\
@@ -164,18 +164,18 @@ let () =
          • /commands\n\n\
          I'll extract and show all entities!"
       with
-      | Ok _ -> Eio.traceln "[/entities] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/entities] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/entities] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/entities] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /edit_test - Send and edit message *)
   |> Bot.command "edit_test" ~desc:"Demonstrate message editing" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/edit_test] Testing message editing";
+      Flo.debug "[/edit_test] Testing message editing";
 
       match reply ctx "⏳ Original message... (will be edited in 2 seconds)" with
       | Ok msg ->
-          Eio.traceln "[/edit_test] Message sent, waiting 2s";
+          Flo.debug "[/edit_test] Message sent, waiting 2s";
           let open Telegram_generated.Gen_types.Message in
           Eio.Time.sleep (env ctx)#clock 2.0;
 
@@ -188,21 +188,21 @@ let () =
             ~message_id:msg.message_id
             ~text:edited_text
             () with
-           | Ok _ -> Eio.traceln "[/edit_test] Edited ✓"; Ok ()
-           | Error e -> Eio.traceln "[/edit_test] Edit failed: %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[/edit_test] Edited ✓"; Ok ()
+           | Error e -> Flo.debugf "[/edit_test] Edit failed: %s" (Format.asprintf "%a" Error.pp e); Ok ())
       | Error e ->
-          Eio.traceln "[/edit_test] Send failed: %a" Error.pp e;
+          Flo.debugf "[/edit_test] Send failed: %s" (Format.asprintf "%a" Error.pp e);
           Ok ()
     )
 
   (* /delete_test - Send and delete after delay *)
   |> Bot.command "delete_test" ~desc:"Send and auto-delete message" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/delete_test] Testing message deletion";
+      Flo.debug "[/delete_test] Testing message deletion";
 
       match reply ctx "🗑️ This message will self-destruct in 5 seconds..." with
       | Ok msg ->
-          Eio.traceln "[/delete_test] Message sent, will delete in 5s";
+          Flo.debug "[/delete_test] Message sent, will delete in 5s";
           let open Telegram_generated.Gen_types.Message in
 
           (* Schedule deletion *)
@@ -215,17 +215,17 @@ let () =
             ~chat_id
             ~message_id:msg.message_id
             () with
-           | Ok _ -> Eio.traceln "[/delete_test] Deleted ✓"; Ok ()
-           | Error e -> Eio.traceln "[/delete_test] Delete failed: %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[/delete_test] Deleted ✓"; Ok ()
+           | Error e -> Flo.debugf "[/delete_test] Delete failed: %s" (Format.asprintf "%a" Error.pp e); Ok ())
       | Error e ->
-          Eio.traceln "[/delete_test] Send failed: %a" Error.pp e;
+          Flo.debugf "[/delete_test] Send failed: %s" (Format.asprintf "%a" Error.pp e);
           Ok ()
     )
 
   (* /info - Show message metadata *)
   |> Bot.command "info" ~desc:"Show bot and message information" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/info] Showing message info";
+      Flo.debug "[/info] Showing message info";
 
       let msg = message ctx in
       let user_opt = user ctx in
@@ -248,14 +248,14 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[/info] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/info] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/info] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/info] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /template_demo - Demonstrate message templates *)
   |> Bot.command "template_demo" ~desc:"Show message template examples" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/template_demo] Showing templates";
+      Flo.debug "[/template_demo] Showing templates";
 
       let text = Printf.sprintf
         "%s\n\n%s\n\n%s"
@@ -265,18 +265,18 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[/template_demo] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/template_demo] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/template_demo] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/template_demo] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Handle text messages - echo with entity analysis *)
   |> Bot.on_text (fun ctx text ->
       let open Bot.Ctx in
-      Eio.traceln "[on_text] Received text: %s" text;
+      Flo.debugf "[on_text] Received text: %s" text;
 
       (* Extract entities using Bot.Entity *)
       let entities_list = entities ctx in
-      Eio.traceln "[on_text] Found %d entities" (List.length entities_list);
+      Flo.debugf "[on_text] Found %d entities" (List.length entities_list);
 
       let entity_summary = if List.length entities_list > 0 then
         let entity_lines = List.map (fun ent ->
@@ -315,14 +315,14 @@ let () =
       in
 
       match reply ctx response with
-      | Ok _ -> Eio.traceln "[on_text] ✓"; Ok ()
-      | Error e -> Eio.traceln "[on_text] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[on_text] ✓"; Ok ()
+      | Error e -> Flo.debugf "[on_text] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Handle photo messages *)
   |> Bot.on_photo (fun ctx photos ->
       let open Bot.Ctx in
-      Eio.traceln "[on_photo] Received %d photo sizes" (List.length photos);
+      Flo.debugf "[on_photo] Received %d photo sizes" (List.length photos);
 
       let msg = message ctx in
       let caption = Option.value msg.text ~default:"<no caption>" in
@@ -353,8 +353,8 @@ let () =
       in
 
       match reply ctx response with
-      | Ok _ -> Eio.traceln "[on_photo] ✓"; Ok ()
-      | Error e -> Eio.traceln "[on_photo] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[on_photo] ✓"; Ok ()
+      | Error e -> Flo.debugf "[on_photo] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Handle document messages *)
@@ -364,7 +364,7 @@ let () =
 
       match msg.document with
       | Some doc ->
-          Eio.traceln "[on_document] Received document";
+          Flo.debug "[on_document] Received document";
 
           let open Telegram_generated.Gen_types.Document in
           let filename = Option.value doc.file_name ~default:"<unknown>" in
@@ -385,8 +385,8 @@ let () =
           in
 
           (match reply ctx response with
-           | Ok _ -> Eio.traceln "[on_document] ✓"; Ok ()
-           | Error e -> Eio.traceln "[on_document] ✗ %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[on_document] ✓"; Ok ()
+           | Error e -> Flo.debugf "[on_document] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | None ->
           (* Not a document, skip *)
@@ -400,7 +400,7 @@ let () =
 
       match msg.location with
       | Some loc ->
-          Eio.traceln "[on_location] Received location";
+          Flo.debug "[on_location] Received location";
 
           let open Telegram_generated.Gen_types.Location in
           let response = Printf.sprintf
@@ -413,8 +413,8 @@ let () =
           in
 
           (match reply ctx response with
-           | Ok _ -> Eio.traceln "[on_location] ✓"; Ok ()
-           | Error e -> Eio.traceln "[on_location] ✗ %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[on_location] ✓"; Ok ()
+           | Error e -> Flo.debugf "[on_location] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | None ->
           Ok ()
@@ -427,7 +427,7 @@ let () =
 
       match msg.contact with
       | Some contact ->
-          Eio.traceln "[on_contact] Received contact";
+          Flo.debug "[on_contact] Received contact";
 
           let open Telegram_generated.Gen_types.Contact in
           let response = Printf.sprintf
@@ -444,8 +444,8 @@ let () =
           in
 
           (match reply ctx response with
-           | Ok _ -> Eio.traceln "[on_contact] ✓"; Ok ()
-           | Error e -> Eio.traceln "[on_contact] ✗ %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[on_contact] ✓"; Ok ()
+           | Error e -> Flo.debugf "[on_contact] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | None ->
           Ok ()

@@ -59,16 +59,16 @@ let total_size storage =
 let _has_space storage file_size =
   let used = total_size storage in
   let available = Int64.sub storage.quota used in
-  Eio.traceln "[Storage] Checking quota: used=%Ld, quota=%Ld, file_size=%Ld, available=%Ld"
+  Flo.debugf "[Storage] Checking quota: used=%Ld, quota=%Ld, file_size=%Ld, available=%Ld"
     used storage.quota file_size available;
   file_size <= available
 
 let _add_file storage entry =
-  Eio.traceln "[Storage] Adding file: name=%s, size=%Ld" entry.file_name entry.file_size;
+  Flo.debugf "[Storage] Adding file: name=%s, size=%Ld" entry.file_name entry.file_size;
   { storage with files = entry :: storage.files }
 
 let remove_file_at_index storage index =
-  Eio.traceln "[Storage] Removing file at index: %d" index;
+  Flo.debugf "[Storage] Removing file at index: %d" index;
   let files = storage.files |> List.filteri (fun i _ -> i <> index) in
   { storage with files }
 
@@ -82,7 +82,7 @@ let empty_album = {
 
 (* Create file list keyboard with download/delete buttons *)
 let create_file_list_keyboard storage =
-  Eio.traceln "[Keyboard] Creating file list with %d files" (List.length storage.files);
+  Flo.debugf "[Keyboard] Creating file list with %d files" (List.length storage.files);
 
   let file_buttons =
     storage.files
@@ -119,7 +119,7 @@ let create_file_list_keyboard storage =
 let create_album_keyboard state =
   let item_count = List.length state.items in
 
-  Eio.traceln "[Keyboard] Creating album builder: items=%d/%d" item_count state.max_items;
+  Flo.debugf "[Keyboard] Creating album builder: items=%d/%d" item_count state.max_items;
 
   let buttons =
     if item_count >= 2 then
@@ -166,7 +166,7 @@ let build_routes telegram_client bot =
   bot
   (* Start command *)
   |> Bot.command "start" (fun ctx _args ->
-    Eio.traceln "[Handler] /start command received";
+    Flo.debug "[Handler] /start command received";
     let open Bot.Ctx in
     let* () = reply_ ctx
       "📁 File Manager Bot\n\n\
@@ -176,18 +176,18 @@ let build_routes telegram_client bot =
        /album - Start album builder\n\n\
        Simply send any file or photo to upload it!"
     in
-    Eio.traceln "[Handler] /start command completed";
+    Flo.debug "[Handler] /start command completed";
     Ok ()
   )
   |>
 
   (* View files *)
   Bot.command "files" (fun ctx _args ->
-    Eio.traceln "[Handler] /files command received";
+    Flo.debug "[Handler] /files command received";
     let open Bot.Ctx in
     let storage = session_get_or ctx storage_key ~default:empty_storage in
 
-    Eio.traceln "[Handler] User has %d files" (List.length storage.files);
+    Flo.debugf "[Handler] User has %d files" (List.length storage.files);
 
     if List.length storage.files = 0 then
       let* () = reply_ ctx "📁 No files uploaded yet" in
@@ -198,21 +198,21 @@ let build_routes telegram_client bot =
         ~keyboard
         (Printf.sprintf "📁 Your Files (%d)" (List.length storage.files))
       in
-      Eio.traceln "[Handler] /files command completed";
+      Flo.debug "[Handler] /files command completed";
       Ok ()
   )
   |>
 
   (* Storage stats *)
   Bot.command "stats" (fun ctx _args ->
-    Eio.traceln "[Handler] /stats command received";
+    Flo.debug "[Handler] /stats command received";
     let open Bot.Ctx in
     let storage = session_get_or ctx storage_key ~default:empty_storage in
     let used = total_size storage in
     let quota = storage.quota in
     let percent = Int64.to_float used /. Int64.to_float quota *. 100.0 in
 
-    Eio.traceln "[Handler] Storage stats: files=%d, used=%Ld, quota=%Ld, percent=%.1f%%"
+    Flo.debugf "[Handler] Storage stats: files=%d, used=%Ld, quota=%Ld, percent=%.1f%%"
       (List.length storage.files) used quota percent;
 
     let stats = Printf.sprintf
@@ -228,28 +228,28 @@ let build_routes telegram_client bot =
     in
 
     let* () = reply_ ctx stats in
-    Eio.traceln "[Handler] /stats command completed";
+    Flo.debug "[Handler] /stats command completed";
     Ok ()
   )
   |>
 
   (* Start album builder *)
   Bot.command "album" (fun ctx _args ->
-    Eio.traceln "[Handler] /album command received";
+    Flo.debug "[Handler] /album command received";
     let open Bot.Ctx in
 
     (* Get current album state or create new one *)
     let current_album = session_get_or ctx album_key ~default:empty_album in
-    Eio.traceln "[Handler] Current album state: active=%b, items=%d, max=%d"
+    Flo.debugf "[Handler] Current album state: active=%b, items=%d, max=%d"
       current_album.active (List.length current_album.items) current_album.max_items;
 
     (* If album is not active, activate it *)
     let active_album =
       if not current_album.active then begin
-        Eio.traceln "[Handler] Activating new album builder";
+        Flo.debug "[Handler] Activating new album builder";
         { empty_album with active = true }
       end else begin
-        Eio.traceln "[Handler] Album already active with %d photos" (List.length current_album.items);
+        Flo.debugf "[Handler] Album already active with %d photos" (List.length current_album.items);
         current_album
       end
     in
@@ -264,14 +264,14 @@ let build_routes telegram_client bot =
           (List.length active_album.items)
     in
     let* () = reply_ ctx ~keyboard message in
-    Eio.traceln "[Handler] /album command completed";
+    Flo.debug "[Handler] /album command completed";
     Ok ()
   )
   |>
 
   (* Handle document uploads *)
   Bot.on_document (fun ctx document ->
-    Eio.traceln "[Handler] Document received: file_id=%s, file_name=%s, size=%Ld"
+    Flo.debugf "[Handler] Document received: file_id=%s, file_name=%s, size=%Ld"
       document.file_id
       (Option.value document.file_name ~default:"unnamed")
       (Option.value document.file_size ~default:0L);
@@ -293,7 +293,7 @@ let build_routes telegram_client bot =
     let updated = { storage with files = entry :: storage.files } in
     session_set ctx storage_key updated;
 
-    Eio.traceln "[Handler] Document stored: total_files=%d" (List.length updated.files);
+    Flo.debugf "[Handler] Document stored: total_files=%d" (List.length updated.files);
 
     let* () = reply_ ctx
       (Printf.sprintf "✓ Document uploaded: %s (%s)"
@@ -306,7 +306,7 @@ let build_routes telegram_client bot =
 
   (* Handle photo uploads *)
   Bot.on_photo (fun ctx photos ->
-    Eio.traceln "[Handler] Photo received: %d sizes available" (List.length photos);
+    Flo.debugf "[Handler] Photo received: %d sizes available" (List.length photos);
 
     let open Bot.Ctx in
 
@@ -324,11 +324,11 @@ let build_routes telegram_client bot =
 
     match largest_photo with
     | None ->
-        Eio.traceln "[Handler] No photo found in list";
+        Flo.debug "[Handler] No photo found in list";
         let* () = reply_ ctx "❌ No photo received" in
         Ok ()
     | Some photo ->
-        Eio.traceln "[Handler] Largest photo: file_id=%s, size=%Ld"
+        Flo.debugf "[Handler] Largest photo: file_id=%s, size=%Ld"
           photo.file_id
           (Option.value photo.file_size ~default:0L);
 
@@ -347,7 +347,7 @@ let build_routes telegram_client bot =
         (* Check if building an album *)
         let album_state = session_get_or ctx album_key ~default:empty_album in
 
-        Eio.traceln "[Handler] Album state check: active=%b, items=%d, max=%d"
+        Flo.debugf "[Handler] Album state check: active=%b, items=%d, max=%d"
           album_state.active (List.length album_state.items) album_state.max_items;
 
         if album_state.active && List.length album_state.items < album_state.max_items then begin
@@ -355,7 +355,7 @@ let build_routes telegram_client bot =
           let updated_album = { album_state with items = photo.file_id :: album_state.items } in
           session_set ctx album_key updated_album;
 
-          Eio.traceln "[Handler] Photo added to album: %d/%d photos"
+          Flo.debugf "[Handler] Photo added to album: %d/%d photos"
             (List.length updated_album.items) album_state.max_items;
 
           let keyboard = create_album_keyboard updated_album in
@@ -371,7 +371,7 @@ let build_routes telegram_client bot =
           let updated = { storage with files = entry :: storage.files } in
           session_set ctx storage_key updated;
 
-          Eio.traceln "[Handler] Photo stored as file: total_files=%d" (List.length updated.files);
+          Flo.debugf "[Handler] Photo stored as file: total_files=%d" (List.length updated.files);
 
           let* () = reply_ ctx
             (Printf.sprintf "✓ Photo uploaded: %s (%s)"
@@ -385,7 +385,7 @@ let build_routes telegram_client bot =
 
   (* Handle text messages as fallback *)
   Bot.on_text (fun ctx text ->
-    Eio.traceln "[Handler] Text message received: %s" text;
+    Flo.debugf "[Handler] Text message received: %s" text;
     let open Bot.Ctx in
     let* () = reply_ ctx "💡 Tip: Use /files to see your uploaded files, or /album to start building a photo album!" in
     Ok ()
@@ -394,31 +394,31 @@ let build_routes telegram_client bot =
 
   (* Handle all file-related callbacks in one handler *)
   Bot.on_callback (fun ctx data ->
-    Eio.traceln "[Callback] File handler received: data='%s'" data;
+    Flo.debugf "[Callback] File handler received: data='%s'" data;
     let open Bot.Ctx in
 
     (* Download file *)
     if String.starts_with ~prefix:"file:download:" data then begin
       let index_str = String.sub data 14 (String.length data - 14) in
-      Eio.traceln "[Handler] Download requested: index=%s" index_str;
+      Flo.debugf "[Handler] Download requested: index=%s" index_str;
 
       let storage = session_get_or ctx storage_key ~default:empty_storage in
       match int_of_string_opt index_str with
       | None ->
-          Eio.traceln "[Handler] Invalid index: %s" index_str;
+          Flo.debugf "[Handler] Invalid index: %s" index_str;
           let* _msg = answer ctx "Invalid file index" in
           Ok ()
       | Some index ->
           match List.nth_opt storage.files index with
           | None ->
-              Eio.traceln "[Handler] File not found at index %d" index;
+              Flo.debugf "[Handler] File not found at index %d" index;
               let* _msg = answer ctx "File not found" in
               Ok ()
           | Some entry ->
-              Eio.traceln "[Handler] File found: name=%s" entry.file_name;
+              Flo.debugf "[Handler] File found: name=%s" entry.file_name;
 
               let chat_id = chat ctx in
-              Eio.traceln "[Handler] Sending document via API: chat_id=%s"
+              Flo.debugf "[Handler] Sending document via API: chat_id=%s"
                 (Telegram.Id.to_string chat_id);
 
               (match Telegram_generated.Gen_methods.send_document telegram_client
@@ -428,11 +428,11 @@ let build_routes telegram_client bot =
                        ()
               with
               | Ok _ ->
-                  Eio.traceln "[Handler] Document sent successfully";
+                  Flo.success "[Handler] Document sent successfully";
                   let* _msg = answer ctx "✓ File sent" in
                   Ok ()
               | Error err ->
-                  Eio.traceln "[Handler] Failed to send document: %a" Telegram.Error.pp err;
+                  Flo.debugf "[Handler] Failed to send document: %s" (Format.asprintf "%a" Telegram.Error.pp err);
                   let* _msg = answer ctx "Failed to send file" in
                   Ok ())
     end
@@ -440,25 +440,25 @@ let build_routes telegram_client bot =
     (* Delete file *)
     else if String.starts_with ~prefix:"file:delete:" data then begin
       let index_str = String.sub data 12 (String.length data - 12) in
-      Eio.traceln "[Handler] Delete requested: index=%s" index_str;
+      Flo.debugf "[Handler] Delete requested: index=%s" index_str;
 
       let storage = session_get_or ctx storage_key ~default:empty_storage in
 
       match int_of_string_opt index_str with
       | None ->
-          Eio.traceln "[Handler] Invalid index: %s" index_str;
+          Flo.debugf "[Handler] Invalid index: %s" index_str;
           let* _msg = answer ctx "Invalid file index" in
           Ok ()
       | Some index ->
           if index < 0 || index >= List.length storage.files then begin
-            Eio.traceln "[Handler] Index out of bounds: %d" index;
+            Flo.debugf "[Handler] Index out of bounds: %d" index;
             let* _msg = answer ctx "File not found" in
             Ok ()
           end else begin
             let updated = remove_file_at_index storage index in
             session_set ctx storage_key updated;
 
-            Eio.traceln "[Handler] File removed from storage";
+            Flo.debug "[Handler] File removed from storage";
 
             let keyboard = create_file_list_keyboard updated in
             let* () = edit ctx
@@ -466,7 +466,7 @@ let build_routes telegram_client bot =
               (Printf.sprintf "📁 Your Files (%d)" (List.length updated.files))
             in
             let* _msg = answer ctx "✓ File deleted" in
-            Eio.traceln "[Handler] File deletion completed";
+            Flo.debug "[Handler] File deletion completed";
             Ok ()
           end
     end
@@ -474,18 +474,18 @@ let build_routes telegram_client bot =
     (* View file details *)
     else if String.starts_with ~prefix:"file:view:" data then begin
       let index_str = String.sub data 10 (String.length data - 10) in
-      Eio.traceln "[Handler] View details requested: index=%s" index_str;
+      Flo.debugf "[Handler] View details requested: index=%s" index_str;
 
       let storage = session_get_or ctx storage_key ~default:empty_storage in
       match int_of_string_opt index_str with
       | None ->
-          Eio.traceln "[Handler] Invalid index: %s" index_str;
+          Flo.debugf "[Handler] Invalid index: %s" index_str;
           let* _msg = answer ctx "Invalid file index" in
           Ok ()
       | Some index ->
           match List.nth_opt storage.files index with
           | None ->
-              Eio.traceln "[Handler] File not found at index %d" index;
+              Flo.debugf "[Handler] File not found at index %d" index;
               let* _msg = answer ctx "File not found" in
               Ok ()
           | Some entry ->
@@ -501,14 +501,14 @@ let build_routes telegram_client bot =
                 (format_timestamp entry.uploaded_at)
               in
 
-              Eio.traceln "[Handler] Showing file details: name=%s" entry.file_name;
+              Flo.debugf "[Handler] Showing file details: name=%s" entry.file_name;
               let* _msg = answer ctx details in
               Ok ()
     end
 
     (* Not a file-related callback, pass through *)
     else begin
-      Eio.traceln "[Callback] Not a file-related callback, skipping";
+      Flo.debug "[Callback] Not a file-related callback, skipping";
       Ok ()
     end
   )
@@ -518,17 +518,17 @@ let build_routes telegram_client bot =
   Bot.on_callback (fun ctx data ->
     if data <> "album:send" then Ok () else begin
     
-    Eio.traceln "[Handler] Send album requested";
+    Flo.debug "[Handler] Send album requested";
     let open Bot.Ctx in
 
     let state = session_get_or ctx album_key ~default:empty_album in
 
     if List.length state.items < 2 then begin
-      Eio.traceln "[Handler] Album send rejected: need at least 2 photos";
+      Flo.debug "[Handler] Album send rejected: need at least 2 photos";
       let* _msg = answer ctx "Need at least 2 photos" in
       Ok ()
     end else begin
-      Eio.traceln "[Handler] Creating album with %d photos" (List.length state.items);
+      Flo.debugf "[Handler] Creating album with %d photos" (List.length state.items);
 
       (* Create album from cached file_ids *)
       let items =
@@ -541,26 +541,26 @@ let build_routes telegram_client bot =
 
       (match Tg.Album.of_list items with
       | Ok album ->
-          Eio.traceln "[Handler] Album created successfully";
+          Flo.success "[Handler] Album created successfully";
 
           let chat_id = chat ctx in
-          Eio.traceln "[Handler] Sending album: chat_id=%s"
+          Flo.debugf "[Handler] Sending album: chat_id=%s"
             (Telegram.Id.to_string chat_id);
 
           (match Tg.Album.send telegram_client ~chat_id album with
           | Ok messages ->
-              Eio.traceln "[Handler] Album sent successfully: %d messages"
+              Flo.successf "[Handler] Album sent successfully: %d messages"
                 (List.length messages);
               session_delete ctx album_key;
               let* _msg = answer ctx "✓ Album sent!" in
               Ok ()
           | Error err ->
-              Eio.traceln "[Handler] Failed to send album: %a" Telegram.Error.pp err;
+              Flo.debugf "[Handler] Failed to send album: %s" (Format.asprintf "%a" Telegram.Error.pp err);
               let* _msg = answer ctx "Failed to send album" in
               Ok ())
 
       | Error msg ->
-          Eio.traceln "[Handler] Failed to create album: %s" msg;
+          Flo.debugf "[Handler] Failed to create album: %s" msg;
           let* _msg = answer ctx ("Error: " ^ msg) in
           Ok ())
     end
@@ -571,12 +571,12 @@ let build_routes telegram_client bot =
   (* Clear album *)
   Bot.on_callback (fun ctx data ->
     if data <> "album:clear" then Ok () else begin
-    Eio.traceln "[Handler] Clear album requested";
+    Flo.debug "[Handler] Clear album requested";
     let open Bot.Ctx in
 
     session_delete ctx album_key;
     let* _msg = answer ctx "Album cleared" in
-    Eio.traceln "[Handler] Album cleared";
+    Flo.debug "[Handler] Album cleared";
     Ok ()
     end
   )
@@ -594,54 +594,54 @@ let build_routes telegram_client bot =
 (** {1 Main Entry Point} *)
 
 let () =
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║              File Handling Bot - Recipe Example                 ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
-  Eio.traceln "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║              File Handling Bot - Recipe Example                 ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.debug "";
 
   Eio_main.run @@ fun env ->
 
   (* Phase 1: Initialize client *)
-  Eio.traceln "[Init] Loading token from TELEGRAM_BOT_TOKEN environment variable";
+  Flo.info "[Init] Loading token from TELEGRAM_BOT_TOKEN environment variable";
   let token =
     match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t ->
-        Eio.traceln "[Init] Token loaded successfully (length: %d)" (String.length t);
+        Flo.infof "[Init] Token loaded successfully (length: %d)" (String.length t);
         t
     | None ->
-        Eio.traceln "[Init] ❌ ERROR: TELEGRAM_BOT_TOKEN not set";
+        Flo.info "[Init] ❌ ERROR: TELEGRAM_BOT_TOKEN not set";
         failwith "TELEGRAM_BOT_TOKEN environment variable not set"
   in
 
-  Eio.traceln "[Init] Creating Telegram client";
+  Flo.info "[Init] Creating Telegram client";
   let telegram_client = Telegram.Client.create ~env ~token () in
-  Eio.traceln "[Init] Client created successfully";
+  Flo.info "[Init] Client created successfully";
 
   (* Phase 2: Build bot with functional API *)
-  Eio.traceln "[Init] Building bot";
+  Flo.info "[Init] Building bot";
 
   (* Create session store *)
   let session_store = Session.Memory_store.create () in
-  Eio.traceln "[Init] Session store created";
+  Flo.info "[Init] Session store created";
 
   let bot = Bot.make ~env ~client:telegram_client in
   let bot = Bot.with_sessions (module Session.Memory_store) session_store bot in
   let bot = Bot.on_error (fun _ctx exn ->
-      Eio.traceln "❌ ERROR in handler: %s" (Printexc.to_string exn);
-      Eio.traceln "Backtrace: %s" (Printexc.get_backtrace ());
+      Flo.errorf "❌ ERROR in handler: %s" (Printexc.to_string exn);
+      Flo.debugf "Backtrace: %s" (Printexc.get_backtrace ());
     ) bot
   in
   let bot = build_routes telegram_client bot in
 
-  Eio.traceln "[Init] Bot created successfully with session support";
+  Flo.info "[Init] Bot created successfully with session support";
 
   (* Phase 3: Run polling *)
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                      Bot Started - Polling                       ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
-  Eio.traceln "[Polling] Starting long polling...";
-  Eio.traceln "[Polling] Bot is ready to receive updates";
-  Eio.traceln "";
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                      Bot Started - Polling                       ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.info "[Polling] Starting long polling...";
+  Flo.info "[Polling] Bot is ready to receive updates";
+  Flo.debug "";
 
   Bot.run bot

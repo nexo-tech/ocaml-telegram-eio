@@ -100,10 +100,10 @@ module ArticleDB = struct
   ]
 
   let search query =
-    Eio.traceln "[ArticleDB] Searching for query: '%s'" query;
+    Flo.debugf "[ArticleDB] Searching for query: '%s'" query;
 
     if String.length query < 2 then begin
-      Eio.traceln "[ArticleDB] Query too short, returning all %d articles" (List.length articles);
+      Flo.debugf "[ArticleDB] Query too short, returning all %d articles" (List.length articles);
       articles
     end else begin
       let query_lower = String.lowercase_ascii query in
@@ -113,16 +113,16 @@ module ArticleDB = struct
         let category_match = String.contains_s (String.lowercase_ascii article.category) query_lower in
         title_match || summary_match || category_match
       ) articles in
-      Eio.traceln "[ArticleDB] Found %d matching articles" (List.length results);
+      Flo.debugf "[ArticleDB] Found %d matching articles" (List.length results);
       results
     end
 
   let _search_by_category category =
-    Eio.traceln "[ArticleDB] Searching by category: '%s'" category;
+    Flo.debugf "[ArticleDB] Searching by category: '%s'" category;
     let results = List.filter (fun article ->
       String.equal (String.lowercase_ascii article.category) (String.lowercase_ascii category)
     ) articles in
-    Eio.traceln "[ArticleDB] Found %d articles in category" (List.length results);
+    Flo.debugf "[ArticleDB] Found %d articles in category" (List.length results);
     results
 end
 
@@ -162,9 +162,9 @@ module PhotoGallery = struct
   ]
 
   let search query =
-    Eio.traceln "[PhotoGallery] Searching photos for: '%s'" query;
+    Flo.debugf "[PhotoGallery] Searching photos for: '%s'" query;
     if String.length query = 0 then begin
-      Eio.traceln "[PhotoGallery] Empty query, returning all %d photos" (List.length photos);
+      Flo.debugf "[PhotoGallery] Empty query, returning all %d photos" (List.length photos);
       photos
     end else begin
       let query_lower = String.lowercase_ascii query in
@@ -173,7 +173,7 @@ module PhotoGallery = struct
         let tag_match = List.exists (fun tag -> String.contains_s tag query_lower) photo.tags in
         caption_match || tag_match
       ) photos in
-      Eio.traceln "[PhotoGallery] Found %d matching photos" (List.length results);
+      Flo.debugf "[PhotoGallery] Found %d matching photos" (List.length results);
       results
     end
 end
@@ -207,9 +207,9 @@ module GifLibrary = struct
   ]
 
   let search query =
-    Eio.traceln "[GifLibrary] Searching GIFs for: '%s'" query;
+    Flo.debugf "[GifLibrary] Searching GIFs for: '%s'" query;
     if String.length query = 0 then begin
-      Eio.traceln "[GifLibrary] Empty query, returning all %d GIFs" (List.length gifs);
+      Flo.debugf "[GifLibrary] Empty query, returning all %d GIFs" (List.length gifs);
       gifs
     end else begin
       let query_lower = String.lowercase_ascii query in
@@ -218,7 +218,7 @@ module GifLibrary = struct
         let tag_match = List.exists (fun tag -> String.contains_s tag query_lower) gif.tags in
         title_match || tag_match
       ) gifs in
-      Eio.traceln "[GifLibrary] Found %d matching GIFs" (List.length results);
+      Flo.debugf "[GifLibrary] Found %d matching GIFs" (List.length results);
       results
     end
 end
@@ -235,31 +235,31 @@ module ResultCache = struct
   let ttl = 300.0  (* 5 minutes *)
 
   let get query =
-    Eio.traceln "[ResultCache] Looking up cache for query: '%s'" query;
+    Flo.debugf "[ResultCache] Looking up cache for query: '%s'" query;
     match Hashtbl.find_opt cache query with
     | Some entry ->
         let age = Unix.time () -. entry.timestamp in
         if age < ttl then begin
-          Eio.traceln "[ResultCache] ✅ Cache hit (age: %.1fs)" age;
+          Flo.successf "[ResultCache] ✅ Cache hit (age: %.1fs)" age;
           Some entry.results
         end else begin
-          Eio.traceln "[ResultCache] ❌ Cache expired (age: %.1fs > %.1fs)" age ttl;
+          Flo.errorf "[ResultCache] ❌ Cache expired (age: %.1fs > %.1fs)" age ttl;
           Hashtbl.remove cache query;
           None
         end
     | None ->
-        Eio.traceln "[ResultCache] ❌ Cache miss";
+        Flo.error "[ResultCache] ❌ Cache miss";
         None
 
   let set query results =
     let entry = { results; timestamp = Unix.time () } in
     Hashtbl.replace cache query entry;
-    Eio.traceln "[ResultCache] ✅ Cached %d results for query: '%s'" (List.length results) query
+    Flo.successf "[ResultCache] ✅ Cached %d results for query: '%s'" (List.length results) query
 
   let clear () =
     let count = Hashtbl.length cache in
     Hashtbl.clear cache;
-    Eio.traceln "[ResultCache] Cleared cache (%d entries removed)" count
+    Flo.debugf "[ResultCache] Cleared cache (%d entries removed)" count
 
   let size () =
     Hashtbl.length cache
@@ -269,7 +269,7 @@ end
 
 module InlineKeyboard = struct
   let create_article_keyboard url =
-    Eio.traceln "[InlineKeyboard] Creating keyboard for URL: %s" url;
+    Flo.debugf "[InlineKeyboard] Creating keyboard for URL: %s" url;
     let open Telegram_generated.Gen_types in
 
     InlineKeyboardMarkup.{
@@ -307,7 +307,7 @@ module InlineKeyboard = struct
     }
 
   let create_search_keyboard query =
-    Eio.traceln "[InlineKeyboard] Creating search keyboard for query: '%s'" query;
+    Flo.debugf "[InlineKeyboard] Creating search keyboard for query: '%s'" query;
     let open Telegram_generated.Gen_types in
 
     InlineKeyboardMarkup.{
@@ -349,7 +349,7 @@ end
 
 module ResultConverter = struct
   let article_to_result (article : article) =
-    Eio.traceln "[ResultConverter] Converting article to result: id=%d, title='%s'"
+    Flo.debugf "[ResultConverter] Converting article to result: id=%d, title='%s'"
       article.id article.title;
 
     let open Telegram_generated.Gen_types in
@@ -373,7 +373,7 @@ module ResultConverter = struct
     (Obj.magic result : InlineQueryResult.t)
 
   let photo_to_result (photo : photo_item) =
-    Eio.traceln "[ResultConverter] Converting photo to result: id=%s, caption='%s'"
+    Flo.debugf "[ResultConverter] Converting photo to result: id=%s, caption='%s'"
       photo.id photo.caption;
 
     let open Telegram_generated.Gen_types in
@@ -399,7 +399,7 @@ module ResultConverter = struct
     (Obj.magic result : InlineQueryResult.t)
 
   let gif_to_result (gif : gif_item) =
-    Eio.traceln "[ResultConverter] Converting GIF to result: id=%s, title='%s'"
+    Flo.debugf "[ResultConverter] Converting GIF to result: id=%s, title='%s'"
       gif.id gif.title;
 
     let open Telegram_generated.Gen_types in
@@ -436,7 +436,7 @@ module Pagination = struct
     let start = offset in
     let end_ = min (offset + page_size) total in
 
-    Eio.traceln "[Pagination] Paginating: total=%d, offset=%d, start=%d, end=%d"
+    Flo.debugf "[Pagination] Paginating: total=%d, offset=%d, start=%d, end=%d"
       total offset start end_;
 
     let page_results =
@@ -446,10 +446,10 @@ module Pagination = struct
 
     let next_offset =
       if end_ < total then begin
-        Eio.traceln "[Pagination] More results available, next_offset=%d" end_;
+        Flo.debugf "[Pagination] More results available, next_offset=%d" end_;
         Some (string_of_int end_)
       end else begin
-        Eio.traceln "[Pagination] No more results";
+        Flo.debug "[Pagination] No more results";
         None
       end
     in
@@ -460,12 +460,12 @@ end
 (** {1 Inline Query Handlers} *)
 
 let handle_article_search client iq query =
-  Eio.traceln "[Handler] Handling article search: query='%s'" query;
+  Flo.debugf "[Handler] Handling article search: query='%s'" query;
 
   (* Check cache first *)
   match ResultCache.get query with
   | Some cached_results ->
-      Eio.traceln "[Handler] Using cached results (%d results)" (List.length cached_results);
+      Flo.debugf "[Handler] Using cached results (%d results)" (List.length cached_results);
       Telegram_generated.Gen_methods.answer_inline_query client
         ~inline_query_id:iq.Telegram_generated.Gen_types.InlineQuery.id
         ~results:cached_results
@@ -474,7 +474,7 @@ let handle_article_search client iq query =
         ()
 
   | None ->
-      Eio.traceln "[Handler] Computing fresh results";
+      Flo.debug "[Handler] Computing fresh results";
 
       (* Search articles *)
       let articles = ArticleDB.search query in
@@ -494,7 +494,7 @@ let handle_article_search client iq query =
         ()
 
 let handle_photo_search client iq query =
-  Eio.traceln "[Handler] Handling photo search: query='%s'" query;
+  Flo.debugf "[Handler] Handling photo search: query='%s'" query;
 
   let photos = PhotoGallery.search query in
   let results = List.map ResultConverter.photo_to_result photos in
@@ -507,7 +507,7 @@ let handle_photo_search client iq query =
     ()
 
 let handle_gif_search client iq query =
-  Eio.traceln "[Handler] Handling GIF search: query='%s'" query;
+  Flo.debugf "[Handler] Handling GIF search: query='%s'" query;
 
   let gifs = GifLibrary.search query in
   let results = List.map ResultConverter.gif_to_result gifs in
@@ -520,7 +520,7 @@ let handle_gif_search client iq query =
     ()
 
 let handle_paginated_search client iq query =
-  Eio.traceln "[Handler] Handling paginated search: query='%s', offset='%s'"
+  Flo.debugf "[Handler] Handling paginated search: query='%s', offset='%s'"
     query iq.Telegram_generated.Gen_types.InlineQuery.offset;
 
   (* Parse offset *)
@@ -538,7 +538,7 @@ let handle_paginated_search client iq query =
   (* Paginate *)
   let (page_results, next_offset) = Pagination.paginate ~offset all_results in
 
-  Eio.traceln "[Handler] Returning page with %d results" (List.length page_results);
+  Flo.debugf "[Handler] Returning page with %d results" (List.length page_results);
 
   (* Answer with pagination *)
   Telegram_generated.Gen_methods.answer_inline_query client
@@ -564,7 +564,7 @@ module ChosenResults = struct
 
   let track chosen =
     let open Telegram_generated.Gen_types.ChosenInlineResult in
-    Eio.traceln "[ChosenResults] User chose result: result_id=%s, query=%s"
+    Flo.debugf "[ChosenResults] User chose result: result_id=%s, query=%s"
       chosen.result_id chosen.query;
 
     let entry = {
@@ -580,7 +580,7 @@ module ChosenResults = struct
     if List.length !history > max_history then
       history := List.filteri (fun i _ -> i < max_history) !history;
 
-    Eio.traceln "[ChosenResults] History size: %d" (List.length !history)
+    Flo.debugf "[ChosenResults] History size: %d" (List.length !history)
 
   let get_stats () =
     let total = List.length !history in
@@ -601,19 +601,19 @@ module ChosenResults = struct
       |> List.filteri (fun i _ -> i < 5)
     in
 
-    Eio.traceln "[ChosenResults] Stats: total=%d, unique_users=%d" total unique_users;
+    Flo.debugf "[ChosenResults] Stats: total=%d, unique_users=%d" total unique_users;
     (total, unique_users, popular_results)
 end
 
 (** {1 Command Handlers} *)
 
 let handle_start ctx _args =
-  Eio.traceln "[Handler] /start command triggered";
+  Flo.debug "[Handler] /start command triggered";
   let open Bot.Ctx in
 
   let* user = require_user ctx in
-  Eio.traceln "[Handler] User: id=%a, username=%s"
-    Id.pp user.id
+  Flo.debugf "[Handler] User: id=%s, username=%s"
+    (Format.asprintf "%a" Id.pp user.id)
     (match user.username with Some u -> u | None -> "none");
 
   let welcome_text =
@@ -632,11 +632,11 @@ let handle_start ctx _args =
   in
 
   let* _msg = answer ctx welcome_text in
-  Eio.traceln "[Handler] ✅ Welcome message sent";
+  Flo.success "[Handler] ✅ Welcome message sent";
   Ok ()
 
 let handle_help ctx _args =
-  Eio.traceln "[Handler] /help command triggered";
+  Flo.debug "[Handler] /help command triggered";
   let open Bot.Ctx in
 
   let help_text =
@@ -659,11 +659,11 @@ let handle_help ctx _args =
   in
 
   let* _msg = answer ctx help_text in
-  Eio.traceln "[Handler] ✅ Help sent";
+  Flo.success "[Handler] ✅ Help sent";
   Ok ()
 
 let handle_stats ctx _args =
-  Eio.traceln "[Handler] /stats command triggered";
+  Flo.debug "[Handler] /stats command triggered";
   let open Bot.Ctx in
 
   let (total_chosen, unique_users, popular_results) = ChosenResults.get_stats () in
@@ -688,11 +688,11 @@ let handle_stats ctx _args =
   in
 
   let* _msg = answer ctx stats_text in
-  Eio.traceln "[Handler] ✅ Stats sent";
+  Flo.success "[Handler] ✅ Stats sent";
   Ok ()
 
 let handle_clearcache ctx _args =
-  Eio.traceln "[Handler] /clearcache command triggered";
+  Flo.debug "[Handler] /clearcache command triggered";
   let open Bot.Ctx in
 
   let before = ResultCache.size () in
@@ -702,11 +702,11 @@ let handle_clearcache ctx _args =
   let msg = Printf.sprintf "🗑️  Cache cleared: %d entries removed" before in
 
   let* _msg = answer ctx msg in
-  Eio.traceln "[Handler] ✅ Cache cleared: before=%d, after=%d" before after;
+  Flo.successf "[Handler] ✅ Cache cleared: before=%d, after=%d" before after;
   Ok ()
 
 let handle_inline_query ctx iq =
-  Eio.traceln "[Handler] Inline query received: query='%s', offset='%s'"
+  Flo.debugf "[Handler] Inline query received: query='%s', offset='%s'"
     iq.Telegram_generated.Gen_types.InlineQuery.query
     iq.offset;
 
@@ -719,31 +719,31 @@ let handle_inline_query ctx iq =
   let result =
     if String.starts_with ~prefix:"photo:" query then begin
       let search_query = String.sub query 6 (String.length query - 6) in
-      Eio.traceln "[Handler] Photo search mode: '%s'" search_query;
+      Flo.debugf "[Handler] Photo search mode: '%s'" search_query;
       handle_photo_search client iq search_query
     end
     else if String.starts_with ~prefix:"gif:" query then begin
       let search_query = String.sub query 4 (String.length query - 4) in
-      Eio.traceln "[Handler] GIF search mode: '%s'" search_query;
+      Flo.debugf "[Handler] GIF search mode: '%s'" search_query;
       handle_gif_search client iq search_query
     end
     else if String.starts_with ~prefix:"page:" query then begin
       let search_query = String.sub query 5 (String.length query - 5) in
-      Eio.traceln "[Handler] Paginated search mode: '%s'" search_query;
+      Flo.debugf "[Handler] Paginated search mode: '%s'" search_query;
       handle_paginated_search client iq search_query
     end
     else begin
-      Eio.traceln "[Handler] Article search mode (default)";
+      Flo.debug "[Handler] Article search mode (default)";
       handle_article_search client iq query
     end
   in
 
   match result with
   | Ok _bool ->
-      Eio.traceln "[Handler] ✅ Inline query answered successfully";
+      Flo.success "[Handler] ✅ Inline query answered successfully";
       Ok ()
   | Error err ->
-      Eio.traceln "[Handler] ❌ Error answering inline query: %a" Error.pp err;
+      Flo.errorf "[Handler] ❌ Error answering inline query: %s" (Format.asprintf "%a" Error.pp err);
       (* Return empty results on error *)
       let* _ = Telegram_generated.Gen_methods.answer_inline_query client
         ~inline_query_id:iq.id
@@ -753,110 +753,110 @@ let handle_inline_query ctx iq =
       Ok ()
 
 let handle_chosen_result _ctx chosen =
-  Eio.traceln "[Handler] Chosen result notification received";
+  Flo.debug "[Handler] Chosen result notification received";
   ChosenResults.track chosen;
   Ok ()
 
 (** {1 Build Routes} *)
 
 let build_routes bot =
-  Eio.traceln "[Builder] Registering routes...";
+  Flo.debug "[Builder] Registering routes...";
 
   let bot = bot |> Bot.command "start" handle_start in
-  Eio.traceln "[Builder] ✅ Registered /start";
+  Flo.success "[Builder] ✅ Registered /start";
 
   let bot = bot |> Bot.command "help" handle_help in
-  Eio.traceln "[Builder] ✅ Registered /help";
+  Flo.success "[Builder] ✅ Registered /help";
 
   let bot = bot |> Bot.command "stats" handle_stats in
-  Eio.traceln "[Builder] ✅ Registered /stats";
+  Flo.success "[Builder] ✅ Registered /stats";
 
   let bot = bot |> Bot.command "clearcache" handle_clearcache in
-  Eio.traceln "[Builder] ✅ Registered /clearcache";
+  Flo.success "[Builder] ✅ Registered /clearcache";
 
   (* Note: Inline query support requires complete generated types *)
   (* TODO: Uncomment when InlineQueryResult types are properly generated *)
   (* let bot = bot |> Bot.on_inline_query handle_inline_query in *)
-  (* Eio.traceln "[Builder] ✅ Registered inline_query handler"; *)
+  (* Flo.success "[Builder] ✅ Registered inline_query handler"; *)
 
   (* let bot = bot |> Bot.on_chosen_inline_result handle_chosen_result in *)
-  (* Eio.traceln "[Builder] ✅ Registered chosen_inline_result handler"; *)
+  (* Flo.success "[Builder] ✅ Registered chosen_inline_result handler"; *)
 
   let _ = (handle_inline_query, handle_chosen_result) in  (* Suppress unused warnings *)
-  Eio.traceln "[Builder] ⚠️  Inline query handlers skipped (incomplete generated types)";
+  Flo.debug "[Builder] ⚠️  Inline query handlers skipped (incomplete generated types)";
 
-  Eio.traceln "[Builder] All routes registered";
+  Flo.debug "[Builder] All routes registered";
   bot
 
 (** {1 Main Entry Point} *)
 
 let () =
   Eio_main.run @@ fun env ->
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                     Inline Query Bot                             ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
-  Eio.traceln "";
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                     Inline Query Bot                             ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.debug "";
 
   (* Phase 1: Initialize *)
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                     Phase 1: Initialize                          ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                     Phase 1: Initialize                          ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
 
   let token =
     match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t ->
-        Eio.traceln "[Init] ✅ Token loaded from environment";
+        Flo.info "[Init] ✅ Token loaded from environment";
         t
     | None ->
-        Eio.traceln "[Init] ❌ TELEGRAM_BOT_TOKEN not set";
+        Flo.info "[Init] ❌ TELEGRAM_BOT_TOKEN not set";
         failwith "TELEGRAM_BOT_TOKEN environment variable not set"
   in
 
   let telegram_client = Telegram.Client.create ~env ~token () in
-  Eio.traceln "[Init] Client created successfully";
+  Flo.info "[Init] Client created successfully";
 
   (* Phase 2: Build bot *)
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                     Phase 2: Build Bot                           ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                     Phase 2: Build Bot                           ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
 
   let bot = Bot.make ~env ~client:telegram_client in
   let bot = build_routes bot in
 
-  Eio.traceln "[Init] Bot created successfully";
+  Flo.info "[Init] Bot created successfully";
 
   (* Phase 3: Start polling *)
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                     Phase 3: Start Polling                       ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                     Phase 3: Start Polling                       ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
 
-  Eio.traceln "[Polling] Starting long polling with inline_query updates...";
-  Eio.traceln "[Polling] Bot is ready to receive updates";
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                     Bot is Ready!                                ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
-  Eio.traceln "[Polling] Waiting for inline queries...";
-  Eio.traceln "";
-  Eio.traceln "Features:";
-  Eio.traceln "  - Article search (Wikipedia-style)";
-  Eio.traceln "  - Photo search results";
-  Eio.traceln "  - GIF search results";
-  Eio.traceln "  - Client-side caching with TTL";
-  Eio.traceln "  - Server-side cache control";
-  Eio.traceln "  - Pagination for large result sets";
-  Eio.traceln "  - Inline keyboard integration";
-  Eio.traceln "  - Chosen result tracking";
-  Eio.traceln "  - Result-based error handling";
-  Eio.traceln "";
-  Eio.traceln "Usage:";
-  Eio.traceln "  - Type @yourbotname <query> in any chat";
-  Eio.traceln "  - Use 'photo:' prefix for photo search";
-  Eio.traceln "  - Use 'gif:' prefix for GIF search";
-  Eio.traceln "  - Use 'page:' prefix for paginated results";
-  Eio.traceln "";
+  Flo.info "[Polling] Starting long polling with inline_query updates...";
+  Flo.info "[Polling] Bot is ready to receive updates";
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                     Bot is Ready!                                ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.info "[Polling] Waiting for inline queries...";
+  Flo.debug "";
+  Flo.info "Features:";
+  Flo.debug "  - Article search (Wikipedia-style)";
+  Flo.debug "  - Photo search results";
+  Flo.debug "  - GIF search results";
+  Flo.debug "  - Client-side caching with TTL";
+  Flo.debug "  - Server-side cache control";
+  Flo.debug "  - Pagination for large result sets";
+  Flo.debug "  - Inline keyboard integration";
+  Flo.debug "  - Chosen result tracking";
+  Flo.debug "  - Result-based error handling";
+  Flo.debug "";
+  Flo.debug "Usage:";
+  Flo.debug "  - Type @yourbotname <query> in any chat";
+  Flo.debug "  - Use 'photo:' prefix for photo search";
+  Flo.debug "  - Use 'gif:' prefix for GIF search";
+  Flo.debug "  - Use 'page:' prefix for paginated results";
+  Flo.debug "";
 
   Bot.run bot

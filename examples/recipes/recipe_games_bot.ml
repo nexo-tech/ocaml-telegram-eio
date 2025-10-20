@@ -48,14 +48,14 @@ let expired g =
   let age = now () -. g.started_at in
   let expired = age > float_of_int g.ttl_seconds in
   if expired then
-    Eio.traceln "[Game] Game expired: id=%s, age=%.1fs, ttl=%ds" g.id age g.ttl_seconds;
+    Flo.debugf "[Game] Game expired: id=%s, age=%.1fs, ttl=%ds" g.id age g.ttl_seconds;
   expired
 
 let new_board () = Array.make 9 Empty
 
 let new_game ~id ~chat_id ~x_user_id ~o_user_id =
-  Eio.traceln "[Game] Creating new game: id=%s, x_user=%a, o_user=%s"
-    id Id.pp x_user_id (match o_user_id with Some u -> Id.to_string u | None -> "waiting");
+  Flo.debugf "[Game] Creating new game: id=%s, x_user=%s, o_user=%s"
+    id (Format.asprintf "%a" Id.pp x_user_id) (match o_user_id with Some u -> Id.to_string u | None -> "waiting");
   {
     id;
     _chat_id = chat_id;
@@ -75,10 +75,10 @@ module GameLocks = struct
   let get id =
     match Hashtbl.find_opt table id with
     | Some m ->
-        Eio.traceln "[GameLocks] Using existing lock for game: id=%s" id;
+        Flo.debugf "[GameLocks] Using existing lock for game: id=%s" id;
         m
     | None ->
-        Eio.traceln "[GameLocks] Creating new lock for game: id=%s" id;
+        Flo.debugf "[GameLocks] Creating new lock for game: id=%s" id;
         let m = Eio.Mutex.create () in
         Hashtbl.replace table id m;
         m
@@ -86,7 +86,7 @@ module GameLocks = struct
   let _cleanup () =
     let count = Hashtbl.length table in
     if count > 0 then
-      Eio.traceln "[GameLocks] Active locks: %d" count
+      Flo.debugf "[GameLocks] Active locks: %d" count
 end
 
 (** {1 Game Logic} *)
@@ -111,7 +111,7 @@ module GameLogic = struct
       let l = win_lines.(i) in
       match check b.(l.(0)) b.(l.(1)) b.(l.(2)) with
       | Some w ->
-          Eio.traceln "[GameLogic] Winner found: %s on line %d"
+          Flo.debugf "[GameLogic] Winner found: %s on line %d"
             (match w with X -> "X" | O -> "O" | Empty -> "Empty") i;
           result := Some w
       | None -> ()
@@ -121,7 +121,7 @@ module GameLogic = struct
   let board_full b =
     let full = Array.for_all (function Empty -> false | _ -> true) b in
     if full then
-      Eio.traceln "[GameLogic] Board is full";
+      Flo.debug "[GameLogic] Board is full";
     full
 
   let mark_of_player = function
@@ -138,42 +138,42 @@ module GameLogic = struct
     | O -> "O"
 
   let handle_move (g : game_state) user_id idx : (game_state * [ `Continue | `Win of cell | `Draw ]) option =
-    Eio.traceln "[GameLogic] Processing move: game=%s, user=%a, idx=%d" g.id Id.pp user_id idx;
+    Flo.debugf "[GameLogic] Processing move: game=%s, user=%s, idx=%d" g.id (Format.asprintf "%a" Id.pp user_id) idx;
 
     if idx < 0 || idx > 8 then begin
-      Eio.traceln "[GameLogic] ❌ Invalid index: %d" idx;
+      Flo.errorf "[GameLogic] ❌ Invalid index: %d" idx;
       None
     end else if Option.is_none g.o_user_id then begin
-      Eio.traceln "[GameLogic] ❌ Game not started, waiting for O player";
+      Flo.error "[GameLogic] ❌ Game not started, waiting for O player";
       None
     end else begin
       let expected_user = match g.turn with Xp -> g.x_user_id | Op -> Option.get g.o_user_id in
       if Id.to_string user_id <> Id.to_string expected_user then begin
-        Eio.traceln "[GameLogic] ❌ Wrong player: expected=%a, got=%a" Id.pp expected_user Id.pp user_id;
+        Flo.errorf "[GameLogic] ❌ Wrong player: expected=%s, got=%s" (Format.asprintf "%a" Id.pp expected_user) (Format.asprintf "%a" Id.pp user_id);
         None
       end else begin
         match g.board.(idx) with
         | X | O ->
-            Eio.traceln "[GameLogic] ❌ Cell already occupied: idx=%d, cell=%s"
+            Flo.errorf "[GameLogic] ❌ Cell already occupied: idx=%d, cell=%s"
               idx (cell_name g.board.(idx));
             None
         | Empty ->
             let mark = mark_of_player g.turn in
             g.board.(idx) <- mark;
-            Eio.traceln "[GameLogic] ✅ Move made: player=%s, idx=%d, mark=%s"
+            Flo.successf "[GameLogic] ✅ Move made: player=%s, idx=%d, mark=%s"
               (player_name g.turn) idx (cell_name mark);
 
             match winner g.board with
             | Some w ->
-                Eio.traceln "[GameLogic] 🏆 Game won by: %s" (cell_name w);
+                Flo.debugf "[GameLogic] 🏆 Game won by: %s" (cell_name w);
                 Some (g, `Win w)
             | None ->
                 if board_full g.board then begin
-                  Eio.traceln "[GameLogic] 🤝 Game drawn";
+                  Flo.debug "[GameLogic] 🤝 Game drawn";
                   Some (g, `Draw)
                 end else begin
                   let next_turn = match g.turn with Xp -> Op | Op -> Xp in
-                  Eio.traceln "[GameLogic] ➡️  Turn switches to: %s" (player_name next_turn);
+                  Flo.debugf "[GameLogic] ➡️  Turn switches to: %s" (player_name next_turn);
                   Some ({ g with turn = next_turn }, `Continue)
                 end
       end
@@ -195,39 +195,39 @@ module Scoreboard = struct
     let key = Id.to_string user_id in
     match Hashtbl.find_opt table key with
     | Some e ->
-        Eio.traceln "[Scoreboard] Found entry for user %s: W:%d D:%d L:%d"
+        Flo.debugf "[Scoreboard] Found entry for user %s: W:%d D:%d L:%d"
           key e.wins e.draws e.losses;
         e
     | None ->
-        Eio.traceln "[Scoreboard] New user %s" key;
+        Flo.debugf "[Scoreboard] New user %s" key;
         { wins = 0; draws = 0; losses = 0 }
 
   let set user_id e =
     let key = Id.to_string user_id in
     Hashtbl.replace table key e;
-    Eio.traceln "[Scoreboard] Updated user %s: W:%d D:%d L:%d"
+    Flo.debugf "[Scoreboard] Updated user %s: W:%d D:%d L:%d"
       key e.wins e.draws e.losses
 
   let record_win ~winner ~loser =
-    Eio.traceln "[Scoreboard] Recording win: winner=%a, loser=%a" Id.pp winner Id.pp loser;
+    Flo.debugf "[Scoreboard] Recording win: winner=%s, loser=%s" (Format.asprintf "%a" Id.pp winner) (Format.asprintf "%a" Id.pp loser);
     let w = get winner in
     let l = get loser in
     set winner { w with wins = w.wins + 1 };
     set loser { l with losses = l.losses + 1 }
 
   let record_draw ~x ~o =
-    Eio.traceln "[Scoreboard] Recording draw: x=%a, o=%a" Id.pp x Id.pp o;
+    Flo.debugf "[Scoreboard] Recording draw: x=%s, o=%s" (Format.asprintf "%a" Id.pp x) (Format.asprintf "%a" Id.pp o);
     let a = get x in
     let b = get o in
     set x { a with draws = a.draws + 1 };
     set o { b with draws = b.draws + 1 }
 
   let top_n n =
-    Eio.traceln "[Scoreboard] Getting top %d players" n;
+    Flo.debugf "[Scoreboard] Getting top %d players" n;
     let players = Hashtbl.to_seq table |> List.of_seq in
     let sorted = List.sort (fun (_, a) (_, b) -> compare b.wins a.wins) players in
     let top = List.filteri (fun i _ -> i < n) sorted in
-    Eio.traceln "[Scoreboard] Found %d players in top list" (List.length top);
+    Flo.debugf "[Scoreboard] Found %d players in top list" (List.length top);
     top
 
   let format_leaderboard entries =
@@ -256,7 +256,7 @@ module BoardRenderer = struct
     | O -> "⭕"
 
   let render_keyboard (g : game_state) =
-    Eio.traceln "[BoardRenderer] Rendering keyboard for game: id=%s" g.id;
+    Flo.debugf "[BoardRenderer] Rendering keyboard for game: id=%s" g.id;
 
     let open Telegram_generated.Gen_types in
     let rows =
@@ -304,19 +304,19 @@ module BoardRenderer = struct
   let serialize_keyboard keyboard =
     let open Telegram_generated.Gen_types in
     let json = Yojson.Safe.to_string (InlineKeyboardMarkup.to_yojson keyboard) in
-    Eio.traceln "[BoardRenderer] Serialized keyboard: %d bytes" (String.length json);
+    Flo.debugf "[BoardRenderer] Serialized keyboard: %d bytes" (String.length json);
     json
 end
 
 (** {1 Command Handlers} *)
 
 let handle_start ctx _args =
-  Eio.traceln "[Handler] /start command triggered";
+  Flo.debug "[Handler] /start command triggered";
   let open Bot.Ctx in
 
   let* user = require_user ctx in
-  Eio.traceln "[Handler] User: id=%a, username=%s"
-    Id.pp user.id
+  Flo.debugf "[Handler] User: id=%s, username=%s"
+    (Format.asprintf "%a" Id.pp user.id)
     (match user.username with Some u -> u | None -> "none");
 
   let welcome_text =
@@ -335,11 +335,11 @@ let handle_start ctx _args =
   in
 
   let* _msg = answer ctx welcome_text in
-  Eio.traceln "[Handler] ✅ Welcome message sent";
+  Flo.success "[Handler] ✅ Welcome message sent";
   Ok ()
 
 let handle_new ctx _args =
-  Eio.traceln "[Handler] /new command triggered";
+  Flo.debug "[Handler] /new command triggered";
   let open Bot.Ctx in
 
   let* user = require_user ctx in
@@ -348,7 +348,7 @@ let handle_new ctx _args =
   (* Generate game ID *)
   let game_id = Printf.sprintf "ttt_%d_%f" (Random.int 1000000) (Unix.time ()) in
 
-  Eio.traceln "[Handler] Creating new game: game_id=%s, creator=%a" game_id Id.pp user.id;
+  Flo.debugf "[Handler] Creating new game: game_id=%s, creator=%s" game_id (Format.asprintf "%a" Id.pp user.id);
 
   (* Create game state with creator as X, waiting for O *)
   let game = new_game ~id:game_id ~chat_id ~x_user_id:user.id ~o_user_id:None in
@@ -372,11 +372,11 @@ let handle_new ctx _args =
   in
 
   let* _msg = send ctx game_text ~keyboard:[[join_button]] in
-  Eio.traceln "[Handler] ✅ New game created, waiting for O player";
+  Flo.success "[Handler] ✅ New game created, waiting for O player";
   Ok ()
 
 let handle_stats ctx _args =
-  Eio.traceln "[Handler] /stats command triggered";
+  Flo.debug "[Handler] /stats command triggered";
   let open Bot.Ctx in
 
   let* user = require_user ctx in
@@ -402,22 +402,22 @@ let handle_stats ctx _args =
   in
 
   let* _msg = answer ctx stats_text in
-  Eio.traceln "[Handler] ✅ Stats sent";
+  Flo.success "[Handler] ✅ Stats sent";
   Ok ()
 
 let handle_leaderboard ctx _args =
-  Eio.traceln "[Handler] /leaderboard command triggered";
+  Flo.debug "[Handler] /leaderboard command triggered";
   let open Bot.Ctx in
 
   let top_players = Scoreboard.top_n 10 in
   let leaderboard_text = Scoreboard.format_leaderboard top_players in
 
   let* _msg = answer ctx leaderboard_text in
-  Eio.traceln "[Handler] ✅ Leaderboard sent: %d players" (List.length top_players);
+  Flo.successf "[Handler] ✅ Leaderboard sent: %d players" (List.length top_players);
   Ok ()
 
 let handle_help ctx _args =
-  Eio.traceln "[Handler] /help command triggered";
+  Flo.debug "[Handler] /help command triggered";
   let open Bot.Ctx in
 
   let help_text =
@@ -444,13 +444,13 @@ let handle_help ctx _args =
   in
 
   let* _msg = answer ctx help_text in
-  Eio.traceln "[Handler] ✅ Help sent";
+  Flo.success "[Handler] ✅ Help sent";
   Ok ()
 
 (** {1 Callback Handlers} *)
 
 let handle_join ctx callback_query =
-  Eio.traceln "[Handler] Processing join callback";
+  Flo.debug "[Handler] Processing join callback";
   let open Bot.Ctx in
 
   let data = Option.value ~default:"" callback_query.Telegram_generated.Gen_types.CallbackQuery.data in
@@ -459,14 +459,14 @@ let handle_join ctx callback_query =
     Ok ()
   else begin
     let game_id = String.sub data 9 (String.length data - 9) in
-    Eio.traceln "[Handler] Join request for game: game_id=%s" game_id;
+    Flo.debugf "[Handler] Join request for game: game_id=%s" game_id;
 
     let* user = require_user ctx in
     let chat_id = chat ctx in
 
     match session_get ctx game_key with
     | None ->
-        Eio.traceln "[Handler] ❌ No game found in session";
+        Flo.error "[Handler] ❌ No game found in session";
         let client = client ctx in
         let* _result = Telegram_generated.Gen_methods.answer_callback_query client
           ~callback_query_id:callback_query.id
@@ -476,7 +476,7 @@ let handle_join ctx callback_query =
         in
         Ok ()
     | Some game when game.id <> game_id ->
-        Eio.traceln "[Handler] ❌ Wrong game: expected=%s, got=%s" game.id game_id;
+        Flo.errorf "[Handler] ❌ Wrong game: expected=%s, got=%s" game.id game_id;
         let client = client ctx in
         let* _result = Telegram_generated.Gen_methods.answer_callback_query client
           ~callback_query_id:callback_query.id
@@ -485,7 +485,7 @@ let handle_join ctx callback_query =
         in
         Ok ()
     | Some game when Option.is_some game.o_user_id ->
-        Eio.traceln "[Handler] ❌ Game already has O player";
+        Flo.error "[Handler] ❌ Game already has O player";
         let client = client ctx in
         let* _result = Telegram_generated.Gen_methods.answer_callback_query client
           ~callback_query_id:callback_query.id
@@ -494,7 +494,7 @@ let handle_join ctx callback_query =
         in
         Ok ()
     | Some game when Id.to_string game.x_user_id = Id.to_string user.id ->
-        Eio.traceln "[Handler] ❌ Creator cannot join as O";
+        Flo.error "[Handler] ❌ Creator cannot join as O";
         let client = client ctx in
         let* _result = Telegram_generated.Gen_methods.answer_callback_query client
           ~callback_query_id:callback_query.id
@@ -503,7 +503,7 @@ let handle_join ctx callback_query =
         in
         Ok ()
     | Some game ->
-        Eio.traceln "[Handler] ✅ Player joining as O: user_id=%a" Id.pp user.id;
+        Flo.successf "[Handler] ✅ Player joining as O: user_id=%s" (Format.asprintf "%a" Id.pp user.id);
 
         (* Update game with O player *)
         let game' = { game with o_user_id = Some user.id } in
@@ -529,12 +529,12 @@ let handle_join ctx callback_query =
           ()
         in
 
-        Eio.traceln "[Handler] ✅ Game started";
+        Flo.success "[Handler] ✅ Game started";
         Ok ()
   end
 
 let handle_move ctx callback_query =
-  Eio.traceln "[Handler] Processing move callback";
+  Flo.debug "[Handler] Processing move callback";
   let open Bot.Ctx in
 
   let data = Option.value ~default:"" callback_query.Telegram_generated.Gen_types.CallbackQuery.data in
@@ -546,7 +546,7 @@ let handle_move ctx callback_query =
   else begin
     match String.split_on_char ':' data with
     | ["ttt"; game_id; idx_str] ->
-        Eio.traceln "[Handler] Move attempt: game_id=%s, idx=%s" game_id idx_str;
+        Flo.debugf "[Handler] Move attempt: game_id=%s, idx=%s" game_id idx_str;
 
         let* user = require_user ctx in
         let client = client ctx in
@@ -554,7 +554,7 @@ let handle_move ctx callback_query =
 
         (match session_get ctx game_key with
          | None ->
-             Eio.traceln "[Handler] ❌ No active game";
+             Flo.error "[Handler] ❌ No active game";
              let* _result = Telegram_generated.Gen_methods.answer_callback_query client
                ~callback_query_id:callback_query.id
                ~text:"No active game"
@@ -562,7 +562,7 @@ let handle_move ctx callback_query =
              in
              Ok ()
          | Some game when game.id <> game_id ->
-             Eio.traceln "[Handler] ❌ Wrong game";
+             Flo.error "[Handler] ❌ Wrong game";
              let* _result = Telegram_generated.Gen_methods.answer_callback_query client
                ~callback_query_id:callback_query.id
                ~text:"Wrong game"
@@ -570,7 +570,7 @@ let handle_move ctx callback_query =
              in
              Ok ()
          | Some game when expired game ->
-             Eio.traceln "[Handler] ❌ Game expired";
+             Flo.error "[Handler] ❌ Game expired";
              session_delete ctx game_key;
              let* _result = Telegram_generated.Gen_methods.answer_callback_query client
                ~callback_query_id:callback_query.id
@@ -584,7 +584,7 @@ let handle_move ctx callback_query =
              Eio.Mutex.use_rw ~protect:true lock (fun () ->
                match GameLogic.handle_move game user.id (int_of_string idx_str) with
                | None ->
-                   Eio.traceln "[Handler] ❌ Invalid move";
+                   Flo.error "[Handler] ❌ Invalid move";
                    let* _result = Telegram_generated.Gen_methods.answer_callback_query client
                      ~callback_query_id:callback_query.id
                      ~text:"Invalid move"
@@ -592,7 +592,7 @@ let handle_move ctx callback_query =
                    in
                    Ok ()
                | Some (game', `Continue) ->
-                   Eio.traceln "[Handler] ✅ Move processed, game continues";
+                   Flo.success "[Handler] ✅ Move processed, game continues";
                    session_set ctx game_key game';
 
                    (* Update board *)
@@ -623,7 +623,7 @@ let handle_move ctx callback_query =
                      | Empty -> failwith "Empty cell cannot win"
                    in
 
-                   Eio.traceln "[Handler] 🏆 Game won by user: %a" Id.pp winner_user;
+                   Flo.debugf "[Handler] 🏆 Game won by user: %s" (Format.asprintf "%a" Id.pp winner_user);
                    session_delete ctx game_key;
 
                    (* Record win *)
@@ -645,10 +645,10 @@ let handle_move ctx callback_query =
                      ()
                    in
 
-                   Eio.traceln "[Handler] ✅ Win recorded";
+                   Flo.success "[Handler] ✅ Win recorded";
                    Ok ()
                | Some (game', `Draw) ->
-                   Eio.traceln "[Handler] 🤝 Game drawn";
+                   Flo.debug "[Handler] 🤝 Game drawn";
                    session_delete ctx game_key;
 
                    (* Record draw *)
@@ -668,21 +668,21 @@ let handle_move ctx callback_query =
                      ()
                    in
 
-                   Eio.traceln "[Handler] ✅ Draw recorded";
+                   Flo.success "[Handler] ✅ Draw recorded";
                    Ok ()
              )
         )
     | _ ->
-        Eio.traceln "[Handler] ⚠️  Malformed callback data: %s" data;
+        Flo.debugf "[Handler] ⚠️  Malformed callback data: %s" data;
         Ok ()
   end
 
 let handle_callback_events ctx update =
-  Eio.traceln "[Handler] Checking for callback query";
+  Flo.debug "[Handler] Checking for callback query";
 
   match update.Telegram_generated.Gen_types.Update.callback_query with
   | Some cq ->
-      Eio.traceln "[Handler] Callback query received: query_id=%s" cq.id;
+      Flo.debugf "[Handler] Callback query received: query_id=%s" cq.id;
       let data = Option.value ~default:"" cq.data in
 
       if String.starts_with ~prefix:"ttt:join:" data then
@@ -697,93 +697,93 @@ let handle_callback_events ctx update =
 (** {1 Build Routes} *)
 
 let build_routes bot =
-  Eio.traceln "[Builder] Registering routes...";
+  Flo.debug "[Builder] Registering routes...";
 
   let bot = bot |> Bot.command "start" handle_start in
-  Eio.traceln "[Builder] ✅ Registered /start";
+  Flo.success "[Builder] ✅ Registered /start";
 
   let bot = bot |> Bot.command "new" handle_new in
-  Eio.traceln "[Builder] ✅ Registered /new";
+  Flo.success "[Builder] ✅ Registered /new";
 
   let bot = bot |> Bot.command "stats" handle_stats in
-  Eio.traceln "[Builder] ✅ Registered /stats";
+  Flo.success "[Builder] ✅ Registered /stats";
 
   let bot = bot |> Bot.command "leaderboard" handle_leaderboard in
-  Eio.traceln "[Builder] ✅ Registered /leaderboard";
+  Flo.success "[Builder] ✅ Registered /leaderboard";
 
   let bot = bot |> Bot.command "help" handle_help in
-  Eio.traceln "[Builder] ✅ Registered /help";
+  Flo.success "[Builder] ✅ Registered /help";
 
   (* Register callback handler *)
   let bot = bot |> Bot.on Bot.Event.any handle_callback_events in
-  Eio.traceln "[Builder] ✅ Registered callback event handler";
+  Flo.success "[Builder] ✅ Registered callback event handler";
 
-  Eio.traceln "[Builder] All routes registered";
+  Flo.debug "[Builder] All routes registered";
   bot
 
 (** {1 Main Entry Point} *)
 
 let () =
   Eio_main.run @@ fun env ->
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                     Tic-Tac-Toe Bot                              ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
-  Eio.traceln "";
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                     Tic-Tac-Toe Bot                              ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.debug "";
 
   (* Phase 1: Initialize *)
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                     Phase 1: Initialize                          ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                     Phase 1: Initialize                          ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
 
   let token =
     match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t ->
-        Eio.traceln "[Init] ✅ Token loaded from environment";
+        Flo.info "[Init] ✅ Token loaded from environment";
         t
     | None ->
-        Eio.traceln "[Init] ❌ TELEGRAM_BOT_TOKEN not set";
+        Flo.info "[Init] ❌ TELEGRAM_BOT_TOKEN not set";
         failwith "TELEGRAM_BOT_TOKEN environment variable not set"
   in
 
   let telegram_client = Telegram.Client.create ~env ~token () in
-  Eio.traceln "[Init] Client created successfully";
+  Flo.info "[Init] Client created successfully";
 
   (* Phase 2: Build bot *)
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                     Phase 2: Build Bot                           ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                     Phase 2: Build Bot                           ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
 
   let bot = Bot.make ~env ~client:telegram_client in
   let bot = build_routes bot in
 
-  Eio.traceln "[Init] Bot created successfully";
+  Flo.info "[Init] Bot created successfully";
 
   (* Phase 3: Start polling *)
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                     Phase 3: Start Polling                       ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                     Phase 3: Start Polling                       ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
 
-  Eio.traceln "[Polling] Starting long polling...";
-  Eio.traceln "[Polling] Bot is ready to receive updates";
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                     Bot is Ready!                                ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
-  Eio.traceln "[Polling] Waiting for messages...";
-  Eio.traceln "";
-  Eio.traceln "Features:";
-  Eio.traceln "  - Turn-based Tic-Tac-Toe gameplay";
-  Eio.traceln "  - Inline keyboard UI (3x3 grid)";
-  Eio.traceln "  - Player management (join, turns, validation)";
-  Eio.traceln "  - Win/draw/loss detection";
-  Eio.traceln "  - Scoreboard and leaderboard";
-  Eio.traceln "  - Game expiration (30 min TTL)";
-  Eio.traceln "  - Per-game locking for thread safety";
-  Eio.traceln "  - Session-based game state";
-  Eio.traceln "  - Result-based error handling";
-  Eio.traceln "";
+  Flo.info "[Polling] Starting long polling...";
+  Flo.info "[Polling] Bot is ready to receive updates";
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                     Bot is Ready!                                ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.info "[Polling] Waiting for messages...";
+  Flo.debug "";
+  Flo.info "Features:";
+  Flo.debug "  - Turn-based Tic-Tac-Toe gameplay";
+  Flo.debug "  - Inline keyboard UI (3x3 grid)";
+  Flo.debug "  - Player management (join, turns, validation)";
+  Flo.debug "  - Win/draw/loss detection";
+  Flo.debug "  - Scoreboard and leaderboard";
+  Flo.debug "  - Game expiration (30 min TTL)";
+  Flo.debug "  - Per-game locking for thread safety";
+  Flo.debug "  - Session-based game state";
+  Flo.debug "  - Result-based error handling";
+  Flo.debug "";
 
   Bot.run bot

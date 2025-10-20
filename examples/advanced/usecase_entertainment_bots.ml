@@ -86,7 +86,7 @@ module QuestionBank = struct
 
   let pick_random () =
     let q = List.nth questions (Random.int (List.length questions)) in
-    Eio.traceln "[QuestionBank] Selected question: %s" q.id;
+    Flo.debugf "[QuestionBank] Selected question: %s" q.id;
     q
 
   let find_by_id id =
@@ -108,7 +108,7 @@ module Facts = struct
 
   let random () =
     let fact = List.nth facts (Random.int (List.length facts)) in
-    Eio.traceln "[Facts] Selected fact (index %d/%d)" (Random.int (List.length facts)) (List.length facts);
+    Flo.debugf "[Facts] Selected fact (index %d/%d)" (Random.int (List.length facts)) (List.length facts);
     fact
 end
 
@@ -125,7 +125,7 @@ module Jokes = struct
 
   let random () =
     let joke = List.nth jokes (Random.int (List.length jokes)) in
-    Eio.traceln "[Jokes] Selected joke (index %d/%d)" (Random.int (List.length jokes)) (List.length jokes);
+    Flo.debugf "[Jokes] Selected joke (index %d/%d)" (Random.int (List.length jokes)) (List.length jokes);
     joke
 end
 
@@ -155,7 +155,7 @@ module Leaderboard = struct
   let scores : (int64, string * int) Hashtbl.t = Hashtbl.create 100
 
   let update_score user_id username score =
-    Eio.traceln "[Leaderboard] Updating score: %Ld (%s) = %d" user_id username score;
+    Flo.debugf "[Leaderboard] Updating score: %Ld (%s) = %d" user_id username score;
     Hashtbl.replace scores user_id (username, score)
 
   let top_n n =
@@ -190,7 +190,7 @@ let riddle_answer_key = Session.make ~name:"riddle_answer"
 let () =
   Printexc.record_backtrace true;
   Random.self_init ();
-  Eio.traceln "=== Entertainment Bots Demo Starting ===";
+  Flo.info "=== Entertainment Bots Demo Starting ===";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t -> t
@@ -200,10 +200,10 @@ let () =
   Eio_main.run @@ fun env ->
   let client = Client.create ~env ~token () in
 
-  Eio.traceln "🤖 Entertainment Bots Demo Started";
-  Eio.traceln "Question bank: %d questions" (List.length QuestionBank.questions);
-  Eio.traceln "Fact bank: %d facts" (List.length Facts.facts);
-  Eio.traceln "Joke bank: %d jokes" (List.length Jokes.jokes);
+  Flo.info "🤖 Entertainment Bots Demo Started";
+  Flo.debugf "Question bank: %d questions" (List.length QuestionBank.questions);
+  Flo.debugf "Fact bank: %d facts" (List.length Facts.facts);
+  Flo.debugf "Joke bank: %d jokes" (List.length Jokes.jokes);
 
   let session_store = Session.Memory_store.create () in
 
@@ -213,7 +213,7 @@ let () =
   (* /start - Main menu *)
   |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/start] Showing main menu";
+      Flo.debug "[/start] Showing main menu";
 
       let keyboard = KB.inline [
         [KB.callback ~text:"❓ Start Quiz" ~data:"action:quiz"];
@@ -235,14 +235,14 @@ let () =
       in
 
       match send ~keyboard ctx text with
-      | Ok _ -> Eio.traceln "[/start] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/start] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/start] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/start] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /quiz - Start quiz *)
   |> Bot.command "quiz" ~desc:"Start quiz" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/quiz] Starting quiz";
+      Flo.debug "[/quiz] Starting quiz";
 
       let question = QuestionBank.pick_random () in
 
@@ -267,8 +267,8 @@ let () =
       let text = Printf.sprintf "❓ <b>Quiz Question</b>\n\n%s" question.text in
 
       match send ~keyboard ctx text with
-      | Ok _ -> Eio.traceln "[/quiz] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/quiz] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/quiz] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/quiz] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Handle quiz answers *)
@@ -279,23 +279,23 @@ let () =
         let parts = String.split_on_char ':' data in
         match parts with
         | ["quiz"; "answer"; qid; idx_str] ->
-            Eio.traceln "[quiz:answer] Question: %s, Answer: %s" qid idx_str;
+            Flo.debugf "[quiz:answer] Question: %s, Answer: %s" qid idx_str;
 
             let selected_idx = int_of_string idx_str in
 
             (match session_get ctx quiz_state_key with
              | None ->
-                 Eio.traceln "[quiz:answer] No quiz state, use /quiz to start";
+                 Flo.debug "[quiz:answer] No quiz state, use /quiz to start";
                  Ok ()
 
              | Some state when state.current_question_id <> qid ->
-                 Eio.traceln "[quiz:answer] Stale question (expected %s, got %s)"
+                 Flo.debugf "[quiz:answer] Stale question (expected %s, got %s)"
                    state.current_question_id qid;
                  Ok ()
 
              | Some state ->
                  let is_correct = selected_idx = state.correct_index in
-                 let () = Eio.traceln "[quiz:answer] Answer %s (correct=%d, selected=%d)"
+                 let () = Flo.debugf "[quiz:answer] Answer %s (correct=%d, selected=%d)"
                    (if is_correct then "CORRECT" else "WRONG")
                    state.correct_index selected_idx in
 
@@ -358,8 +358,8 @@ let () =
                  in
 
                  (match edit ~keyboard ctx full_text with
-                  | Ok () -> Eio.traceln "[quiz:answer] ✓"; Ok ()
-                  | Error e -> Eio.traceln "[quiz:answer] ✗ %a" Error.pp e; Ok ())
+                  | Ok () -> Flo.debug "[quiz:answer] ✓"; Ok ()
+                  | Error e -> Flo.debugf "[quiz:answer] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
             )
 
         | _ -> Ok ()
@@ -369,13 +369,13 @@ let () =
   (* /score - Show current score *)
   |> Bot.command "score" ~desc:"Show your quiz score" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/score] Showing score";
+      Flo.debug "[/score] Showing score";
 
       match session_get ctx quiz_state_key with
       | None ->
           (match reply ctx "No active quiz. Use /quiz to start!" with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/score] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/score] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | Some state ->
           let text = Printf.sprintf
@@ -391,50 +391,50 @@ let () =
           in
 
           (match reply ctx text with
-           | Ok _ -> Eio.traceln "[/score] ✓"; Ok ()
-           | Error e -> Eio.traceln "[/score] ✗ %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[/score] ✓"; Ok ()
+           | Error e -> Flo.debugf "[/score] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
     )
 
   (* /leaderboard - Show top scores *)
   |> Bot.command "leaderboard" ~desc:"Show top scorers" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/leaderboard] Showing leaderboard";
+      Flo.debug "[/leaderboard] Showing leaderboard";
 
       let leaderboard_text = Leaderboard.format_leaderboard 10 in
 
       match reply ctx leaderboard_text with
-      | Ok _ -> Eio.traceln "[/leaderboard] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/leaderboard] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/leaderboard] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/leaderboard] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /fact - Random fact *)
   |> Bot.command "fact" ~desc:"Random interesting fact" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/fact] Generating random fact";
+      Flo.debug "[/fact] Generating random fact";
 
       let fact = Facts.random () in
 
       match reply ctx fact with
-      | Ok _ -> Eio.traceln "[/fact] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/fact] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/fact] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/fact] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /joke - Random joke *)
   |> Bot.command "joke" ~desc:"Random joke" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/joke] Generating random joke";
+      Flo.debug "[/joke] Generating random joke";
 
       let joke = Jokes.random () in
 
       match reply ctx ("😄 " ^ joke) with
-      | Ok _ -> Eio.traceln "[/joke] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/joke] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/joke] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/joke] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /riddle - Random riddle *)
   |> Bot.command "riddle" ~desc:"Random riddle" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/riddle] Generating random riddle";
+      Flo.debug "[/riddle] Generating random riddle";
 
       let riddle = Riddles.random () in
 
@@ -448,14 +448,14 @@ let () =
       let text = Printf.sprintf "🧩 <b>Riddle</b>\n\n%s" riddle.question in
 
       match send ~keyboard ctx text with
-      | Ok _ -> Eio.traceln "[/riddle] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/riddle] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/riddle] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/riddle] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /reset_score - Reset score *)
   |> Bot.command "reset_score" ~desc:"Reset your score" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/reset_score] Resetting score";
+      Flo.debug "[/reset_score] Resetting score";
 
       session_delete ctx quiz_state_key;
 
@@ -464,8 +464,8 @@ let () =
          Your quiz progress has been cleared.\n\
          Use /quiz to start fresh."
       with
-      | Ok _ -> Eio.traceln "[/reset_score] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/reset_score] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/reset_score] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/reset_score] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: action:quiz *)
@@ -492,7 +492,7 @@ let () =
 
       match edit ~keyboard ctx (Printf.sprintf "❓ <b>Quiz Question</b>\n\n%s" question.text) with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[action:quiz] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[action:quiz] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: action:fact *)
@@ -501,7 +501,7 @@ let () =
       let fact = Facts.random () in
       match edit ctx fact with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[action:fact] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[action:fact] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: action:joke *)
@@ -510,7 +510,7 @@ let () =
       let joke = Jokes.random () in
       match edit ctx ("😄 " ^ joke) with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[action:joke] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[action:joke] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: action:riddle *)
@@ -526,7 +526,7 @@ let () =
 
       match edit ~keyboard ctx (Printf.sprintf "🧩 <b>Riddle</b>\n\n%s" riddle.question) with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[action:riddle] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[action:riddle] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: action:leaderboard *)
@@ -535,24 +535,24 @@ let () =
       let leaderboard_text = Leaderboard.format_leaderboard 10 in
       match edit ctx leaderboard_text with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[action:leaderboard] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[action:leaderboard] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: riddle:answer *)
   |> Bot.on_callback_data "riddle:answer" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[riddle:answer] Showing riddle answer";
+      Flo.debug "[riddle:answer] Showing riddle answer";
 
       match session_get ctx riddle_answer_key with
       | Some answer ->
           let text = Printf.sprintf "🧩 <b>Answer</b>\n\n%s" answer in
           (match edit ctx text with
            | Ok () -> Ok ()
-           | Error e -> Eio.traceln "[riddle:answer] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[riddle:answer] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
       | None ->
           (match edit ctx "No riddle in progress. Use /riddle to start!" with
            | Ok () -> Ok ()
-           | Error e -> Eio.traceln "[riddle:answer] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[riddle:answer] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
     )
 
   |> Bot.run

@@ -34,7 +34,7 @@ module KB = Keyboard
 
 let () =
   Printexc.record_backtrace true;
-  Eio.traceln "=== Keyboard API Demo Starting ===";
+  Flo.info "=== Keyboard API Demo Starting ===";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t -> t
@@ -44,7 +44,7 @@ let () =
   Eio_main.run @@ fun env ->
   let client = Client.create ~env ~token () in
 
-  Eio.traceln "🤖 Keyboard Demo Bot Started";
+  Flo.info "🤖 Keyboard Demo Bot Started";
 
   let session_store = Session.Memory_store.create () in
 
@@ -54,7 +54,7 @@ let () =
   (* /start - Main menu *)
   |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/start] Showing main menu";
+      Flo.debug "[/start] Showing main menu";
 
       let keyboard = KB.inline [
         [KB.callback ~text:"📝 Basic Inline" ~data:"demo:inline_basic"];
@@ -65,14 +65,14 @@ let () =
       ] in
 
       match send ~keyboard ctx "🎹 Keyboard API Demo\n\nChoose a demonstration:" with
-      | Ok _ -> Eio.traceln "[/start] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/start] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/start] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/start] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: demo:inline_basic *)
   |> Bot.on_callback_data "demo:inline_basic" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[inline_basic] Demonstrating basic inline keyboard";
+      Flo.debug "[inline_basic] Demonstrating basic inline keyboard";
 
       (* Basic inline keyboard with callback buttons *)
       let keyboard = KB.inline [
@@ -87,14 +87,14 @@ let () =
          This keyboard has simple callback buttons.\n\
          Each button sends a callback query when pressed."
       with
-      | Ok () -> Eio.traceln "[inline_basic] ✓"; Ok ()
-      | Error e -> Eio.traceln "[inline_basic] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[inline_basic] ✓"; Ok ()
+      | Error e -> Flo.debugf "[inline_basic] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: demo:inline_url *)
   |> Bot.on_callback_data "demo:inline_url" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[inline_url] Demonstrating URL buttons";
+      Flo.debug "[inline_url] Demonstrating URL buttons";
 
       (* Inline keyboard with URL buttons *)
       let keyboard = KB.inline [
@@ -109,14 +109,14 @@ let () =
          URL buttons open links in the browser.\n\
          You can mix callback and URL buttons."
       with
-      | Ok () -> Eio.traceln "[inline_url] ✓"; Ok ()
-      | Error e -> Eio.traceln "[inline_url] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[inline_url] ✓"; Ok ()
+      | Error e -> Flo.debugf "[inline_url] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: demo:layouts *)
   |> Bot.on_callback_data "demo:layouts" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[layouts] Demonstrating layout helpers";
+      Flo.debug "[layouts] Demonstrating layout helpers";
 
       (* Grid layout: 3 columns *)
       let grid_buttons = ["1"; "2"; "3"; "4"; "5"; "6"; "7"; "8"; "9"]
@@ -131,14 +131,14 @@ let () =
         "🎯 Layout: Grid (3 columns)\n\n\
          Use KB.Layout.grid ~columns:3 to arrange buttons in a grid."
       with
-      | Ok () -> Eio.traceln "[layouts] Grid shown ✓"; Ok ()
-      | Error e -> Eio.traceln "[layouts] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[layouts] Grid shown ✓"; Ok ()
+      | Error e -> Flo.debugf "[layouts] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: demo:patterns *)
   |> Bot.on_callback_data "demo:patterns" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[patterns] Demonstrating common patterns";
+      Flo.debug "[patterns] Demonstrating common patterns";
 
       (* Yes/No pattern *)
       let keyboard = KB.Patterns.yes_no
@@ -152,14 +152,14 @@ let () =
          Use KB.Patterns.yes_no for confirmation dialogs.\n\n\
          Do you want to see more patterns?"
       with
-      | Ok () -> Eio.traceln "[patterns] Yes/No shown ✓"; Ok ()
-      | Error e -> Eio.traceln "[patterns] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[patterns] Yes/No shown ✓"; Ok ()
+      | Error e -> Flo.debugf "[patterns] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: answer:yes *)
   |> Bot.on_callback_data "answer:yes" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[answer:yes] User chose yes, showing confirm pattern";
+      Flo.debug "[answer:yes] User chose yes, showing confirm pattern";
 
       (* Confirmation pattern *)
       let keyboard = KB.Patterns.confirm
@@ -173,26 +173,26 @@ let () =
          KB.Patterns.confirm provides Confirm/Cancel buttons.\n\n\
          Are you ready to proceed?"
       with
-      | Ok () -> Eio.traceln "[answer:yes] Confirm shown ✓"; Ok ()
-      | Error e -> Eio.traceln "[answer:yes] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[answer:yes] Confirm shown ✓"; Ok ()
+      | Error e -> Flo.debugf "[answer:yes] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: answer:no *)
   |> Bot.on_callback_data "answer:no" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[answer:no] User chose no, going back";
+      Flo.debug "[answer:no] User chose no, going back";
 
       let keyboard = KB.inline [[KB.callback ~text:"← Back to Menu" ~data:"demo:menu"]] in
 
       match edit ~keyboard ctx "❌ Okay, maybe next time!" with
-      | Ok () -> Eio.traceln "[answer:no] ✓"; Ok ()
-      | Error e -> Eio.traceln "[answer:no] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[answer:no] ✓"; Ok ()
+      | Error e -> Flo.debugf "[answer:no] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: confirmed *)
   |> Bot.on_callback_data "confirmed" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[confirmed] User confirmed, showing pagination";
+      Flo.debug "[confirmed] User confirmed, showing pagination";
 
       (* Pagination pattern *)
       let keyboard = KB.Patterns.pagination
@@ -209,26 +209,26 @@ let () =
          Smart: hides buttons when not needed (e.g., no prev on page 1).\n\n\
          Current page: 2 of 5"
       with
-      | Ok () -> Eio.traceln "[confirmed] Pagination shown ✓"; Ok ()
-      | Error e -> Eio.traceln "[confirmed] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[confirmed] Pagination shown ✓"; Ok ()
+      | Error e -> Flo.debugf "[confirmed] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: cancelled *)
   |> Bot.on_callback_data "cancelled" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[cancelled] User cancelled";
+      Flo.debug "[cancelled] User cancelled";
 
       let keyboard = KB.inline [[KB.callback ~text:"← Back to Menu" ~data:"demo:menu"]] in
 
       match edit ~keyboard ctx "🚫 Action cancelled" with
-      | Ok () -> Eio.traceln "[cancelled] ✓"; Ok ()
-      | Error e -> Eio.traceln "[cancelled] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[cancelled] ✓"; Ok ()
+      | Error e -> Flo.debugf "[cancelled] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: demo:reply *)
   |> Bot.on_callback_data "demo:reply" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[reply] Demonstrating reply keyboard";
+      Flo.debug "[reply] Demonstrating reply keyboard";
 
       (* Note: Reply keyboards are created with KB.reply, but we're just explaining here *)
       let inline_kb = KB.inline [[KB.callback ~text:"← Back to Menu" ~data:"demo:menu"]] in
@@ -245,14 +245,14 @@ let () =
          They send regular text messages when pressed.\n\
          Use KB.remove () to hide them."
       with
-      | Ok () -> Eio.traceln "[reply] Explanation shown ✓"; Ok ()
-      | Error e -> Eio.traceln "[reply] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[reply] Explanation shown ✓"; Ok ()
+      | Error e -> Flo.debugf "[reply] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: demo:menu - Back to main menu *)
   |> Bot.on_callback_data "demo:menu" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[menu] Returning to main menu";
+      Flo.debug "[menu] Returning to main menu";
 
       let keyboard = KB.inline [
         [KB.callback ~text:"📝 Basic Inline" ~data:"demo:inline_basic"];
@@ -263,8 +263,8 @@ let () =
       ] in
 
       match edit ~keyboard ctx "🎹 Keyboard API Demo\n\nChoose a demonstration:" with
-      | Ok () -> Eio.traceln "[menu] ✓"; Ok ()
-      | Error e -> Eio.traceln "[menu] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[menu] ✓"; Ok ()
+      | Error e -> Flo.debugf "[menu] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Handle number selections from grid *)
@@ -272,13 +272,13 @@ let () =
       if String.starts_with ~prefix:"num:" data then (
         let open Bot.Ctx in
         let num = String.sub data 4 (String.length data - 4) in
-        Eio.traceln "[num] User selected: %s" num;
+        Flo.debugf "[num] User selected: %s" num;
 
         let keyboard = KB.inline [[KB.callback ~text:"← Back" ~data:"demo:layouts"]] in
 
         match edit ~keyboard ctx (Printf.sprintf "You selected: %s" num) with
-        | Ok () -> Eio.traceln "[num] ✓"; Ok ()
-        | Error e -> Eio.traceln "[num] ✗ %a" Error.pp e; Ok ()
+        | Ok () -> Flo.debug "[num] ✓"; Ok ()
+        | Error e -> Flo.debugf "[num] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
       ) else Ok ()
     )
 
@@ -288,7 +288,7 @@ let () =
         let open Bot.Ctx in
         let page_str = String.sub data 5 (String.length data - 5) in
         let page = int_of_string page_str in
-        Eio.traceln "[page] Navigating to page %d" page;
+        Flo.debugf "[page] Navigating to page %d" page;
 
         let keyboard = KB.Patterns.pagination
           ~prev_data:(Printf.sprintf "page:%d" (page - 1))
@@ -299,8 +299,8 @@ let () =
         in
 
         match edit ~keyboard ctx (Printf.sprintf "📄 Current page: %d of 5" page) with
-        | Ok () -> Eio.traceln "[page] ✓"; Ok ()
-        | Error e -> Eio.traceln "[page] ✗ %a" Error.pp e; Ok ()
+        | Ok () -> Flo.debug "[page] ✓"; Ok ()
+        | Error e -> Flo.debugf "[page] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
       ) else Ok ()
     )
 
@@ -309,13 +309,13 @@ let () =
       if String.starts_with ~prefix:"select:" data then (
         let open Bot.Ctx in
         let selection = String.sub data 7 (String.length data - 7) in
-        Eio.traceln "[select] User selected: %s" selection;
+        Flo.debugf "[select] User selected: %s" selection;
 
         let keyboard = KB.inline [[KB.callback ~text:"← Back" ~data:"demo:menu"]] in
 
         match edit ~keyboard ctx (Printf.sprintf "✓ You selected: %s" selection) with
-        | Ok () -> Eio.traceln "[select] ✓"; Ok ()
-        | Error e -> Eio.traceln "[select] ✗ %a" Error.pp e; Ok ()
+        | Ok () -> Flo.debug "[select] ✓"; Ok ()
+        | Error e -> Flo.debugf "[select] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
       ) else Ok ()
     )
 

@@ -42,7 +42,7 @@ module BusinessLogic = struct
 
   (** Validate name - pure function, easily testable *)
   let validate_name name =
-    Eio.traceln "[BusinessLogic] validate_name: %s" name;
+    Flo.debugf "[BusinessLogic] validate_name: %s" name;
     if String.length name = 0 then
       Error EmptyName
     else if String.length name > 50 then
@@ -52,7 +52,7 @@ module BusinessLogic = struct
 
   (** Validate email - pure function *)
   let validate_email email =
-    Eio.traceln "[BusinessLogic] validate_email: %s" email;
+    Flo.debugf "[BusinessLogic] validate_email: %s" email;
     if String.contains email '@' && String.contains email '.' then
       Ok email
     else
@@ -60,7 +60,7 @@ module BusinessLogic = struct
 
   (** Parse price from string - pure function *)
   let parse_price s =
-    Eio.traceln "[BusinessLogic] parse_price: %s" s;
+    Flo.debugf "[BusinessLogic] parse_price: %s" s;
     try
       let price = float_of_string s in
       if price >= 0.0 then Ok price else Error InvalidPrice
@@ -68,7 +68,7 @@ module BusinessLogic = struct
 
   (** Parse boolean from string - pure function *)
   let parse_bool s =
-    Eio.traceln "[BusinessLogic] parse_bool: %s" s;
+    Flo.debugf "[BusinessLogic] parse_bool: %s" s;
     match String.lowercase_ascii s with
     | "true" | "yes" | "1" | "premium" -> Ok true
     | "false" | "no" | "0" | "regular" -> Ok false
@@ -76,7 +76,7 @@ module BusinessLogic = struct
 
   (** Calculate discount - pure function *)
   let calculate_discount price is_premium =
-    Eio.traceln "[BusinessLogic] calculate_discount: price=%.2f, premium=%b" price is_premium;
+    Flo.debugf "[BusinessLogic] calculate_discount: price=%.2f, premium=%b" price is_premium;
     if is_premium then
       price *. 0.8  (* 20% discount for premium *)
     else
@@ -104,18 +104,18 @@ module SelfTest = struct
   }
 
   let run_test name test_fn =
-    Eio.traceln "[SelfTest] Running: %s" name;
+    Flo.debugf "[SelfTest] Running: %s" name;
     try
       test_fn ();
-      Eio.traceln "[SelfTest] ✓ %s PASSED" name;
+      Flo.debugf "[SelfTest] ✓ %s PASSED" name;
       { name; passed = true; message = "✓ PASSED" }
     with
     | Failure msg ->
-        Eio.traceln "[SelfTest] ✗ %s FAILED: %s" name msg;
+        Flo.debugf "[SelfTest] ✗ %s FAILED: %s" name msg;
         { name; passed = false; message = "✗ FAILED: " ^ msg }
     | exn ->
         let msg = Printexc.to_string exn in
-        Eio.traceln "[SelfTest] ✗ %s ERROR: %s" name msg;
+        Flo.debugf "[SelfTest] ✗ %s ERROR: %s" name msg;
         { name; passed = false; message = "✗ ERROR: " ^ msg }
 
   let test_name_validation () =
@@ -218,7 +218,7 @@ end
 
 let () =
   Printexc.record_backtrace true;
-  Eio.traceln "=== Testing Patterns Demo Starting ===";
+  Flo.info "=== Testing Patterns Demo Starting ===";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t -> t
@@ -228,7 +228,7 @@ let () =
   Eio_main.run @@ fun env ->
   let client = Client.create ~env ~token () in
 
-  Eio.traceln "🤖 Testing Patterns Demo Bot Started";
+  Flo.info "🤖 Testing Patterns Demo Bot Started";
 
   let session_store = Session.Memory_store.create () in
 
@@ -238,7 +238,7 @@ let () =
   (* /start - Main menu *)
   |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/start] Showing main menu";
+      Flo.debug "[/start] Showing main menu";
 
       let text =
         "🧪 <b>Testing Patterns Demo</b>\n\n\
@@ -257,27 +257,27 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[/start] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/start] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/start] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/start] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /self_test - Run all self-tests *)
   |> Bot.command "self_test" ~desc:"Run all self-tests" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/self_test] Running all tests";
+      Flo.debug "[/self_test] Running all tests";
 
       let results = SelfTest.run_all_tests () in
       let summary = SelfTest.format_results results in
 
       match reply ctx summary with
-      | Ok _ -> Eio.traceln "[/self_test] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/self_test] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/self_test] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/self_test] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /test_validation - Test validation functions *)
   |> Bot.command "test_validation" ~desc:"Test validators" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/test_validation] Testing validators";
+      Flo.debug "[/test_validation] Testing validators";
 
       let result = SelfTest.run_test "name_validation" SelfTest.test_name_validation in
       let result2 = SelfTest.run_test "email_validation" SelfTest.test_email_validation in
@@ -285,53 +285,53 @@ let () =
       let summary = SelfTest.format_results [result; result2] in
 
       match reply ctx summary with
-      | Ok _ -> Eio.traceln "[/test_validation] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/test_validation] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/test_validation] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/test_validation] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /test_args - Test Args module *)
   |> Bot.command "test_args" ~desc:"Test argument parsing" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/test_args] Testing Args module";
+      Flo.debug "[/test_args] Testing Args module";
 
       let result = SelfTest.run_test "args_parsing" SelfTest.test_args_parsing in
       let summary = SelfTest.format_results [result] in
 
       match reply ctx summary with
-      | Ok _ -> Eio.traceln "[/test_args] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/test_args] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/test_args] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/test_args] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /test_calculation - Test business calculations *)
   |> Bot.command "test_calculation" ~desc:"Test calculations" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/test_calculation] Testing calculations";
+      Flo.debug "[/test_calculation] Testing calculations";
 
       let result = SelfTest.run_test "discount_calculation" SelfTest.test_discount_calculation in
       let summary = SelfTest.format_results [result] in
 
       match reply ctx summary with
-      | Ok _ -> Eio.traceln "[/test_calculation] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/test_calculation] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/test_calculation] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/test_calculation] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /register - Testable registration handler *)
   |> Bot.command "register" ~desc:"Register with name and email" (fun ctx args ->
       let open Bot.Ctx in
-      Eio.traceln "[/register] Registration request with %d args" (List.length args);
+      Flo.debugf "[/register] Registration request with %d args" (List.length args);
 
       match Bot.Args.expect_2 args with
       | None ->
-          Eio.traceln "[/register] Invalid arg count";
+          Flo.debug "[/register] Invalid arg count";
           (match reply ctx
             "Usage: /register <name> <email>\n\n\
              Example: /register Alice alice@example.com"
            with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/register] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/register] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | Some (name, email) ->
-          Eio.traceln "[/register] Validating: name=%s, email=%s" name email;
+          Flo.debugf "[/register] Validating: name=%s, email=%s" name email;
 
           (* Use pure validation functions *)
           (match BusinessLogic.validate_name name with
@@ -339,7 +339,7 @@ let () =
                let msg = BusinessLogic.error_to_message err in
                (match reply ctx msg with
                 | Ok _ -> Ok ()
-                | Error e -> Eio.traceln "[/register] ✗ %a" Error.pp e; Ok ())
+                | Error e -> Flo.debugf "[/register] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
            | Ok valid_name ->
                (match BusinessLogic.validate_email email with
@@ -347,10 +347,10 @@ let () =
                     let msg = BusinessLogic.error_to_message err in
                     (match reply ctx msg with
                      | Ok _ -> Ok ()
-                     | Error e -> Eio.traceln "[/register] ✗ %a" Error.pp e; Ok ())
+                     | Error e -> Flo.debugf "[/register] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
                 | Ok valid_email ->
-                    Eio.traceln "[/register] Validation passed";
+                    Flo.debug "[/register] Validation passed";
 
                     let greeting = BusinessLogic.format_greeting valid_name in
                     let response = Printf.sprintf
@@ -362,14 +362,14 @@ let () =
                     in
 
                     (match reply ctx response with
-                     | Ok _ -> Eio.traceln "[/register] ✓"; Ok ()
-                     | Error e -> Eio.traceln "[/register] ✗ %a" Error.pp e; Ok ())))
+                     | Ok _ -> Flo.debug "[/register] ✓"; Ok ()
+                     | Error e -> Flo.debugf "[/register] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())))
     )
 
   (* /calculate - Testable calculation handler *)
   |> Bot.command "calculate" ~desc:"Calculate discounted price" (fun ctx args ->
       let open Bot.Ctx in
-      Eio.traceln "[/calculate] Calculation request";
+      Flo.debug "[/calculate] Calculation request";
 
       match Bot.Args.expect_2 args with
       | None ->
@@ -378,7 +378,7 @@ let () =
              Example: /calculate 100 premium"
            with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/calculate] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/calculate] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | Some (price_str, premium_str) ->
           (* Use pure parsing and calculation functions *)
@@ -387,7 +387,7 @@ let () =
                let msg = BusinessLogic.error_to_message err in
                (match reply ctx msg with
                 | Ok _ -> Ok ()
-                | Error e -> Eio.traceln "[/calculate] ✗ %a" Error.pp e; Ok ())
+                | Error e -> Flo.debugf "[/calculate] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
            | Ok price ->
                (match BusinessLogic.parse_bool premium_str with
@@ -395,7 +395,7 @@ let () =
                     let msg = BusinessLogic.error_to_message err in
                     (match reply ctx msg with
                      | Ok _ -> Ok ()
-                     | Error e -> Eio.traceln "[/calculate] ✗ %a" Error.pp e; Ok ())
+                     | Error e -> Flo.debugf "[/calculate] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
                 | Ok is_premium ->
                     let final_price = BusinessLogic.calculate_discount price is_premium in
@@ -414,20 +414,20 @@ let () =
                     in
 
                     (match reply ctx response with
-                     | Ok _ -> Eio.traceln "[/calculate] ✓"; Ok ()
-                     | Error e -> Eio.traceln "[/calculate] ✗ %a" Error.pp e; Ok ())))
+                     | Ok _ -> Flo.debug "[/calculate] ✓"; Ok ()
+                     | Error e -> Flo.debugf "[/calculate] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())))
     )
 
   (* /validate_email - Test email validation *)
   |> Bot.command "validate_email" ~desc:"Validate an email address" (fun ctx args ->
       let open Bot.Ctx in
-      Eio.traceln "[/validate_email] Validating email";
+      Flo.debug "[/validate_email] Validating email";
 
       match Bot.Args.expect_1 args with
       | None ->
           (match reply ctx "Usage: /validate_email <email>" with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/validate_email] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/validate_email] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | Some email ->
           let result = BusinessLogic.validate_email email in
@@ -439,20 +439,20 @@ let () =
           in
 
           (match reply ctx response with
-           | Ok _ -> Eio.traceln "[/validate_email] ✓"; Ok ()
-           | Error e -> Eio.traceln "[/validate_email] ✗ %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[/validate_email] ✓"; Ok ()
+           | Error e -> Flo.debugf "[/validate_email] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
     )
 
   (* /validate_name - Test name validation *)
   |> Bot.command "validate_name" ~desc:"Validate a name" (fun ctx args ->
       let open Bot.Ctx in
-      Eio.traceln "[/validate_name] Validating name";
+      Flo.debug "[/validate_name] Validating name";
 
       match Bot.Args.expect_1 args with
       | None ->
           (match reply ctx "Usage: /validate_name <name>" with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/validate_name] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/validate_name] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | Some name ->
           let result = BusinessLogic.validate_name name in
@@ -464,8 +464,8 @@ let () =
           in
 
           (match reply ctx response with
-           | Ok _ -> Eio.traceln "[/validate_name] ✓"; Ok ()
-           | Error e -> Eio.traceln "[/validate_name] ✗ %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[/validate_name] ✓"; Ok ()
+           | Error e -> Flo.debugf "[/validate_name] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
     )
 
   |> Bot.run

@@ -60,7 +60,7 @@ let begin_flow () =
     started_at = now ();
     ttl_seconds = 900; (* 15 minutes *)
   } in
-  Eio.traceln "[Flow] Starting new profile wizard flow: ttl=%d seconds" state.ttl_seconds;
+  Flo.infof "[Flow] Starting new profile wizard flow: ttl=%d seconds" state.ttl_seconds;
   state
 
 let step_name = function
@@ -73,17 +73,17 @@ let step_name = function
 (** {1 Bot Routes} *)
 
 let build_routes _client bot =
-  Eio.traceln "[Builder] Building bot routes...";
+  Flo.debug "[Builder] Building bot routes...";
 
   let open Bot in
   let open Ctx in
 
   (* /start command *)
   let bot = bot |> command "start" (fun ctx _args ->
-    Eio.traceln "[Handler] /start command triggered";
+    Flo.debug "[Handler] /start command triggered";
     let* user = require_user ctx in
-    Eio.traceln "[Handler] User: id=%a, username=%s"
-      Id.pp user.id
+    Flo.debugf "[Handler] User: id=%s, username=%s"
+      (Format.asprintf "%a" Id.pp user.id)
       (match user.username with Some u -> u | None -> "none");
 
     let welcome_text =
@@ -96,15 +96,15 @@ let build_routes _client bot =
        /help - Show this message"
     in
 
-    Eio.traceln "[Handler] Sending welcome message";
+    Flo.debug "[Handler] Sending welcome message";
     let* _msg = answer ctx welcome_text in
-    Eio.traceln "[Handler] ✅ Welcome message sent";
+    Flo.success "[Handler] ✅ Welcome message sent";
     Ok ()
   ) in
 
   (* /help command *)
   let bot = bot |> command "help" (fun ctx _args ->
-    Eio.traceln "[Handler] /help command triggered";
+    Flo.debug "[Handler] /help command triggered";
 
     let help_text =
       "📚 Help - Contextual Chatbot\n\n\
@@ -118,30 +118,30 @@ let build_routes _client bot =
     in
 
     let* _msg = answer ctx help_text in
-    Eio.traceln "[Handler] ✅ Help sent";
+    Flo.success "[Handler] ✅ Help sent";
     Ok ()
   ) in
 
   (* /start_profile command *)
   let bot = bot |> command "start_profile" (fun ctx _args ->
-    Eio.traceln "[Handler] /start_profile command triggered";
+    Flo.debug "[Handler] /start_profile command triggered";
 
     let state = begin_flow () in
     session_set ctx state_key state;
-    Eio.traceln "[Handler] Session state initialized: step=%s" (step_name state.step);
+    Flo.debugf "[Handler] Session state initialized: step=%s" (step_name state.step);
 
     let* _msg = answer ctx "👋 Let's set up your profile!\n\nWhat is your name?" in
-    Eio.traceln "[Handler] ✅ Profile wizard started, waiting for name";
+    Flo.success "[Handler] ✅ Profile wizard started, waiting for name";
     Ok ()
   ) in
 
   (* /status command *)
   let bot = bot |> command "status" (fun ctx _args ->
-    Eio.traceln "[Handler] /status command triggered";
+    Flo.debug "[Handler] /status command triggered";
 
     match session_get ctx state_key with
     | None ->
-        Eio.traceln "[Handler] No active conversation";
+        Flo.debug "[Handler] No active conversation";
         let* _msg = answer ctx "No active conversation. Send /start_profile to begin." in
         Ok ()
     | Some state ->
@@ -163,23 +163,23 @@ let build_routes _client bot =
           (match state.data.email with Some e -> e | None -> "(not set)")
           (match state.data.timezone with Some tz -> tz | None -> "(not set)")
         in
-        Eio.traceln "[Handler] Current step: %s, elapsed: %.0fs" (step_name state.step) elapsed;
+        Flo.debugf "[Handler] Current step: %s, elapsed: %.0fs" (step_name state.step) elapsed;
         let* _msg = answer ctx status_text in
         Ok ()
   ) in
 
   (* /cancel command *)
   let bot = bot |> command "cancel" (fun ctx _args ->
-    Eio.traceln "[Handler] /cancel command triggered";
+    Flo.debug "[Handler] /cancel command triggered";
 
     if session_exists ctx state_key then begin
-      Eio.traceln "[Handler] Cancelling active conversation";
+      Flo.debug "[Handler] Cancelling active conversation";
       session_delete ctx state_key;
       let* _msg = answer ctx "🛑 Conversation cancelled. Send /start_profile to begin again." in
-      Eio.traceln "[Handler] ✅ Conversation cancelled";
+      Flo.success "[Handler] ✅ Conversation cancelled";
       Ok ()
     end else begin
-      Eio.traceln "[Handler] No active conversation to cancel";
+      Flo.debug "[Handler] No active conversation to cancel";
       let* _msg = answer ctx "Nothing to cancel. You don't have an active conversation." in
       Ok ()
     end
@@ -187,7 +187,7 @@ let build_routes _client bot =
 
   (* on_text - Multi-step conversation handler *)
   let bot = bot |> on_text (fun ctx text ->
-    Eio.traceln "[Handler] on_text triggered: text_length=%d" (String.length text);
+    Flo.debugf "[Handler] on_text triggered: text_length=%d" (String.length text);
 
     let default_state = {
       step = Idle;
@@ -197,11 +197,11 @@ let build_routes _client bot =
     } in
 
     let state = session_get_or ctx state_key ~default:default_state in
-    Eio.traceln "[Handler] Current step: %s" (step_name state.step);
+    Flo.debugf "[Handler] Current step: %s" (step_name state.step);
 
     (* Check expiration *)
     if (match state.step with Idle -> false | _ -> expired state) then begin
-      Eio.traceln "[Handler] ⏳ Session expired: elapsed=%.0fs, ttl=%d"
+      Flo.debugf "[Handler] ⏳ Session expired: elapsed=%.0fs, ttl=%d"
         (now () -. state.started_at) state.ttl_seconds;
       session_delete ctx state_key;
       let* _msg = answer ctx "⏳ Session expired (15 minutes). Send /start_profile to begin again." in
@@ -210,12 +210,12 @@ let build_routes _client bot =
 
     match state.step with
     | Idle ->
-        Eio.traceln "[Handler] Idle state, ignoring text";
+        Flo.debug "[Handler] Idle state, ignoring text";
         Ok () (* Ignore random text when idle *)
 
     | AskName ->
         let name = String.trim text in
-        Eio.traceln "[Handler] Collected name: %s" name;
+        Flo.debugf "[Handler] Collected name: %s" name;
 
         let state' = {
           state with
@@ -223,15 +223,15 @@ let build_routes _client bot =
           data = { state.data with name = Some name };
         } in
         session_set ctx state_key state';
-        Eio.traceln "[Handler] Updated step: %s" (step_name state'.step);
+        Flo.debugf "[Handler] Updated step: %s" (step_name state'.step);
 
         let* _msg = answer ctx (Printf.sprintf "Great, %s! What's your email address?" name) in
-        Eio.traceln "[Handler] ✅ Waiting for email";
+        Flo.success "[Handler] ✅ Waiting for email";
         Ok ()
 
     | AskEmail { name } ->
         let email = String.trim text in
-        Eio.traceln "[Handler] Collected email: %s" email;
+        Flo.debugf "[Handler] Collected email: %s" email;
 
         let state' = {
           state with
@@ -239,15 +239,15 @@ let build_routes _client bot =
           data = { state.data with email = Some email };
         } in
         session_set ctx state_key state';
-        Eio.traceln "[Handler] Updated step: %s" (step_name state'.step);
+        Flo.debugf "[Handler] Updated step: %s" (step_name state'.step);
 
         let* _msg = answer ctx "And your timezone? (e.g., UTC, CET, PST, EST)" in
-        Eio.traceln "[Handler] ✅ Waiting for timezone";
+        Flo.success "[Handler] ✅ Waiting for timezone";
         Ok ()
 
     | AskTimezone { name; email } ->
         let timezone = String.uppercase_ascii (String.trim text) in
-        Eio.traceln "[Handler] Collected timezone: %s" timezone;
+        Flo.debugf "[Handler] Collected timezone: %s" timezone;
 
         let state' = {
           state with
@@ -255,7 +255,7 @@ let build_routes _client bot =
           data = { state.data with timezone = Some timezone };
         } in
         session_set ctx state_key state';
-        Eio.traceln "[Handler] Updated step: %s" (step_name state'.step);
+        Flo.debugf "[Handler] Updated step: %s" (step_name state'.step);
 
         (* Show confirmation keyboard *)
         let keyboard = Keyboard.inline [
@@ -273,32 +273,32 @@ let build_routes _client bot =
           name email timezone
         in
 
-        Eio.traceln "[Handler] Showing confirmation keyboard";
+        Flo.debug "[Handler] Showing confirmation keyboard";
         let* _msg = send ~keyboard ctx confirmation_text in
-        Eio.traceln "[Handler] ✅ Confirmation shown";
+        Flo.success "[Handler] ✅ Confirmation shown";
         Ok ()
 
     | Confirm _ ->
-        Eio.traceln "[Handler] In confirm state, asking user to use buttons";
+        Flo.debug "[Handler] In confirm state, asking user to use buttons";
         let* _msg = answer ctx "Please use the buttons above to confirm, restart, or cancel." in
         Ok ()
   ) in
 
   (* on_callback - Handle confirmation buttons *)
   let bot = bot |> on_callback (fun ctx callback_data ->
-    Eio.traceln "[Handler] on_callback triggered: data=%s" callback_data;
+    Flo.debugf "[Handler] on_callback triggered: data=%s" callback_data;
 
     match callback_data with
     | "profile:confirm" ->
-        Eio.traceln "[Handler] Handling profile:confirm";
+        Flo.debug "[Handler] Handling profile:confirm";
         (match session_get ctx state_key with
          | Some { step = Confirm { name; email; timezone }; _ } ->
-             Eio.traceln "[Handler] Confirming profile: name=%s, email=%s, tz=%s"
+             Flo.debugf "[Handler] Confirming profile: name=%s, email=%s, tz=%s"
                name email timezone;
 
              (* In a real app, persist to database here *)
              session_delete ctx state_key;
-             Eio.traceln "[Handler] Session cleared after confirmation";
+             Flo.debug "[Handler] Session cleared after confirmation";
 
              let success_text = Printf.sprintf
                "✅ Profile saved successfully!\n\n\
@@ -310,35 +310,35 @@ let build_routes _client bot =
              in
 
              let* _msg = edit ctx success_text in
-             Eio.traceln "[Handler] ✅ Profile confirmed and saved";
+             Flo.success "[Handler] ✅ Profile confirmed and saved";
              Ok ()
 
          | _ ->
-             Eio.traceln "[Handler] ❌ Invalid state for confirmation";
+             Flo.error "[Handler] ❌ Invalid state for confirmation";
              let* _msg = edit ctx "❌ Session expired or invalid. Send /start_profile to begin." in
              Ok ())
 
     | "profile:restart" ->
-        Eio.traceln "[Handler] Handling profile:restart";
+        Flo.debug "[Handler] Handling profile:restart";
         let state = begin_flow () in
         session_set ctx state_key state;
         let* _msg = edit ctx "🔁 Profile setup restarted. What's your name?" in
-        Eio.traceln "[Handler] ✅ Profile wizard restarted";
+        Flo.success "[Handler] ✅ Profile wizard restarted";
         Ok ()
 
     | "profile:cancel" ->
-        Eio.traceln "[Handler] Handling profile:cancel";
+        Flo.debug "[Handler] Handling profile:cancel";
         session_delete ctx state_key;
         let* _msg = edit ctx "❌ Profile setup cancelled." in
-        Eio.traceln "[Handler] ✅ Profile wizard cancelled";
+        Flo.success "[Handler] ✅ Profile wizard cancelled";
         Ok ()
 
     | _ ->
-        Eio.traceln "[Handler] Unknown callback data: %s" callback_data;
+        Flo.debugf "[Handler] Unknown callback data: %s" callback_data;
         Ok ()
   ) in
 
-  Eio.traceln "[Builder] ✅ All routes registered successfully";
+  Flo.success "[Builder] ✅ All routes registered successfully";
   bot
 
 (** {1 Main Entry Point} *)
@@ -346,60 +346,60 @@ let build_routes _client bot =
 let () =
   Eio_main.run @@ fun env ->
 
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║           Contextual Chatbot - Multi-Turn Conversations         ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
-  Eio.traceln "";
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║           Contextual Chatbot - Multi-Turn Conversations         ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.debug "";
 
   (* Phase 1: Initialize *)
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                    Phase 1: Initialization                       ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                    Phase 1: Initialization                       ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t ->
-        Eio.traceln "[Init] Bot token loaded from environment";
+        Flo.info "[Init] Bot token loaded from environment";
         t
     | None ->
-        Eio.traceln "[Init] ❌ ERROR: TELEGRAM_BOT_TOKEN not set";
+        Flo.info "[Init] ❌ ERROR: TELEGRAM_BOT_TOKEN not set";
         failwith "TELEGRAM_BOT_TOKEN environment variable not set"
   in
 
-  Eio.traceln "[Init] Creating Telegram client";
+  Flo.info "[Init] Creating Telegram client";
   let telegram_client = Telegram.Client.create ~env ~token () in
-  Eio.traceln "[Init] Client created successfully";
+  Flo.info "[Init] Client created successfully";
 
   (* Phase 2: Build bot *)
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                     Phase 2: Build Bot                           ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                     Phase 2: Build Bot                           ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
 
   let bot = Bot.make ~env ~client:telegram_client in
   let bot = build_routes telegram_client bot in
 
-  Eio.traceln "[Init] Bot created successfully";
+  Flo.info "[Init] Bot created successfully";
 
   (* Phase 3: Run polling *)
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                    Phase 3: Start Polling                        ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
-  Eio.traceln "[Polling] Starting long polling...";
-  Eio.traceln "[Polling] Bot is ready to receive updates";
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                     Bot is Ready!                                ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
-  Eio.traceln "[Polling] Waiting for messages...";
-  Eio.traceln "";
-  Eio.traceln "Features:";
-  Eio.traceln "  - Multi-step profile wizard (Name → Email → Timezone)";
-  Eio.traceln "  - Session-based state management";
-  Eio.traceln "  - 15-minute TTL (time-to-live) expiration";
-  Eio.traceln "  - Confirmation keyboard";
-  Eio.traceln "  - /cancel command";
-  Eio.traceln "";
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                    Phase 3: Start Polling                        ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.info "[Polling] Starting long polling...";
+  Flo.info "[Polling] Bot is ready to receive updates";
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                     Bot is Ready!                                ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.info "[Polling] Waiting for messages...";
+  Flo.debug "";
+  Flo.info "Features:";
+  Flo.debug "  - Multi-step profile wizard (Name → Email → Timezone)";
+  Flo.debug "  - Session-based state management";
+  Flo.debug "  - 15-minute TTL (time-to-live) expiration";
+  Flo.debug "  - Confirmation keyboard";
+  Flo.debug "  - /cancel command";
+  Flo.debug "";
 
   Bot.run bot

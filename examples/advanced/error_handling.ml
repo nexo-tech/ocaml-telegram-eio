@@ -83,7 +83,7 @@ end
 
 let () =
   Printexc.record_backtrace true;
-  Eio.traceln "=== Error Handling Demo Starting ===";
+  Flo.info "=== Error Handling Demo Starting ===";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t -> t
@@ -93,7 +93,7 @@ let () =
   Eio_main.run @@ fun env ->
   let client = Client.create ~env ~token () in
 
-  Eio.traceln "🤖 Error Handling Demo Bot Started";
+  Flo.info "🤖 Error Handling Demo Bot Started";
 
   let session_store = Session.Memory_store.create () in
 
@@ -103,19 +103,19 @@ let () =
   (* Global error handler - catches all uncaught exceptions *)
   |> Bot.on_error (fun ctx exn ->
       let open Bot.Ctx in
-      Eio.traceln "[on_error] Caught exception: %s" (Printexc.to_string exn);
-      Eio.traceln "[on_error] Backtrace: %s" (Printexc.get_backtrace ());
+      Flo.debugf "[on_error] Caught exception: %s" (Printexc.to_string exn);
+      Flo.debugf "[on_error] Backtrace: %s" (Printexc.get_backtrace ());
 
       (* Try to notify user *)
       match reply ctx "❌ An unexpected error occurred. The error has been logged." with
-      | Ok _ -> Eio.traceln "[on_error] User notified ✓"
-      | Error e -> Eio.traceln "[on_error] Failed to notify user: %a" Error.pp e
+      | Ok _ -> Flo.debug "[on_error] User notified ✓"
+      | Error e -> Flo.debugf "[on_error] Failed to notify user: %s" (Format.asprintf "%a" Error.pp e)
     )
 
   (* /start - Show available features *)
   |> Bot.command "start" ~desc:"Show available features" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/start] Showing main menu";
+      Flo.debug "[/start] Showing main menu";
 
       let text =
         "🛡️ Error Handling Demo\n\n\
@@ -130,31 +130,31 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[/start] ✓"; Ok ()
+      | Ok _ -> Flo.debug "[/start] ✓"; Ok ()
       | Error e ->
-          Eio.traceln "[/start] ✗ Error: %a" Error.pp e;
+          Flo.debugf "[/start] ✗ Error: %s" (Format.asprintf "%a" Error.pp e);
           Ok ()
     )
 
   (* /send_ok - Successful operation *)
   |> Bot.command "send_ok" ~desc:"Successful message send" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/send_ok] Sending successful message";
+      Flo.debug "[/send_ok] Sending successful message";
 
       (* This will succeed *)
       match reply ctx "✅ Success! This message was sent without errors." with
       | Ok _ ->
-          Eio.traceln "[/send_ok] ✓ Success";
+          Flo.debug "[/send_ok] ✓ Success";
           Ok ()
       | Error e ->
-          Eio.traceln "[/send_ok] ✗ Unexpected error: %a" Error.pp e;
+          Flo.debugf "[/send_ok] ✗ Unexpected error: %s" (Format.asprintf "%a" Error.pp e);
           Ok ()
     )
 
   (* /send_invalid - Trigger API error *)
   |> Bot.command "send_invalid" ~desc:"Trigger API error" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/send_invalid] Attempting to send to invalid chat";
+      Flo.debug "[/send_invalid] Attempting to send to invalid chat";
 
       (* Try to send to invalid chat_id (will fail) *)
       let invalid_chat_id = Id.Chat.of_int 0L in
@@ -165,39 +165,39 @@ let () =
         ~text:"This will fail"
         () with
       | Ok _ ->
-          Eio.traceln "[/send_invalid] Unexpected success!";
+          Flo.debug "[/send_invalid] Unexpected success!";
           (match reply ctx "Unexpected: message sent to invalid chat!" with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/send_invalid] Reply error: %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/send_invalid] Reply error: %s" (Format.asprintf "%a" Error.pp e); Ok ())
       | Error e ->
-          Eio.traceln "[/send_invalid] Expected error: %a" Error.pp e;
+          Flo.debugf "[/send_invalid] Expected error: %s" (Format.asprintf "%a" Error.pp e);
 
           (* Convert to user-friendly message *)
           let user_msg = ErrorMessages.from_error e in
-          Eio.traceln "[/send_invalid] User message: %s" user_msg;
+          Flo.debugf "[/send_invalid] User message: %s" user_msg;
 
           let technical_details = Format.asprintf "%a" Error.pp e in
           let response = Printf.sprintf "Caught API error:\n\n%s\n\nTechnical details: %s" user_msg technical_details in
 
           (match reply ctx response with
-           | Ok _ -> Eio.traceln "[/send_invalid] ✓"; Ok ()
-           | Error e2 -> Eio.traceln "[/send_invalid] Reply error: %a" Error.pp e2; Ok ())
+           | Ok _ -> Flo.debug "[/send_invalid] ✓"; Ok ()
+           | Error e2 -> Flo.debugf "[/send_invalid] Reply error: %s" (Format.asprintf "%a" Error.pp e2); Ok ())
     )
 
   (* /send_with_fallback - Demonstrate fallback pattern *)
   |> Bot.command "send_with_fallback" ~desc:"Fallback error handling" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/send_with_fallback] Demonstrating fallback pattern";
+      Flo.debug "[/send_with_fallback] Demonstrating fallback pattern";
 
       (* Try primary method *)
       let result = reply ctx "⏳ Attempting to send..." in
 
       match result with
       | Ok _ ->
-          Eio.traceln "[/send_with_fallback] Primary method succeeded ✓";
+          Flo.debug "[/send_with_fallback] Primary method succeeded ✓";
           Ok ()
       | Error e1 ->
-          Eio.traceln "[/send_with_fallback] Primary failed: %a" Error.pp e1;
+          Flo.debugf "[/send_with_fallback] Primary failed: %s" (Format.asprintf "%a" Error.pp e1);
 
           (* Fallback: Try alternative method *)
           let fallback_text = Printf.sprintf
@@ -209,16 +209,16 @@ let () =
 
           (match reply ctx fallback_text with
            | Ok _ ->
-               Eio.traceln "[/send_with_fallback] Fallback succeeded ✓";
+               Flo.debug "[/send_with_fallback] Fallback succeeded ✓";
                Ok ()
            | Error e2 ->
-               Eio.traceln "[/send_with_fallback] Fallback also failed: %a" Error.pp e2;
+               Flo.debugf "[/send_with_fallback] Fallback also failed: %s" (Format.asprintf "%a" Error.pp e2);
                Ok ())
     )
 
   (* /trigger_error - Test global error handler *)
   |> Bot.command "trigger_error" ~desc:"Test exception handler" (fun _ctx _args ->
-      Eio.traceln "[/trigger_error] Throwing exception to test error handler";
+      Flo.debug "[/trigger_error] Throwing exception to test error handler";
 
       (* This will trigger the global on_error handler *)
       failwith "This is a test exception to demonstrate the global error handler!"
@@ -227,7 +227,7 @@ let () =
   (* /error_types - Explain error types *)
   |> Bot.command "error_types" ~desc:"Explain Telegram error types" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/error_types] Explaining error types";
+      Flo.debug "[/error_types] Explaining error types";
 
       let text =
         "📋 Telegram Error Types\n\n\
@@ -249,14 +249,14 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[/error_types] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/error_types] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/error_types] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/error_types] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /monadic - Demonstrate monadic error propagation *)
   |> Bot.command "monadic" ~desc:"Monadic error handling" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/monadic] Demonstrating monadic error propagation";
+      Flo.debug "[/monadic] Demonstrating monadic error propagation";
 
       (* Chain multiple operations - error stops propagation *)
       let operation () =
@@ -264,13 +264,13 @@ let () =
         match reply ctx "Step 1: Initial message ✓" with
         | Error e -> Error e
         | Ok _msg1 ->
-            Eio.traceln "[/monadic] Step 1 complete";
+            Flo.debug "[/monadic] Step 1 complete";
 
             (* Step 2: Send second message *)
             match reply ctx "Step 2: Second message ✓" with
             | Error e -> Error e
             | Ok _msg2 ->
-                Eio.traceln "[/monadic] Step 2 complete";
+                Flo.debug "[/monadic] Step 2 complete";
 
                 (* Step 3: Send final message *)
                 match reply ctx
@@ -279,27 +279,27 @@ let () =
                    If any had failed, the chain would have stopped." with
                 | Error e -> Error e
                 | Ok _msg3 ->
-                    Eio.traceln "[/monadic] Step 3 complete";
+                    Flo.debug "[/monadic] Step 3 complete";
                     Ok ()
       in
 
       match operation () with
       | Ok () ->
-          Eio.traceln "[/monadic] All steps succeeded ✓";
+          Flo.debug "[/monadic] All steps succeeded ✓";
           Ok ()
       | Error e ->
-          Eio.traceln "[/monadic] Chain stopped at error: %a" Error.pp e;
+          Flo.debugf "[/monadic] Chain stopped at error: %s" (Format.asprintf "%a" Error.pp e);
 
           let user_msg = ErrorMessages.from_error e in
           (match reply ctx (Printf.sprintf "❌ Operation failed:\n\n%s" user_msg) with
            | Ok _ -> Ok ()
-           | Error e2 -> Eio.traceln "[/monadic] Error reply failed: %a" Error.pp e2; Ok ())
+           | Error e2 -> Flo.debugf "[/monadic] Error reply failed: %s" (Format.asprintf "%a" Error.pp e2); Ok ())
     )
 
   (* /recover - Demonstrate error recovery *)
   |> Bot.command "recover" ~desc:"Error recovery pattern" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/recover] Demonstrating error recovery";
+      Flo.debug "[/recover] Demonstrating error recovery";
 
       (* Simulate operation that might fail *)
       let attempt_risky_operation () =
@@ -318,29 +318,29 @@ let () =
       let rec try_with_recovery attempts_left =
         match attempt_risky_operation () with
         | Ok result ->
-            Eio.traceln "[/recover] Success: %s" result;
+            Flo.debugf "[/recover] Success: %s" result;
             reply ctx (Printf.sprintf "✅ %s" result)
 
         | Error e when ErrorMessages.is_retryable e && attempts_left > 0 ->
-            Eio.traceln "[/recover] Retryable error, %d attempts left" attempts_left;
+            Flo.debugf "[/recover] Retryable error, %d attempts left" attempts_left;
             Eio.Time.sleep (env ctx)#clock 1.0;
             try_with_recovery (attempts_left - 1)
 
         | Error e ->
-            Eio.traceln "[/recover] Non-retryable or max attempts reached: %a" Error.pp e;
+            Flo.debugf "[/recover] Non-retryable or max attempts reached: %s" (Format.asprintf "%a" Error.pp e);
             let user_msg = ErrorMessages.from_error e in
             reply ctx (Printf.sprintf "❌ Operation failed after retries:\n\n%s" user_msg)
       in
 
       match try_with_recovery 3 with
-      | Ok _ -> Eio.traceln "[/recover] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/recover] Final error: %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/recover] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/recover] Final error: %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /partial - Demonstrate partial success handling *)
   |> Bot.command "partial" ~desc:"Partial success pattern" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/partial] Demonstrating partial success";
+      Flo.debug "[/partial] Demonstrating partial success";
 
       (* Simulate multiple operations *)
       let operations = [
@@ -363,7 +363,7 @@ let () =
         | Ok _ -> None
       ) operations in
 
-      Eio.traceln "[/partial] Successes: %d, Failures: %d"
+      Flo.debugf "[/partial] Successes: %d, Failures: %d"
         (List.length successes) (List.length failures);
 
       let success_text = String.concat "\n" (List.map (fun n -> "  ✓ " ^ n) successes) in
@@ -383,14 +383,14 @@ let () =
       in
 
       match reply ctx response with
-      | Ok _ -> Eio.traceln "[/partial] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/partial] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/partial] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/partial] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /help - Show all commands *)
   |> Bot.command "help" ~desc:"Show all commands" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/help] Showing help";
+      Flo.debug "[/help] Showing help";
 
       let text =
         "📚 Error Handling Demo Commands\n\n\
@@ -407,8 +407,8 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[/help] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/help] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/help] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/help] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.run

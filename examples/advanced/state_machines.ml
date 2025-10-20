@@ -58,7 +58,7 @@ module Registration = struct
 
   let start ctx =
     let open Bot.Ctx in
-    Eio.traceln "[Registration] Starting: Idle → AwaitingName";
+    Flo.debug "[Registration] Starting: Idle → AwaitingName";
     session_set ctx state_key AwaitingName;
 
     let keyboard = KB.inline [
@@ -73,25 +73,25 @@ module Registration = struct
     let open Bot.Ctx in
     let state = session_get_or ctx state_key ~default:Idle in
 
-    Eio.traceln "[Registration] Current state: %s, Input: %s" (state_to_string state) text;
+    Flo.debugf "[Registration] Current state: %s, Input: %s" (state_to_string state) text;
 
     match state with
     | Idle ->
         Ok ()  (* Not in registration *)
 
     | AwaitingName ->
-        Eio.traceln "[Registration] Transition: AwaitingName → AwaitingAge";
+        Flo.debug "[Registration] Transition: AwaitingName → AwaitingAge";
         session_set ctx name_key text;
         session_set ctx state_key AwaitingAge;
 
         (match reply ctx "Step 2/2: How old are you?" with
          | Ok _ -> Ok ()
-         | Error e -> Eio.traceln "[Registration] ✗ %a" Error.pp e; Ok ())
+         | Error e -> Flo.debugf "[Registration] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
     | AwaitingAge ->
         (match int_of_string_opt text with
          | Some age ->
-             Eio.traceln "[Registration] Transition: AwaitingAge → AwaitingConfirmation";
+             Flo.debug "[Registration] Transition: AwaitingAge → AwaitingConfirmation";
              session_set ctx age_key age;
              session_set ctx state_key AwaitingConfirmation;
 
@@ -108,26 +108,26 @@ module Registration = struct
                 Age: %d\n\n\
                 Is this correct?" name age) with
               | Ok _ -> Ok ()
-              | Error e -> Eio.traceln "[Registration] ✗ %a" Error.pp e; Ok ())
+              | Error e -> Flo.debugf "[Registration] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
          | None ->
              (match reply ctx "Please enter a valid number for your age." with
               | Ok _ -> Ok ()
-              | Error e -> Eio.traceln "[Registration] ✗ %a" Error.pp e; Ok ()))
+              | Error e -> Flo.debugf "[Registration] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()))
 
     | AwaitingConfirmation ->
         (match reply ctx "Please use the buttons below to confirm or cancel." with
          | Ok _ -> Ok ()
-         | Error e -> Eio.traceln "[Registration] ✗ %a" Error.pp e; Ok ())
+         | Error e -> Flo.debugf "[Registration] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
     | Complete ->
         (match reply ctx "You've already completed registration! Use /reset to start over." with
          | Ok _ -> Ok ()
-         | Error e -> Eio.traceln "[Registration] ✗ %a" Error.pp e; Ok ())
+         | Error e -> Flo.debugf "[Registration] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
   let cancel ctx =
     let open Bot.Ctx in
-    Eio.traceln "[Registration] Cancelling, state → Idle";
+    Flo.debug "[Registration] Cancelling, state → Idle";
     session_set ctx state_key Idle;
     session_delete ctx name_key;
     session_delete ctx age_key;
@@ -135,7 +135,7 @@ module Registration = struct
 
   let confirm ctx =
     let open Bot.Ctx in
-    Eio.traceln "[Registration] Confirming, state → Complete";
+    Flo.debug "[Registration] Confirming, state → Complete";
     let name = session_get_or ctx name_key ~default:"" in
     let age = session_get_or ctx age_key ~default:0 in
 
@@ -182,7 +182,7 @@ module Order = struct
 
   let start ctx =
     let open Bot.Ctx in
-    Eio.traceln "[Order] Starting: → Browsing";
+    Flo.debug "[Order] Starting: → Browsing";
     session_set ctx state_key Browsing;
 
     let buttons = List.map (fun item ->
@@ -197,7 +197,7 @@ module Order = struct
 
   let view_item ctx item =
     let open Bot.Ctx in
-    Eio.traceln "[Order] Transition: Browsing → ViewingItem(id=%d)" item.id;
+    Flo.debugf "[Order] Transition: Browsing → ViewingItem(id=%d)" item.id;
 
     session_set ctx state_key (ViewingItem { item });
 
@@ -222,7 +222,7 @@ module Order = struct
       | _ -> [item]
     in
 
-    Eio.traceln "[Order] Transition: → InCart (items=%d)" (List.length items);
+    Flo.debugf "[Order] Transition: → InCart (items=%d)" (List.length items);
     session_set ctx state_key (InCart { items });
 
     let keyboard = KB.inline [
@@ -268,7 +268,7 @@ module Order = struct
     | InCart { items } ->
         let total = List.fold_left (fun acc item -> acc +. item.price) 0.0 items in
 
-        Eio.traceln "[Order] Transition: InCart → CheckingOut (total=$%.2f)" total;
+        Flo.debugf "[Order] Transition: InCart → CheckingOut (total=$%.2f)" total;
         session_set ctx state_key (CheckingOut { items; total });
 
         let keyboard = KB.inline [
@@ -287,7 +287,7 @@ module Order = struct
 
   let complete_payment ctx =
     let open Bot.Ctx in
-    Eio.traceln "[Order] Transition: CheckingOut → Complete";
+    Flo.debug "[Order] Transition: CheckingOut → Complete";
 
     session_set ctx state_key Complete;
 
@@ -321,7 +321,7 @@ module Support = struct
 
   let start ctx =
     let open Bot.Ctx in
-    Eio.traceln "[Support] Starting: Idle → SelectingCategory";
+    Flo.debug "[Support] Starting: Idle → SelectingCategory";
     session_set ctx state_key SelectingCategory;
 
     let keyboard = KB.inline [
@@ -338,7 +338,7 @@ module Support = struct
     let open Bot.Ctx in
     let cat_str = category_to_string category in
 
-    Eio.traceln "[Support] Transition: SelectingCategory → CollectingDetails(%s)" cat_str;
+    Flo.debugf "[Support] Transition: SelectingCategory → CollectingDetails(%s)" cat_str;
     session_set ctx state_key (CollectingDetails { category });
 
     edit ctx (Printf.sprintf
@@ -354,7 +354,7 @@ module Support = struct
     match state with
     | CollectingDetails { category } ->
         let cat_str = category_to_string category in
-        Eio.traceln "[Support] Transition: CollectingDetails(%s) → AwaitingResponse" cat_str;
+        Flo.debugf "[Support] Transition: CollectingDetails(%s) → AwaitingResponse" cat_str;
 
         session_set ctx state_key (AwaitingResponse { category; details = text });
 
@@ -370,14 +370,14 @@ module Support = struct
            (This is a demo - no actual ticket created)"
           cat_str text) with
          | Ok _ -> Ok ()
-         | Error e -> Eio.traceln "[Support] ✗ %a" Error.pp e; Ok ())
+         | Error e -> Flo.debugf "[Support] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
     | _ ->
         Ok ()
 
   let resolve ctx =
     let open Bot.Ctx in
-    Eio.traceln "[Support] Transition: AwaitingResponse → Resolved";
+    Flo.debug "[Support] Transition: AwaitingResponse → Resolved";
 
     session_set ctx state_key Resolved;
 
@@ -386,7 +386,7 @@ end
 
 let () =
   Printexc.record_backtrace true;
-  Eio.traceln "=== State Machines Demo Starting ===";
+  Flo.info "=== State Machines Demo Starting ===";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t -> t
@@ -396,7 +396,7 @@ let () =
   Eio_main.run @@ fun env ->
   let client = Client.create ~env ~token () in
 
-  Eio.traceln "🤖 State Machines Demo Bot Started";
+  Flo.info "🤖 State Machines Demo Bot Started";
 
   let session_store = Session.Memory_store.create () in
 
@@ -406,7 +406,7 @@ let () =
   (* /start - Main menu *)
   |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/start] Showing main menu";
+      Flo.debug "[/start] Showing main menu";
 
       let keyboard = KB.inline [
         [KB.callback ~text:"📝 Registration Flow" ~data:"demo:register"];
@@ -422,35 +422,35 @@ let () =
       in
 
       match send ~keyboard ctx text with
-      | Ok _ -> Eio.traceln "[/start] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/start] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/start] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/start] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: demo:register *)
   |> Bot.on_callback_data "demo:register" (fun ctx ->
       match Registration.start ctx with
       | Ok _ -> Ok ()
-      | Error e -> Eio.traceln "[demo:register] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[demo:register] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: demo:order *)
   |> Bot.on_callback_data "demo:order" (fun ctx ->
       match Order.start ctx with
       | Ok _ -> Ok ()
-      | Error e -> Eio.traceln "[demo:order] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[demo:order] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: demo:support *)
   |> Bot.on_callback_data "demo:support" (fun ctx ->
       match Support.start ctx with
       | Ok _ -> Ok ()
-      | Error e -> Eio.traceln "[demo:support] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[demo:support] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: demo:state_info *)
   |> Bot.on_callback_data "demo:state_info" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[state_info] Showing state information";
+      Flo.debug "[state_info] Showing state information";
 
       let reg_state = session_get_or ctx Registration.state_key ~default:Registration.Idle in
       let order_state = session_get_or ctx Order.state_key ~default:Order.Browsing in
@@ -469,27 +469,27 @@ let () =
 
       match edit ctx text with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[state_info] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[state_info] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Registration callbacks *)
   |> Bot.on_callback_data "reg:confirm" (fun ctx ->
       match Registration.confirm ctx with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[reg:confirm] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[reg:confirm] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback_data "reg:cancel" (fun ctx ->
       match Registration.cancel ctx with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[reg:cancel] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[reg:cancel] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Order callbacks *)
   |> Bot.on_callback_data "order:menu" (fun ctx ->
       match Order.start ctx with
       | Ok _ -> Ok ()
-      | Error e -> Eio.traceln "[order:menu] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[order:menu] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback (fun ctx data ->
@@ -501,7 +501,7 @@ let () =
         | Some item ->
             (match Order.view_item ctx item with
              | Ok () -> Ok ()
-             | Error e -> Eio.traceln "[order:view] ✗ %a" Error.pp e; Ok ())
+             | Error e -> Flo.debugf "[order:view] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
         | None ->
             Ok ()
       ) else Ok ()
@@ -516,7 +516,7 @@ let () =
         | Some item ->
             (match Order.add_to_cart ctx item with
              | Ok () -> Ok ()
-             | Error e -> Eio.traceln "[order:add] ✗ %a" Error.pp e; Ok ())
+             | Error e -> Flo.debugf "[order:add] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
         | None ->
             Ok ()
       ) else Ok ()
@@ -525,19 +525,19 @@ let () =
   |> Bot.on_callback_data "order:cart" (fun ctx ->
       match Order.show_cart ctx with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[order:cart] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[order:cart] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback_data "order:checkout" (fun ctx ->
       match Order.checkout ctx with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[order:checkout] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[order:checkout] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback_data "order:pay" (fun ctx ->
       match Order.complete_payment ctx with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[order:pay] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[order:pay] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback_data "order:cancel" (fun ctx ->
@@ -545,32 +545,32 @@ let () =
       session_set ctx Order.state_key Order.Browsing;
       match edit ctx "❌ Order cancelled" with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[order:cancel] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[order:cancel] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Support ticket callbacks *)
   |> Bot.on_callback_data "support:tech" (fun ctx ->
       match Support.select_category ctx Support.Technical with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[support:tech] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[support:tech] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback_data "support:billing" (fun ctx ->
       match Support.select_category ctx Support.Billing with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[support:billing] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[support:billing] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback_data "support:general" (fun ctx ->
       match Support.select_category ctx Support.General with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[support:general] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[support:general] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback_data "support:resolve" (fun ctx ->
       match Support.resolve ctx with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[support:resolve] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[support:resolve] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Text handler - routes to active state machine *)
@@ -598,7 +598,7 @@ let () =
   (* /reset - Reset all state machines *)
   |> Bot.command "reset" ~desc:"Reset all state machines" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/reset] Resetting all state machines";
+      Flo.debug "[/reset] Resetting all state machines";
 
       session_set ctx Registration.state_key Registration.Idle;
       session_set ctx Order.state_key Order.Browsing;
@@ -613,8 +613,8 @@ let () =
          • Support → Idle\n\n\
          Use /start to begin."
       with
-      | Ok _ -> Eio.traceln "[/reset] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/reset] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/reset] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/reset] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.run

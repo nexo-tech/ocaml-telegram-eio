@@ -211,11 +211,11 @@ end
 
 let () =
   Printexc.record_backtrace true;
-  Eio.traceln "=== Development Workflow Demo Starting ===";
+  Flo.info "=== Development Workflow Demo Starting ===";
 
   (* Check environment *)
   let debug_mode = Sys.getenv_opt "DEBUG" = Some "true" in
-  Eio.traceln "Debug mode: %s" (if debug_mode then "ENABLED" else "disabled");
+  Flo.debugf "Debug mode: %s" (if debug_mode then "ENABLED" else "disabled");
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t -> t
@@ -225,7 +225,7 @@ let () =
   Eio_main.run @@ fun env ->
   let client = Client.create ~env ~token () in
 
-  Eio.traceln "🤖 Development Workflow Demo Started";
+  Flo.info "🤖 Development Workflow Demo Started";
 
   let session_store = Session.Memory_store.create () in
 
@@ -239,7 +239,7 @@ let () =
   (* /start - Main menu *)
   |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/start] Showing main menu";
+      Flo.debug "[/start] Showing main menu";
       incr total_updates;
 
       let keyboard = KB.inline [
@@ -264,26 +264,26 @@ let () =
       in
 
       match send ~keyboard ctx text with
-      | Ok _ -> Eio.traceln "[/start] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/start] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/start] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/start] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /env_check - Check environment *)
   |> Bot.command "env_check" ~desc:"Check environment configuration" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/env_check] Checking environment";
+      Flo.debug "[/env_check] Checking environment";
 
       let env_status = Diagnostics.check_env () in
 
       match reply ctx env_status with
-      | Ok _ -> Eio.traceln "[/env_check] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/env_check] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/env_check] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/env_check] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /diagnostics - Runtime diagnostics *)
   |> Bot.command "diagnostics" ~desc:"Run bot diagnostics" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/diagnostics] Running diagnostics";
+      Flo.debug "[/diagnostics] Running diagnostics";
 
       let runtime_info = Diagnostics.runtime_info () in
 
@@ -305,23 +305,23 @@ let () =
       in
 
       match reply ctx full_report with
-      | Ok _ -> Eio.traceln "[/diagnostics] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/diagnostics] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/diagnostics] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/diagnostics] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /log_example - Demonstrate logging *)
   |> Bot.command "log_example" ~desc:"Logging example" (fun ctx _args ->
       let open Bot.Ctx in
 
-      Eio.traceln "[/log_example] === Logging Example Start ===";
-      Eio.traceln "[/log_example] Debug: This is a debug message";
-      Eio.traceln "[/log_example] Info: Processing request";
-      Eio.traceln "[/log_example] Warn: This is a warning";
+      Flo.debug "[/log_example] === Logging Example Start ===";
+      Flo.debug "[/log_example] Debug: This is a debug message";
+      Flo.debug "[/log_example] Info: Processing request";
+      Flo.debug "[/log_example] Warn: This is a warning";
 
       incr total_updates;
 
-      Eio.traceln "[/log_example] Update counter: %d" !total_updates;
-      Eio.traceln "[/log_example] === Logging Example End ===";
+      Flo.debugf "[/log_example] Update counter: %d" !total_updates;
+      Flo.debug "[/log_example] === Logging Example End ===";
 
       let text =
         "📝 <b>Logging Example</b>\n\n\
@@ -334,15 +334,15 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[/log_example] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/log_example] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/log_example] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/log_example] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /error_example - Demonstrate error handling *)
   |> Bot.command "error_example" ~desc:"Error handling example" (fun ctx _args ->
       let open Bot.Ctx in
 
-      Eio.traceln "[/error_example] Demonstrating error handling";
+      Flo.debug "[/error_example] Demonstrating error handling";
 
       (* Simulate an error *)
       let result = Error (Error.Api_error {
@@ -355,11 +355,11 @@ let () =
       | Ok _ ->
           (match reply ctx "This won't happen" with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/error_example] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/error_example] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | Error err ->
-          Eio.traceln "[/error_example] Caught error: %a" Error.pp err;
-          Eio.traceln "[/error_example] Error is retryable: %b" (Error.is_retryable err);
+          Flo.debugf "[/error_example] Caught error: %s" (Format.asprintf "%a" Error.pp err);
+          Flo.debugf "[/error_example] Error is retryable: %b" (Error.is_retryable err);
 
           let text = Printf.sprintf
             "❌ <b>Error Handling Example</b>\n\n\
@@ -373,14 +373,14 @@ let () =
           in
 
           (match reply ctx text with
-           | Ok _ -> Eio.traceln "[/error_example] ✓"; Ok ()
-           | Error e -> Eio.traceln "[/error_example] ✗ %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[/error_example] ✓"; Ok ()
+           | Error e -> Flo.debugf "[/error_example] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
     )
 
   (* /performance - Show performance stats *)
   |> Bot.command "performance" ~desc:"Show performance statistics" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/performance] Showing performance stats";
+      Flo.debug "[/performance] Showing performance stats";
 
       let uptime = Unix.time () -. start_time in
       let rate = if uptime > 0.0 then
@@ -407,8 +407,8 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[/performance] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/performance] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/performance] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/performance] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: guide:* *)
@@ -416,35 +416,35 @@ let () =
       let open Bot.Ctx in
       match edit ctx Templates.local_setup with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[guide:setup] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[guide:setup] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback_data "guide:logging" (fun ctx ->
       let open Bot.Ctx in
       match edit ctx Templates.logging_guide with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[guide:logging] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[guide:logging] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback_data "guide:debugging" (fun ctx ->
       let open Bot.Ctx in
       match edit ctx Templates.debugging_guide with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[guide:debugging] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[guide:debugging] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback_data "guide:testing" (fun ctx ->
       let open Bot.Ctx in
       match edit ctx Templates.testing_workflow with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[guide:testing] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[guide:testing] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback_data "guide:monitoring" (fun ctx ->
       let open Bot.Ctx in
       match edit ctx Templates.monitoring_guide with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[guide:monitoring] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[guide:monitoring] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: action:env_check *)
@@ -453,7 +453,7 @@ let () =
       let env_status = Diagnostics.check_env () in
       match edit ctx env_status with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[action:env_check] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[action:env_check] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: action:diagnostics *)
@@ -480,7 +480,7 @@ let () =
 
       match edit ctx full_report with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[action:diagnostics] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[action:diagnostics] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.run

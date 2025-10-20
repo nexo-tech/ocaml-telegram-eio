@@ -155,7 +155,7 @@ end
 
 let () =
   Printexc.record_backtrace true;
-  Eio.traceln "=== Documentation Index Demo Starting ===";
+  Flo.info "=== Documentation Index Demo Starting ===";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t -> t
@@ -165,9 +165,9 @@ let () =
   Eio_main.run @@ fun env ->
   let client = Client.create ~env ~token () in
 
-  Eio.traceln "🤖 Documentation Index Demo Started";
-  Eio.traceln "Documentation pages: %d" (List.length DocIndex.pages);
-  Eio.traceln "Documentation sections: %d" (List.length (DocIndex.all_sections ()));
+  Flo.info "🤖 Documentation Index Demo Started";
+  Flo.debugf "Documentation pages: %d" (List.length DocIndex.pages);
+  Flo.debugf "Documentation sections: %d" (List.length (DocIndex.all_sections ()));
 
   let session_store = Session.Memory_store.create () in
 
@@ -177,7 +177,7 @@ let () =
   (* /start - Main documentation index *)
   |> Bot.command "start" ~desc:"Show documentation index" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/start] Showing documentation index";
+      Flo.debug "[/start] Showing documentation index";
 
       let sections = DocIndex.all_sections () in
       let section_buttons = List.map (fun section ->
@@ -203,14 +203,14 @@ let () =
       in
 
       match send ~keyboard ctx text with
-      | Ok _ -> Eio.traceln "[/start] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/start] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/start] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/start] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /overview - Library overview *)
   |> Bot.command "overview" ~desc:"Library overview" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/overview] Showing overview";
+      Flo.debug "[/overview] Showing overview";
 
       let text =
         "📖 <b>Library Overview</b>\n\n\
@@ -229,31 +229,31 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[/overview] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/overview] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/overview] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/overview] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /search_docs - Search documentation *)
   |> Bot.command "search_docs" ~desc:"Search documentation" (fun ctx args ->
       let open Bot.Ctx in
-      Eio.traceln "[/search_docs] Searching documentation";
+      Flo.debug "[/search_docs] Searching documentation";
 
       match args with
       | [] ->
           (match reply ctx "Usage: /search_docs <query>\n\nExample: /search_docs keyboard" with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/search_docs] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/search_docs] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | _ ->
           let query = String.concat " " args in
           let results = DocIndex.search query in
 
-          Eio.traceln "[/search_docs] Found %d results for: %s" (List.length results) query;
+          Flo.debugf "[/search_docs] Found %d results for: %s" (List.length results) query;
 
           if List.length results = 0 then
             (match reply ctx (Printf.sprintf "No documentation found for: %s" query) with
              | Ok _ -> Ok ()
-             | Error e -> Eio.traceln "[/search_docs] ✗ %a" Error.pp e; Ok ())
+             | Error e -> Flo.debugf "[/search_docs] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
           else
             let result_buttons = List.map (fun p ->
               [KB.callback ~text:(p.section ^ ": " ^ p.title) ~data:("page:" ^ p.id)]
@@ -269,8 +269,8 @@ let () =
             in
 
             (match send ~keyboard ctx text with
-             | Ok _ -> Eio.traceln "[/search_docs] ✓"; Ok ()
-             | Error e -> Eio.traceln "[/search_docs] ✗ %a" Error.pp e; Ok ())
+             | Ok _ -> Flo.debug "[/search_docs] ✓"; Ok ()
+             | Error e -> Flo.debugf "[/search_docs] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
     )
 
   (* Callback: section:<name> *)
@@ -279,7 +279,7 @@ let () =
         let open Bot.Ctx in
         let section = String.sub data 8 (String.length data - 8) in
 
-        Eio.traceln "[section] Showing section: %s" section;
+        Flo.debugf "[section] Showing section: %s" section;
 
         let pages = DocIndex.by_section section in
 
@@ -299,7 +299,7 @@ let () =
 
         (match edit ~keyboard ctx text with
          | Ok () -> Ok ()
-         | Error e -> Eio.traceln "[section] ✗ %a" Error.pp e; Ok ())
+         | Error e -> Flo.debugf "[section] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
       ) else Ok ()
     )
 
@@ -309,7 +309,7 @@ let () =
         let open Bot.Ctx in
         let id = String.sub data 5 (String.length data - 5) in
 
-        Eio.traceln "[page] Showing page: %s" id;
+        Flo.debugf "[page] Showing page: %s" id;
 
         match DocIndex.find_by_id id with
         | Some page ->
@@ -330,13 +330,13 @@ let () =
             ] in
 
             (match edit ~keyboard ctx text with
-             | Ok () -> Eio.traceln "[page] ✓"; Ok ()
-             | Error e -> Eio.traceln "[page] ✗ %a" Error.pp e; Ok ())
+             | Ok () -> Flo.debug "[page] ✓"; Ok ()
+             | Error e -> Flo.debugf "[page] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
         | None ->
             (match edit ctx "❌ Page not found" with
              | Ok () -> Ok ()
-             | Error e -> Eio.traceln "[page] ✗ %a" Error.pp e; Ok ())
+             | Error e -> Flo.debugf "[page] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
       ) else Ok ()
     )
 
@@ -363,7 +363,7 @@ let () =
 
       match edit ctx text with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[info:overview] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[info:overview] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: action:index *)
@@ -386,7 +386,7 @@ let () =
 
       match edit ~keyboard ctx text with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[action:index] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[action:index] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: action:search_prompt *)
@@ -403,7 +403,7 @@ let () =
          • /search_docs session"
       with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[action:search_prompt] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[action:search_prompt] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.run

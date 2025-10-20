@@ -87,11 +87,11 @@ module Command_registry = struct
       cmd.name aliases cmd.description cmd.usage
 
   let format_help_text ~is_admin () =
-    Eio.traceln "[Registry] Generating help text (admin=%b)" is_admin;
+    Flo.debugf "[Registry] Generating help text (admin=%b)" is_admin;
     let user_cmds = get_user_commands () in
     let admin_cmds = if is_admin then get_admin_commands () else [] in
 
-    Eio.traceln "[Registry] User commands: %d, Admin commands: %d"
+    Flo.debugf "[Registry] User commands: %d, Admin commands: %d"
       (List.length user_cmds) (List.length admin_cmds);
 
     let format_section title cmds =
@@ -122,34 +122,34 @@ module Admin = struct
                   |> List.map String.trim
                   |> List.filter (fun s -> s <> "") in
         admin_users := ids;
-        Eio.traceln "[Admin] Loaded %d admin user IDs from ADMIN_USER_IDS" (List.length ids);
-        List.iter (fun id -> Eio.traceln "[Admin]   - %s" id) ids
+        Flo.debugf "[Admin] Loaded %d admin user IDs from ADMIN_USER_IDS" (List.length ids);
+        List.iter (fun id -> Flo.debugf "[Admin]   - %s" id) ids
     | None ->
-        Eio.traceln "[Admin] No ADMIN_USER_IDS set, no admins configured";
-        Eio.traceln "[Admin] Set ADMIN_USER_IDS=123456789,987654321 to configure admins"
+        Flo.debug "[Admin] No ADMIN_USER_IDS set, no admins configured";
+        Flo.debug "[Admin] Set ADMIN_USER_IDS=123456789,987654321 to configure admins"
 
   let is_admin user_id_str =
     let result = List.mem user_id_str !admin_users in
-    Eio.traceln "[Admin] Permission check: user_id=%s, is_admin=%b" user_id_str result;
+    Flo.debugf "[Admin] Permission check: user_id=%s, is_admin=%b" user_id_str result;
     result
 
   let require_admin handler =
     fun ctx args ->
-      Eio.traceln "[Admin] Checking admin permission...";
+      Flo.debug "[Admin] Checking admin permission...";
       match Bot.Ctx.user ctx with
       | Some user ->
           let user_id_str = Id.to_string user.id in
           if is_admin user_id_str then (
-            Eio.traceln "[Admin] ✓ User %s is admin, allowing access" user_id_str;
+            Flo.debugf "[Admin] ✓ User %s is admin, allowing access" user_id_str;
             handler ctx args
           ) else (
-            Eio.traceln "[Admin] ✗ User %s is not admin, denying access" user_id_str;
+            Flo.errorf "[Admin] ✗ User %s is not admin, denying access" user_id_str;
             let open Bot.Ctx in
             let* () = reply_ ctx "⛔ This command requires administrator privileges." in
             Ok ()
           )
       | None ->
-          Eio.traceln "[Admin] ✗ No user info available";
+          Flo.error "[Admin] ✗ No user info available";
           let open Bot.Ctx in
           let* () = reply_ ctx "⛔ User information not available." in
           Ok ()
@@ -164,34 +164,34 @@ module Calculator = struct
     | Divide of float * float
 
   let parse_args args =
-    Eio.traceln "[Calc] Parsing args: %s" (String.concat " " args);
+    Flo.debugf "[Calc] Parsing args: %s" (String.concat " " args);
     match args with
     | [a; op; b] ->
-        Eio.traceln "[Calc] Got 3 args: a='%s', op='%s', b='%s'" a op b;
+        Flo.debugf "[Calc] Got 3 args: a='%s', op='%s', b='%s'" a op b;
         (match Float.of_string_opt a, Float.of_string_opt b with
          | Some x, Some y ->
-             Eio.traceln "[Calc] Parsed floats: x=%f, y=%f" x y;
+             Flo.debugf "[Calc] Parsed floats: x=%f, y=%f" x y;
              (match op with
               | "+" -> Ok (Add (x, y))
               | "-" -> Ok (Subtract (x, y))
               | "*" | "x" -> Ok (Multiply (x, y))
               | "/" ->
                   if y = 0.0 then (
-                    Eio.traceln "[Calc] ✗ Division by zero";
+                    Flo.error "[Calc] ✗ Division by zero";
                     Error "Division by zero"
                   ) else
                     Ok (Divide (x, y))
               | _ ->
-                  Eio.traceln "[Calc] ✗ Invalid operator: '%s'" op;
+                  Flo.errorf "[Calc] ✗ Invalid operator: '%s'" op;
                   Error "Invalid operator. Use: +, -, *, /")
          | None, _ ->
-             Eio.traceln "[Calc] ✗ First argument is not a number: '%s'" a;
+             Flo.errorf "[Calc] ✗ First argument is not a number: '%s'" a;
              Error "First argument must be a number"
          | _, None ->
-             Eio.traceln "[Calc] ✗ Second argument is not a number: '%s'" b;
+             Flo.errorf "[Calc] ✗ Second argument is not a number: '%s'" b;
              Error "Second argument must be a number")
     | _ ->
-        Eio.traceln "[Calc] ✗ Expected 3 args, got %d" (List.length args);
+        Flo.errorf "[Calc] ✗ Expected 3 args, got %d" (List.length args);
         Error "Usage: /calc <number> <operator> <number>\nExample: /calc 5 + 3"
 
   let execute = function
@@ -226,7 +226,7 @@ module Bot_state = struct
     state.total_commands <- state.total_commands + 1;
     if not (Hashtbl.mem state.unique_users user_id_str) then
       Hashtbl.add state.unique_users user_id_str ();
-    Eio.traceln "[Stats] Command tracked: total=%d, unique_users=%d"
+    Flo.debugf "[Stats] Command tracked: total=%d, unique_users=%d"
       state.total_commands (Hashtbl.length state.unique_users)
 
   let get_stats state =
@@ -240,42 +240,42 @@ module Bot_state = struct
 end
 
 let () =
-  Eio.traceln "=== Recipe: Command Bot Starting ===";
-  Eio.traceln "[Init] Loading configuration...";
+  Flo.info "=== Recipe: Command Bot Starting ===";
+  Flo.info "[Init] Loading configuration...";
 
   let token =
     match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t ->
-        Eio.traceln "[Init] ✓ Bot token loaded from TELEGRAM_BOT_TOKEN";
-        Eio.traceln "[Init]   Token: %s...%s (length=%d)"
+        Flo.info "[Init] ✓ Bot token loaded from TELEGRAM_BOT_TOKEN";
+        Flo.infof "[Init]   Token: %s...%s (length=%d)"
           (String.sub t 0 (min 8 (String.length t)))
           (if String.length t > 8 then String.sub t (String.length t - 4) 4 else "")
           (String.length t);
         t
     | None ->
-        Eio.traceln "[Init] ✗ TELEGRAM_BOT_TOKEN environment variable not set";
+        Flo.info "[Init] ✗ TELEGRAM_BOT_TOKEN environment variable not set";
         Printf.eprintf "Error: TELEGRAM_BOT_TOKEN not set\n";
         exit 1
   in
 
   (* Load admin users from environment *)
-  Eio.traceln "[Init] Loading admin configuration...";
+  Flo.info "[Init] Loading admin configuration...";
   Admin.load_from_env ();
 
-  Eio.traceln "[Init] Starting Eio event loop...";
+  Flo.info "[Init] Starting Eio event loop...";
   Eio_main.run @@ fun env ->
 
-  Eio.traceln "[Init] Creating Telegram HTTP client...";
+  Flo.info "[Init] Creating Telegram HTTP client...";
   let client = Client.create ~env ~token () in
-  Eio.traceln "[Init] ✓ HTTP client created (base_url=%s)" (Client.base_url client);
+  Flo.infof "[Init] ✓ HTTP client created (base_url=%s)" (Client.base_url client);
 
   (* Initialize bot state *)
   let state = Bot_state.create () in
-  Eio.traceln "[Init] Bot state initialized";
+  Flo.info "[Init] Bot state initialized";
 
   (* Register commands in the registry *)
-  Eio.traceln "";
-  Eio.traceln "[Registry] Registering commands...";
+  Flo.debug "";
+  Flo.debug "[Registry] Registering commands...";
   Command_registry.register {
     name = "start";
     aliases = [];
@@ -341,41 +341,41 @@ let () =
     admin_only = true;
   };
 
-  Eio.traceln "[Registry] ✓ Registered %d commands" (List.length !Command_registry.commands);
-  Eio.traceln "";
+  Flo.debugf "[Registry] ✓ Registered %d commands" (List.length !Command_registry.commands);
+  Flo.debug "";
 
-  Eio.traceln "🤖 Command Bot Started!";
-  Eio.traceln "";
-  Eio.traceln "📋 Features:";
-  Eio.traceln "   • %d registered commands" (List.length !Command_registry.commands);
-  Eio.traceln "   • Auto-generated help system";
-  Eio.traceln "   • Command aliases (/h, /e)";
-  Eio.traceln "   • Admin commands (%d admins configured)" (List.length !Admin.admin_users);
-  Eio.traceln "   • Argument parsing and validation";
-  Eio.traceln "   • Statistics tracking";
-  Eio.traceln "";
-  Eio.traceln "🔍 Watching for updates (long polling)...";
-  Eio.traceln "";
+  Flo.info "🤖 Command Bot Started!";
+  Flo.debug "";
+  Flo.info "📋 Features:";
+  Flo.debugf "   • %d registered commands" (List.length !Command_registry.commands);
+  Flo.debug "   • Auto-generated help system";
+  Flo.debug "   • Command aliases (/h, /e)";
+  Flo.debugf "   • Admin commands (%d admins configured)" (List.length !Admin.admin_users);
+  Flo.debug "   • Argument parsing and validation";
+  Flo.debug "   • Statistics tracking";
+  Flo.debug "";
+  Flo.debug "🔍 Watching for updates (long polling)...";
+  Flo.debug "";
 
   (* Build bot using functional builder pattern *)
-  Eio.traceln "[Builder] Building bot with functional API...";
+  Flo.debug "[Builder] Building bot with functional API...";
   Bot.make ~env ~client
   (* Add global error handler *)
   |> Bot.on_error (fun ctx exn ->
-      Eio.traceln "";
-      Eio.traceln "[Error] ❌❌❌ Uncaught error in handler ❌❌❌";
-      Eio.traceln "[Error] Error: %s" (Printexc.to_string exn);
+      Flo.debug "";
+      Flo.error "[Error] ❌❌❌ Uncaught error in handler ❌❌❌";
+      Flo.errorf "[Error] Error: %s" (Printexc.to_string exn);
       match Bot.Ctx.reply ctx "❌ Sorry, an error occurred. Please try again." with
-      | Ok _ -> Eio.traceln "[Error] ✓ Error notification sent"
-      | Error e -> Eio.traceln "[Error] ✗ Failed to send error: %a" Error.pp e;
-      Eio.traceln "";
+      | Ok _ -> Flo.error "[Error] ✓ Error notification sent"
+      | Error e -> Flo.errorf "[Error] ✗ Failed to send error: %s" (Format.asprintf "%a" Error.pp e);
+      Flo.debug "";
     )
 
   (* /start command *)
-  |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'start'"; bot)
+  |> (fun bot -> Flo.debug "[Builder] Registering route: command 'start'"; bot)
   |> Bot.command "start" ~desc:"Get started" (fun ctx _args ->
-      Eio.traceln "";
-      Eio.traceln "[Handler:start] >>> /start command";
+      Flo.debug "";
+      Flo.debug "[Handler:start] >>> /start command";
       (* Track command *)
       (match Bot.Ctx.user ctx with
        | Some u -> Bot_state.track_command state (Id.to_string u.id)
@@ -390,17 +390,17 @@ let () =
          /echo <text> - Echo your message\n\
          /calc 5 + 3 - Calculate\n\
          /time - Current time" in
-      Eio.traceln "[Handler:start] <<< completed";
-      Eio.traceln "";
+      Flo.debug "[Handler:start] <<< completed";
+      Flo.debug "";
       Ok ()
     )
 
   (* /help command with detailed help for specific commands *)
-  |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'help'"; bot)
+  |> (fun bot -> Flo.debug "[Builder] Registering route: command 'help'"; bot)
   |> Bot.command "help" ~desc:"Show help" (fun ctx args ->
-      Eio.traceln "";
-      Eio.traceln "[Handler:help] >>> /help command";
-      Eio.traceln "[Handler:help] Args: %s" (String.concat " " args);
+      Flo.debug "";
+      Flo.debug "[Handler:help] >>> /help command";
+      Flo.debugf "[Handler:help] Args: %s" (String.concat " " args);
 
       (* Track command *)
       (match Bot.Ctx.user ctx with
@@ -416,31 +416,31 @@ let () =
       let* () =
         match args with
         | [] ->
-            Eio.traceln "[Handler:help] Generating full help text";
+            Flo.debug "[Handler:help] Generating full help text";
             let help_text = Command_registry.format_help_text ~is_admin () in
             reply_ ctx help_text
         | [cmd_name] ->
-            Eio.traceln "[Handler:help] Looking up command: '%s'" cmd_name;
+            Flo.debugf "[Handler:help] Looking up command: '%s'" cmd_name;
             (match Command_registry.find_command cmd_name with
              | Some cmd ->
-                 Eio.traceln "[Handler:help] ✓ Found command: %s" cmd.name;
+                 Flo.debugf "[Handler:help] ✓ Found command: %s" cmd.name;
                  reply_ ctx (Command_registry.format_command cmd)
              | None ->
-                 Eio.traceln "[Handler:help] ✗ Command not found: '%s'" cmd_name;
+                 Flo.errorf "[Handler:help] ✗ Command not found: '%s'" cmd_name;
                  reply_ ctx ("❌ Unknown command: " ^ cmd_name))
         | _ ->
-            Eio.traceln "[Handler:help] ✗ Too many arguments";
+            Flo.error "[Handler:help] ✗ Too many arguments";
             reply_ ctx "Usage: /help [command]"
       in
-      Eio.traceln "[Handler:help] <<< completed";
-      Eio.traceln "";
+      Flo.debug "[Handler:help] <<< completed";
+      Flo.debug "";
       Ok ()
     )
 
   (* /h alias for /help *)
-  |> (fun bot -> Eio.traceln "[Builder] Registering route: alias 'h' -> 'help'"; bot)
+  |> (fun bot -> Flo.debug "[Builder] Registering route: alias 'h' -> 'help'"; bot)
   |> Bot.command "h" ~desc:"Help alias" (fun ctx _args ->
-      Eio.traceln "[Alias] /h -> /help";
+      Flo.debug "[Alias] /h -> /help";
       (* Track command *)
       (match Bot.Ctx.user ctx with
        | Some u -> Bot_state.track_command state (Id.to_string u.id)
@@ -457,11 +457,11 @@ let () =
     )
 
   (* /echo command *)
-  |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'echo'"; bot)
+  |> (fun bot -> Flo.debug "[Builder] Registering route: command 'echo'"; bot)
   |> Bot.command "echo" ~desc:"Echo text" (fun ctx args ->
-      Eio.traceln "";
-      Eio.traceln "[Handler:echo] >>> /echo command";
-      Eio.traceln "[Handler:echo] Args: %s" (String.concat " " args);
+      Flo.debug "";
+      Flo.debug "[Handler:echo] >>> /echo command";
+      Flo.debugf "[Handler:echo] Args: %s" (String.concat " " args);
 
       (* Track command *)
       (match Bot.Ctx.user ctx with
@@ -469,7 +469,7 @@ let () =
        | None -> ());
 
       let text = Bot.Args.join_rest args 0 in
-      Eio.traceln "[Handler:echo] Joined text: \"%s\"" text;
+      Flo.debugf "[Handler:echo] Joined text: \"%s\"" text;
 
       let open Bot.Ctx in
       let* () =
@@ -478,15 +478,15 @@ let () =
         else
           reply_ ctx text
       in
-      Eio.traceln "[Handler:echo] <<< completed";
-      Eio.traceln "";
+      Flo.debug "[Handler:echo] <<< completed";
+      Flo.debug "";
       Ok ()
     )
 
   (* /e alias for /echo *)
-  |> (fun bot -> Eio.traceln "[Builder] Registering route: alias 'e' -> 'echo'"; bot)
+  |> (fun bot -> Flo.debug "[Builder] Registering route: alias 'e' -> 'echo'"; bot)
   |> Bot.command "e" ~desc:"Echo alias" (fun ctx args ->
-      Eio.traceln "[Alias] /e -> /echo";
+      Flo.debug "[Alias] /e -> /echo";
       (* Track command *)
       (match Bot.Ctx.user ctx with
        | Some u -> Bot_state.track_command state (Id.to_string u.id)
@@ -501,10 +501,10 @@ let () =
     )
 
   (* /time command *)
-  |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'time'"; bot)
+  |> (fun bot -> Flo.debug "[Builder] Registering route: command 'time'"; bot)
   |> Bot.command "time" ~desc:"Show current time" (fun ctx _args ->
-      Eio.traceln "";
-      Eio.traceln "[Handler:time] >>> /time command";
+      Flo.debug "";
+      Flo.debug "[Handler:time] >>> /time command";
 
       (* Track command *)
       (match Bot.Ctx.user ctx with
@@ -520,21 +520,21 @@ let () =
         now.Unix.tm_min
         now.Unix.tm_sec
       in
-      Eio.traceln "[Handler:time] Generated time: %s" time_str;
+      Flo.debugf "[Handler:time] Generated time: %s" time_str;
 
       let open Bot.Ctx in
       let* () = reply_ ctx time_str in
-      Eio.traceln "[Handler:time] <<< completed";
-      Eio.traceln "";
+      Flo.debug "[Handler:time] <<< completed";
+      Flo.debug "";
       Ok ()
     )
 
   (* /calc command with structured argument parsing *)
-  |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'calc'"; bot)
+  |> (fun bot -> Flo.debug "[Builder] Registering route: command 'calc'"; bot)
   |> Bot.command "calc" ~desc:"Calculator" (fun ctx args ->
-      Eio.traceln "";
-      Eio.traceln "[Handler:calc] >>> /calc command";
-      Eio.traceln "[Handler:calc] Args: %s" (String.concat " " args);
+      Flo.debug "";
+      Flo.debug "[Handler:calc] >>> /calc command";
+      Flo.debugf "[Handler:calc] Args: %s" (String.concat " " args);
 
       (* Track command *)
       (match Bot.Ctx.user ctx with
@@ -545,24 +545,24 @@ let () =
       let* () =
         match Calculator.parse_args args with
         | Ok operation ->
-            Eio.traceln "[Handler:calc] ✓ Parsed operation successfully";
+            Flo.success "[Handler:calc] ✓ Parsed operation successfully";
             let result = Calculator.format_result operation in
-            Eio.traceln "[Handler:calc] Result: %s" result;
+            Flo.debugf "[Handler:calc] Result: %s" result;
             reply_ ctx ("🔢 " ^ result)
         | Error msg ->
-            Eio.traceln "[Handler:calc] ✗ Parse error: %s" msg;
+            Flo.errorf "[Handler:calc] ✗ Parse error: %s" msg;
             reply_ ctx ("❌ " ^ msg)
       in
-      Eio.traceln "[Handler:calc] <<< completed";
-      Eio.traceln "";
+      Flo.debug "[Handler:calc] <<< completed";
+      Flo.debug "";
       Ok ()
     )
 
   (* /about command *)
-  |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'about'"; bot)
+  |> (fun bot -> Flo.debug "[Builder] Registering route: command 'about'"; bot)
   |> Bot.command "about" ~desc:"About bot" (fun ctx _args ->
-      Eio.traceln "";
-      Eio.traceln "[Handler:about] >>> /about command";
+      Flo.debug "";
+      Flo.debug "[Handler:about] >>> /about command";
 
       (* Track command *)
       (match Bot.Ctx.user ctx with
@@ -579,15 +579,15 @@ let () =
          • Argument parsing\n\
          • Statistics tracking\n\n\
          Built with ocaml-telegram-eio" in
-      Eio.traceln "[Handler:about] <<< completed";
-      Eio.traceln "";
+      Flo.debug "[Handler:about] <<< completed";
+      Flo.debug "";
       Ok ()
     )
 
   (* /info alias for /about *)
-  |> (fun bot -> Eio.traceln "[Builder] Registering route: alias 'info' -> 'about'"; bot)
+  |> (fun bot -> Flo.debug "[Builder] Registering route: alias 'info' -> 'about'"; bot)
   |> Bot.command "info" ~desc:"About alias" (fun ctx _args ->
-      Eio.traceln "[Alias] /info -> /about";
+      Flo.debug "[Alias] /info -> /about";
       (* Track command *)
       (match Bot.Ctx.user ctx with
        | Some u -> Bot_state.track_command state (Id.to_string u.id)
@@ -600,13 +600,13 @@ let () =
     )
 
   (* /stats command - admin only *)
-  |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'stats' (admin)"; bot)
+  |> (fun bot -> Flo.debug "[Builder] Registering route: command 'stats' (admin)"; bot)
   |> Bot.command "stats" ~desc:"Bot statistics" (Admin.require_admin (fun ctx _args ->
-      Eio.traceln "";
-      Eio.traceln "[Handler:stats] >>> /stats command (admin)";
+      Flo.debug "";
+      Flo.debug "[Handler:stats] >>> /stats command (admin)";
 
       let (cmds, users, uptime) = Bot_state.get_stats state in
-      Eio.traceln "[Handler:stats] Stats: commands=%d, users=%d, uptime=%fs" cmds users uptime;
+      Flo.debugf "[Handler:stats] Stats: commands=%d, users=%d, uptime=%fs" cmds users uptime;
 
       let text = Printf.sprintf
         "📊 Bot Statistics\n\n\
@@ -618,39 +618,39 @@ let () =
 
       let open Bot.Ctx in
       let* () = reply_ ctx text in
-      Eio.traceln "[Handler:stats] <<< completed";
-      Eio.traceln "";
+      Flo.debug "[Handler:stats] <<< completed";
+      Flo.debug "";
       Ok ()
     ))
 
   (* /broadcast command - admin only *)
-  |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'broadcast' (admin)"; bot)
+  |> (fun bot -> Flo.debug "[Builder] Registering route: command 'broadcast' (admin)"; bot)
   |> Bot.command "broadcast" ~desc:"Broadcast message" (Admin.require_admin (fun ctx args ->
-      Eio.traceln "";
-      Eio.traceln "[Handler:broadcast] >>> /broadcast command (admin)";
-      Eio.traceln "[Handler:broadcast] Args: %s" (String.concat " " args);
+      Flo.debug "";
+      Flo.debug "[Handler:broadcast] >>> /broadcast command (admin)";
+      Flo.debugf "[Handler:broadcast] Args: %s" (String.concat " " args);
 
       let msg_text = Bot.Args.join_rest args 0 in
-      Eio.traceln "[Handler:broadcast] Message: \"%s\"" msg_text;
+      Flo.debugf "[Handler:broadcast] Message: \"%s\"" msg_text;
 
       let open Bot.Ctx in
       let* () =
         if msg_text = "" then (
-          Eio.traceln "[Handler:broadcast] ✗ No message provided";
+          Flo.error "[Handler:broadcast] ✗ No message provided";
           reply_ ctx "Usage: /broadcast <message>\nExample: /broadcast Server maintenance in 1 hour"
         ) else (
-          Eio.traceln "[Handler:broadcast] Would broadcast to all users (not implemented in example)";
+          Flo.debug "[Handler:broadcast] Would broadcast to all users (not implemented in example)";
           reply_ ctx ("📢 Broadcast message:\n\n" ^ msg_text ^ "\n\n(Note: Actual broadcast not implemented in this example)")
         )
       in
-      Eio.traceln "[Handler:broadcast] <<< completed";
-      Eio.traceln "";
+      Flo.debug "[Handler:broadcast] <<< completed";
+      Flo.debug "";
       Ok ()
     ))
 
   |> (fun bot ->
-      Eio.traceln "[Builder] ✓ All routes registered";
-      Eio.traceln "[Builder] Starting bot...";
-      Eio.traceln "";
+      Flo.debug "[Builder] ✓ All routes registered";
+      Flo.info "[Builder] Starting bot...";
+      Flo.debug "";
       bot)
   |> Bot.run

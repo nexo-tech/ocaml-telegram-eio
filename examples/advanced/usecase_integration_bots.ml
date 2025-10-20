@@ -80,7 +80,7 @@ module GitHub = struct
       event.url
 
   let simulate_push () =
-    Eio.traceln "[GitHub] Simulating push event";
+    Flo.debug "[GitHub] Simulating push event";
     {
       event_type = Push;
       repo = "ocaml/telegram-eio";
@@ -90,7 +90,7 @@ module GitHub = struct
     }
 
   let simulate_pr () =
-    Eio.traceln "[GitHub] Simulating PR event";
+    Flo.debug "[GitHub] Simulating PR event";
     {
       event_type = PullRequest;
       repo = "ocaml/telegram-eio";
@@ -130,11 +130,11 @@ module CICD = struct
   }
 
   let get_status () =
-    Eio.traceln "[CICD] Getting build status";
+    Flo.debug "[CICD] Getting build status";
     !current_build
 
   let trigger_build project branch =
-    Eio.traceln "[CICD] Triggering build: %s/%s" project branch;
+    Flo.debugf "[CICD] Triggering build: %s/%s" project branch;
     let new_build = {
       project;
       branch;
@@ -175,7 +175,7 @@ module Database = struct
   ]
 
   let run_query query params =
-    Eio.traceln "[Database] Running query: %s with params: [%s]"
+    Flo.debugf "[Database] Running query: %s with params: [%s]"
       query (String.concat ", " params);
 
     if not (List.mem query whitelisted_queries) then
@@ -219,7 +219,7 @@ module BackendAPI = struct
   }
 
   let call endpoint params =
-    Eio.traceln "[BackendAPI] Calling endpoint: %s with params: [%s]"
+    Flo.debugf "[BackendAPI] Calling endpoint: %s with params: [%s]"
       endpoint (String.concat ", " params);
 
     (* Simulate API call with random success/failure *)
@@ -268,7 +268,7 @@ end
 
 let () =
   Printexc.record_backtrace true;
-  Eio.traceln "=== Integration Bots Demo Starting ===";
+  Flo.info "=== Integration Bots Demo Starting ===";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t -> t
@@ -278,8 +278,8 @@ let () =
   Eio_main.run @@ fun env ->
   let client = Client.create ~env ~token () in
 
-  Eio.traceln "🤖 Integration Bots Demo Started";
-  Eio.traceln "Admin users: %d configured" (List.length (AdminAuth.admin_user_ids ()));
+  Flo.info "🤖 Integration Bots Demo Started";
+  Flo.debugf "Admin users: %d configured" (List.length (AdminAuth.admin_user_ids ()));
 
   let session_store = Session.Memory_store.create () in
 
@@ -289,7 +289,7 @@ let () =
   (* /start - Main menu *)
   |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/start] Showing main menu";
+      Flo.debug "[/start] Showing main menu";
 
       let keyboard = KB.inline [
         [KB.callback ~text:"🔧 CI/CD Status" ~data:"action:ci_status"];
@@ -309,27 +309,27 @@ let () =
       in
 
       match send ~keyboard ctx text with
-      | Ok _ -> Eio.traceln "[/start] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/start] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/start] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/start] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /ci_status - Check CI/CD status *)
   |> Bot.command "ci_status" ~desc:"Check CI/CD build status" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/ci_status] Checking build status";
+      Flo.debug "[/ci_status] Checking build status";
 
       let build = CICD.get_status () in
       let text = CICD.format_build build in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[/ci_status] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/ci_status] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/ci_status] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/ci_status] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /db_query - Database query *)
   |> Bot.command "db_query" ~desc:"Run database query" (fun ctx args ->
       let open Bot.Ctx in
-      Eio.traceln "[/db_query] Database query request";
+      Flo.debug "[/db_query] Database query request";
 
       match args with
       | [] ->
@@ -342,12 +342,12 @@ let () =
           in
           (match reply ctx text with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/db_query] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/db_query] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | query :: params ->
           (match Database.run_query query params with
            | Ok results ->
-               Eio.traceln "[/db_query] Query succeeded, %d rows" (List.length results);
+               Flo.debugf "[/db_query] Query succeeded, %d rows" (List.length results);
                let formatted = Database.format_results results in
                let text = Printf.sprintf
                  "💾 <b>Query Results</b>\n\n\
@@ -356,20 +356,20 @@ let () =
                  query formatted
                in
                (match reply ctx text with
-                | Ok _ -> Eio.traceln "[/db_query] ✓"; Ok ()
-                | Error e -> Eio.traceln "[/db_query] ✗ %a" Error.pp e; Ok ())
+                | Ok _ -> Flo.debug "[/db_query] ✓"; Ok ()
+                | Error e -> Flo.debugf "[/db_query] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
            | Error msg ->
-               Eio.traceln "[/db_query] Query failed: %s" msg;
+               Flo.debugf "[/db_query] Query failed: %s" msg;
                (match reply ctx (Printf.sprintf "❌ Query failed: %s" msg) with
                 | Ok _ -> Ok ()
-                | Error e -> Eio.traceln "[/db_query] ✗ %a" Error.pp e; Ok ()))
+                | Error e -> Flo.debugf "[/db_query] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()))
     )
 
   (* /api_call - Backend API call *)
   |> Bot.command "api_call" ~desc:"Call backend API" (fun ctx args ->
       let open Bot.Ctx in
-      Eio.traceln "[/api_call] API call request";
+      Flo.debug "[/api_call] API call request";
 
       match args with
       | [] ->
@@ -381,28 +381,28 @@ let () =
              • /api_call create_item item1"
            with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/api_call] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/api_call] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | endpoint :: params ->
           (match BackendAPI.call endpoint params with
            | Ok response ->
-               Eio.traceln "[/api_call] API call succeeded";
+               Flo.debug "[/api_call] API call succeeded";
                let text = BackendAPI.format_response response in
                (match reply ctx text with
-                | Ok _ -> Eio.traceln "[/api_call] ✓"; Ok ()
-                | Error e -> Eio.traceln "[/api_call] ✗ %a" Error.pp e; Ok ())
+                | Ok _ -> Flo.debug "[/api_call] ✓"; Ok ()
+                | Error e -> Flo.debugf "[/api_call] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
            | Error msg ->
-               Eio.traceln "[/api_call] API call failed: %s" msg;
+               Flo.debugf "[/api_call] API call failed: %s" msg;
                (match reply ctx (Printf.sprintf "❌ API call failed: %s" msg) with
                 | Ok _ -> Ok ()
-                | Error e -> Eio.traceln "[/api_call] ✗ %a" Error.pp e; Ok ()))
+                | Error e -> Flo.debugf "[/api_call] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()))
     )
 
   (* /webhook_test - Simulate webhook *)
   |> Bot.command "webhook_test" ~desc:"Simulate GitHub webhook" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/webhook_test] Simulating GitHub webhook";
+      Flo.debug "[/webhook_test] Simulating GitHub webhook";
 
       let keyboard = KB.inline [
         [KB.callback ~text:"⬆️ Simulate Push" ~data:"webhook:push"];
@@ -415,14 +415,14 @@ let () =
       in
 
       match send ~keyboard ctx text with
-      | Ok _ -> Eio.traceln "[/webhook_test] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/webhook_test] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/webhook_test] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/webhook_test] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /integration_status - Show all integration statuses *)
   |> Bot.command "integration_status" ~desc:"Show integration status" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/integration_status] Showing integration status";
+      Flo.debug "[/integration_status] Showing integration status";
 
       let build = CICD.get_status () in
       let build_status = CICD.status_to_string build.status in
@@ -446,19 +446,19 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[/integration_status] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/integration_status] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/integration_status] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/integration_status] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /trigger_ci - Trigger CI build (admin only) *)
   |> Bot.command "trigger_ci" ~desc:"Trigger CI build (admin)" (fun ctx args ->
       let open Bot.Ctx in
-      Eio.traceln "[/trigger_ci] CI build trigger request";
+      Flo.debug "[/trigger_ci] CI build trigger request";
 
       (* Check admin *)
       match user ctx with
       | Some u when AdminAuth.is_admin u.id ->
-          Eio.traceln "[/trigger_ci] Admin access granted";
+          Flo.debug "[/trigger_ci] Admin access granted";
 
           (match args with
            | [project; branch] ->
@@ -474,19 +474,19 @@ let () =
                in
 
                (match reply ctx text with
-                | Ok _ -> Eio.traceln "[/trigger_ci] ✓"; Ok ()
-                | Error e -> Eio.traceln "[/trigger_ci] ✗ %a" Error.pp e; Ok ())
+                | Ok _ -> Flo.debug "[/trigger_ci] ✓"; Ok ()
+                | Error e -> Flo.debugf "[/trigger_ci] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
            | _ ->
                (match reply ctx "Usage: /trigger_ci <project> <branch>" with
                 | Ok _ -> Ok ()
-                | Error e -> Eio.traceln "[/trigger_ci] ✗ %a" Error.pp e; Ok ()))
+                | Error e -> Flo.debugf "[/trigger_ci] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()))
 
       | Some _ ->
-          Eio.traceln "[/trigger_ci] Admin access denied";
+          Flo.debug "[/trigger_ci] Admin access denied";
           (match reply ctx "❌ Admin access required." with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/trigger_ci] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/trigger_ci] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | None ->
           Ok ()
@@ -501,7 +501,7 @@ let () =
 
       match edit ctx text with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[action:ci_status] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[action:ci_status] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: action:db_query *)
@@ -521,7 +521,7 @@ let () =
 
       match edit ~keyboard ctx text with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[action:db_query] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[action:db_query] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: db:<query> *)
@@ -530,7 +530,7 @@ let () =
         let open Bot.Ctx in
         let query = String.sub data 3 (String.length data - 3) in
 
-        Eio.traceln "[db] Running query: %s" query;
+        Flo.debugf "[db] Running query: %s" query;
 
         (match Database.run_query query [] with
          | Ok results ->
@@ -543,12 +543,12 @@ let () =
              in
              (match edit ctx text with
               | Ok () -> Ok ()
-              | Error e -> Eio.traceln "[db] ✗ %a" Error.pp e; Ok ())
+              | Error e -> Flo.debugf "[db] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
          | Error msg ->
              (match edit ctx (Printf.sprintf "❌ %s" msg) with
               | Ok () -> Ok ()
-              | Error e -> Eio.traceln "[db] ✗ %a" Error.pp e; Ok ()))
+              | Error e -> Flo.debugf "[db] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()))
       ) else Ok ()
     )
 
@@ -566,7 +566,7 @@ let () =
 
       match edit ~keyboard ctx "🌐 <b>Backend API</b>\n\nSelect an endpoint:" with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[action:api_call] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[action:api_call] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: api:<endpoint> *)
@@ -575,19 +575,19 @@ let () =
         let open Bot.Ctx in
         let endpoint = String.sub data 4 (String.length data - 4) in
 
-        Eio.traceln "[api] Calling endpoint: %s" endpoint;
+        Flo.debugf "[api] Calling endpoint: %s" endpoint;
 
         (match BackendAPI.call endpoint [] with
          | Ok response ->
              let text = BackendAPI.format_response response in
              (match edit ctx text with
               | Ok () -> Ok ()
-              | Error e -> Eio.traceln "[api] ✗ %a" Error.pp e; Ok ())
+              | Error e -> Flo.debugf "[api] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
          | Error msg ->
              (match edit ctx (Printf.sprintf "❌ %s" msg) with
               | Ok () -> Ok ()
-              | Error e -> Eio.traceln "[api] ✗ %a" Error.pp e; Ok ()))
+              | Error e -> Flo.debugf "[api] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()))
       ) else Ok ()
     )
 
@@ -602,33 +602,33 @@ let () =
 
       match edit ~keyboard ctx "📢 <b>GitHub Webhook</b>\n\nSimulate an event:" with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[action:github] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[action:github] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: webhook:push *)
   |> Bot.on_callback_data "webhook:push" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[webhook:push] Simulating push event";
+      Flo.debug "[webhook:push] Simulating push event";
 
       let event = GitHub.simulate_push () in
       let text = GitHub.format_event event in
 
       match edit ctx text with
-      | Ok () -> Eio.traceln "[webhook:push] ✓"; Ok ()
-      | Error e -> Eio.traceln "[webhook:push] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[webhook:push] ✓"; Ok ()
+      | Error e -> Flo.debugf "[webhook:push] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: webhook:pr *)
   |> Bot.on_callback_data "webhook:pr" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[webhook:pr] Simulating PR event";
+      Flo.debug "[webhook:pr] Simulating PR event";
 
       let event = GitHub.simulate_pr () in
       let text = GitHub.format_event event in
 
       match edit ctx text with
-      | Ok () -> Eio.traceln "[webhook:pr] ✓"; Ok ()
-      | Error e -> Eio.traceln "[webhook:pr] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[webhook:pr] ✓"; Ok ()
+      | Error e -> Flo.debugf "[webhook:pr] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.run

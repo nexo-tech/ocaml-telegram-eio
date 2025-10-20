@@ -36,14 +36,14 @@ module Config = struct
     match Sys.getenv_opt "WEBHOOK_SECRET" with
     | Some s -> s
     | None ->
-        Eio.traceln "[Config] ⚠️  WARNING: WEBHOOK_SECRET not set, using default (not secure!)";
+        Flo.debug "[Config] ⚠️  WARNING: WEBHOOK_SECRET not set, using default (not secure!)";
         "default-secret-token-please-change-me"
 
   let webhook_url =
     match Sys.getenv_opt "WEBHOOK_URL" with
     | Some url -> url
     | None ->
-        Eio.traceln "[Config] ⚠️  WARNING: WEBHOOK_URL not set, using default";
+        Flo.debug "[Config] ⚠️  WARNING: WEBHOOK_URL not set, using default";
         Printf.sprintf "https://example.com:%d%s" port path
 
   let token =
@@ -61,11 +61,11 @@ module Metrics = struct
 
   let record_update () =
     updates_processed := Int64.add !updates_processed 1L;
-    Eio.traceln "[Metrics] Update processed: total=%Ld" !updates_processed
+    Flo.debugf "[Metrics] Update processed: total=%Ld" !updates_processed
 
   let record_error () =
     errors := Int64.add !errors 1L;
-    Eio.traceln "[Metrics] Error recorded: total=%Ld" !errors
+    Flo.debugf "[Metrics] Error recorded: total=%Ld" !errors
 
   let uptime () =
     Unix.time () -. !start_time
@@ -83,7 +83,7 @@ module Metrics = struct
       !errors
 
   let print_stats () =
-    Eio.traceln "[Metrics] %s" (stats ())
+    Flo.debugf "[Metrics] %s" (stats ())
 end
 
 (** {1 Rate Limiting} *)
@@ -103,27 +103,27 @@ module RateLimiter = struct
     | Some entry ->
         if now -. entry.last_reset > 60.0 then begin
           (* Reset after 1 minute *)
-          Eio.traceln "[RateLimit] Reset counter for IP: %s" ip;
+          Flo.debugf "[RateLimit] Reset counter for IP: %s" ip;
           Hashtbl.replace table ip { count = 1; last_reset = now };
           true
         end else if entry.count >= limit_per_minute then begin
           (* Too many requests *)
-          Eio.traceln "[RateLimit] ❌ Rate limit exceeded: ip=%s, count=%d" ip entry.count;
+          Flo.errorf "[RateLimit] ❌ Rate limit exceeded: ip=%s, count=%d" ip entry.count;
           false
         end else begin
           (* Increment counter *)
           Hashtbl.replace table ip { count = entry.count + 1; last_reset = entry.last_reset };
-          Eio.traceln "[RateLimit] Request allowed: ip=%s, count=%d/%d"
+          Flo.debugf "[RateLimit] Request allowed: ip=%s, count=%d/%d"
             ip (entry.count + 1) limit_per_minute;
           true
         end
     | None ->
-        Eio.traceln "[RateLimit] New IP registered: %s" ip;
+        Flo.debugf "[RateLimit] New IP registered: %s" ip;
         Hashtbl.add table ip { count = 1; last_reset = now };
         true
 
   let validator (request : Webhook.request_info) : Webhook.validation_result =
-    Eio.traceln "[RateLimit] Checking rate limit for IP: %s" request.client_addr;
+    Flo.debugf "[RateLimit] Checking rate limit for IP: %s" request.client_addr;
     if check request.client_addr then
       Webhook.Accept
     else
@@ -133,50 +133,50 @@ end
 (** {1 Webhook Setup Instructions} *)
 
 let print_webhook_setup_instructions () =
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                   Webhook Setup Instructions                     ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
-  Eio.traceln "[Webhook] Before sending updates, configure Telegram webhook:";
-  Eio.traceln "[Webhook]";
-  Eio.traceln "[Webhook] Using curl:";
-  Eio.traceln "[Webhook]   curl -X POST \"https://api.telegram.org/bot%s/setWebhook\" \\" Config.token;
-  Eio.traceln "[Webhook]     -d \"url=%s\" \\" Config.webhook_url;
-  Eio.traceln "[Webhook]     -d \"secret_token=%s\" \\" Config.secret_token;
-  Eio.traceln "[Webhook]     -d \"max_connections=100\"";
-  Eio.traceln "[Webhook]";
-  Eio.traceln "[Webhook] Or manually:";
-  Eio.traceln "[Webhook]   https://api.telegram.org/bot<TOKEN>/setWebhook?url=%s&secret_token=%s"
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                   Webhook Setup Instructions                     ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.debug "[Webhook] Before sending updates, configure Telegram webhook:";
+  Flo.debug "[Webhook]";
+  Flo.debug "[Webhook] Using curl:";
+  Flo.debugf "[Webhook]   curl -X POST \"https://api.telegram.org/bot%s/setWebhook\" \\" Config.token;
+  Flo.debugf "[Webhook]     -d \"url=%s\" \\" Config.webhook_url;
+  Flo.debugf "[Webhook]     -d \"secret_token=%s\" \\" Config.secret_token;
+  Flo.debug "[Webhook]     -d \"max_connections=100\"";
+  Flo.debug "[Webhook]";
+  Flo.debug "[Webhook] Or manually:";
+  Flo.debugf "[Webhook]   https://api.telegram.org/bot<TOKEN>/setWebhook?url=%s&secret_token=%s"
     Config.webhook_url Config.secret_token;
-  Eio.traceln "";
-  Eio.traceln "[Webhook] To check webhook status:";
-  Eio.traceln "[Webhook]   curl \"https://api.telegram.org/bot%s/getWebhookInfo\"" Config.token;
-  Eio.traceln ""
+  Flo.debug "";
+  Flo.debug "[Webhook] To check webhook status:";
+  Flo.debugf "[Webhook]   curl \"https://api.telegram.org/bot%s/getWebhookInfo\"" Config.token;
+  Flo.debug ""
 
 (** {1 Update Handler} *)
 
 (* Simple handler that processes updates *)
 let handle_update update =
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                        New Update                                ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
-  Eio.traceln "[Update] Received update: id=%Ld" update.Telegram_generated.Gen_types.Update.update_id;
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                        New Update                                ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.debugf "[Update] Received update: id=%Ld" update.Telegram_generated.Gen_types.Update.update_id;
 
   (* Log update details *)
   (match update.message with
    | Some msg ->
-       Eio.traceln "[Update] Message: id=%Ld, chat=%Ld"
+       Flo.debugf "[Update] Message: id=%Ld, chat=%Ld"
          msg.message_id
          msg.chat.id;
        (match msg.text with
-        | Some text -> Eio.traceln "[Update] Text: %s" text
-        | None -> Eio.traceln "[Update] No text content")
-   | None -> Eio.traceln "[Update] No message in update");
+        | Some text -> Flo.debugf "[Update] Text: %s" text
+        | None -> Flo.debug "[Update] No text content")
+   | None -> Flo.debug "[Update] No message in update");
 
   (* Track metrics *)
   Metrics.record_update ();
-  Eio.traceln "[Update] ✅ Update received (processing via webhook low-level API)"
+  Flo.success "[Update] ✅ Update received (processing via webhook low-level API)"
 
 (** {1 Main Entry Point} *)
 
@@ -184,35 +184,35 @@ let () =
   Eio_main.run @@ fun env ->
   Eio.Switch.run @@ fun sw ->
 
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║              Webhook Bot - Production Example                    ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
-  Eio.traceln "";
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║              Webhook Bot - Production Example                    ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.debug "";
 
   (* Phase 1: Initialize *)
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                    Phase 1: Initialization                       ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                    Phase 1: Initialization                       ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
 
   Metrics.start_time := Unix.time ();
 
-  Eio.traceln "[Init] Creating Telegram client";
+  Flo.info "[Init] Creating Telegram client";
   let telegram_client = Telegram.Client.create ~env ~token:Config.token () in
-  Eio.traceln "[Init] Client created successfully";
+  Flo.info "[Init] Client created successfully";
 
   (* Print webhook setup instructions *)
   print_webhook_setup_instructions ();
 
   (* Phase 2: Setup webhook server *)
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                  Phase 2: Configure Webhook Server               ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                  Phase 2: Configure Webhook Server               ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
 
   (* Error handler *)
   let on_error err =
-    Eio.traceln "[Error] Webhook error: %a" Error.pp err;
+    Flo.errorf "[Error] Webhook error: %s" (Format.asprintf "%a" Error.pp err);
     Metrics.record_error ()
   in
 
@@ -228,56 +228,56 @@ let () =
     ()
   in
 
-  Eio.traceln "[Webhook] Configuration:";
-  Eio.traceln "[Webhook]   - Port: %d" Config.port;
-  Eio.traceln "[Webhook]   - Path: %s" Config.path;
-  Eio.traceln "[Webhook]   - Max connections: 100";
-  Eio.traceln "[Webhook]   - Secret token: Configured ✓";
-  Eio.traceln "[Webhook]   - IP allowlist: Telegram IP ranges ✓";
-  Eio.traceln "[Webhook]   - Rate limiting: %d req/min ✓" RateLimiter.limit_per_minute;
+  Flo.debug "[Webhook] Configuration:";
+  Flo.debugf "[Webhook]   - Port: %d" Config.port;
+  Flo.debugf "[Webhook]   - Path: %s" Config.path;
+  Flo.debug "[Webhook]   - Max connections: 100";
+  Flo.debug "[Webhook]   - Secret token: Configured ✓";
+  Flo.debug "[Webhook]   - IP allowlist: Telegram IP ranges ✓";
+  Flo.debugf "[Webhook]   - Rate limiting: %d req/min ✓" RateLimiter.limit_per_minute;
 
   (* Signal handling for graceful shutdown *)
   let shutdown _ =
-    Eio.traceln "";
-    Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-    Eio.traceln "║                      Shutdown Signal                             ║";
-    Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
-    Eio.traceln "[Shutdown] Signal received, draining connections...";
+    Flo.debug "";
+    Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+    Flo.info "║                      Shutdown Signal                             ║";
+    Flo.info "╚══════════════════════════════════════════════════════════════════╝";
+    Flo.debug "[Shutdown] Signal received, draining connections...";
     Metrics.print_stats ();
     Eio.Switch.fail sw Exit
   in
 
   Sys.set_signal Sys.sigint (Sys.Signal_handle shutdown);
   Sys.set_signal Sys.sigterm (Sys.Signal_handle shutdown);
-  Eio.traceln "[Shutdown] Signal handlers registered (SIGINT, SIGTERM)";
+  Flo.debug "[Shutdown] Signal handlers registered (SIGINT, SIGTERM)";
 
   (* Phase 3: Run webhook server *)
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                    Phase 3: Start Webhook Server                 ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
-  Eio.traceln "[Webhook] Starting webhook server on port %d..." Config.port;
-  Eio.traceln "[Webhook] Listening on: http://127.0.0.1:%d%s" Config.port Config.path;
-  Eio.traceln "[Webhook] Public URL: %s" Config.webhook_url;
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                     Bot is Ready!                                ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
-  Eio.traceln "[Webhook] Waiting for updates from Telegram...";
-  Eio.traceln "";
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                    Phase 3: Start Webhook Server                 ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.infof "[Webhook] Starting webhook server on port %d..." Config.port;
+  Flo.debugf "[Webhook] Listening on: http://127.0.0.1:%d%s" Config.port Config.path;
+  Flo.debugf "[Webhook] Public URL: %s" Config.webhook_url;
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                     Bot is Ready!                                ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.debug "[Webhook] Waiting for updates from Telegram...";
+  Flo.debug "";
 
   try
     Webhook.run_with_config_and_switch telegram_client webhook_config sw
       ~handler:handle_update;
 
-    Eio.traceln "";
-    Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-    Eio.traceln "║                    Graceful Shutdown Complete                    ║";
-    Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
+    Flo.debug "";
+    Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+    Flo.info "║                    Graceful Shutdown Complete                    ║";
+    Flo.info "╚══════════════════════════════════════════════════════════════════╝";
     Metrics.print_stats ()
   with Exit ->
-    Eio.traceln "";
-    Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-    Eio.traceln "║                         Shutdown Complete                        ║";
-    Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
+    Flo.debug "";
+    Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+    Flo.info "║                         Shutdown Complete                        ║";
+    Flo.info "╚══════════════════════════════════════════════════════════════════╝";
     Metrics.print_stats ()

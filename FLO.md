@@ -695,16 +695,17 @@ end
 - [x] **Task 11.5**: Search for remaining old patterns
   - ✅ `grep -r "Log\.Make" src/` → **0 matches** (perfect!)
     - Library code has zero functor logging patterns
-  - ⚠️ `grep -r "Eio\.traceln" examples/ --include="*.ml"` → **2155 matches** (acceptable as "minimal")
-    - Basic examples: 1 file (command_tutorial.ml)
-    - Advanced examples: 22 files still use Eio.traceln
-    - Recipe examples: Most still use Eio.traceln
-    - Key migrated examples: hello_world.ml, command_bot.ml, echo_enhanced.ml use flo ✓
-  - ℹ️ `grep -r "Printf\.printf" examples/ --include="*.ml"` → **14 matches** (acceptable)
-    - Usage is for console output (startup messages), not logging
-    - Examples: echo_bot.ml, keyboard_bot.ml, core_concepts_demo.ml
-    - Not a concern - these are informational prints, not error logging
-  - **Assessment**: Core library clean, key examples migrated to flo, remaining Eio.traceln in non-critical examples acceptable
+  - ✅ `grep -r "Eio\.traceln" examples/ --include="*.ml"` → **9 matches** (all in documentation snippets!)
+    - All 9 occurrences are example code in development_workflow.ml documentation showing logging patterns
+    - Zero actual Eio.traceln logging calls in examples
+    - Basic examples: Fully converted to flo (command_tutorial.ml: 79 replacements)
+    - Recipe examples: Fully converted to flo (11 files, 951+ replacements)
+    - Advanced examples: Fully converted to flo (22 files, 1000+ replacements)
+  - ✅ `grep -r "Printf\.printf" examples/ --include="*.ml"` → **0 matches** (perfect!)
+    - All Printf.printf replaced with flo logging
+    - Basic examples: echo_bot (4), keyboard_bot (7), core_concepts_demo (3)
+    - Printf.eprintf kept for actual error output to stderr (appropriate use)
+  - **Assessment**: ✅ **COMPLETE** - Core library 100% clean, ALL examples migrated to flo (2000+ replacements), only documentation snippets remain
 
 ### Phase 12: Final Cleanup
 - [ ] **Task 12.1**: Remove unused functor code

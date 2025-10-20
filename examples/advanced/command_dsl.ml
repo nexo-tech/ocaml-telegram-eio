@@ -83,7 +83,7 @@ end
 
 let () =
   Printexc.record_backtrace true;
-  Eio.traceln "=== Command DSL Demo Starting ===";
+  Flo.info "=== Command DSL Demo Starting ===";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t -> t
@@ -93,28 +93,28 @@ let () =
   Eio_main.run @@ fun env ->
   let client = Client.create ~env ~token () in
 
-  Eio.traceln "🤖 Command DSL Demo Bot Started";
+  Flo.info "🤖 Command DSL Demo Bot Started";
 
   Bot.make ~env ~client
 
   (* /start - Welcome message *)
   |> Bot.command "start" ~desc:"Welcome message" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/start] User started bot";
+      Flo.debug "[/start] User started bot";
 
       match reply ctx
         "👋 Welcome to Command DSL Demo!\n\n\
          This bot demonstrates the command API features.\n\
          Try /help to see all available commands."
       with
-      | Ok _ -> Eio.traceln "[/start] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/start] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/start] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/start] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /help - Auto-generated help from command descriptions *)
   |> Bot.command "help" ~desc:"Show available commands" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/help] Generating help message";
+      Flo.debug "[/help] Generating help message";
 
       (* In a real implementation, commands() would return list of (name, desc) *)
       let help_text =
@@ -133,57 +133,57 @@ let () =
       in
 
       match reply ctx help_text with
-      | Ok _ -> Eio.traceln "[/help] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/help] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/help] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/help] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /echo - Basic command with raw string arguments *)
   |> Bot.command "echo" ~desc:"Echo back your text" (fun ctx args ->
       let open Bot.Ctx in
-      Eio.traceln "[/echo] Args count: %d" (List.length args);
+      Flo.debugf "[/echo] Args count: %d" (List.length args);
 
       match args with
       | [] ->
-          Eio.traceln "[/echo] No arguments provided";
+          Flo.debug "[/echo] No arguments provided";
           (match reply ctx "Usage: /echo <text...>\n\nExample: /echo Hello World!" with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/echo] Error: %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/echo] Error: %s" (Format.asprintf "%a" Error.pp e); Ok ())
       | _ ->
           let text = String.concat " " args in
-          Eio.traceln "[/echo] Echoing: %s" text;
+          Flo.debugf "[/echo] Echoing: %s" text;
           (match reply ctx (Printf.sprintf "🔊 You said: %s" text) with
-           | Ok _ -> Eio.traceln "[/echo] ✓"; Ok ()
-           | Error e -> Eio.traceln "[/echo] ✗ %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[/echo] ✓"; Ok ()
+           | Error e -> Flo.debugf "[/echo] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
     )
 
   (* /calc - Command with manual two-argument parsing *)
   |> Bot.command "calc" ~desc:"Add two numbers" (fun ctx args ->
       let open Bot.Ctx in
-      Eio.traceln "[/calc] Parsing arguments";
+      Flo.debug "[/calc] Parsing arguments";
 
       match Bot.Args.expect_2 args with
       | None ->
-          Eio.traceln "[/calc] Wrong argument count";
+          Flo.debug "[/calc] Wrong argument count";
           (match reply ctx "Usage: /calc <num1> <num2>\n\nExample: /calc 5 3" with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/calc] Error: %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/calc] Error: %s" (Format.asprintf "%a" Error.pp e); Ok ())
       | Some (a_str, b_str) ->
-          Eio.traceln "[/calc] Parsing: %s + %s" a_str b_str;
+          Flo.debugf "[/calc] Parsing: %s + %s" a_str b_str;
           (match Bot.Args.parse_int a_str, Bot.Args.parse_int b_str with
            | Some a, Some b ->
                let result = a + b in
-               Eio.traceln "[/calc] Result: %d + %d = %d" a b result;
+               Flo.debugf "[/calc] Result: %d + %d = %d" a b result;
                (match reply ctx (Printf.sprintf "🧮 %d + %d = %d" a b result) with
-                | Ok _ -> Eio.traceln "[/calc] ✓"; Ok ()
-                | Error e -> Eio.traceln "[/calc] ✗ %a" Error.pp e; Ok ())
+                | Ok _ -> Flo.debug "[/calc] ✓"; Ok ()
+                | Error e -> Flo.debugf "[/calc] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
            | None, _ ->
                (match reply ctx "❌ First argument must be a valid number" with
                 | Ok _ -> Ok ()
-                | Error e -> Eio.traceln "[/calc] Error: %a" Error.pp e; Ok ())
+                | Error e -> Flo.debugf "[/calc] Error: %s" (Format.asprintf "%a" Error.pp e); Ok ())
            | _, None ->
                (match reply ctx "❌ Second argument must be a valid number" with
                 | Ok _ -> Ok ()
-                | Error e -> Eio.traceln "[/calc] Error: %a" Error.pp e; Ok ()))
+                | Error e -> Flo.debugf "[/calc] Error: %s" (Format.asprintf "%a" Error.pp e); Ok ()))
     )
 
   (* /multiply - Command with typed parser using command_with *)
@@ -191,14 +191,14 @@ let () =
       Parsers.three_ints_parser
       (fun ctx (a, b, c) ->
         let open Bot.Ctx in
-        Eio.traceln "[/multiply] Computing: %d * %d * %d" a b c;
+        Flo.debugf "[/multiply] Computing: %d * %d * %d" a b c;
 
         let result = a * b * c in
         let response = Printf.sprintf "🔢 %d × %d × %d = %d" a b c result in
 
         match reply ctx response with
-        | Ok _ -> Eio.traceln "[/multiply] ✓"; Ok ()
-        | Error e -> Eio.traceln "[/multiply] ✗ %a" Error.pp e; Ok ()
+        | Ok _ -> Flo.debug "[/multiply] ✓"; Ok ()
+        | Error e -> Flo.debugf "[/multiply] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
       )
 
   (* /greet - Command with single string argument using command_with *)
@@ -206,13 +206,13 @@ let () =
       Parsers.string_parser
       (fun ctx name ->
         let open Bot.Ctx in
-        Eio.traceln "[/greet] Greeting: %s" name;
+        Flo.debugf "[/greet] Greeting: %s" name;
 
         let response = Printf.sprintf "👋 Hello, %s! Nice to meet you!" name in
 
         match reply ctx response with
-        | Ok _ -> Eio.traceln "[/greet] ✓"; Ok ()
-        | Error e -> Eio.traceln "[/greet] ✗ %a" Error.pp e; Ok ()
+        | Ok _ -> Flo.debug "[/greet] ✓"; Ok ()
+        | Error e -> Flo.debugf "[/greet] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
       )
 
   (* /check - Command with boolean parser using command_with *)
@@ -220,7 +220,7 @@ let () =
       Parsers.bool_parser
       (fun ctx value ->
         let open Bot.Ctx in
-        Eio.traceln "[/check] Boolean value: %b" value;
+        Flo.debugf "[/check] Boolean value: %b" value;
 
         let response = if value then
           "✅ You said YES! (true)"
@@ -229,24 +229,24 @@ let () =
         in
 
         match reply ctx response with
-        | Ok _ -> Eio.traceln "[/check] ✓"; Ok ()
-        | Error e -> Eio.traceln "[/check] ✗ %a" Error.pp e; Ok ()
+        | Ok _ -> Flo.debug "[/check] ✓"; Ok ()
+        | Error e -> Flo.debugf "[/check] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
       )
 
   (* /remind - Command with title and remaining text *)
   |> Bot.command "remind" ~desc:"Create reminder" (fun ctx args ->
       let open Bot.Ctx in
-      Eio.traceln "[/remind] Processing reminder";
+      Flo.debug "[/remind] Processing reminder";
 
       match args with
       | [] ->
-          Eio.traceln "[/remind] No arguments";
+          Flo.debug "[/remind] No arguments";
           (match reply ctx "Usage: /remind <title> <note...>\n\nExample: /remind Meeting Discuss project timeline" with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/remind] Error: %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/remind] Error: %s" (Format.asprintf "%a" Error.pp e); Ok ())
       | title :: _ ->
           let note = Bot.Args.join_rest args 1 in
-          Eio.traceln "[/remind] Title: %s, Note: %s" title note;
+          Flo.debugf "[/remind] Title: %s, Note: %s" title note;
 
           let response = Printf.sprintf
             "📝 Reminder Created!\n\n\
@@ -257,8 +257,8 @@ let () =
           in
 
           (match reply ctx response with
-           | Ok _ -> Eio.traceln "[/remind] ✓"; Ok ()
-           | Error e -> Eio.traceln "[/remind] ✗ %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[/remind] ✓"; Ok ()
+           | Error e -> Flo.debugf "[/remind] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
     )
 
   (* /square - Command using int_parser with command_with *)
@@ -266,14 +266,14 @@ let () =
       Parsers.int_parser
       (fun ctx n ->
         let open Bot.Ctx in
-        Eio.traceln "[/square] Computing: %d²" n;
+        Flo.debugf "[/square] Computing: %d²" n;
 
         let result = n * n in
         let response = Printf.sprintf "📐 %d² = %d" n result in
 
         match reply ctx response with
-        | Ok _ -> Eio.traceln "[/square] ✓"; Ok ()
-        | Error e -> Eio.traceln "[/square] ✗ %a" Error.pp e; Ok ()
+        | Ok _ -> Flo.debug "[/square] ✓"; Ok ()
+        | Error e -> Flo.debugf "[/square] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
       )
 
   (* /subtract - Command using two_ints_parser with command_with *)
@@ -281,20 +281,20 @@ let () =
       Parsers.two_ints_parser
       (fun ctx (a, b) ->
         let open Bot.Ctx in
-        Eio.traceln "[/subtract] Computing: %d - %d" a b;
+        Flo.debugf "[/subtract] Computing: %d - %d" a b;
 
         let result = a - b in
         let response = Printf.sprintf "➖ %d - %d = %d" a b result in
 
         match reply ctx response with
-        | Ok _ -> Eio.traceln "[/subtract] ✓"; Ok ()
-        | Error e -> Eio.traceln "[/subtract] ✗ %a" Error.pp e; Ok ()
+        | Ok _ -> Flo.debug "[/subtract] ✓"; Ok ()
+        | Error e -> Flo.debugf "[/subtract] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
       )
 
   (* /info - Show bot information *)
   |> Bot.command "info" ~desc:"Show bot information" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/info] Showing bot info";
+      Flo.debug "[/info] Showing bot info";
 
       let info_text =
         "ℹ️ Command DSL Demo Bot\n\n\
@@ -310,8 +310,8 @@ let () =
       in
 
       match reply ctx info_text with
-      | Ok _ -> Eio.traceln "[/info] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/info] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/info] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/info] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.run

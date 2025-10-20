@@ -264,7 +264,7 @@ end
 
 let () =
   Printexc.record_backtrace true;
-  Eio.traceln "=== FAQ Demo Starting ===";
+  Flo.info "=== FAQ Demo Starting ===";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t -> t
@@ -274,8 +274,8 @@ let () =
   Eio_main.run @@ fun env ->
   let client = Client.create ~env ~token () in
 
-  Eio.traceln "🤖 FAQ Demo Started";
-  Eio.traceln "FAQ entries loaded: %d" (List.length FAQ.entries);
+  Flo.info "🤖 FAQ Demo Started";
+  Flo.debugf "FAQ entries loaded: %d" (List.length FAQ.entries);
 
   let session_store = Session.Memory_store.create () in
 
@@ -285,7 +285,7 @@ let () =
   (* /start - Main menu *)
   |> Bot.command "start" ~desc:"Show FAQ main menu" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/start] Showing FAQ main menu";
+      Flo.debug "[/start] Showing FAQ main menu";
 
       let categories = FAQ.all_categories () in
       let cat_buttons = List.map (fun cat ->
@@ -304,31 +304,31 @@ let () =
       in
 
       match send ~keyboard ctx text with
-      | Ok _ -> Eio.traceln "[/start] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/start] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/start] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/start] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /search - Search FAQ *)
   |> Bot.command "search" ~desc:"Search FAQ" (fun ctx args ->
       let open Bot.Ctx in
-      Eio.traceln "[/search] Searching FAQ";
+      Flo.debug "[/search] Searching FAQ";
 
       match args with
       | [] ->
           (match reply ctx "Usage: /search <query>\n\nExample: /search keyboard" with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/search] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/search] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | _ ->
           let query = String.concat " " args in
           let results = FAQ.search query in
 
-          Eio.traceln "[/search] Found %d results for: %s" (List.length results) query;
+          Flo.debugf "[/search] Found %d results for: %s" (List.length results) query;
 
           if List.length results = 0 then
             (match reply ctx (Printf.sprintf "No FAQ found for: %s" query) with
              | Ok _ -> Ok ()
-             | Error e -> Eio.traceln "[/search] ✗ %a" Error.pp e; Ok ())
+             | Error e -> Flo.debugf "[/search] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
           else
             let result_buttons = List.map (fun e ->
               [KB.callback ~text:e.question ~data:("faq:" ^ e.id)]
@@ -344,14 +344,14 @@ let () =
             in
 
             (match send ~keyboard ctx text with
-             | Ok _ -> Eio.traceln "[/search] ✓"; Ok ()
-             | Error e -> Eio.traceln "[/search] ✗ %a" Error.pp e; Ok ())
+             | Ok _ -> Flo.debug "[/search] ✓"; Ok ()
+             | Error e -> Flo.debugf "[/search] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
     )
 
   (* /troubleshooting - Quick troubleshooting *)
   |> Bot.command "troubleshooting" ~desc:"Common issues" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/troubleshooting] Showing troubleshooting";
+      Flo.debug "[/troubleshooting] Showing troubleshooting";
 
       let troubleshooting_faqs = FAQ.by_category "Troubleshooting" in
 
@@ -369,8 +369,8 @@ let () =
       in
 
       match send ~keyboard ctx text with
-      | Ok _ -> Eio.traceln "[/troubleshooting] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/troubleshooting] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/troubleshooting] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/troubleshooting] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: category:<name> *)
@@ -379,7 +379,7 @@ let () =
         let open Bot.Ctx in
         let category = String.sub data 9 (String.length data - 9) in
 
-        Eio.traceln "[category] Filtering by: %s" category;
+        Flo.debugf "[category] Filtering by: %s" category;
 
         let faqs = FAQ.by_category category in
 
@@ -399,7 +399,7 @@ let () =
 
         (match edit ~keyboard ctx text with
          | Ok () -> Ok ()
-         | Error e -> Eio.traceln "[category] ✗ %a" Error.pp e; Ok ())
+         | Error e -> Flo.debugf "[category] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
       ) else Ok ()
     )
 
@@ -409,7 +409,7 @@ let () =
         let open Bot.Ctx in
         let id = String.sub data 4 (String.length data - 4) in
 
-        Eio.traceln "[faq] Showing FAQ: %s" id;
+        Flo.debugf "[faq] Showing FAQ: %s" id;
 
         match FAQ.find_by_id id with
         | Some entry ->
@@ -424,13 +424,13 @@ let () =
             ] in
 
             (match edit ~keyboard ctx text with
-             | Ok () -> Eio.traceln "[faq] ✓"; Ok ()
-             | Error e -> Eio.traceln "[faq] ✗ %a" Error.pp e; Ok ())
+             | Ok () -> Flo.debug "[faq] ✓"; Ok ()
+             | Error e -> Flo.debugf "[faq] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
         | None ->
             (match edit ctx "❌ FAQ not found" with
              | Ok () -> Ok ()
-             | Error e -> Eio.traceln "[faq] ✗ %a" Error.pp e; Ok ())
+             | Error e -> Flo.debugf "[faq] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
       ) else Ok ()
     )
 
@@ -447,7 +447,7 @@ let () =
 
       match edit ~keyboard ctx "📂 <b>FAQ Categories</b>\n\nChoose a category:" with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[action:categories] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[action:categories] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: action:browse_all *)
@@ -470,7 +470,7 @@ let () =
 
       match edit ~keyboard ctx text with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[action:browse_all] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[action:browse_all] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: action:search_prompt *)
@@ -487,7 +487,7 @@ let () =
          • /search eio"
       with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[action:search_prompt] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[action:search_prompt] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.run

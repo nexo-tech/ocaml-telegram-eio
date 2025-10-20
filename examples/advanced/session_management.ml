@@ -67,7 +67,7 @@ let default_prefs = {
 
 let () =
   Printexc.record_backtrace true;
-  Eio.traceln "=== Session Management Demo Starting ===";
+  Flo.info "=== Session Management Demo Starting ===";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t -> t
@@ -77,7 +77,7 @@ let () =
   Eio_main.run @@ fun env ->
   let client = Client.create ~env ~token () in
 
-  Eio.traceln "🤖 Session Management Demo Bot Started";
+  Flo.info "🤖 Session Management Demo Bot Started";
 
   let session_store = Session.Memory_store.create () in
 
@@ -87,7 +87,7 @@ let () =
   (* /start - Main menu *)
   |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/start] Showing main menu";
+      Flo.debug "[/start] Showing main menu";
 
       let text =
         "💾 Session Management Demo\n\n\
@@ -103,23 +103,23 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[/start] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/start] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/start] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/start] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /set_name - Set name in session *)
   |> Bot.command "set_name" ~desc:"Store your name" (fun ctx args ->
       let open Bot.Ctx in
-      Eio.traceln "[/set_name] Setting name in session";
+      Flo.debug "[/set_name] Setting name in session";
 
       match args with
       | [] ->
           (match reply ctx "Usage: /set_name <your name>\n\nExample: /set_name Alice" with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/set_name] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/set_name] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
       | _ ->
           let name = String.concat " " args in
-          Eio.traceln "[/set_name] Storing name: %s" name;
+          Flo.debugf "[/set_name] Storing name: %s" name;
 
           (* Store in session *)
           session_set ctx name_key name;
@@ -127,38 +127,38 @@ let () =
           let response = Printf.sprintf "✅ Name saved: %s\n\nTry /get_name to retrieve it!" name in
 
           (match reply ctx response with
-           | Ok _ -> Eio.traceln "[/set_name] ✓"; Ok ()
-           | Error e -> Eio.traceln "[/set_name] ✗ %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[/set_name] ✓"; Ok ()
+           | Error e -> Flo.debugf "[/set_name] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
     )
 
   (* /get_name - Retrieve name from session *)
   |> Bot.command "get_name" ~desc:"Retrieve stored name" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/get_name] Retrieving name from session";
+      Flo.debug "[/get_name] Retrieving name from session";
 
       match session_get ctx name_key with
       | Some name ->
-          Eio.traceln "[/get_name] Found name: %s" name;
+          Flo.debugf "[/get_name] Found name: %s" name;
           (match reply ctx (Printf.sprintf "👋 Hello, %s!" name) with
-           | Ok _ -> Eio.traceln "[/get_name] ✓"; Ok ()
-           | Error e -> Eio.traceln "[/get_name] ✗ %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[/get_name] ✓"; Ok ()
+           | Error e -> Flo.debugf "[/get_name] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
       | None ->
-          Eio.traceln "[/get_name] No name in session";
+          Flo.debug "[/get_name] No name in session";
           (match reply ctx "No name stored yet. Use /set_name <name> first!" with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/get_name] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/get_name] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
     )
 
   (* /counter - Increment session counter *)
   |> Bot.command "counter" ~desc:"Increment session counter" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/counter] Incrementing counter";
+      Flo.debug "[/counter] Incrementing counter";
 
       (* Get current value or default to 0 *)
       let current = session_get_or ctx counter_key ~default:0 in
       let new_value = current + 1 in
 
-      Eio.traceln "[/counter] %d → %d" current new_value;
+      Flo.debugf "[/counter] %d → %d" current new_value;
 
       (* Store new value *)
       session_set ctx counter_key new_value;
@@ -171,18 +171,18 @@ let () =
       in
 
       match reply ctx response with
-      | Ok _ -> Eio.traceln "[/counter] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/counter] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/counter] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/counter] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /preferences - Manage user preferences *)
   |> Bot.command "preferences" ~desc:"Manage preferences" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/preferences] Showing preferences";
+      Flo.debug "[/preferences] Showing preferences";
 
       let prefs = session_get_or ctx prefs_key ~default:default_prefs in
 
-      Eio.traceln "[/preferences] Language: %s, Notifications: %b, Theme: %s"
+      Flo.debugf "[/preferences] Language: %s, Notifications: %b, Theme: %s"
         prefs.language prefs.notifications prefs.theme;
 
       let notif_text = if prefs.notifications then "🔔 ON" else "🔕 OFF" in
@@ -205,19 +205,19 @@ let () =
       in
 
       match send ~keyboard ctx text with
-      | Ok _ -> Eio.traceln "[/preferences] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/preferences] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/preferences] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/preferences] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: pref:toggle_notif *)
   |> Bot.on_callback_data "pref:toggle_notif" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[pref:toggle_notif] Toggling notifications";
+      Flo.debug "[pref:toggle_notif] Toggling notifications";
 
       let prefs = session_get_or ctx prefs_key ~default:default_prefs in
       let updated = { prefs with notifications = not prefs.notifications } in
 
-      Eio.traceln "[pref:toggle_notif] %b → %b" prefs.notifications updated.notifications;
+      Flo.debugf "[pref:toggle_notif] %b → %b" prefs.notifications updated.notifications;
 
       session_set ctx prefs_key updated;
 
@@ -240,19 +240,19 @@ let () =
       in
 
       match edit ~keyboard ctx text with
-      | Ok () -> Eio.traceln "[pref:toggle_notif] ✓"; Ok ()
-      | Error e -> Eio.traceln "[pref:toggle_notif] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[pref:toggle_notif] ✓"; Ok ()
+      | Error e -> Flo.debugf "[pref:toggle_notif] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /wizard - Multi-step form wizard *)
   |> Bot.command "wizard" ~desc:"Start multi-step wizard" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/wizard] Starting wizard";
+      Flo.debug "[/wizard] Starting wizard";
 
       (* Initialize wizard state *)
       session_set ctx wizard_step_key AskingName;
 
-      Eio.traceln "[/wizard] State: Idle → AskingName";
+      Flo.debug "[/wizard] State: Idle → AskingName";
 
       let keyboard = KB.inline [
         [KB.callback ~text:"❌ Cancel" ~data:"wizard:cancel"];
@@ -262,8 +262,8 @@ let () =
         "📝 Multi-Step Wizard\n\n\
          Step 1/3: What's your name?"
       with
-      | Ok _ -> Eio.traceln "[/wizard] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/wizard] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/wizard] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/wizard] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Handle wizard text input *)
@@ -278,43 +278,43 @@ let () =
           Ok ()
 
       | AskingName ->
-          Eio.traceln "[wizard] Received name: %s" text;
+          Flo.debugf "[wizard] Received name: %s" text;
 
           session_set ctx wizard_name_key text;
           session_set ctx wizard_step_key AskingAge;
 
-          Eio.traceln "[wizard] State: AskingName → AskingAge";
+          Flo.debug "[wizard] State: AskingName → AskingAge";
 
           (match reply ctx "Step 2/3: How old are you?" with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[wizard] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[wizard] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | AskingAge ->
-          Eio.traceln "[wizard] Received age: %s" text;
+          Flo.debugf "[wizard] Received age: %s" text;
 
           (match int_of_string_opt text with
            | Some age ->
                session_set ctx wizard_age_key age;
                session_set ctx wizard_step_key AskingCity;
 
-               Eio.traceln "[wizard] State: AskingAge → AskingCity";
+               Flo.debug "[wizard] State: AskingAge → AskingCity";
 
                (match reply ctx "Step 3/3: What city are you from?" with
                 | Ok _ -> Ok ()
-                | Error e -> Eio.traceln "[wizard] ✗ %a" Error.pp e; Ok ())
+                | Error e -> Flo.debugf "[wizard] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
            | None ->
                (match reply ctx "Please enter a valid number for your age." with
                 | Ok _ -> Ok ()
-                | Error e -> Eio.traceln "[wizard] ✗ %a" Error.pp e; Ok ()))
+                | Error e -> Flo.debugf "[wizard] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()))
 
       | AskingCity ->
-          Eio.traceln "[wizard] Received city: %s" text;
+          Flo.debugf "[wizard] Received city: %s" text;
 
           session_set ctx wizard_city_key text;
           session_set ctx wizard_step_key Idle;
 
-          Eio.traceln "[wizard] State: AskingCity → Idle (completed)";
+          Flo.debug "[wizard] State: AskingCity → Idle (completed)";
 
           (* Retrieve all collected data *)
           let name = session_get_or ctx wizard_name_key ~default:"<unknown>" in
@@ -332,30 +332,30 @@ let () =
 
           (match reply ctx summary with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[wizard] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[wizard] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
     )
 
   (* Callback: wizard:cancel *)
   |> Bot.on_callback_data "wizard:cancel" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[wizard:cancel] Cancelling wizard";
+      Flo.debug "[wizard:cancel] Cancelling wizard";
 
       session_set ctx wizard_step_key Idle;
       session_delete ctx wizard_name_key;
       session_delete ctx wizard_age_key;
       session_delete ctx wizard_city_key;
 
-      Eio.traceln "[wizard:cancel] Wizard state cleared";
+      Flo.debug "[wizard:cancel] Wizard state cleared";
 
       match edit ctx "❌ Wizard cancelled. Session data cleared." with
-      | Ok () -> Eio.traceln "[wizard:cancel] ✓"; Ok ()
-      | Error e -> Eio.traceln "[wizard:cancel] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[wizard:cancel] ✓"; Ok ()
+      | Error e -> Flo.debugf "[wizard:cancel] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /session_info - Show current session contents *)
   |> Bot.command "session_info" ~desc:"Inspect session data" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/session_info] Inspecting session";
+      Flo.debug "[/session_info] Inspecting session";
 
       let name = session_get ctx name_key in
       let counter = session_get ctx counter_key in
@@ -400,39 +400,39 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[/session_info] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/session_info] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/session_info] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/session_info] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /clear_session - Clear all session data *)
   |> Bot.command "clear_session" ~desc:"Clear all session data" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/clear_session] Clearing session";
+      Flo.debug "[/clear_session] Clearing session";
 
       session_clear ctx;
 
-      Eio.traceln "[/clear_session] All session data cleared";
+      Flo.debug "[/clear_session] All session data cleared";
 
       match reply ctx
         "🗑️ Session cleared!\n\n\
          All your data has been removed from the session.\n\
          Try /session_info to verify."
       with
-      | Ok _ -> Eio.traceln "[/clear_session] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/clear_session] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/clear_session] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/clear_session] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /modify_demo - Demonstrate session_modify *)
   |> Bot.command "modify_demo" ~desc:"Demonstrate modify function" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/modify_demo] Demonstrating modify";
+      Flo.debug "[/modify_demo] Demonstrating modify";
 
       (* Use modify to increment counter (creates if missing) *)
       session_modify ctx counter_key ~default:0 (fun n -> n + 1);
 
       let new_value = session_get_or ctx counter_key ~default:0 in
 
-      Eio.traceln "[/modify_demo] Counter after modify: %d" new_value;
+      Flo.debugf "[/modify_demo] Counter after modify: %d" new_value;
 
       let response = Printf.sprintf
         "🔧 Session.modify Demo\n\n\
@@ -443,20 +443,20 @@ let () =
       in
 
       match reply ctx response with
-      | Ok _ -> Eio.traceln "[/modify_demo] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/modify_demo] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/modify_demo] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/modify_demo] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /exists_demo - Demonstrate session_exists *)
   |> Bot.command "exists_demo" ~desc:"Check if keys exist" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/exists_demo] Checking key existence";
+      Flo.debug "[/exists_demo] Checking key existence";
 
       let name_exists = session_exists ctx name_key in
       let counter_exists = session_exists ctx counter_key in
       let prefs_exists = session_exists ctx prefs_key in
 
-      Eio.traceln "[/exists_demo] name=%b counter=%b prefs=%b"
+      Flo.debugf "[/exists_demo] name=%b counter=%b prefs=%b"
         name_exists counter_exists prefs_exists;
 
       let text = Printf.sprintf
@@ -471,8 +471,8 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[/exists_demo] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/exists_demo] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/exists_demo] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/exists_demo] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.run

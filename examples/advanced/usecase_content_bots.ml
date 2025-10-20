@@ -87,7 +87,7 @@ module ContentLibrary = struct
 
   let search query =
     let q_lower = String.lowercase_ascii query in
-    Eio.traceln "[ContentLibrary] Searching for: %s" query;
+    Flo.debugf "[ContentLibrary] Searching for: %s" query;
 
     List.filter (fun item ->
       let title_match = contains_substring (String.lowercase_ascii item.title) q_lower in
@@ -100,13 +100,13 @@ module ContentLibrary = struct
     ) !items
 
   let by_category category =
-    Eio.traceln "[ContentLibrary] Filtering by category: %s" category;
+    Flo.debugf "[ContentLibrary] Filtering by category: %s" category;
     List.filter (fun item ->
       String.equal (String.lowercase_ascii item.category) (String.lowercase_ascii category)
     ) !items
 
   let latest n =
-    Eio.traceln "[ContentLibrary] Getting latest %d items" n;
+    Flo.debugf "[ContentLibrary] Getting latest %d items" n;
     !items
     |> List.sort (fun a b -> compare b.published a.published)
     |> (fun lst -> if List.length lst > n then List.filteri (fun i _ -> i < n) lst else lst)
@@ -125,11 +125,11 @@ module Subscriptions = struct
   let subscribers = Hashtbl.create 100
 
   let subscribe user_id =
-    Eio.traceln "[Subscriptions] User %Ld subscribed" user_id;
+    Flo.debugf "[Subscriptions] User %Ld subscribed" user_id;
     Hashtbl.replace subscribers user_id ()
 
   let unsubscribe user_id =
-    Eio.traceln "[Subscriptions] User %Ld unsubscribed" user_id;
+    Flo.debugf "[Subscriptions] User %Ld unsubscribed" user_id;
     Hashtbl.remove subscribers user_id
 
   let is_subscribed user_id =
@@ -183,7 +183,7 @@ let pagination_keyboard items offset page_size prefix =
 
 let () =
   Printexc.record_backtrace true;
-  Eio.traceln "=== Content Bots Demo Starting ===";
+  Flo.info "=== Content Bots Demo Starting ===";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t -> t
@@ -193,8 +193,8 @@ let () =
   Eio_main.run @@ fun env ->
   let client = Client.create ~env ~token () in
 
-  Eio.traceln "🤖 Content Bots Demo Started";
-  Eio.traceln "Content items loaded: %d" (List.length !(ContentLibrary.items));
+  Flo.info "🤖 Content Bots Demo Started";
+  Flo.debugf "Content items loaded: %d" (List.length !(ContentLibrary.items));
 
   let session_store = Session.Memory_store.create () in
 
@@ -204,13 +204,13 @@ let () =
   (* Background task: Daily digest at 9:00 AM (simulated with 2 minute interval for demo) *)
   Eio.Fiber.fork ~sw:global_sw (fun () ->
     let clock = env#clock in
-    Eio.traceln "[Background] Daily digest scheduler started (every 2 minutes for demo)";
+    Flo.debug "[Background] Daily digest scheduler started (every 2 minutes for demo)";
 
     while true do
       Eio.Time.sleep clock 120.0;  (* 2 minutes for demo, use 86400 for daily *)
 
       let subscriber_count = Subscriptions.count () in
-      Eio.traceln "[Background] Sending daily digest to %d subscribers" subscriber_count;
+      Flo.debugf "[Background] Sending daily digest to %d subscribers" subscriber_count;
 
       if subscriber_count > 0 then (
         let latest = ContentLibrary.latest 3 in
@@ -231,8 +231,8 @@ let () =
           let chat_id = Id.Chat.of_int user_id in
           match Telegram_generated.Gen_methods.send_message
             client ~chat_id ~text:digest_text () with
-          | Ok _ -> Eio.traceln "[Background] Digest sent to user %Ld" user_id
-          | Error e -> Eio.traceln "[Background] Failed to send to %Ld: %a" user_id Error.pp e
+          | Ok _ -> Flo.debugf "[Background] Digest sent to user %Ld" user_id
+          | Error e -> Flo.debugf "[Background] Failed to send to %Ld: %s" user_id (Format.asprintf "%a" Error.pp e)
         )
       )
     done
@@ -244,7 +244,7 @@ let () =
   (* /start - Main menu *)
   |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/start] Showing main menu";
+      Flo.debug "[/start] Showing main menu";
 
       let keyboard = KB.inline [
         [KB.callback ~text:"📚 Browse Content" ~data:"action:browse"];
@@ -264,14 +264,14 @@ let () =
       in
 
       match send ~keyboard ctx text with
-      | Ok _ -> Eio.traceln "[/start] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/start] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/start] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/start] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /browse - Browse content library *)
   |> Bot.command "browse" ~desc:"Browse content library" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/browse] Browsing content";
+      Flo.debug "[/browse] Browsing content";
 
       let items = !(ContentLibrary.items) in
       let offset = 0 in
@@ -297,31 +297,31 @@ let () =
       in
 
       match send ~keyboard ctx text with
-      | Ok _ -> Eio.traceln "[/browse] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/browse] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/browse] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/browse] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /search - Search content *)
   |> Bot.command "search" ~desc:"Search content" (fun ctx args ->
       let open Bot.Ctx in
-      Eio.traceln "[/search] Searching content";
+      Flo.debug "[/search] Searching content";
 
       match args with
       | [] ->
           (match reply ctx "Usage: /search <query>\n\nExample: /search ocaml" with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/search] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/search] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | _ ->
           let query = String.concat " " args in
           let results = ContentLibrary.search query in
 
-          Eio.traceln "[/search] Found %d results for: %s" (List.length results) query;
+          Flo.debugf "[/search] Found %d results for: %s" (List.length results) query;
 
           if List.length results = 0 then
             (match reply ctx (Printf.sprintf "No results found for: %s" query) with
              | Ok _ -> Ok ()
-             | Error e -> Eio.traceln "[/search] ✗ %a" Error.pp e; Ok ())
+             | Error e -> Flo.debugf "[/search] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
           else
             let item_buttons = List.map (fun item ->
               [KB.callback ~text:item.title ~data:("view:" ^ item.id)]
@@ -337,14 +337,14 @@ let () =
             in
 
             (match send ~keyboard ctx text with
-             | Ok _ -> Eio.traceln "[/search] ✓"; Ok ()
-             | Error e -> Eio.traceln "[/search] ✗ %a" Error.pp e; Ok ())
+             | Ok _ -> Flo.debug "[/search] ✓"; Ok ()
+             | Error e -> Flo.debugf "[/search] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
     )
 
   (* /category - Filter by category *)
   |> Bot.command "category" ~desc:"Filter by category" (fun ctx args ->
       let open Bot.Ctx in
-      Eio.traceln "[/category] Filtering by category";
+      Flo.debug "[/category] Filtering by category";
 
       match args with
       | [] ->
@@ -363,19 +363,19 @@ let () =
 
           (match send ~keyboard ctx text with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/category] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/category] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | _ ->
           let category = String.concat " " args in
           let results = ContentLibrary.by_category category in
 
-          Eio.traceln "[/category] Found %d items in category: %s"
+          Flo.debugf "[/category] Found %d items in category: %s"
             (List.length results) category;
 
           if List.length results = 0 then
             (match reply ctx (Printf.sprintf "No items in category: %s" category) with
              | Ok _ -> Ok ()
-             | Error e -> Eio.traceln "[/category] ✗ %a" Error.pp e; Ok ())
+             | Error e -> Flo.debugf "[/category] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
           else
             let item_buttons = List.map (fun item ->
               [KB.callback ~text:item.title ~data:("view:" ^ item.id)]
@@ -390,14 +390,14 @@ let () =
             in
 
             (match send ~keyboard ctx text with
-             | Ok _ -> Eio.traceln "[/category] ✓"; Ok ()
-             | Error e -> Eio.traceln "[/category] ✗ %a" Error.pp e; Ok ())
+             | Ok _ -> Flo.debug "[/category] ✓"; Ok ()
+             | Error e -> Flo.debugf "[/category] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
     )
 
   (* /latest - Show latest content *)
   |> Bot.command "latest" ~desc:"Show latest content" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/latest] Showing latest content";
+      Flo.debug "[/latest] Showing latest content";
 
       let latest = ContentLibrary.latest 5 in
 
@@ -414,14 +414,14 @@ let () =
       in
 
       match send ~keyboard ctx text with
-      | Ok _ -> Eio.traceln "[/latest] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/latest] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/latest] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/latest] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /subscribe - Subscribe to digest *)
   |> Bot.command "subscribe" ~desc:"Subscribe to daily digest" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/subscribe] Processing subscription";
+      Flo.debug "[/subscribe] Processing subscription";
 
       match user ctx with
       | Some u ->
@@ -431,7 +431,7 @@ let () =
           Subscriptions.subscribe user_id;
           session_set ctx subscribed_key true;
 
-          Eio.traceln "[/subscribe] User %Ld subscribed (total: %d)"
+          Flo.debugf "[/subscribe] User %Ld subscribed (total: %d)"
             user_id (Subscriptions.count ());
 
           let text =
@@ -443,18 +443,18 @@ let () =
           in
 
           (match reply ctx text with
-           | Ok _ -> Eio.traceln "[/subscribe] ✓"; Ok ()
-           | Error e -> Eio.traceln "[/subscribe] ✗ %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[/subscribe] ✓"; Ok ()
+           | Error e -> Flo.debugf "[/subscribe] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | None ->
-          Eio.traceln "[/subscribe] No user in context";
+          Flo.debug "[/subscribe] No user in context";
           Ok ()
     )
 
   (* /unsubscribe - Unsubscribe from digest *)
   |> Bot.command "unsubscribe" ~desc:"Unsubscribe from digest" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/unsubscribe] Processing unsubscription";
+      Flo.debug "[/unsubscribe] Processing unsubscription";
 
       match user ctx with
       | Some u ->
@@ -464,7 +464,7 @@ let () =
           Subscriptions.unsubscribe user_id;
           session_set ctx subscribed_key false;
 
-          Eio.traceln "[/unsubscribe] User %Ld unsubscribed (remaining: %d)"
+          Flo.debugf "[/unsubscribe] User %Ld unsubscribed (remaining: %d)"
             user_id (Subscriptions.count ());
 
           (match reply ctx
@@ -472,8 +472,8 @@ let () =
              You won't receive daily digests anymore.\n\n\
              Use /subscribe to re-enable."
            with
-           | Ok _ -> Eio.traceln "[/unsubscribe] ✓"; Ok ()
-           | Error e -> Eio.traceln "[/unsubscribe] ✗ %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[/unsubscribe] ✓"; Ok ()
+           | Error e -> Flo.debugf "[/unsubscribe] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | None ->
           Ok ()
@@ -482,7 +482,7 @@ let () =
   (* /status - Subscription status *)
   |> Bot.command "status" ~desc:"Show subscription status" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/status] Showing status";
+      Flo.debug "[/status] Showing status";
 
       match user ctx with
       | Some u ->
@@ -501,8 +501,8 @@ let () =
           in
 
           (match reply ctx text with
-           | Ok _ -> Eio.traceln "[/status] ✓"; Ok ()
-           | Error e -> Eio.traceln "[/status] ✗ %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[/status] ✓"; Ok ()
+           | Error e -> Flo.debugf "[/status] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | None ->
           Ok ()
@@ -513,18 +513,18 @@ let () =
       if String.starts_with ~prefix:"view:" data then (
         let open Bot.Ctx in
         let id = String.sub data 5 (String.length data - 5) in
-        Eio.traceln "[view] Viewing item: %s" id;
+        Flo.debugf "[view] Viewing item: %s" id;
 
         match ContentLibrary.find_by_id id with
         | Some item ->
             let text = format_item item in
             (match edit ctx text with
-             | Ok () -> Eio.traceln "[view] ✓"; Ok ()
-             | Error e -> Eio.traceln "[view] ✗ %a" Error.pp e; Ok ())
+             | Ok () -> Flo.debug "[view] ✓"; Ok ()
+             | Error e -> Flo.debugf "[view] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
         | None ->
             (match edit ctx "❌ Content not found" with
              | Ok () -> Ok ()
-             | Error e -> Eio.traceln "[view] ✗ %a" Error.pp e; Ok ())
+             | Error e -> Flo.debugf "[view] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
       ) else Ok ()
     )
 
@@ -535,7 +535,7 @@ let () =
         let offset_str = String.sub data 12 (String.length data - 12) in
         let offset = int_of_string offset_str in
 
-        Eio.traceln "[browse:page] Offset: %d" offset;
+        Flo.debugf "[browse:page] Offset: %d" offset;
 
         session_set ctx last_browse_offset_key offset;
 
@@ -560,8 +560,8 @@ let () =
         in
 
         (match edit ~keyboard ctx text with
-         | Ok () -> Eio.traceln "[browse:page] ✓"; Ok ()
-         | Error e -> Eio.traceln "[browse:page] ✗ %a" Error.pp e; Ok ())
+         | Ok () -> Flo.debug "[browse:page] ✓"; Ok ()
+         | Error e -> Flo.debugf "[browse:page] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
       ) else Ok ()
     )
 
@@ -570,7 +570,7 @@ let () =
       if String.starts_with ~prefix:"cat:" data then (
         let open Bot.Ctx in
         let category = String.sub data 4 (String.length data - 4) in
-        Eio.traceln "[cat] Filtering by: %s" category;
+        Flo.debugf "[cat] Filtering by: %s" category;
 
         let results = ContentLibrary.by_category category in
 
@@ -588,7 +588,7 @@ let () =
 
         (match edit ~keyboard ctx text with
          | Ok () -> Ok ()
-         | Error e -> Eio.traceln "[cat] ✗ %a" Error.pp e; Ok ())
+         | Error e -> Flo.debugf "[cat] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
       ) else Ok ()
     )
 
@@ -614,7 +614,7 @@ let () =
 
       match edit ~keyboard ctx text with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[action:browse] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[action:browse] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: action:categories *)
@@ -630,7 +630,7 @@ let () =
 
       match edit ~keyboard ctx "📂 <b>Categories</b>\n\nChoose a category:" with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[action:categories] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[action:categories] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: action:subscribe *)
@@ -650,7 +650,7 @@ let () =
              Use /unsubscribe to stop."
            with
            | Ok () -> Ok ()
-           | Error e -> Eio.traceln "[action:subscribe] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[action:subscribe] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
       | None -> Ok ()
     )
 

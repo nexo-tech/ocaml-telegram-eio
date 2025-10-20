@@ -55,19 +55,19 @@ module Stats = struct
   let increment_messages stats =
     Eio.Mutex.use_rw ~protect:true stats.mutex (fun () ->
       stats.messages_sent <- stats.messages_sent + 1;
-      Eio.traceln "[Stats] messages_sent: %d" stats.messages_sent
+      Flo.debugf "[Stats] messages_sent: %d" stats.messages_sent
     )
 
   let increment_broadcasts stats =
     Eio.Mutex.use_rw ~protect:true stats.mutex (fun () ->
       stats.broadcasts_sent <- stats.broadcasts_sent + 1;
-      Eio.traceln "[Stats] broadcasts_sent: %d" stats.broadcasts_sent
+      Flo.debugf "[Stats] broadcasts_sent: %d" stats.broadcasts_sent
     )
 
   let increment_fibers stats =
     Eio.Mutex.use_rw ~protect:true stats.mutex (fun () ->
       stats.fibers_spawned <- stats.fibers_spawned + 1;
-      Eio.traceln "[Stats] fibers_spawned: %d" stats.fibers_spawned
+      Flo.debugf "[Stats] fibers_spawned: %d" stats.fibers_spawned
     )
 
   let get stats =
@@ -91,7 +91,7 @@ let subscriber_key = Session.make ~name:"is_subscriber"
 
 let () =
   Printexc.record_backtrace true;
-  Eio.traceln "=== Concurrency Patterns Demo Starting ===";
+  Flo.info "=== Concurrency Patterns Demo Starting ===";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t -> t
@@ -101,7 +101,7 @@ let () =
   Eio_main.run @@ fun env ->
   let client = Client.create ~env ~token () in
 
-  Eio.traceln "🤖 Concurrency Patterns Demo Bot Started";
+  Flo.info "🤖 Concurrency Patterns Demo Bot Started";
 
   let session_store = Session.Memory_store.create () in
   let stats = Stats.create () in
@@ -112,12 +112,12 @@ let () =
   (* Background task: periodic status report *)
   Eio.Fiber.fork ~sw:global_sw (fun () ->
     let clock = env#clock in
-    Eio.traceln "[Background] Periodic task started (every 60s)";
+    Flo.debug "[Background] Periodic task started (every 60s)";
 
     while true do
       Eio.Time.sleep clock 60.0;
       let (messages, broadcasts, fibers) = Stats.get stats in
-      Eio.traceln "[Background] Periodic report: messages=%d, broadcasts=%d, fibers=%d"
+      Flo.debugf "[Background] Periodic report: messages=%d, broadcasts=%d, fibers=%d"
         messages broadcasts fibers
     done
   );
@@ -128,7 +128,7 @@ let () =
   (* /start - Main menu *)
   |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/start] Showing main menu";
+      Flo.debug "[/start] Showing main menu";
 
       Stats.increment_messages stats;
 
@@ -153,14 +153,14 @@ let () =
       in
 
       match send ~keyboard ctx text with
-      | Ok _ -> Eio.traceln "[/start] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/start] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/start] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/start] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: demo:fiber *)
   |> Bot.on_callback_data "demo:fiber" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[demo:fiber] Demonstrating fibers";
+      Flo.debug "[demo:fiber] Demonstrating fibers";
 
       (* Spawn multiple concurrent fibers *)
       Eio.Switch.run @@ fun sw ->
@@ -173,9 +173,9 @@ let () =
         Stats.increment_fibers stats;
 
         Eio.Fiber.fork ~sw (fun () ->
-          Eio.traceln "[Fiber %d] Started" i;
+          Flo.debugf "[Fiber %d] Started" i;
           Eio.Time.sleep (env ctx)#clock (float_of_int i *. 0.5);
-          Eio.traceln "[Fiber %d] Completed after %.1fs" i (float_of_int i *. 0.5);
+          Flo.debugf "[Fiber %d] Completed after %.1fs" i (float_of_int i *. 0.5);
 
           Eio.Mutex.use_rw ~protect:true mutex (fun () ->
             completed := !completed + 1
@@ -184,12 +184,12 @@ let () =
       done;
 
       (* Main fiber continues immediately *)
-      Eio.traceln "[demo:fiber] All fibers spawned, waiting for completion...";
+      Flo.debug "[demo:fiber] All fibers spawned, waiting for completion...";
 
       (* Switch waits for all fibers *)
       ();
 
-      Eio.traceln "[demo:fiber] All %d fibers completed" !completed;
+      Flo.debugf "[demo:fiber] All %d fibers completed" !completed;
 
       let response = Printf.sprintf
         "🧵 Fiber Demo Complete!\n\n\
@@ -204,14 +204,14 @@ let () =
       in
 
       match edit ctx response with
-      | Ok () -> Eio.traceln "[demo:fiber] ✓"; Ok ()
-      | Error e -> Eio.traceln "[demo:fiber] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[demo:fiber] ✓"; Ok ()
+      | Error e -> Flo.debugf "[demo:fiber] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: demo:promise *)
   |> Bot.on_callback_data "demo:promise" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[demo:promise] Demonstrating promises";
+      Flo.debug "[demo:promise] Demonstrating promises";
 
       (* Use promises to get fiber return values *)
       let results = Eio.Switch.run @@ fun sw ->
@@ -222,10 +222,10 @@ let () =
           Stats.increment_fibers stats;
 
           Eio.Fiber.fork ~sw (fun () ->
-            Eio.traceln "[Promise fiber %d] Computing..." (i + 1);
+            Flo.debugf "[Promise fiber %d] Computing..." (i + 1);
             Eio.Time.sleep (env ctx)#clock 0.3;
             let result = (i + 1) * 10 in
-            Eio.traceln "[Promise fiber %d] Result: %d" (i + 1) result;
+            Flo.debugf "[Promise fiber %d] Result: %d" (i + 1) result;
             Promise.resolve resolver result
           );
 
@@ -236,7 +236,7 @@ let () =
         List.map Promise.await promises
       in
 
-      Eio.traceln "[demo:promise] All promises resolved: %s"
+      Flo.debugf "[demo:promise] All promises resolved: %s"
         (String.concat ", " (List.map string_of_int results));
 
       let results_str = String.concat ", " (List.map string_of_int results) in
@@ -251,14 +251,14 @@ let () =
       in
 
       match edit ctx response with
-      | Ok () -> Eio.traceln "[demo:promise] ✓"; Ok ()
-      | Error e -> Eio.traceln "[demo:promise] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[demo:promise] ✓"; Ok ()
+      | Error e -> Flo.debugf "[demo:promise] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: demo:broadcast *)
   |> Bot.on_callback_data "demo:broadcast" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[demo:broadcast] Demonstrating concurrent broadcast";
+      Flo.debug "[demo:broadcast] Demonstrating concurrent broadcast";
 
       (* Simulate multiple subscribers *)
       let chat_id = chat ctx in
@@ -278,10 +278,10 @@ let () =
 
           Eio.Fiber.fork ~sw (fun () ->
             (* Acquire semaphore permit *)
-            Eio.traceln "[Broadcast %d] Waiting for semaphore..." (i + 1);
+            Flo.debugf "[Broadcast %d] Waiting for semaphore..." (i + 1);
             Eio.Semaphore.acquire sem;
 
-            Eio.traceln "[Broadcast %d] Sending..." (i + 1);
+            Flo.debugf "[Broadcast %d] Sending..." (i + 1);
 
             let result = Telegram_generated.Gen_methods.send_message
               (client ctx)
@@ -294,7 +294,7 @@ let () =
             (* Release semaphore *)
             Eio.Semaphore.release sem;
 
-            Eio.traceln "[Broadcast %d] Complete" (i + 1);
+            Flo.debugf "[Broadcast %d] Complete" (i + 1);
 
             Promise.resolve resolver result
           );
@@ -310,7 +310,7 @@ let () =
         match r with Ok _ -> acc + 1 | Error _ -> acc
       ) 0 results in
 
-      Eio.traceln "[demo:broadcast] Broadcast complete: %d/%d succeeded"
+      Flo.debugf "[demo:broadcast] Broadcast complete: %d/%d succeeded"
         success_count (List.length results);
 
       let response = Printf.sprintf
@@ -325,14 +325,14 @@ let () =
       in
 
       match edit ctx response with
-      | Ok () -> Eio.traceln "[demo:broadcast] ✓"; Ok ()
-      | Error e -> Eio.traceln "[demo:broadcast] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[demo:broadcast] ✓"; Ok ()
+      | Error e -> Flo.debugf "[demo:broadcast] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: demo:rate_limit *)
   |> Bot.on_callback_data "demo:rate_limit" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[demo:rate_limit] Demonstrating rate limiting";
+      Flo.debug "[demo:rate_limit] Demonstrating rate limiting";
 
       (* Create semaphore: max 2 concurrent operations *)
       let sem = Eio.Semaphore.make 2 in
@@ -344,16 +344,16 @@ let () =
         Stats.increment_fibers stats;
 
         Eio.Fiber.fork ~sw (fun () ->
-          Eio.traceln "[RateLimit %d] Waiting for permit..." i;
+          Flo.debugf "[RateLimit %d] Waiting for permit..." i;
 
           (* Acquire permit *)
           Eio.Semaphore.acquire sem;
-          Eio.traceln "[RateLimit %d] Acquired permit, running..." i;
+          Flo.debugf "[RateLimit %d] Acquired permit, running..." i;
 
           (* Simulate work *)
           Eio.Time.sleep (env ctx)#clock 1.0;
 
-          Eio.traceln "[RateLimit %d] Done, releasing permit" i;
+          Flo.debugf "[RateLimit %d] Done, releasing permit" i;
 
           (* Release permit *)
           Eio.Semaphore.release sem
@@ -362,7 +362,7 @@ let () =
 
       ();  (* Wait for all fibers *)
 
-      Eio.traceln "[demo:rate_limit] All operations complete";
+      Flo.debug "[demo:rate_limit] All operations complete";
 
       let response =
         "⏱️ Rate Limiting Demo Complete!\n\n\
@@ -376,26 +376,26 @@ let () =
       in
 
       match edit ctx response with
-      | Ok () -> Eio.traceln "[demo:rate_limit] ✓"; Ok ()
-      | Error e -> Eio.traceln "[demo:rate_limit] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[demo:rate_limit] ✓"; Ok ()
+      | Error e -> Flo.debugf "[demo:rate_limit] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: demo:stats *)
   |> Bot.on_callback_data "demo:stats" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[demo:stats] Showing statistics";
+      Flo.debug "[demo:stats] Showing statistics";
 
       let summary = Stats.summary stats in
 
       match edit ctx summary with
-      | Ok () -> Eio.traceln "[demo:stats] ✓"; Ok ()
-      | Error e -> Eio.traceln "[demo:stats] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[demo:stats] ✓"; Ok ()
+      | Error e -> Flo.debugf "[demo:stats] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: demo:timeout *)
   |> Bot.on_callback_data "demo:timeout" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[demo:timeout] Demonstrating timeout";
+      Flo.debug "[demo:timeout] Demonstrating timeout";
 
       (* Operation with timeout *)
       let result = Eio.Switch.run @@ fun sw ->
@@ -404,16 +404,16 @@ let () =
 
         (* Slow operation *)
         Eio.Fiber.fork ~sw (fun () ->
-          Eio.traceln "[Timeout] Slow operation started...";
+          Flo.debug "[Timeout] Slow operation started...";
           Eio.Time.sleep (env ctx)#clock 5.0;
-          Eio.traceln "[Timeout] Slow operation complete (5s)";
+          Flo.debug "[Timeout] Slow operation complete (5s)";
           Promise.resolve resolver (Some "Completed")
         );
 
         (* Timeout fiber *)
         Eio.Fiber.fork ~sw (fun () ->
           Eio.Time.sleep (env ctx)#clock 2.0;
-          Eio.traceln "[Timeout] Timeout reached (2s)";
+          Flo.debug "[Timeout] Timeout reached (2s)";
           Promise.resolve resolver None
         );
 
@@ -434,14 +434,14 @@ let () =
       in
 
       match edit ctx response with
-      | Ok () -> Eio.traceln "[demo:timeout] ✓"; Ok ()
-      | Error e -> Eio.traceln "[demo:timeout] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[demo:timeout] ✓"; Ok ()
+      | Error e -> Flo.debugf "[demo:timeout] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: demo:concurrent_ops *)
   |> Bot.on_callback_data "demo:concurrent_ops" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[demo:concurrent_ops] Running concurrent operations";
+      Flo.debug "[demo:concurrent_ops] Running concurrent operations";
 
       (* Run 3 operations concurrently and collect results *)
       let results = Eio.Switch.run @@ fun sw ->
@@ -462,9 +462,9 @@ let () =
           Stats.increment_fibers stats;
 
           Eio.Fiber.fork ~sw (fun () ->
-            Eio.traceln "[ConcurrentOp %d] Started" (i + 1);
+            Flo.debugf "[ConcurrentOp %d] Started" (i + 1);
             let result = op () in
-            Eio.traceln "[ConcurrentOp %d] %s" (i + 1) result;
+            Flo.debugf "[ConcurrentOp %d] %s" (i + 1) result;
             Promise.resolve resolver result
           );
 
@@ -487,14 +487,14 @@ let () =
       in
 
       match edit ctx response with
-      | Ok () -> Eio.traceln "[demo:concurrent_ops] ✓"; Ok ()
-      | Error e -> Eio.traceln "[demo:concurrent_ops] ✗ %a" Error.pp e; Ok ()
+      | Ok () -> Flo.debug "[demo:concurrent_ops] ✓"; Ok ()
+      | Error e -> Flo.debugf "[demo:concurrent_ops] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /subscribe - For broadcast demo *)
   |> Bot.command "subscribe" ~desc:"Subscribe to broadcasts" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/subscribe] User subscribing";
+      Flo.debug "[/subscribe] User subscribing";
 
       session_set ctx subscriber_key true;
 
@@ -502,22 +502,22 @@ let () =
         "✅ Subscribed to broadcasts!\n\n\
          You'll receive messages when /broadcast is used."
       with
-      | Ok _ -> Eio.traceln "[/subscribe] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/subscribe] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/subscribe] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/subscribe] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /stats - Show statistics *)
   |> Bot.command "stats" ~desc:"Show bot statistics" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/stats] Showing statistics";
+      Flo.debug "[/stats] Showing statistics";
 
       Stats.increment_messages stats;
 
       let summary = Stats.summary stats in
 
       match reply ctx summary with
-      | Ok _ -> Eio.traceln "[/stats] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/stats] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/stats] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/stats] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.run

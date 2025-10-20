@@ -224,7 +224,7 @@ end
 
 let () =
   Printexc.record_backtrace true;
-  Eio.traceln "=== Project Structure Demo Starting ===";
+  Flo.info "=== Project Structure Demo Starting ===";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t -> t
@@ -234,7 +234,7 @@ let () =
   Eio_main.run @@ fun env ->
   let client = Client.create ~env ~token () in
 
-  Eio.traceln "🤖 Project Structure Demo Started";
+  Flo.info "🤖 Project Structure Demo Started";
 
   let session_store = Session.Memory_store.create () in
 
@@ -244,7 +244,7 @@ let () =
   (* /start - Main menu *)
   |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/start] Showing main menu";
+      Flo.debug "[/start] Showing main menu";
 
       let keyboard = KB.inline [
         [KB.callback ~text:"📁 Small Bot" ~data:"structure:small"];
@@ -262,78 +262,78 @@ let () =
       in
 
       match send ~keyboard ctx text with
-      | Ok _ -> Eio.traceln "[/start] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/start] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/start] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/start] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /small - Small bot structure *)
   |> Bot.command "small" ~desc:"Small bot structure" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/small] Showing small bot structure";
+      Flo.debug "[/small] Showing small bot structure";
 
       match reply ctx Templates.small_structure with
-      | Ok _ -> Eio.traceln "[/small] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/small] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/small] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/small] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /medium - Medium bot structure *)
   |> Bot.command "medium" ~desc:"Medium bot structure" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/medium] Showing medium bot structure";
+      Flo.debug "[/medium] Showing medium bot structure";
 
       match reply ctx Templates.medium_structure with
-      | Ok _ -> Eio.traceln "[/medium] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/medium] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/medium] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/medium] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /large - Large bot structure *)
   |> Bot.command "large" ~desc:"Large bot structure" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/large] Showing large bot structure";
+      Flo.debug "[/large] Showing large bot structure";
 
       match reply ctx Templates.large_structure with
-      | Ok _ -> Eio.traceln "[/large] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/large] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/large] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/large] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /this_bot - Show this bot's structure *)
   |> Bot.command "this_bot" ~desc:"Show this bot's structure" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/this_bot] Showing this bot's structure";
+      Flo.debug "[/this_bot] Showing this bot's structure";
 
       match reply ctx Templates.this_bot_structure with
-      | Ok _ -> Eio.traceln "[/this_bot] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/this_bot] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/this_bot] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/this_bot] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /dune_config - Dune configuration examples *)
   |> Bot.command "dune_config" ~desc:"Dune configuration examples" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/dune_config] Showing dune examples";
+      Flo.debug "[/dune_config] Showing dune examples";
 
       match reply ctx Templates.dune_examples with
-      | Ok _ -> Eio.traceln "[/dune_config] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/dune_config] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/dune_config] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/dune_config] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /best_practices - Best practices *)
   |> Bot.command "best_practices" ~desc:"Project best practices" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/best_practices] Showing best practices";
+      Flo.debug "[/best_practices] Showing best practices";
 
       match reply ctx Templates.best_practices with
-      | Ok _ -> Eio.traceln "[/best_practices] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/best_practices] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/best_practices] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/best_practices] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /modules - Module organization *)
   |> Bot.command "modules" ~desc:"Module organization patterns" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/modules] Showing module organization";
+      Flo.debug "[/modules] Showing module organization";
 
       match reply ctx Templates.module_organization with
-      | Ok _ -> Eio.traceln "[/modules] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/modules] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/modules] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/modules] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: structure:* *)
@@ -341,21 +341,21 @@ let () =
       let open Bot.Ctx in
       match edit ctx Templates.small_structure with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[structure:small] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[structure:small] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback_data "structure:medium" (fun ctx ->
       let open Bot.Ctx in
       match edit ctx Templates.medium_structure with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[structure:medium] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[structure:medium] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback_data "structure:large" (fun ctx ->
       let open Bot.Ctx in
       match edit ctx Templates.large_structure with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[structure:large] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[structure:large] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: info:* *)
@@ -363,21 +363,21 @@ let () =
       let open Bot.Ctx in
       match edit ctx Templates.dune_examples with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[info:dune] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[info:dune] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback_data "info:practices" (fun ctx ->
       let open Bot.Ctx in
       match edit ctx Templates.best_practices with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[info:practices] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[info:practices] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.on_callback_data "info:modules" (fun ctx ->
       let open Bot.Ctx in
       match edit ctx Templates.module_organization with
       | Ok () -> Ok ()
-      | Error e -> Eio.traceln "[info:modules] ✗ %a" Error.pp e; Ok ()
+      | Error e -> Flo.debugf "[info:modules] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.run

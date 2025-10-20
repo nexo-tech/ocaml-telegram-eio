@@ -24,7 +24,7 @@ let () = Flo.set_level Severity.Debug
 (** {1 Poll Option Helper} *)
 
 let poll_option (text : string) : Telegram_generated.Gen_types.InputPollOption.t =
-  Eio.traceln "[PollOption] Creating option: text='%s'" text;
+  Flo.debugf "[PollOption] Creating option: text='%s'" text;
   Telegram_generated.Gen_types.InputPollOption.{
     text;
     text_parse_mode = None;
@@ -47,18 +47,18 @@ module PollMeta = struct
   let store : (string, poll_meta) Hashtbl.t = Hashtbl.create 128
 
   let add poll_id meta =
-    Eio.traceln "[PollMeta] Storing metadata: poll_id=%s, chat_id=%a, message_id=%Ld, type=%s"
-      poll_id Id.pp meta.chat_id meta.message_id meta.poll_type;
+    Flo.debugf "[PollMeta] Storing metadata: poll_id=%s, chat_id=%s, message_id=%Ld, type=%s"
+      poll_id (Format.asprintf "%a" Id.pp meta.chat_id) meta.message_id meta.poll_type;
     Hashtbl.replace store poll_id meta
 
   let find poll_id =
-    Eio.traceln "[PollMeta] Looking up metadata: poll_id=%s" poll_id;
+    Flo.debugf "[PollMeta] Looking up metadata: poll_id=%s" poll_id;
     match Hashtbl.find_opt store poll_id with
     | Some meta ->
-        Eio.traceln "[PollMeta] ✅ Found metadata: type=%s" meta.poll_type;
+        Flo.successf "[PollMeta] ✅ Found metadata: type=%s" meta.poll_type;
         Some meta
     | None ->
-        Eio.traceln "[PollMeta] ❌ No metadata found for poll_id=%s" poll_id;
+        Flo.errorf "[PollMeta] ❌ No metadata found for poll_id=%s" poll_id;
         None
 
   let all_poll_ids () =
@@ -86,17 +86,17 @@ module VoteTracker = struct
   let user_id_of_poll_answer (a : Telegram_generated.Gen_types.PollAnswer.t) : int64 option =
     match a.user, a.voter_chat with
     | Some u, _ ->
-        Eio.traceln "[VoteTracker] User vote: user_id=%Ld" u.id;
+        Flo.debugf "[VoteTracker] User vote: user_id=%Ld" u.id;
         Some u.id
     | None, Some chat ->
-        Eio.traceln "[VoteTracker] Chat vote: chat_id=%Ld" chat.id;
+        Flo.debugf "[VoteTracker] Chat vote: chat_id=%Ld" chat.id;
         Some chat.id
     | None, None ->
-        Eio.traceln "[VoteTracker] ⚠️  No user or chat in poll answer";
+        Flo.debug "[VoteTracker] ⚠️  No user or chat in poll answer";
         None
 
   let track (a : Telegram_generated.Gen_types.PollAnswer.t) =
-    Eio.traceln "[VoteTracker] Tracking poll answer: poll_id=%s, option_ids=[%s]"
+    Flo.debugf "[VoteTracker] Tracking poll answer: poll_id=%s, option_ids=[%s]"
       a.poll_id
       (a.option_ids |> List.map Int64.to_string |> String.concat ", ");
 
@@ -106,26 +106,26 @@ module VoteTracker = struct
         let table =
           match PMap.find_opt by_poll a.poll_id with
           | Some t ->
-              Eio.traceln "[VoteTracker] Using existing table for poll_id=%s" a.poll_id;
+              Flo.debugf "[VoteTracker] Using existing table for poll_id=%s" a.poll_id;
               t
           | None ->
-              Eio.traceln "[VoteTracker] Creating new table for poll_id=%s" a.poll_id;
+              Flo.debugf "[VoteTracker] Creating new table for poll_id=%s" a.poll_id;
               let t = UMap.create 128 in
               PMap.add by_poll a.poll_id t;
               t
         in
         UMap.replace table uid a.option_ids;
-        Eio.traceln "[VoteTracker] ✅ Tracked vote: user_id=%Ld" uid
+        Flo.successf "[VoteTracker] ✅ Tracked vote: user_id=%Ld" uid
 
   let get_user_votes poll_id : (int64 * int64 list) list =
-    Eio.traceln "[VoteTracker] Getting all user votes for poll_id=%s" poll_id;
+    Flo.debugf "[VoteTracker] Getting all user votes for poll_id=%s" poll_id;
     match PMap.find_opt by_poll poll_id with
     | None ->
-        Eio.traceln "[VoteTracker] No votes found";
+        Flo.debug "[VoteTracker] No votes found";
         []
     | Some t ->
         let votes = UMap.fold (fun uid opts acc -> (uid, opts) :: acc) t [] in
-        Eio.traceln "[VoteTracker] Found %d user votes" (List.length votes);
+        Flo.debugf "[VoteTracker] Found %d user votes" (List.length votes);
         votes
 end
 
@@ -138,14 +138,14 @@ module Leaderboard = struct
   }
 
   let score_quiz ~poll_id ~correct_idx : entry list =
-    Eio.traceln "[Leaderboard] Scoring quiz: poll_id=%s, correct_idx=%d" poll_id correct_idx;
+    Flo.debugf "[Leaderboard] Scoring quiz: poll_id=%s, correct_idx=%d" poll_id correct_idx;
 
     let user_votes = VoteTracker.get_user_votes poll_id in
     let scored =
       List.map (fun (uid, opts) ->
         let is_correct = List.exists (fun i -> Int64.to_int i = correct_idx) opts in
         let score = if is_correct then 1 else 0 in
-        Eio.traceln "[Leaderboard] User %Ld: selected=[%s], correct=%b, score=%d"
+        Flo.debugf "[Leaderboard] User %Ld: selected=[%s], correct=%b, score=%d"
           uid
           (opts |> List.map Int64.to_string |> String.concat ",")
           is_correct
@@ -155,7 +155,7 @@ module Leaderboard = struct
     in
 
     let sorted = List.sort (fun a b -> Int.compare b.score a.score) scored in
-    Eio.traceln "[Leaderboard] ✅ Leaderboard generated: %d entries" (List.length sorted);
+    Flo.successf "[Leaderboard] ✅ Leaderboard generated: %d entries" (List.length sorted);
     sorted
 
   let format_leaderboard entries : string =
@@ -185,21 +185,21 @@ let store_poll_from_message
     (chat_id : Id.Chat.k Id.t) : unit =
   match msg.poll with
   | Some p ->
-      Eio.traceln "[Store] Storing poll from message: poll_id=%s, poll_type=%s"
+      Flo.debugf "[Store] Storing poll from message: poll_id=%s, poll_type=%s"
         p.id poll_type;
       PollMeta.add p.id { chat_id; message_id = msg.message_id; poll_type; correct_option }
   | None ->
-      Eio.traceln "[Store] ⚠️  Message has no poll attached"
+      Flo.debug "[Store] ⚠️  Message has no poll attached"
 
 (** {1 Command Handlers} *)
 
 let handle_start ctx _args =
-  Eio.traceln "[Handler] /start command triggered";
+  Flo.debug "[Handler] /start command triggered";
   let open Bot.Ctx in
 
   let* user = require_user ctx in
-  Eio.traceln "[Handler] User: id=%a, username=%s"
-    Id.pp user.id
+  Flo.debugf "[Handler] User: id=%s, username=%s"
+    (Format.asprintf "%a" Id.pp user.id)
     (match user.username with Some u -> u | None -> "none");
 
   let welcome_text =
@@ -217,11 +217,11 @@ let handle_start ctx _args =
   in
 
   let* _msg = answer ctx welcome_text in
-  Eio.traceln "[Handler] ✅ Welcome message sent";
+  Flo.success "[Handler] ✅ Welcome message sent";
   Ok ()
 
 let handle_help ctx _args =
-  Eio.traceln "[Handler] /help command triggered";
+  Flo.debug "[Handler] /help command triggered";
   let open Bot.Ctx in
 
   let help_text =
@@ -241,11 +241,11 @@ let handle_help ctx _args =
   in
 
   let* _msg = answer ctx help_text in
-  Eio.traceln "[Handler] ✅ Help sent";
+  Flo.success "[Handler] ✅ Help sent";
   Ok ()
 
 let handle_poll ctx args =
-  Eio.traceln "[Handler] /poll command triggered with args: [%s]"
+  Flo.debugf "[Handler] /poll command triggered with args: [%s]"
     (String.concat " " args);
 
   let open Bot.Ctx in
@@ -254,16 +254,16 @@ let handle_poll ctx args =
 
   match args with
   | [] ->
-      Eio.traceln "[Handler] ❌ No arguments provided";
+      Flo.error "[Handler] ❌ No arguments provided";
       let* _ = answer ctx "Usage: /poll <question>|<opt1>|<opt2>|..." in
       Ok ()
   | question_and_opts ->
       let raw = String.concat " " question_and_opts in
-      Eio.traceln "[Handler] Raw input: '%s'" raw;
+      Flo.debugf "[Handler] Raw input: '%s'" raw;
       let parts = String.split_on_char '|' raw in
       match parts with
       | question :: options when List.length options >= 2 ->
-          Eio.traceln "[Handler] Creating poll: question='%s', options=%d"
+          Flo.debugf "[Handler] Creating poll: question='%s', options=%d"
             question (List.length options);
 
           let options = List.map poll_option options in
@@ -271,15 +271,15 @@ let handle_poll ctx args =
             ~chat_id ~question ~options () in
 
           store_poll_from_message ~poll_type:"poll" ~correct_option:None msg chat_id;
-          Eio.traceln "[Handler] ✅ Poll created successfully";
+          Flo.success "[Handler] ✅ Poll created successfully";
           Ok ()
       | _ ->
-          Eio.traceln "[Handler] ❌ Not enough options provided";
+          Flo.error "[Handler] ❌ Not enough options provided";
           let* _ = answer ctx "Provide at least two options separated by |" in
           Ok ()
 
 let handle_multipoll ctx args =
-  Eio.traceln "[Handler] /multipoll command triggered";
+  Flo.debug "[Handler] /multipoll command triggered";
   let open Bot.Ctx in
   let client = client ctx in
   let chat_id = chat ctx in
@@ -293,20 +293,20 @@ let handle_multipoll ctx args =
       let parts = String.split_on_char '|' raw in
       match parts with
       | question :: options when List.length options >= 2 ->
-          Eio.traceln "[Handler] Creating multi-answer poll: question='%s'" question;
+          Flo.debugf "[Handler] Creating multi-answer poll: question='%s'" question;
           let options = List.map poll_option options in
           let* msg = Telegram_generated.Gen_methods.send_poll client
             ~chat_id ~question ~options ~allows_multiple_answers:true () in
 
           store_poll_from_message ~poll_type:"poll" ~correct_option:None msg chat_id;
-          Eio.traceln "[Handler] ✅ Multi-answer poll created";
+          Flo.success "[Handler] ✅ Multi-answer poll created";
           Ok ()
       | _ ->
           let* _ = answer ctx "Provide at least two options separated by |" in
           Ok ()
 
 let handle_timedpoll ctx args =
-  Eio.traceln "[Handler] /timedpoll command triggered";
+  Flo.debug "[Handler] /timedpoll command triggered";
   let open Bot.Ctx in
   let client = client ctx in
   let chat_id = chat ctx in
@@ -322,7 +322,7 @@ let handle_timedpoll ctx args =
       | seconds_str :: question :: options when List.length options >= 2 ->
           (match int_of_string_opt seconds_str with
            | Some seconds when seconds > 0 && seconds <= 600 ->
-               Eio.traceln "[Handler] Creating timed poll: duration=%ds, question='%s'"
+               Flo.debugf "[Handler] Creating timed poll: duration=%ds, question='%s'"
                  seconds question;
                let options = List.map poll_option options in
                let* msg = Telegram_generated.Gen_methods.send_poll client
@@ -330,7 +330,7 @@ let handle_timedpoll ctx args =
                  ~open_period:(Int64.of_int seconds) () in
 
                store_poll_from_message ~poll_type:"poll" ~correct_option:None msg chat_id;
-               Eio.traceln "[Handler] ✅ Timed poll created: %ds" seconds;
+               Flo.successf "[Handler] ✅ Timed poll created: %ds" seconds;
                Ok ()
            | _ ->
                let* _ = answer ctx "Invalid duration. Use 1-600 seconds." in
@@ -341,7 +341,7 @@ let handle_timedpoll ctx args =
           Ok ()
 
 let handle_quiz ctx args =
-  Eio.traceln "[Handler] /quiz command triggered";
+  Flo.debug "[Handler] /quiz command triggered";
   let open Bot.Ctx in
   let client = client ctx in
   let chat_id = chat ctx in
@@ -352,11 +352,11 @@ let handle_quiz ctx args =
       Ok ()
   | question_and_opts ->
       let raw = String.concat " " question_and_opts in
-      Eio.traceln "[Handler] Raw quiz input: '%s'" raw;
+      Flo.debugf "[Handler] Raw quiz input: '%s'" raw;
       let parts = String.split_on_char '|' raw in
       match parts with
       | question :: options when List.length options >= 2 ->
-          Eio.traceln "[Handler] Creating quiz: question='%s', options=%d (1st is correct)"
+          Flo.debugf "[Handler] Creating quiz: question='%s', options=%d (1st is correct)"
             question (List.length options);
 
           (* First option is the correct one *)
@@ -373,14 +373,14 @@ let handle_quiz ctx args =
             () in
 
           store_poll_from_message ~poll_type:"quiz" ~correct_option:(Some 0) msg chat_id;
-          Eio.traceln "[Handler] ✅ Quiz created (non-anonymous for tracking)";
+          Flo.success "[Handler] ✅ Quiz created (non-anonymous for tracking)";
           Ok ()
       | _ ->
           let* _ = answer ctx "Provide at least two options separated by |" in
           Ok ()
 
 let handle_results ctx args =
-  Eio.traceln "[Handler] /results command triggered";
+  Flo.debug "[Handler] /results command triggered";
   let open Bot.Ctx in
   let client = client ctx in
 
@@ -389,23 +389,23 @@ let handle_results ctx args =
       let* _ = answer ctx "Usage: /results <poll_id>\nUse /list to see active polls." in
       Ok ()
   | poll_id :: _ ->
-      Eio.traceln "[Handler] Stopping poll: poll_id=%s" poll_id;
+      Flo.debugf "[Handler] Stopping poll: poll_id=%s" poll_id;
       (match PollMeta.find poll_id with
        | None ->
-           Eio.traceln "[Handler] ❌ Unknown poll_id";
+           Flo.error "[Handler] ❌ Unknown poll_id";
            let* _ = answer ctx "Unknown poll ID. Use /list to see active polls." in
            Ok ()
        | Some { chat_id; message_id; poll_type; _ } ->
-           Eio.traceln "[Handler] Found poll metadata, stopping...";
+           Flo.debug "[Handler] Found poll metadata, stopping...";
            let* poll = Telegram_generated.Gen_methods.stop_poll client
              ~chat_id ~message_id () in
 
-           Eio.traceln "[Handler] Poll stopped, formatting results";
+           Flo.debug "[Handler] Poll stopped, formatting results";
            let results =
              poll.options
              |> List.mapi (fun i (opt : Telegram_generated.Gen_types.PollOption.t) ->
                   let count = Int64.to_int opt.voter_count in
-                  Eio.traceln "[Handler] Option %d: '%s' - %d votes" i opt.text count;
+                  Flo.debugf "[Handler] Option %d: '%s' - %d votes" i opt.text count;
                   Printf.sprintf "%c) %s — %d %s"
                     (Char.chr (65 + i)) opt.text count
                     (if count = 1 then "vote" else "votes"))
@@ -418,12 +418,12 @@ let handle_results ctx args =
            in
 
            let* _ = answer ctx (header ^ "\n\n" ^ results) in
-           Eio.traceln "[Handler] ✅ Results sent";
+           Flo.success "[Handler] ✅ Results sent";
            Ok ()
       )
 
 let handle_leaderboard ctx args =
-  Eio.traceln "[Handler] /leaderboard command triggered";
+  Flo.debug "[Handler] /leaderboard command triggered";
   let open Bot.Ctx in
 
   match args with
@@ -431,14 +431,14 @@ let handle_leaderboard ctx args =
       let* _ = answer ctx "Usage: /leaderboard <poll_id>\nUse /list to see active polls." in
       Ok ()
   | poll_id :: _ ->
-      Eio.traceln "[Handler] Generating leaderboard for poll_id=%s" poll_id;
+      Flo.debugf "[Handler] Generating leaderboard for poll_id=%s" poll_id;
       (match PollMeta.find poll_id with
        | None ->
            let* _ = answer ctx "Unknown poll ID. Use /list to see active polls." in
            Ok ()
        | Some { poll_type; correct_option; _ } ->
            if poll_type <> "quiz" then begin
-             Eio.traceln "[Handler] ⚠️  Not a quiz, cannot generate leaderboard";
+             Flo.debug "[Handler] ⚠️  Not a quiz, cannot generate leaderboard";
              let* _ = answer ctx "Leaderboards are only available for quizzes." in
              Ok ()
            end else begin
@@ -447,21 +447,21 @@ let handle_leaderboard ctx args =
                  let* _ = answer ctx "No correct answer recorded for this quiz." in
                  Ok ()
              | Some correct_idx ->
-                 Eio.traceln "[Handler] Scoring quiz with correct_idx=%d" correct_idx;
+                 Flo.debugf "[Handler] Scoring quiz with correct_idx=%d" correct_idx;
                  let entries = Leaderboard.score_quiz ~poll_id ~correct_idx in
                  let leaderboard_text = Leaderboard.format_leaderboard entries in
                  let* _ = answer ctx leaderboard_text in
-                 Eio.traceln "[Handler] ✅ Leaderboard sent";
+                 Flo.success "[Handler] ✅ Leaderboard sent";
                  Ok ()
            end
       )
 
 let handle_list ctx _args =
-  Eio.traceln "[Handler] /list command triggered";
+  Flo.debug "[Handler] /list command triggered";
   let open Bot.Ctx in
 
   let poll_ids = PollMeta.all_poll_ids () in
-  Eio.traceln "[Handler] Found %d active polls" (List.length poll_ids);
+  Flo.debugf "[Handler] Found %d active polls" (List.length poll_ids);
 
   if List.length poll_ids = 0 then begin
     let* _ = answer ctx "📝 No active polls yet.\n\nCreate one with /poll or /quiz!" in
@@ -480,17 +480,17 @@ let handle_list ctx _args =
       |> String.concat "\n"
     in
     let* _ = answer ctx ("📝 Active Polls:\n\n" ^ poll_list) in
-    Eio.traceln "[Handler] ✅ Poll list sent";
+    Flo.success "[Handler] ✅ Poll list sent";
     Ok ()
   end
 
 (** {1 Vote Tracking Handler} *)
 
 let handle_poll_answer _ctx update =
-  Eio.traceln "[Handler] Processing update for poll_answer";
+  Flo.debug "[Handler] Processing update for poll_answer";
   match update.Telegram_generated.Gen_types.Update.poll_answer with
   | Some ans ->
-      Eio.traceln "[Handler] Poll answer received: poll_id=%s" ans.poll_id;
+      Flo.debugf "[Handler] Poll answer received: poll_id=%s" ans.poll_id;
       VoteTracker.track ans;
       Ok ()
   | None ->
@@ -499,103 +499,103 @@ let handle_poll_answer _ctx update =
 (** {1 Build Routes} *)
 
 let build_routes bot =
-  Eio.traceln "[Builder] Registering routes...";
+  Flo.debug "[Builder] Registering routes...";
 
   let bot = bot |> Bot.command "start" handle_start in
-  Eio.traceln "[Builder] ✅ Registered /start";
+  Flo.success "[Builder] ✅ Registered /start";
 
   let bot = bot |> Bot.command "help" handle_help in
-  Eio.traceln "[Builder] ✅ Registered /help";
+  Flo.success "[Builder] ✅ Registered /help";
 
   let bot = bot |> Bot.command "poll" handle_poll in
-  Eio.traceln "[Builder] ✅ Registered /poll";
+  Flo.success "[Builder] ✅ Registered /poll";
 
   let bot = bot |> Bot.command "multipoll" handle_multipoll in
-  Eio.traceln "[Builder] ✅ Registered /multipoll";
+  Flo.success "[Builder] ✅ Registered /multipoll";
 
   let bot = bot |> Bot.command "timedpoll" handle_timedpoll in
-  Eio.traceln "[Builder] ✅ Registered /timedpoll";
+  Flo.success "[Builder] ✅ Registered /timedpoll";
 
   let bot = bot |> Bot.command "quiz" handle_quiz in
-  Eio.traceln "[Builder] ✅ Registered /quiz";
+  Flo.success "[Builder] ✅ Registered /quiz";
 
   let bot = bot |> Bot.command "results" handle_results in
-  Eio.traceln "[Builder] ✅ Registered /results";
+  Flo.success "[Builder] ✅ Registered /results";
 
   let bot = bot |> Bot.command "leaderboard" handle_leaderboard in
-  Eio.traceln "[Builder] ✅ Registered /leaderboard";
+  Flo.success "[Builder] ✅ Registered /leaderboard";
 
   let bot = bot |> Bot.command "list" handle_list in
-  Eio.traceln "[Builder] ✅ Registered /list";
+  Flo.success "[Builder] ✅ Registered /list";
 
   (* Register poll_answer handler using Event.any *)
   let bot = bot |> Bot.on Bot.Event.any handle_poll_answer in
-  Eio.traceln "[Builder] ✅ Registered poll_answer tracker";
+  Flo.success "[Builder] ✅ Registered poll_answer tracker";
 
-  Eio.traceln "[Builder] All routes registered";
+  Flo.debug "[Builder] All routes registered";
   bot
 
 (** {1 Main Entry Point} *)
 
 let () =
   Eio_main.run @@ fun env ->
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                     Poll & Quiz Bot                              ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
-  Eio.traceln "";
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                     Poll & Quiz Bot                              ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.debug "";
 
   (* Phase 1: Initialize *)
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                     Phase 1: Initialize                          ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                     Phase 1: Initialize                          ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
 
   let token =
     match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t ->
-        Eio.traceln "[Init] ✅ Token loaded from environment";
+        Flo.info "[Init] ✅ Token loaded from environment";
         t
     | None ->
-        Eio.traceln "[Init] ❌ TELEGRAM_BOT_TOKEN not set";
+        Flo.info "[Init] ❌ TELEGRAM_BOT_TOKEN not set";
         failwith "TELEGRAM_BOT_TOKEN environment variable not set"
   in
 
   let telegram_client = Telegram.Client.create ~env ~token () in
-  Eio.traceln "[Init] Client created successfully";
+  Flo.info "[Init] Client created successfully";
 
   (* Phase 2: Build bot *)
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                     Phase 2: Build Bot                           ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                     Phase 2: Build Bot                           ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
 
   let bot = Bot.make ~env ~client:telegram_client in
   let bot = build_routes bot in
 
-  Eio.traceln "[Init] Bot created successfully";
+  Flo.info "[Init] Bot created successfully";
 
   (* Phase 3: Start polling *)
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                     Phase 3: Start Polling                       ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                     Phase 3: Start Polling                       ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
 
-  Eio.traceln "[Polling] Starting long polling with poll/poll_answer updates...";
-  Eio.traceln "[Polling] Bot is ready to receive updates";
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                     Bot is Ready!                                ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
-  Eio.traceln "[Polling] Waiting for messages...";
-  Eio.traceln "";
-  Eio.traceln "Features:";
-  Eio.traceln "  - Simple polls with single choice";
-  Eio.traceln "  - Multiple answer polls";
-  Eio.traceln "  - Timed polls with auto-close";
-  Eio.traceln "  - Quiz mode with correct answers";
-  Eio.traceln "  - Vote tracking for non-anonymous polls";
-  Eio.traceln "  - Poll results and leaderboards";
-  Eio.traceln "  - Result-based error handling";
-  Eio.traceln "";
+  Flo.info "[Polling] Starting long polling with poll/poll_answer updates...";
+  Flo.info "[Polling] Bot is ready to receive updates";
+  Flo.debug "";
+  Flo.info "╔══════════════════════════════════════════════════════════════════╗";
+  Flo.info "║                     Bot is Ready!                                ║";
+  Flo.info "╚══════════════════════════════════════════════════════════════════╝";
+  Flo.info "[Polling] Waiting for messages...";
+  Flo.debug "";
+  Flo.info "Features:";
+  Flo.debug "  - Simple polls with single choice";
+  Flo.debug "  - Multiple answer polls";
+  Flo.debug "  - Timed polls with auto-close";
+  Flo.debug "  - Quiz mode with correct answers";
+  Flo.debug "  - Vote tracking for non-anonymous polls";
+  Flo.debug "  - Poll results and leaderboards";
+  Flo.debug "  - Result-based error handling";
+  Flo.debug "";
 
   Bot.run bot

@@ -11,6 +11,9 @@
       dune exec examples/keyboard_bot.exe
 *)
 
+(* Configure verbose logging *)
+let () = Flo.set_level Severity.Info
+
 let () =
   let token =
     match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
@@ -27,23 +30,27 @@ let () =
   (* Bot info *)
   (match Telegram_generated.Gen_methods.get_me client () with
    | Ok me ->
-       Printf.printf "Keyboard bot started: @%s\n"
-         (Option.value me.Telegram_generated.Gen_types.User.username ~default:"");
-       Printf.printf "Commands:\n";
-       Printf.printf "  /start - Welcome message\n";
-       Printf.printf "  /help - Show help\n\n";
-       flush stdout
+       Flo.info_fields "Keyboard bot started" ~fields:[
+         ("username", Flo.Value.string (Option.value me.Telegram_generated.Gen_types.User.username ~default:""));
+       ];
+       Flo.info "Commands:";
+       Flo.info "  /start - Welcome message";
+       Flo.info "  /help - Show help"
    | Error err ->
-       Printf.eprintf "Error: %s\n" (Format.asprintf "%a" Telegram.Error.pp err);
+       Flo.error_fields "Failed to start bot" ~fields:[
+         Flo_semconv.error_message (Format.asprintf "%a" Telegram.Error.pp err);
+       ];
        exit 1
   );
 
   (* Helper to send message *)
   let send_message client chat_id text =
     match Telegram_generated.Gen_methods.send_message client ~chat_id ~text () with
-    | Ok _ -> ()
+    | Ok _ -> Flo.debug "Message sent successfully"
     | Error err ->
-        Printf.eprintf "Send error: %s\n" (Format.asprintf "%a" Telegram.Error.pp err)
+        Flo.error_fields "Failed to send message" ~fields:[
+          Flo_semconv.error_message (Format.asprintf "%a" Telegram.Error.pp err);
+        ]
   in
 
   (* Update handler *)
@@ -56,15 +63,18 @@ let () =
          let callback_id = callback.CallbackQuery.id in
          let data = Option.value callback.CallbackQuery.data ~default:"" in
 
-         Printf.printf "Callback: %s\n" data;
-         flush stdout;
+         Flo.info_fields "Callback received" ~fields:[
+           ("data", Flo.Value.string data);
+         ];
 
          (* Answer the callback *)
          let response_text = "Button clicked: " ^ data in
          (match Telegram_generated.Gen_methods.answer_callback_query client ~callback_query_id:callback_id ~text:response_text () with
-          | Ok _ -> ()
+          | Ok _ -> Flo.debug "Callback answered successfully"
           | Error err ->
-              Printf.eprintf "Callback answer error: %s\n" (Format.asprintf "%a" Telegram.Error.pp err))
+              Flo.error_fields "Failed to answer callback" ~fields:[
+                Flo_semconv.error_message (Format.asprintf "%a" Telegram.Error.pp err);
+              ])
      | None -> ());
 
     (* Handle text messages *)
@@ -100,14 +110,14 @@ let () =
                send_message client chat_id "Unknown command. Try /help"
          ) else if text <> "" then (
            (* Echo back non-command messages *)
-           Printf.printf "Text: %s\n" text;
-           flush stdout;
+           Flo.info_fields "Text message received" ~fields:[
+             ("text", Flo.Value.string text);
+           ];
            send_message client chat_id ("You said: " ^ text)
          )
      | None -> ())
   in
 
-  Printf.printf "Polling for updates...\n";
-  flush stdout;
+  Flo.info "Polling for updates...";
 
   Tg.Polling.run client ~handler:handle_update

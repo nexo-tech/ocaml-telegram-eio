@@ -61,7 +61,8 @@ end
 
 let () =
   Printexc.record_backtrace true;
-  Eio.traceln "=== Keyboard Bot Starting ===";
+  let open Flo in
+  info "=== Keyboard Bot Starting ===";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t -> t
@@ -72,7 +73,7 @@ let () =
   let client = Client.create ~env ~token () in
   let settings_key = Session.make ~name:"settings" in
 
-  Eio.traceln "🤖 Keyboard Bot Started";
+  info "🤖 Keyboard Bot Started";
 
   let session_store = Session.Memory_store.create () in
 
@@ -82,7 +83,8 @@ let () =
   (* /start - main menu *)
   |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/start] Showing main menu";
+      let open Flo in
+      debug "[/start] Showing main menu";
 
       let keyboard = KB.inline [
         [KB.callback ~text:"⚙️ Settings" ~data:"menu:settings"];
@@ -91,15 +93,16 @@ let () =
       ] in
 
       match send ~keyboard ctx "👋 Welcome! Choose an option:" with
-      | Ok _ -> Eio.traceln "[/start] ✓ Sent"; Ok ()
-      | Error e -> Eio.traceln "[/start] ✗ Error: %a" Error.pp e; Ok ()
+      | Ok _ -> debug "[/start] ✓ Sent"; Ok ()
+      | Error e -> debugf "[/start] ✗ Error: %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /settings - settings menu *)
   |> Bot.command "settings" ~desc:"Show settings" (fun ctx _args ->
       let open Bot.Ctx in
+      let open Flo in
       let settings = session_get_or ctx settings_key ~default:Settings.default in
-      Eio.traceln "[/settings] notifications=%b lang=%s theme=%s"
+      debugf "[/settings] notifications=%b lang=%s theme=%s"
         settings.notifications settings.language settings.theme;
 
       let notif_text = if settings.notifications
@@ -114,13 +117,14 @@ let () =
 
       match send ~keyboard ctx "⚙️ Settings" with
       | Ok _ -> Ok ()
-      | Error e -> Eio.traceln "[/settings] Error: %a" Error.pp e; Ok ()
+      | Error e -> debugf "[/settings] Error: %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: menu:main *)
   |> Bot.on_callback_data "menu:main" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[menu:main] Showing main menu";
+      let open Flo in
+      debug "[menu:main] Showing main menu";
 
       let keyboard = KB.inline [
         [KB.callback ~text:"⚙️ Settings" ~data:"menu:settings"];
@@ -129,15 +133,16 @@ let () =
       ] in
 
       match edit ~keyboard ctx "📱 Main Menu" with
-      | Ok _ -> Eio.traceln "[menu:main] ✓"; Ok ()
-      | Error e -> Eio.traceln "[menu:main] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> debug "[menu:main] ✓"; Ok ()
+      | Error e -> debugf "[menu:main] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: menu:settings *)
   |> Bot.on_callback_data "menu:settings" (fun ctx ->
       let open Bot.Ctx in
+      let open Flo in
       let settings = session_get_or ctx settings_key ~default:Settings.default in
-      Eio.traceln "[menu:settings] notifications=%b" settings.notifications;
+      debugf "[menu:settings] notifications=%b" settings.notifications;
 
       let notif_text = if settings.notifications
         then "🔔 Notifications: ON" else "🔕 Notifications: OFF" in
@@ -150,17 +155,18 @@ let () =
       ] in
 
       match edit ~keyboard ctx "⚙️ Settings" with
-      | Ok _ -> Eio.traceln "[menu:settings] ✓"; Ok ()
-      | Error e -> Eio.traceln "[menu:settings] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> debug "[menu:settings] ✓"; Ok ()
+      | Error e -> debugf "[menu:settings] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: toggle_notif *)
   |> Bot.on_callback_data "toggle_notif" (fun ctx ->
       let open Bot.Ctx in
+      let open Flo in
       let settings = session_get_or ctx settings_key ~default:Settings.default in
       let updated = Settings.toggle_notif settings in
       session_set ctx settings_key updated;
-      Eio.traceln "[toggle_notif] %b → %b" settings.notifications updated.notifications;
+      debugf "[toggle_notif] %b → %b" settings.notifications updated.notifications;
 
       let notif_text = if updated.notifications
         then "🔔 Notifications: ON" else "🔕 Notifications: OFF" in
@@ -173,34 +179,36 @@ let () =
       ] in
 
       match edit ~keyboard ctx "⚙️ Settings (toggled!)" with
-      | Ok _ -> Eio.traceln "[toggle_notif] ✓"; Ok ()
-      | Error e -> Eio.traceln "[toggle_notif] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> debug "[toggle_notif] ✓"; Ok ()
+      | Error e -> debugf "[toggle_notif] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: menu:profile *)
   |> Bot.on_callback_data "menu:profile" (fun ctx ->
       let open Bot.Ctx in
+      let open Flo in
 
       let keyboard = KB.inline [
         [KB.callback ~text:"← Back" ~data:"menu:main"];
       ] in
 
       match edit ~keyboard ctx "👤 Profile\n\nProfile features coming soon!" with
-      | Ok _ -> Eio.traceln "[menu:profile] ✓"; Ok ()
-      | Error e -> Eio.traceln "[menu:profile] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> debug "[menu:profile] ✓"; Ok ()
+      | Error e -> debugf "[menu:profile] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Callback: menu:help *)
   |> Bot.on_callback_data "menu:help" (fun ctx ->
       let open Bot.Ctx in
+      let open Flo in
 
       let keyboard = KB.inline [
         [KB.callback ~text:"← Back" ~data:"menu:main"];
       ] in
 
       match edit ~keyboard ctx "❓ Help\n\nCommands:\n/start - Main menu\n/settings - Settings" with
-      | Ok _ -> Eio.traceln "[menu:help] ✓"; Ok ()
-      | Error e -> Eio.traceln "[menu:help] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> debug "[menu:help] ✓"; Ok ()
+      | Error e -> debugf "[menu:help] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   |> Bot.run

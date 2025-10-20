@@ -44,7 +44,7 @@ let last_document_key = Session.make ~name:"last_document_file_id"
 
 let () =
   Printexc.record_backtrace true;
-  Eio.traceln "=== Media Files Demo Starting ===";
+  Flo.info "=== Media Files Demo Starting ===";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t -> t
@@ -54,7 +54,7 @@ let () =
   Eio_main.run @@ fun env ->
   let client = Client.create ~env ~token () in
 
-  Eio.traceln "🤖 Media Files Demo Bot Started";
+  Flo.info "🤖 Media Files Demo Bot Started";
 
   let session_store = Session.Memory_store.create () in
 
@@ -64,7 +64,7 @@ let () =
   (* /start - Main menu *)
   |> Bot.command "start" ~desc:"Show available features" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/start] Showing main menu";
+      Flo.debug "[/start] Showing main menu";
 
       let text =
         "📸 Media Files Demo\n\n\
@@ -77,14 +77,14 @@ let () =
       in
 
       match reply ctx text with
-      | Ok _ -> Eio.traceln "[/start] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/start] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/start] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/start] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /send_photo_url - Send photo from URL *)
   |> Bot.command "send_photo_url" ~desc:"Send photo from URL" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/send_photo_url] Sending photo from URL";
+      Flo.debug "[/send_photo_url] Sending photo from URL";
 
       (* Send photo from public URL *)
       let photo_url = "https://picsum.photos/800/600" in
@@ -96,14 +96,14 @@ let () =
         ~photo:photo_url
         ~caption:"📷 Photo from URL (https://picsum.photos)\n\nTelegram downloads this from the URL."
         () with
-      | Ok _ -> Eio.traceln "[/send_photo_url] ✓"; Ok ()
-      | Error e -> Eio.traceln "[/send_photo_url] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[/send_photo_url] ✓"; Ok ()
+      | Error e -> Flo.debugf "[/send_photo_url] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* /send_document - Generate and send text document *)
   |> Bot.command "send_document" ~desc:"Send generated text file" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/send_document] Generating and sending document";
+      Flo.debug "[/send_document] Generating and sending document";
 
       (* Generate a simple text file *)
       let filename = Printf.sprintf "demo_%d.txt" (Unix.time () |> int_of_float) in
@@ -121,7 +121,7 @@ let () =
       output_string oc content;
       close_out oc;
 
-      Eio.traceln "[/send_document] Temp file: %s" temp_path;
+      Flo.debugf "[/send_document] Temp file: %s" temp_path;
 
       let chat_id = chat ctx in
 
@@ -132,11 +132,11 @@ let () =
         ~caption:(Printf.sprintf "📄 Generated file: %s" filename)
         () with
       | Ok _ ->
-          Eio.traceln "[/send_document] ✓, cleaning up";
+          Flo.debug "[/send_document] ✓, cleaning up";
           Sys.remove temp_path;
           Ok ()
       | Error e ->
-          Eio.traceln "[/send_document] ✗ %a" Error.pp e;
+          Flo.debugf "[/send_document] ✗ %s" (Format.asprintf "%a" Error.pp e);
           Sys.remove temp_path;
           Ok ())
     )
@@ -144,7 +144,7 @@ let () =
   (* /send_album - Send photo album *)
   |> Bot.command "send_album" ~desc:"Send photo album from URLs" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/send_album] Sending photo album";
+      Flo.debug "[/send_album] Sending photo album";
 
       let chat_id = chat ctx in
 
@@ -159,26 +159,26 @@ let () =
 
       match Album.send (client ctx) ~chat_id album with
       | Ok messages ->
-          Eio.traceln "[/send_album] Sent %d photos ✓" (List.length messages);
+          Flo.debugf "[/send_album] Sent %d photos ✓" (List.length messages);
           Ok ()
       | Error e ->
-          Eio.traceln "[/send_album] ✗ %a" Error.pp e;
+          Flo.debugf "[/send_album] ✗ %s" (Format.asprintf "%a" Error.pp e);
           Ok ()
     )
 
   (* /file_info - Show info about last received file *)
   |> Bot.command "file_info" ~desc:"Show last file information" (fun ctx _args ->
       let open Bot.Ctx in
-      Eio.traceln "[/file_info] Retrieving last file info";
+      Flo.debug "[/file_info] Retrieving last file info";
 
       match session_get ctx last_photo_key with
       | Some file_id ->
-          Eio.traceln "[/file_info] Found last photo: %s" file_id;
+          Flo.debugf "[/file_info] Found last photo: %s" file_id;
 
           (* Get file info from Telegram *)
           (match Download.get_file (client ctx) ~file_id with
            | Ok info ->
-               Eio.traceln "[/file_info] File info retrieved";
+               Flo.debug "[/file_info] File info retrieved";
 
                let size_str = match info.file_size with
                  | Some size -> Printf.sprintf "%Ld bytes (%.1f KB)" size (Int64.to_float size /. 1024.0)
@@ -211,26 +211,26 @@ let () =
                in
 
                (match reply ctx response with
-                | Ok _ -> Eio.traceln "[/file_info] ✓"; Ok ()
-                | Error e -> Eio.traceln "[/file_info] ✗ %a" Error.pp e; Ok ())
+                | Ok _ -> Flo.debug "[/file_info] ✓"; Ok ()
+                | Error e -> Flo.debugf "[/file_info] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
            | Error e ->
-               Eio.traceln "[/file_info] Failed to get file info: %a" Error.pp e;
+               Flo.debugf "[/file_info] Failed to get file info: %s" (Format.asprintf "%a" Error.pp e);
                (match reply ctx "❌ Failed to retrieve file information" with
                 | Ok _ -> Ok ()
-                | Error e -> Eio.traceln "[/file_info] Reply error: %a" Error.pp e; Ok ()))
+                | Error e -> Flo.debugf "[/file_info] Reply error: %s" (Format.asprintf "%a" Error.pp e); Ok ()))
 
       | None ->
-          Eio.traceln "[/file_info] No file stored in session";
+          Flo.debug "[/file_info] No file stored in session";
           (match reply ctx "No file received yet. Send me a photo first!" with
            | Ok _ -> Ok ()
-           | Error e -> Eio.traceln "[/file_info] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[/file_info] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
     )
 
   (* Handle photo messages *)
   |> Bot.on_photo (fun ctx photos ->
       let open Bot.Ctx in
-      Eio.traceln "[on_photo] Received %d photo sizes" (List.length photos);
+      Flo.debugf "[on_photo] Received %d photo sizes" (List.length photos);
 
       (* Get largest photo *)
       let largest = List.fold_left (fun acc p ->
@@ -247,7 +247,7 @@ let () =
       (* Store file_id in session *)
       session_set ctx last_photo_key file_id;
 
-      Eio.traceln "[on_photo] Stored file_id: %s" file_id;
+      Flo.debugf "[on_photo] Stored file_id: %s" file_id;
 
       let size_kb = Int64.div (Option.value largest.file_size ~default:0L) 1024L in
 
@@ -270,8 +270,8 @@ let () =
       in
 
       match reply ~keyboard ctx response with
-      | Ok _ -> Eio.traceln "[on_photo] ✓"; Ok ()
-      | Error e -> Eio.traceln "[on_photo] ✗ %a" Error.pp e; Ok ()
+      | Ok _ -> Flo.debug "[on_photo] ✓"; Ok ()
+      | Error e -> Flo.debugf "[on_photo] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
     )
 
   (* Handle document messages *)
@@ -281,7 +281,7 @@ let () =
 
       match msg.document with
       | Some doc ->
-          Eio.traceln "[on_document] Received document";
+          Flo.debug "[on_document] Received document";
 
           let open Telegram_generated.Gen_types.Document in
           let file_id = doc.file_id in
@@ -292,18 +292,18 @@ let () =
           (* Store file_id in session *)
           session_set ctx last_document_key file_id;
 
-          Eio.traceln "[on_document] File: %s, Size: %Ld KB" filename size_kb;
+          Flo.debugf "[on_document] File: %s, Size: %Ld KB" filename size_kb;
 
           (* Try to download small files *)
           let download_result = if size_kb < 100L then (
-            Eio.traceln "[on_document] Small file, attempting download";
+            Flo.debug "[on_document] Small file, attempting download";
 
             match Download.get_and_download_string (client ctx) ~file_id with
             | Ok contents ->
-                Eio.traceln "[on_document] Downloaded %d bytes" (String.length contents);
+                Flo.debugf "[on_document] Downloaded %d bytes" (String.length contents);
                 Some (String.length contents, String.sub contents 0 (min 100 (String.length contents)))
             | Error e ->
-                Eio.traceln "[on_document] Download failed: %a" Error.pp e;
+                Flo.debugf "[on_document] Download failed: %s" (Format.asprintf "%a" Error.pp e);
                 None
           ) else None
           in
@@ -334,8 +334,8 @@ let () =
           in
 
           (match reply ctx response with
-           | Ok _ -> Eio.traceln "[on_document] ✓"; Ok ()
-           | Error e -> Eio.traceln "[on_document] ✗ %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[on_document] ✓"; Ok ()
+           | Error e -> Flo.debugf "[on_document] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | None ->
           (* Not a document, skip *)
@@ -349,7 +349,7 @@ let () =
 
       match msg.video with
       | Some video ->
-          Eio.traceln "[on_video] Received video";
+          Flo.debug "[on_video] Received video";
 
           let open Telegram_generated.Gen_types.Video in
           let size_mb = Int64.div (Option.value video.file_size ~default:0L) (Int64.mul 1024L 1024L) in
@@ -370,8 +370,8 @@ let () =
           in
 
           (match reply ctx response with
-           | Ok _ -> Eio.traceln "[on_video] ✓"; Ok ()
-           | Error e -> Eio.traceln "[on_video] ✗ %a" Error.pp e; Ok ())
+           | Ok _ -> Flo.debug "[on_video] ✓"; Ok ()
+           | Error e -> Flo.debugf "[on_video] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
       | None ->
           Ok ()
@@ -383,7 +383,7 @@ let () =
 
       if String.starts_with ~prefix:"resend_photo:" data then (
         let file_id = String.sub data 13 (String.length data - 13) in
-        Eio.traceln "[resend_photo] Resending photo with file_id: %s" file_id;
+        Flo.debugf "[resend_photo] Resending photo with file_id: %s" file_id;
 
         let chat_id = chat ctx in
 
@@ -394,15 +394,15 @@ let () =
           ~photo:file_id
           ~caption:"🔄 Resent using file_id (instant, no upload!)"
           () with
-        | Ok _ -> Eio.traceln "[resend_photo] ✓"; Ok ()
-        | Error e -> Eio.traceln "[resend_photo] ✗ %a" Error.pp e; Ok ()
+        | Ok _ -> Flo.debug "[resend_photo] ✓"; Ok ()
+        | Error e -> Flo.debugf "[resend_photo] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ()
       ) else Ok ()
     )
 
   (* Callback: get_file_info *)
   |> Bot.on_callback_data "get_file_info" (fun ctx ->
       let open Bot.Ctx in
-      Eio.traceln "[get_file_info] Retrieving file info";
+      Flo.debug "[get_file_info] Retrieving file info";
 
       match session_get ctx last_photo_key with
       | Some file_id ->
@@ -426,17 +426,17 @@ let () =
                in
 
                (match edit ctx text with
-                | Ok () -> Eio.traceln "[get_file_info] ✓"; Ok ()
-                | Error e -> Eio.traceln "[get_file_info] ✗ %a" Error.pp e; Ok ())
+                | Ok () -> Flo.debug "[get_file_info] ✓"; Ok ()
+                | Error e -> Flo.debugf "[get_file_info] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
 
            | Error e ->
-               Eio.traceln "[get_file_info] ✗ %a" Error.pp e;
+               Flo.debugf "[get_file_info] ✗ %s" (Format.asprintf "%a" Error.pp e);
                Ok ())
 
       | None ->
           (match edit ctx "No photo stored. Send me a photo first!" with
            | Ok () -> Ok ()
-           | Error e -> Eio.traceln "[get_file_info] ✗ %a" Error.pp e; Ok ())
+           | Error e -> Flo.debugf "[get_file_info] ✗ %s" (Format.asprintf "%a" Error.pp e); Ok ())
     )
 
   |> Bot.run

@@ -24,22 +24,26 @@ module Subscriptions = struct
   type t = (string, unit) Hashtbl.t  (* chat_id as string -> subscribed *) [@@warning "-34"]
 
   let create () =
-    Eio.traceln "[Subscriptions] Creating subscription store";
+    let open Flo in
+    debug_fields "Creating subscription store" ~fields:[("module", Value.string "Subscriptions")];
     Hashtbl.create 1000
 
   let add t (chat_id : Id.Chat.k Id.t) =
+    let open Flo in
     let key = Id.to_string chat_id in
     Hashtbl.replace t key ();
-    Eio.traceln "[Subscriptions] Added subscriber: chat_id=%s" key
+    debugf "[Subscriptions] Added subscriber: chat_id=%s" key
 
   let remove t (chat_id : Id.Chat.k Id.t) =
+    let open Flo in
     let key = Id.to_string chat_id in
     Hashtbl.remove t key;
-    Eio.traceln "[Subscriptions] Removed subscriber: chat_id=%s" key
+    debugf "[Subscriptions] Removed subscriber: chat_id=%s" key
 
   let list t =
+    let open Flo in
     let subs = Hashtbl.to_seq_keys t |> List.of_seq in
-    Eio.traceln "[Subscriptions] Listed subscribers: count=%d" (List.length subs);
+    debugf "[Subscriptions] Listed subscribers: count=%d" (List.length subs);
     subs
 
   let count t =
@@ -58,6 +62,7 @@ module Admin = struct
   let admin_ids = ref []
 
   let load_from_env () =
+    let open Flo in
     match Sys.getenv_opt "ADMIN_USER_IDS" with
     | Some ids_str ->
         let ids = String.split_on_char ',' ids_str
@@ -66,23 +71,24 @@ module Admin = struct
                   |> List.map Int64.of_string
         in
         admin_ids := ids;
-        Eio.traceln "[Admin] Loaded %d admin IDs from ADMIN_USER_IDS" (List.length ids)
+        debugf "[Admin] Loaded %d admin IDs from ADMIN_USER_IDS" (List.length ids)
     | None ->
-        Eio.traceln "[Admin] No ADMIN_USER_IDS set, no admins configured"
+        debug "[Admin] No ADMIN_USER_IDS set, no admins configured"
 
   let is_admin user_id =
     List.mem user_id !admin_ids
 
   let require_admin ctx =
     let open Bot.Ctx in
+    let open Flo in
     let* user = require_user ctx in
-    let user_id = Id.to_string user.id in
-    let user_id_int = Int64.of_string user_id in
+    let user_id_str = Id.to_string user.id in
+    let user_id_int = Int64.of_string user_id_str in
     if is_admin user_id_int then begin
-      Eio.traceln "[Admin] Access granted: user_id=%s" user_id;
+      debugf "[Admin] Access granted: user_id=%s" user_id_str;
       Ok user
     end else begin
-      Eio.traceln "[Admin] ❌ Access denied: user_id=%s (not an admin)" user_id;
+      errorf "[Admin] Access denied: user_id=%s (not an admin)" user_id_str;
       Error (Error.Internal_error "Admin access required")
     end
 end
@@ -98,16 +104,17 @@ let prefs_key = Session.make ~name:"notification_prefs"
 (** {1 Broadcast Messaging} *)
 
 let broadcast_text client env ~text ~max_concurrency ~delay_between =
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                     Broadcasting Message                         ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
+  let open Flo in
+  debug "";
+  debug "╔══════════════════════════════════════════════════════════════════╗";
+  debug "║                     Broadcasting Message                         ║";
+  debug "╚══════════════════════════════════════════════════════════════════╝";
 
   let chat_keys = Subscriptions.list subscriptions in
   let total = List.length chat_keys in
-  Eio.traceln "[Broadcast] Starting broadcast to %d subscribers" total;
-  Eio.traceln "[Broadcast] Max concurrency: %d" max_concurrency;
-  Eio.traceln "[Broadcast] Delay between messages: %.3fs" delay_between;
+  debugf "[Broadcast] Starting broadcast to %d subscribers" total;
+  debugf "[Broadcast] Max concurrency: %d" max_concurrency;
+  debugf "[Broadcast] Delay between messages: %.3fs" delay_between;
 
   let successes = ref 0 in
   let failures = ref 0 in
@@ -119,17 +126,18 @@ let broadcast_text client env ~text ~max_concurrency ~delay_between =
       Eio.Semaphore.acquire sem;
       Eio.Fiber.fork ~sw (fun () ->
         Fun.protect ~finally:(fun () -> Eio.Semaphore.release sem) @@ fun () ->
+          let open Flo in
           let chat_id = Id.Chat.of_string key in
-          Eio.traceln "[Broadcast] Sending to chat_id=%s" key;
+          debugf "[Broadcast] Sending to chat_id=%s" key;
 
           let request = Request.send_message ~chat_id ~text () in
           match Api.call client request with
           | Ok _ ->
               incr successes;
-              Eio.traceln "[Broadcast] ✅ Sent to chat_id=%s (%d/%d)" key !successes total
+              successf "[Broadcast] Sent to chat_id=%s (%d/%d)" key !successes total
           | Error err ->
               incr failures;
-              Eio.traceln "[Broadcast] ❌ Failed to send to chat_id=%s: %a" key Error.pp err;
+              errorf "[Broadcast] Failed to send to chat_id=%s: %s" key (Format.asprintf "%a" Error.pp err);
 
           (* Throttle to respect rate limits *)
           if delay_between > 0. then
@@ -137,32 +145,35 @@ let broadcast_text client env ~text ~max_concurrency ~delay_between =
       )
     ) chat_keys;
 
-  Eio.traceln "";
-  Eio.traceln "[Broadcast] ✅ Broadcast complete: %d/%d success, %d failed" !successes total !failures;
+  let open Flo in
+  debug "";
+  successf "[Broadcast] Broadcast complete: %d/%d success, %d failed" !successes total !failures;
   (!successes, !failures, total)
 
 (** {1 Scheduled Messages} *)
 
 let rec schedule_every client env ~chat_id ~seconds ~make_text =
-  Eio.traceln "[Scheduler] Sleeping for %.0f seconds before next scheduled message" seconds;
+  let open Flo in
+  debugf "[Scheduler] Sleeping for %.0f seconds before next scheduled message" seconds;
   Eio.Time.sleep env#clock seconds;
 
   let text = make_text () in
-  Eio.traceln "[Scheduler] Sending scheduled message to chat_id=%a" Id.pp chat_id;
+  debugf "[Scheduler] Sending scheduled message to chat_id=%s" (Format.asprintf "%a" Id.pp chat_id);
 
   let request = Request.send_message ~chat_id ~text () in
   (match Api.call client request with
    | Ok _ ->
-       Eio.traceln "[Scheduler] ✅ Scheduled message sent successfully"
+       success "[Scheduler] Scheduled message sent successfully"
    | Error err ->
-       Eio.traceln "[Scheduler] ❌ Failed to send scheduled message: %a" Error.pp err);
+       errorf "[Scheduler] Failed to send scheduled message: %s" (Format.asprintf "%a" Error.pp err));
 
   schedule_every client env ~chat_id ~seconds ~make_text
 
 let start_scheduled_messages client env admin_chat =
-  Eio.traceln "[Scheduler] Starting scheduled message fiber";
-  Eio.traceln "[Scheduler] Admin chat: %a" Id.pp admin_chat;
-  Eio.traceln "[Scheduler] Interval: 60 seconds (demo - would be 24h in production)";
+  let open Flo in
+  debug "[Scheduler] Starting scheduled message fiber";
+  debugf "[Scheduler] Admin chat: %s" (Format.asprintf "%a" Id.pp admin_chat);
+  debug "[Scheduler] Interval: 60 seconds (demo - would be 24h in production)";
 
   let make_digest () =
     let now = Unix.time () |> Unix.localtime in
@@ -181,17 +192,19 @@ let start_scheduled_messages client env admin_chat =
 (** {1 Bot Routes} *)
 
 let build_routes telegram_client eio_env bot =
-  Eio.traceln "[Builder] Building bot routes...";
+  let open Flo in
+  debug "[Builder] Building bot routes...";
 
   let open Bot in
   let open Ctx in
 
   (* /start command *)
   let bot = bot |> command "start" (fun ctx _args ->
-    Eio.traceln "[Handler] /start command triggered";
+    let open Flo in
+    debug "[Handler] /start command triggered";
     let* user = require_user ctx in
-    Eio.traceln "[Handler] User: id=%a, username=%s"
-      Id.pp user.id
+    debugf "[Handler] User: id=%s, username=%s"
+      (Format.asprintf "%a" Id.pp user.id)
       (match user.username with Some u -> u | None -> "none");
 
     let chat_id = chat ctx in
@@ -214,13 +227,14 @@ let build_routes telegram_client eio_env bot =
     in
 
     let* _msg = answer ctx welcome_text in
-    Eio.traceln "[Handler] ✅ Welcome message sent";
+    success "[Handler] Welcome message sent";
     Ok ()
   ) in
 
   (* /help command *)
   let bot = bot |> command "help" (fun ctx _args ->
-    Eio.traceln "[Handler] /help command triggered";
+    let open Flo in
+    debug "[Handler] /help command triggered";
 
     let help_text =
       "📚 Help - Notification Bot\n\n\
@@ -236,37 +250,40 @@ let build_routes telegram_client eio_env bot =
     in
 
     let* _msg = answer ctx help_text in
-    Eio.traceln "[Handler] ✅ Help sent";
+    success "[Handler] Help sent";
     Ok ()
   ) in
 
   (* /subscribe command *)
   let bot = bot |> command "subscribe" (fun ctx _args ->
-    Eio.traceln "[Handler] /subscribe command triggered";
+    let open Flo in
+    debug "[Handler] /subscribe command triggered";
 
     let chat_id = chat ctx in
     Subscriptions.add subscriptions chat_id;
 
     let* _msg = answer ctx "🔔 Subscribed to notifications! You'll receive updates from now on." in
-    Eio.traceln "[Handler] ✅ User subscribed";
+    success "[Handler] User subscribed";
     Ok ()
   ) in
 
   (* /unsubscribe command *)
   let bot = bot |> command "unsubscribe" (fun ctx _args ->
-    Eio.traceln "[Handler] /unsubscribe command triggered";
+    let open Flo in
+    debug "[Handler] /unsubscribe command triggered";
 
     let chat_id = chat ctx in
     Subscriptions.remove subscriptions chat_id;
 
     let* _msg = answer ctx "🔕 Unsubscribed from notifications. You won't receive updates anymore." in
-    Eio.traceln "[Handler] ✅ User unsubscribed";
+    success "[Handler] User unsubscribed";
     Ok ()
   ) in
 
   (* /status command *)
   let bot = bot |> command "status" (fun ctx _args ->
-    Eio.traceln "[Handler] /status command triggered";
+    let open Flo in
+    debug "[Handler] /status command triggered";
 
     let chat_id = chat ctx in
     let is_subscribed = Subscriptions.is_subscribed subscriptions chat_id in
@@ -283,13 +300,14 @@ let build_routes telegram_client eio_env bot =
     in
 
     let* _msg = answer ctx status_text in
-    Eio.traceln "[Handler] ✅ Status sent";
+    success "[Handler] Status sent";
     Ok ()
   ) in
 
   (* /preferences command *)
   let bot = bot |> command "preferences" (fun ctx _args ->
-    Eio.traceln "[Handler] /preferences command triggered";
+    let open Flo in
+    debug "[Handler] /preferences command triggered";
 
     let prefs = session_get_or ctx prefs_key ~default:{ mute = false } in
     let updated = { mute = not prefs.mute } in
@@ -301,19 +319,20 @@ let build_routes telegram_client eio_env bot =
       "🔔 Notifications unmuted. You'll receive messages if subscribed."
     in
 
-    Eio.traceln "[Handler] Preferences updated: mute=%b" updated.mute;
+    debugf "[Handler] Preferences updated: mute=%b" updated.mute;
     let* _msg = answer ctx msg in
-    Eio.traceln "[Handler] ✅ Preferences toggled";
+    success "[Handler] Preferences toggled";
     Ok ()
   ) in
 
   (* /broadcast command - admin only *)
   let bot = bot |> command "broadcast" (fun ctx args ->
-    Eio.traceln "[Handler] /broadcast command triggered";
+    let open Flo in
+    debug "[Handler] /broadcast command triggered";
 
     match Admin.require_admin ctx with
     | Error err ->
-        Eio.traceln "[Handler] ❌ Access denied";
+        error "[Handler] Access denied";
         let* _msg = answer ctx "❌ Admin access required for broadcast." in
         Error err
     | Ok _admin ->
@@ -323,7 +342,7 @@ let build_routes telegram_client eio_env bot =
             Ok ()
         | parts ->
             let text = String.concat " " parts in
-            Eio.traceln "[Handler] Broadcasting message: %s" text;
+            debugf "[Handler] Broadcasting message: %s" text;
 
             let (ok, fail, total) = broadcast_text telegram_client eio_env ~text ~max_concurrency:10 ~delay_between:0.05 in
 
@@ -336,17 +355,18 @@ let build_routes telegram_client eio_env bot =
             in
 
             let* _msg = answer ctx result_text in
-            Eio.traceln "[Handler] ✅ Broadcast completed";
+            success "[Handler] Broadcast completed";
             Ok ()
   ) in
 
   (* /stats command - admin only *)
   let bot = bot |> command "stats" (fun ctx _args ->
-    Eio.traceln "[Handler] /stats command triggered";
+    let open Flo in
+    debug "[Handler] /stats command triggered";
 
     match Admin.require_admin ctx with
     | Error err ->
-        Eio.traceln "[Handler] ❌ Access denied";
+        error "[Handler] Access denied";
         let* _msg = answer ctx "❌ Admin access required." in
         Error err
     | Ok _admin ->
@@ -360,11 +380,12 @@ let build_routes telegram_client eio_env bot =
         in
 
         let* _msg = answer ctx stats_text in
-        Eio.traceln "[Handler] ✅ Stats sent";
+        success "[Handler] Stats sent";
         Ok ()
   ) in
 
-  Eio.traceln "[Builder] ✅ All routes registered successfully";
+  let open Flo in
+  success "[Builder] All routes registered successfully";
   bot
 
 (** {1 Main Entry Point} *)
@@ -372,77 +393,78 @@ let build_routes telegram_client eio_env bot =
 let () =
   Eio_main.run @@ fun env ->
 
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║            Notification Bot - Subscriptions & Broadcasts         ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
-  Eio.traceln "";
+  let open Flo in
+  debug "";
+  debug "╔══════════════════════════════════════════════════════════════════╗";
+  debug "║            Notification Bot - Subscriptions & Broadcasts         ║";
+  debug "╚══════════════════════════════════════════════════════════════════╝";
+  debug "";
 
   (* Phase 1: Initialize *)
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                    Phase 1: Initialization                       ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
+  debug "╔══════════════════════════════════════════════════════════════════╗";
+  debug "║                    Phase 1: Initialization                       ║";
+  debug "╚══════════════════════════════════════════════════════════════════╝";
 
   let token = match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t ->
-        Eio.traceln "[Init] Bot token loaded from environment";
+        debug "[Init] Bot token loaded from environment";
         t
     | None ->
-        Eio.traceln "[Init] ❌ ERROR: TELEGRAM_BOT_TOKEN not set";
+        error "[Init] ERROR: TELEGRAM_BOT_TOKEN not set";
         failwith "TELEGRAM_BOT_TOKEN environment variable not set"
   in
 
   (* Load admin IDs *)
   Admin.load_from_env ();
 
-  Eio.traceln "[Init] Creating Telegram client";
+  debug "[Init] Creating Telegram client";
   let telegram_client = Telegram.Client.create ~env ~token () in
-  Eio.traceln "[Init] Client created successfully";
+  success "[Init] Client created successfully";
 
   (* Phase 2: Build bot *)
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║                     Phase 2: Build Bot                           ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
+  debug "";
+  debug "╔══════════════════════════════════════════════════════════════════╗";
+  debug "║                     Phase 2: Build Bot                           ║";
+  debug "╚══════════════════════════════════════════════════════════════════╝";
 
   let bot = Bot.make ~env ~client:telegram_client in
   let bot = build_routes telegram_client env bot in
 
-  Eio.traceln "[Init] Bot created successfully";
+  success "[Init] Bot created successfully";
 
   (* Phase 3: Start background tasks and polling *)
-  Eio.traceln "";
-  Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-  Eio.traceln "║              Phase 3: Start Background Tasks & Polling           ║";
-  Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
+  debug "";
+  debug "╔══════════════════════════════════════════════════════════════════╗";
+  debug "║              Phase 3: Start Background Tasks & Polling           ║";
+  debug "╚══════════════════════════════════════════════════════════════════╝";
 
   Eio.Switch.run @@ fun sw ->
     (* Start scheduled messages in background (if admin chat configured) *)
     (match Sys.getenv_opt "ADMIN_CHAT_ID" with
      | Some chat_id_str ->
          let admin_chat = Id.Chat.of_string chat_id_str in
-         Eio.traceln "[Init] Starting scheduled message fiber for admin chat: %s" chat_id_str;
+         debugf "[Init] Starting scheduled message fiber for admin chat: %s" chat_id_str;
          Eio.Fiber.fork ~sw (fun () ->
            start_scheduled_messages telegram_client env admin_chat
          )
      | None ->
-         Eio.traceln "[Init] No ADMIN_CHAT_ID set, scheduled messages disabled");
+         debug "[Init] No ADMIN_CHAT_ID set, scheduled messages disabled");
 
     (* Start polling in foreground *)
-    Eio.traceln "[Polling] Starting long polling...";
-    Eio.traceln "[Polling] Bot is ready to receive updates";
-    Eio.traceln "";
-    Eio.traceln "╔══════════════════════════════════════════════════════════════════╗";
-    Eio.traceln "║                     Bot is Ready!                                ║";
-    Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
-    Eio.traceln "[Polling] Waiting for messages...";
-    Eio.traceln "";
-    Eio.traceln "Features:";
-    Eio.traceln "  - User subscriptions (subscribe/unsubscribe)";
-    Eio.traceln "  - Broadcast messaging with concurrency control";
-    Eio.traceln "  - Scheduled periodic messages (background fiber)";
-    Eio.traceln "  - Notification preferences (mute/unmute)";
-    Eio.traceln "  - Admin-only commands (/broadcast, /stats)";
-    Eio.traceln "";
+    debug "[Polling] Starting long polling...";
+    debug "[Polling] Bot is ready to receive updates";
+    debug "";
+    debug "╔══════════════════════════════════════════════════════════════════╗";
+    debug "║                     Bot is Ready!                                ║";
+    debug "╚══════════════════════════════════════════════════════════════════╝";
+    debug "[Polling] Waiting for messages...";
+    debug "";
+    debug "Features:";
+    debug "  - User subscriptions (subscribe/unsubscribe)";
+    debug "  - Broadcast messaging with concurrency control";
+    debug "  - Scheduled periodic messages (background fiber)";
+    debug "  - Notification preferences (mute/unmute)";
+    debug "  - Admin-only commands (/broadcast, /stats)";
+    debug "";
 
     Bot.run bot
