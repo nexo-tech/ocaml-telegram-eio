@@ -171,6 +171,8 @@ module type S = sig
 
     val ( >>= ) : ('a -> ('b, Telegram.Error.t) result) -> ('b -> ('c, Telegram.Error.t) result) -> ('a -> ('c, Telegram.Error.t) result)
     val ( >>| ) : ('a -> ('b, Telegram.Error.t) result) -> ('b -> 'c) -> ('a -> ('c, Telegram.Error.t) result)
+
+    val with_handler_context : 's t -> (unit -> 'a) -> 'a
   end
 
   (** {1 Builder API} *)
@@ -1064,6 +1066,51 @@ module Ctx = struct
   (** [f >>| g] composes a monadic function with a regular function.
       The result of [f] is transformed by [g] if successful.
       This enables point-free composition of handlers with transformations. *)
+
+  (** Bind handler context (user, chat, message) to fiber-local storage for structured logging.
+
+      This helper automatically extracts user_id, chat_id, and message_id from the context
+      and binds them to Flo's fiber-local storage, so all logs within the handler will
+      include these fields.
+
+      Example:
+      {[
+        |> command "start" (fun ctx _args ->
+            with_handler_context ctx (fun () ->
+              (* All logs here will include user_id, chat_id, message_id *)
+              let* () = reply_ ctx "Hello!" in
+              Ok ()
+            )
+          )
+      ]}
+  *)
+  let with_handler_context : type s. s t -> (unit -> 'a) -> 'a = fun ctx f ->
+    let fields = [] in
+
+    (* Add user_id if present *)
+    let fields = match ctx.user with
+      | Some u -> Flo_telegram.user_id (Id.to_string u.Telegram.Types.id) :: fields
+      | None -> fields
+    in
+
+    (* Add chat_id if present *)
+    let fields = match ctx.chat with
+      | Some chat_id -> Flo_telegram.chat_id (Id.to_string chat_id) :: fields
+      | None -> fields
+    in
+
+    (* Add message_id if present *)
+    let fields = match ctx.msg with
+      | Some msg -> Flo_telegram.message_id (string_of_int msg.message_id) :: fields
+      | None -> fields
+    in
+
+    (* Bind all fields and execute function *)
+    if fields <> [] then (
+      Flo.bind fields;
+      f ()
+    ) else
+      f ()
 end
 
 type handler = Handler : 'a Event.t * ('a -> [ `Chat ] ctx -> (unit, Error.t) result) -> handler
@@ -1117,21 +1164,28 @@ let router ?(middlewares = []) ?on_error (routes : route list) : route list =
 
 (* Internal: try to match and execute routes against an update *)
 let dispatch_update client env routes update =
-  (* Extract update_id and type for logging *)
-  let open Telegram_generated.Gen_types.Update in
-  let { update_id; message; edited_message; channel_post; edited_channel_post;
-        inline_query; callback_query; _ } = update in
-  let update_type =
-    if message <> None then "message"
-    else if edited_message <> None then "edited_message"
-    else if channel_post <> None then "channel_post"
-    else if edited_channel_post <> None then "edited_channel_post"
-    else if inline_query <> None then "inline_query"
-    else if callback_query <> None then "callback_query"
-    else "other"
-  in
+  Flo.with_span "dispatch_update" (fun () ->
+    (* Extract update_id and type for logging *)
+    let open Telegram_generated.Gen_types.Update in
+    let { update_id; message; edited_message; channel_post; edited_channel_post;
+          inline_query; callback_query; _ } = update in
+    let update_type =
+      if message <> None then "message"
+      else if edited_message <> None then "edited_message"
+      else if channel_post <> None then "channel_post"
+      else if edited_channel_post <> None then "edited_channel_post"
+      else if inline_query <> None then "inline_query"
+      else if callback_query <> None then "callback_query"
+      else "other"
+    in
 
-  infof "Dispatching update: update_id=%Ld, type=%s" update_id update_type;
+    (* Bind update context to fiber-local storage *)
+    Flo.bind [
+      Flo_telegram.update_id update_id;
+      ("update_type", Value.string update_type);
+    ];
+
+    infof "Dispatching update: update_id=%Ld, type=%s" update_id update_type;
 
   let route_index = ref 0 in
   let matched_route = ref None in
@@ -1238,6 +1292,7 @@ let dispatch_update client env routes update =
              try_routes rest)
   in
   try_routes routes
+  )
 
 let run_polling ~env ~client routes =
   (* Convert routes to update handler *)

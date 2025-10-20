@@ -210,6 +210,25 @@ module type S = sig
 
     val ( >>= ) : ('a -> ('b, Telegram.Error.t) result) -> ('b -> ('c, Telegram.Error.t) result) -> ('a -> ('c, Telegram.Error.t) result)
     val ( >>| ) : ('a -> ('b, Telegram.Error.t) result) -> ('b -> 'c) -> ('a -> ('c, Telegram.Error.t) result)
+
+    (** Bind handler context (user, chat, message) to fiber-local storage for structured logging.
+
+        This helper automatically extracts user_id, chat_id, and message_id from the context
+        and binds them to Flo's fiber-local storage, so all logs within the handler will
+        include these fields.
+
+        Example:
+        {[
+          |> command "start" (fun ctx _args ->
+              Ctx.with_handler_context ctx (fun () ->
+                (* All logs here will include user_id, chat_id, message_id *)
+                let* () = Ctx.reply_ ctx "Hello!" in
+                Ok ()
+              )
+            )
+        ]}
+    *)
+    val with_handler_context : 's t -> (unit -> 'a) -> 'a
   end
 
   (** {1 Builder API} *)

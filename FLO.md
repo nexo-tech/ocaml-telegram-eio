@@ -473,7 +473,7 @@ end
   - Use `info` for successful routing
   - Use `warn` for no route matched
   - Use `error` for handler exceptions
-- [ ] **Task 5.2**: Add context binding in Bot.Ctx
+- [x] **Task 5.2**: Add context binding in Bot.Ctx
   - Helper to bind user/chat/message context automatically
   - Call at start of every handler
 - [x] **Task 5.3**: Update src/bot.mli
@@ -482,7 +482,7 @@ end
 - [x] **Task 5.4**: Create simple Bot.make function
   - No functors, just direct instantiation
   - Example: `Bot.make ~env ~client`
-- [ ] **Task 5.5**: Add handler instrumentation helpers
+- [x] **Task 5.5**: Add handler instrumentation helpers
   - `Bot.with_handler_context : ctx -> (unit -> 'a) -> 'a`
   - Automatically binds user, chat, message context
 
