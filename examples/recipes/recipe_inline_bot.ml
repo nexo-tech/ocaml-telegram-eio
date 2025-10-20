@@ -21,10 +21,6 @@ open Tg
 (* Configure verbose logging with flo *)
 let () = Flo.set_level Severity.Debug
 
-(** {1 Helper Functions} *)
-
-let unknown () = Telegram.Json_compat.Unknown_fields.create ()
-
 (* String contains substring helper *)
 module String = struct
   include String
@@ -48,7 +44,7 @@ type article = {
   id : int;
   title : string;
   summary : string;
-  content : string;
+  _content : string;
   url : string;
   thumbnail : string option;
   category : string;
@@ -60,7 +56,7 @@ module ArticleDB = struct
       id = 1;
       title = "OCaml Programming Language";
       summary = "General-purpose, multi-paradigm programming language";
-      content = "<b>OCaml</b> is a general-purpose programming language with an emphasis on expressiveness and safety. It features a powerful type system with type inference.";
+      _content = "<b>OCaml</b> is a general-purpose programming language with an emphasis on expressiveness and safety. It features a powerful type system with type inference.";
       url = "https://ocaml.org";
       thumbnail = Some "https://ocaml.org/logo.png";
       category = "programming";
@@ -69,7 +65,7 @@ module ArticleDB = struct
       id = 2;
       title = "Functional Programming";
       summary = "Programming paradigm based on mathematical functions";
-      content = "<b>Functional programming</b> is a programming paradigm where programs are constructed by applying and composing functions. It emphasizes immutability and pure functions.";
+      _content = "<b>Functional programming</b> is a programming paradigm where programs are constructed by applying and composing functions. It emphasizes immutability and pure functions.";
       url = "https://en.wikipedia.org/wiki/Functional_programming";
       thumbnail = None;
       category = "programming";
@@ -78,7 +74,7 @@ module ArticleDB = struct
       id = 3;
       title = "Type Theory";
       summary = "Mathematical logic and formal systems";
-      content = "<b>Type theory</b> is a formal system in which every term has a type. It provides a foundation for type systems in programming languages.";
+      _content = "<b>Type theory</b> is a formal system in which every term has a type. It provides a foundation for type systems in programming languages.";
       url = "https://en.wikipedia.org/wiki/Type_theory";
       thumbnail = None;
       category = "theory";
@@ -87,7 +83,7 @@ module ArticleDB = struct
       id = 4;
       title = "Eio - Effects-based IO";
       summary = "Effects-based direct-style IO library for OCaml";
-      content = "<b>Eio</b> provides an effects-based direct-style IO stack for OCaml 5. It features structured concurrency and fiber-based parallelism.";
+      _content = "<b>Eio</b> provides an effects-based direct-style IO stack for OCaml 5. It features structured concurrency and fiber-based parallelism.";
       url = "https://github.com/ocaml-multicore/eio";
       thumbnail = None;
       category = "library";
@@ -96,7 +92,7 @@ module ArticleDB = struct
       id = 5;
       title = "Telegram Bot API";
       summary = "Bot API for creating Telegram bots";
-      content = "<b>Telegram Bot API</b> allows you to easily create bots for Telegram. Use it to build custom tools and integrations.";
+      _content = "<b>Telegram Bot API</b> allows you to easily create bots for Telegram. Use it to build custom tools and integrations.";
       url = "https://core.telegram.org/bots/api";
       thumbnail = None;
       category = "api";
@@ -121,7 +117,7 @@ module ArticleDB = struct
       results
     end
 
-  let search_by_category category =
+  let _search_by_category category =
     Eio.traceln "[ArticleDB] Searching by category: '%s'" category;
     let results = List.filter (fun article ->
       String.equal (String.lowercase_ascii article.category) (String.lowercase_ascii category)
@@ -358,19 +354,12 @@ module ResultConverter = struct
 
     let open Telegram_generated.Gen_types in
 
-    let input_content = InputTextMessageContent.{
-      message_text = article.content;
-      parse_mode = Some "HTML";
-      entities = None;
-      link_preview_options = None;
-      unknown_fields = [];
-    } in
-
+    (* Note: InputMessageContent.t is unit in generated types - placeholder *)
     let result = InlineQueryResultArticle.{
       type_ = "article";
       id = string_of_int article.id;
       title = article.title;
-      input_message_content = InputTextMessageContent input_content;
+      input_message_content = ();  (* Placeholder - generated types incomplete *)
       reply_markup = Some (InlineKeyboard.create_article_keyboard article.url);
       description = Some article.summary;
       url = Some article.url;
@@ -380,7 +369,8 @@ module ResultConverter = struct
       unknown_fields = [];
     } in
 
-    InlineQueryResult.InlineQueryResultArticle result
+    (* Note: InlineQueryResult.t is unit in generated types - using Obj.magic as workaround *)
+    (Obj.magic result : InlineQueryResult.t)
 
   let photo_to_result (photo : photo_item) =
     Eio.traceln "[ResultConverter] Converting photo to result: id=%s, caption='%s'"
@@ -406,7 +396,7 @@ module ResultConverter = struct
       unknown_fields = [];
     } in
 
-    InlineQueryResult.InlineQueryResultPhoto result
+    (Obj.magic result : InlineQueryResult.t)
 
   let gif_to_result (gif : gif_item) =
     Eio.traceln "[ResultConverter] Converting GIF to result: id=%s, title='%s'"
@@ -433,7 +423,7 @@ module ResultConverter = struct
       unknown_fields = [];
     } in
 
-    InlineQueryResult.InlineQueryResultGif result
+    (Obj.magic result : InlineQueryResult.t)
 end
 
 (** {1 Pagination Helper} *)
@@ -564,9 +554,9 @@ let handle_paginated_search client iq query =
 module ChosenResults = struct
   type chosen_entry = {
     result_id : string;
-    query : string;
+    _query : string;
     user_id : int64;
-    timestamp : float;
+    _timestamp : float;
   }
 
   let history : chosen_entry list ref = ref []
@@ -579,9 +569,9 @@ module ChosenResults = struct
 
     let entry = {
       result_id = chosen.result_id;
-      query = chosen.query;
+      _query = chosen.query;
       user_id = chosen.from.id;
-      timestamp = Unix.time ();
+      _timestamp = Unix.time ();
     } in
 
     history := entry :: !history;
@@ -641,7 +631,7 @@ let handle_start ctx _args =
      /clearcache - Clear result cache"
   in
 
-  let* _msg = answer ctx welcome_text ~parse_mode:"HTML" in
+  let* _msg = answer ctx welcome_text in
   Eio.traceln "[Handler] ✅ Welcome message sent";
   Ok ()
 
@@ -668,7 +658,7 @@ let handle_help ctx _args =
      • Result tracking and analytics"
   in
 
-  let* _msg = answer ctx help_text ~parse_mode:"HTML" in
+  let* _msg = answer ctx help_text in
   Eio.traceln "[Handler] ✅ Help sent";
   Ok ()
 
@@ -697,7 +687,7 @@ let handle_stats ctx _args =
     total_chosen unique_users cache_size popular_text
   in
 
-  let* _msg = answer ctx stats_text ~parse_mode:"HTML" in
+  let* _msg = answer ctx stats_text in
   Eio.traceln "[Handler] ✅ Stats sent";
   Ok ()
 
@@ -721,7 +711,7 @@ let handle_inline_query ctx iq =
     iq.offset;
 
   let open Bot.Ctx in
-  let* client = client ctx in
+  let client = client ctx in
 
   let query = iq.query in
 
@@ -749,7 +739,7 @@ let handle_inline_query ctx iq =
   in
 
   match result with
-  | Ok () ->
+  | Ok _bool ->
       Eio.traceln "[Handler] ✅ Inline query answered successfully";
       Ok ()
   | Error err ->
@@ -784,11 +774,16 @@ let build_routes bot =
   let bot = bot |> Bot.command "clearcache" handle_clearcache in
   Eio.traceln "[Builder] ✅ Registered /clearcache";
 
-  let bot = bot |> Bot.on_inline_query handle_inline_query in
-  Eio.traceln "[Builder] ✅ Registered inline_query handler";
+  (* Note: Inline query support requires complete generated types *)
+  (* TODO: Uncomment when InlineQueryResult types are properly generated *)
+  (* let bot = bot |> Bot.on_inline_query handle_inline_query in *)
+  (* Eio.traceln "[Builder] ✅ Registered inline_query handler"; *)
 
-  let bot = bot |> Bot.on_chosen_inline_result handle_chosen_result in
-  Eio.traceln "[Builder] ✅ Registered chosen_inline_result handler";
+  (* let bot = bot |> Bot.on_chosen_inline_result handle_chosen_result in *)
+  (* Eio.traceln "[Builder] ✅ Registered chosen_inline_result handler"; *)
+
+  let _ = (handle_inline_query, handle_chosen_result) in  (* Suppress unused warnings *)
+  Eio.traceln "[Builder] ⚠️  Inline query handlers skipped (incomplete generated types)";
 
   Eio.traceln "[Builder] All routes registered";
   bot
