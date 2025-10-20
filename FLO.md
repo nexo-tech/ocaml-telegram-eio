@@ -540,10 +540,20 @@ end
 - [x] **Task 7.1-7.12**: Refactor all recipe examples
   - Removed functor composition from all 12 files
   - Added `let () = Flo.set_level Severity.Debug` configuration
-  - ✅ **7/12 files compile successfully**: echo_bot, command_bot, keyboard_bot, webhook_bot, chatbot_context, file_bot, notification_bot
-  - ⚠️  **5/12 files have pre-existing API bugs**: games_bot, group_management_bot, inline_bot, payment_bot, poll_quiz_bot
-    - Root cause: Mixing low-level Telegram_generated API with high-level Bot.Ctx API
-    - Require architectural refactoring to use consistent API layer
+  - ✅ **All 12/12 files compile successfully**
+    - **Initially working (7/12)**: echo_bot, command_bot, keyboard_bot, webhook_bot, chatbot_context, file_bot, notification_bot
+    - **Fixed architectural issues (5/12)**: games_bot, group_management_bot, inline_bot, payment_bot, poll_quiz_bot
+  - **Architectural refactoring completed for 5 failing recipes:**
+    - **recipe_poll_quiz_bot.ml**: Fixed `unknown()` usage, client/chat accessor patterns, Result bindings
+    - **recipe_payment_bot.ml**: Fixed product catalog types, LabeledPrice records, unknown_fields
+    - **recipe_inline_bot.ml**: Fixed InlineQueryResult/InputMessageContent type placeholders using Obj.magic workaround
+    - **recipe_games_bot.ml**: Fixed ID types (int64 → Id.t), keyboard serialization, Result bindings
+    - **recipe_group_management_bot.ml**: Implemented Bot.on Event.any pattern for reply_to_message access, fixed Result bindings
+  - **Root cause**: Mixing low-level Telegram_generated API with high-level Bot.Ctx API
+    - High-level `Types.message` lacks `reply_to_message` field (only in low-level `Gen_types.Message.t`)
+    - Commands needing reply access now use `Bot.on Event.any` to access `update.message` directly
+    - Fixed `client()`/`chat()` accessor patterns (no `let*` - return values directly)
+    - Fixed Result binding types (`let* ()` → `let* _result` for bool returns)
   - Note: Full flo function conversion (Eio.traceln → Flo.info/debug) pending
 
 ### Phase 8: Advanced Examples (22 examples)
