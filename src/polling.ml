@@ -1,6 +1,7 @@
-(** Long polling implementation for Telegram Bot API with composable logging *)
+(** Long polling implementation for Telegram Bot API with flo logging *)
 
 open Telegram
+open Flo
 
 type offset_storage = {
   load : unit -> int64 option;
@@ -22,347 +23,319 @@ let make ?(timeout = 30) ?(limit = 100) ?allowed_updates ?on_error ?offset_stora
 
 let default = make ()
 
-(** Polling module signature - output of Make functor *)
-module type S = sig
-  val run :
-    Telegram.Client.t ->
-    handler:(Telegram_generated.Gen_types.Update.t -> unit) ->
-    unit
+(* Internal: call getUpdates with offset and config *)
+let get_updates client ~offset config =
+  let params = [
+    ("offset", Param.int64 offset);
+    ("timeout", Param.int (config.timeout));
+    ("limit", Param.int (config.limit));
+  ] @ (match config.allowed_updates with
+       | None -> []
+       | Some updates -> [("allowed_updates", Param.list (List.map Param.string updates))])
+  in
 
-  val run_with_config :
-    Telegram.Client.t ->
-    config ->
-    handler:(Telegram_generated.Gen_types.Update.t -> unit) ->
-    unit
+  match Api.call_method client ~method_name:"getUpdates" params with
+  | Error err -> Error err
+  | Ok json ->
+      (* Parse the result as array of Updates *)
+      (match json with
+       | `List updates_json ->
+           (* Decode each update *)
+           let rec decode_updates acc = function
+             | [] -> Ok (List.rev acc)
+             | update_json :: rest ->
+                 (match Telegram_generated.Gen_types.Update.of_yojson update_json with
+                  | Ok update -> decode_updates (update :: acc) rest
+                  | Error msg ->
+                      (* Log the problematic JSON for debugging *)
+                      let json_str = Yojson.Safe.to_string update_json in
+                      let preview = if String.length json_str > 500
+                        then String.sub json_str 0 500 ^ "..."
+                        else json_str in
+                      errorf "Failed to decode Update: %s" msg;
+                      debugf "Problematic JSON: %s" preview;
+                      Error (Error.Decode_error msg))
+           in
+           decode_updates [] updates_json
+       | _ -> Error (Error.Decode_error "Expected array of updates"))
 
-  val run_with_switch :
-    Telegram.Client.t ->
-    Eio.Switch.t ->
-    handler:(Telegram_generated.Gen_types.Update.t -> unit) ->
-    unit
+(* Internal: deduplication window using a circular buffer of update_ids *)
+module Dedup_window = struct
+  type t = {
+    size : int;
+    buffer : int64 array;
+    mutable pos : int;
+    mutable count : int;
+  }
 
-  val run_with_config_and_switch :
-    Telegram.Client.t ->
-    config ->
-    Eio.Switch.t ->
-    handler:(Telegram_generated.Gen_types.Update.t -> unit) ->
-    unit
-end
+  let create size =
+    if size <= 0 then
+      { size = 0; buffer = [||]; pos = 0; count = 0 }
+    else
+      { size; buffer = Array.make size 0L; pos = 0; count = 0 }
 
-(** Polling module parameterized by logging backend *)
-module Make (Log : Telegram.Log.S) : S = struct
+  let mem window update_id =
+    if window.size = 0 then false
+    else
+      let rec check i remaining =
+        if remaining <= 0 then false
+        else if window.buffer.(i) = update_id then true
+        else check ((i + 1) mod window.size) (remaining - 1)
+      in
+      let seen_before = check 0 window.count in
+      tracef "Deduplication check: update_id=%Ld, seen_before=%b" update_id seen_before;
+      if seen_before then
+        warnf "Duplicate update detected: update_id=%Ld" update_id;
+      seen_before
 
-  (* Internal: call getUpdates with offset and config *)
-  let get_updates client ~offset config =
-    let params = [
-      ("offset", Param.int64 offset);
-      ("timeout", Param.int (config.timeout));
-      ("limit", Param.int (config.limit));
-    ] @ (match config.allowed_updates with
-         | None -> []
-         | Some updates -> [("allowed_updates", Param.list (List.map Param.string updates))])
-    in
+  let add window update_id =
+    if window.size > 0 then (
+      window.buffer.(window.pos) <- update_id;
+      window.pos <- (window.pos + 1) mod window.size;
+      window.count <- min (window.count + 1) window.size;
 
-    match Api.call_method client ~method_name:"getUpdates" params with
-    | Error err -> Error err
-    | Ok json ->
-        (* Parse the result as array of Updates *)
-        (match json with
-         | `List updates_json ->
-             (* Decode each update *)
-             let rec decode_updates acc = function
-               | [] -> Ok (List.rev acc)
-               | update_json :: rest ->
-                   (match Telegram_generated.Gen_types.Update.of_yojson update_json with
-                    | Ok update -> decode_updates (update :: acc) rest
-                    | Error msg ->
-                        (* Log the problematic JSON for debugging *)
-                        let json_str = Yojson.Safe.to_string update_json in
-                        let preview = if String.length json_str > 500
-                          then String.sub json_str 0 500 ^ "..."
-                          else json_str in
-                        Log.error "Failed to decode Update: %s" msg;
-                        Log.debug "Problematic JSON: %s" preview;
-                        Error (Error.Decode_error msg))
-             in
-             decode_updates [] updates_json
-         | _ -> Error (Error.Decode_error "Expected array of updates"))
-
-  (* Internal: deduplication window using a circular buffer of update_ids *)
-  module Dedup_window = struct
-    type t = {
-      size : int;
-      buffer : int64 array;
-      mutable pos : int;
-      mutable count : int;
-    }
-
-    let create size =
-      if size <= 0 then
-        { size = 0; buffer = [||]; pos = 0; count = 0 }
-      else
-        { size; buffer = Array.make size 0L; pos = 0; count = 0 }
-
-    let mem window update_id =
-      if window.size = 0 then false
-      else
-        let rec check i remaining =
-          if remaining <= 0 then false
-          else if window.buffer.(i) = update_id then true
-          else check ((i + 1) mod window.size) (remaining - 1)
-        in
-        let seen_before = check 0 window.count in
-        Log.debug "Deduplication check: update_id=%Ld, seen_before=%b" update_id seen_before;
-        if seen_before then
-          Log.warn "Duplicate update detected: update_id=%Ld" update_id;
-        seen_before
-
-    let add window update_id =
-      if window.size > 0 then (
-        window.buffer.(window.pos) <- update_id;
-        window.pos <- (window.pos + 1) mod window.size;
-        window.count <- min (window.count + 1) window.size;
-
-        Log.debug' (fun () ->
-          let oldest_id = if window.count > 0 then
-            window.buffer.((window.pos - window.count + window.size) mod window.size)
-          else 0L in
-          Format.asprintf "Deduplication window state: size=%d, oldest_id=%Ld"
-            window.count oldest_id
-        )
-      )
-  end
-
-  (* Internal: extract update_id from Update.t *)
-  let get_update_id update =
-    let module U = Telegram_generated.Gen_types.Update in
-    let json = U.to_yojson update in
-    match json with
-    | `Assoc fields ->
-        (match List.assoc_opt "update_id" fields with
-         | Some (`Intlit s) -> Some (Int64.of_string s)
-         | Some (`Int i) -> Some (Int64.of_int i)
-         | _ -> None)
-    | _ -> None
-
-  (* Internal: process a batch of updates with deduplication *)
-  let process_updates updates ~handler ~on_error ~dedup_window =
-    List.iter (fun update ->
-      match get_update_id update with
-      | None ->
-          (* No update_id found - shouldn't happen but process anyway *)
-          Log.debug "Processing update: update_id=none (malformed)";
-          (try handler update
-           with exn ->
-             let err = Error.Decode_error ("Handler exception: " ^ Printexc.to_string exn) in
-             (match on_error with
-              | Some f -> f err
-              | None -> ()))
-      | Some update_id ->
-          Log.debug' (fun () ->
-            let module U = Telegram_generated.Gen_types.Update in
-            let json = U.to_yojson update in
-            let update_type = match json with
-              | `Assoc fields ->
-                  let types = ["message"; "edited_message"; "channel_post"; "edited_channel_post";
-                              "inline_query"; "chosen_inline_result"; "callback_query"; "shipping_query";
-                              "pre_checkout_query"; "poll"; "poll_answer"; "my_chat_member"; "chat_member";
-                              "chat_join_request"] in
-                  List.find_opt (fun t -> List.mem_assoc t fields) types
-                  |> Option.value ~default:"unknown"
-              | _ -> "unknown"
-            in
-            Format.asprintf "Each update received: update_id=%Ld, type=%s" update_id update_type
-          );
-
-          (* Check if already seen *)
-          if Dedup_window.mem dedup_window update_id then
-            () (* Skip duplicate *)
-          else (
-            (* Mark as seen *)
-            Dedup_window.add dedup_window update_id;
-            (* Process update *)
-            try handler update
-            with exn ->
-              let err = Error.Decode_error ("Handler exception: " ^ Printexc.to_string exn) in
-              (match on_error with
-               | Some f -> f err
-               | None -> ())
-          )
-    ) updates
-
-  (* Internal: compute next offset from updates *)
-  let next_offset updates current_offset =
-    match updates with
-    | [] ->
-        Log.debug "Offset calculation: no updates, keeping offset=%Ld" current_offset;
-        current_offset
-    | _ ->
-        (* Get the highest update_id and add 1 *)
-        let module U = Telegram_generated.Gen_types.Update in
-        let max_id = List.fold_left (fun acc update ->
-          (* Access update_id - we extract it from JSON roundtrip *)
-          let json = U.to_yojson update in
-          match json with
-          | `Assoc fields ->
-              (match List.assoc_opt "update_id" fields with
-               | Some (`Intlit s) -> Int64.max acc (Int64.of_string s)
-               | Some (`Int i) -> Int64.max acc (Int64.of_int i)
-               | _ -> acc)
-          | _ -> acc
-        ) 0L updates in
-        let new_offset = Int64.add max_id 1L in
-        Log.debug "Offset calculation and update: previous=%Ld, max_update_id=%Ld, next=%Ld"
-          current_offset max_id new_offset;
-        new_offset
-
-  (* Internal: main polling loop with graceful shutdown *)
-  let rec polling_loop client config ~handler ~offset ~should_stop ~dedup_window =
-    (* Check for shutdown signal *)
-    if should_stop () then (
-      Log.debug "Shutdown signal received";
-      Log.info "Graceful shutdown initiated";
-      () (* Exit polling loop immediately *)
-    ) else (
-      (* Fetch updates first, then check shutdown - this ensures in-flight updates are processed *)
-      match get_updates client ~offset config with
-      | Error err ->
-          Log.warn "getUpdates error (will retry): %a" Error.pp err;
-
-          (* Check if we should stop before handling error *)
-          if should_stop () then (
-            Log.info "Shutdown during error handling";
-            () (* Graceful shutdown - don't retry on errors during shutdown *)
-          ) else (
-            (* Handle error *)
-            (match config.on_error with
-             | Some f -> f err
-             | None -> ());
-
-            (* Continue polling after a brief delay on errors *)
-            (match err with
-             | Error.Api_error { code = 429; parameters = Some { retry_after = Some delay; _ }; _ } ->
-                 Log.warn "Rate limited: waiting %ds before retry" delay;
-                 (* Rate limited: respect retry_after *)
-                 Eio.Time.sleep (Client.env client)#clock (float_of_int delay)
-             | Error.Timeout ->
-                 (* Timeout is expected in long polling, just continue *)
-                 Log.debug "Long polling timeout (expected, continuing)"
-             | Error.Http_error _ | Error.Decode_error _ ->
-                 (* HTTP or decode error: brief delay before retry *)
-                 Eio.Time.sleep (Client.env client)#clock 1.0
-             | _ ->
-                 (* Other errors: brief delay *)
-                 Eio.Time.sleep (Client.env client)#clock 1.0);
-
-            polling_loop client config ~handler ~offset ~should_stop ~dedup_window
-          )
-
-    | Ok updates ->
-        (* Log received updates *)
-        let count = List.length updates in
-        if count > 0 then (
-          let update_ids = List.filter_map get_update_id updates in
-          let ids_str = String.concat ", " (List.map Int64.to_string update_ids) in
-          Log.info "Received updates: count=%d, update_ids=[%s]" count ids_str
-        );
-
-        (* Process updates with deduplication - always process fetched updates even during shutdown *)
-        if should_stop () && count > 0 then
-          Log.info "Processing in-flight updates before shutdown: count=%d" count;
-
-        process_updates updates ~handler ~on_error:config.on_error ~dedup_window;
-
-        if should_stop () && count > 0 then
-          Log.debug "Update queue drained: processed %d updates" count;
-
-        (* Calculate next offset *)
-        let new_offset = next_offset updates offset in
-
-        (* Save offset if persistence is enabled *)
-        (match config.offset_storage with
-         | Some storage ->
-             Log.debug "Storage operation: saving offset=%Ld" new_offset;
-             storage.save new_offset;
-             Log.info "Offset saved to storage: offset=%Ld" new_offset
-         | None -> ());
-
-        (* Check if we should stop AFTER processing updates *)
-        if should_stop () then (
-          Log.info "Shutdown complete";
-          () (* Graceful shutdown - all fetched updates have been processed *)
-        ) else
-          (* Continue polling *)
-          polling_loop client config ~handler ~offset:new_offset ~should_stop ~dedup_window
+      let oldest_id = if window.count > 0 then
+        window.buffer.((window.pos - window.count + window.size) mod window.size)
+      else 0L in
+      tracef "Deduplication window state: size=%d, oldest_id=%Ld" window.count oldest_id
     )
-
-  let run_with_config_and_switch client config sw ~handler =
-    (* Use switch to detect cancellation *)
-    let cancelled = ref false in
-    Eio.Switch.on_release sw (fun () -> cancelled := true);
-
-    let should_stop () = !cancelled in
-
-    (* Load initial offset from storage or use 0 *)
-    let initial_offset =
-      match config.offset_storage with
-      | Some storage ->
-          Log.debug "Storage operation: loading offset";
-          (match storage.load () with
-           | Some o ->
-               Log.info "Offset loaded from storage: offset=%Ld" o;
-               o
-           | None ->
-               Log.warn "Failed to load offset (using default): offset=0";
-               0L)
-      | None -> 0L
-    in
-
-    (* Create deduplication window *)
-    let dedup_window = Dedup_window.create config.dedup_window in
-
-    Log.info "Long polling started: timeout=%ds, offset=%Ld" config.timeout initial_offset;
-
-    polling_loop client config ~handler ~offset:initial_offset ~should_stop ~dedup_window
-
-  let run_with_config client config ~handler =
-    (* Run without cancellation support *)
-    let should_stop () = false in
-
-    (* Load initial offset from storage or use 0 *)
-    let initial_offset =
-      match config.offset_storage with
-      | Some storage ->
-          Log.debug "Storage operation: loading offset";
-          (match storage.load () with
-           | Some o ->
-               Log.info "Offset loaded from storage: offset=%Ld" o;
-               o
-           | None ->
-               Log.warn "Failed to load offset (using default): offset=0";
-               0L)
-      | None -> 0L
-    in
-
-    (* Create deduplication window *)
-    let dedup_window = Dedup_window.create config.dedup_window in
-
-    Log.info "Long polling started: timeout=%ds, offset=%Ld" config.timeout initial_offset;
-
-    polling_loop client config ~handler ~offset:initial_offset ~should_stop ~dedup_window
-
-  let run_with_switch client sw ~handler =
-    run_with_config_and_switch client default sw ~handler
-
-  let run client ~handler =
-    run_with_config client default ~handler
 end
 
-(* Default logging configuration for backward compatibility *)
-module Log_default = Telegram.Log.Make (Telegram.Log.Console) (struct
-  let src = "Polling"
-  let level = Telegram.Log.Info
-end)
+(* Internal: extract update_id from Update.t *)
+let get_update_id update =
+  let module U = Telegram_generated.Gen_types.Update in
+  let json = U.to_yojson update in
+  match json with
+  | `Assoc fields ->
+      (match List.assoc_opt "update_id" fields with
+       | Some (`Intlit s) -> Some (Int64.of_string s)
+       | Some (`Int i) -> Some (Int64.of_int i)
+       | _ -> None)
+  | _ -> None
 
-(* Default instantiation - this is what most users will use *)
-include Make (Log_default)
+(* Internal: process a batch of updates with deduplication *)
+let process_updates updates ~handler ~on_error ~dedup_window =
+  List.iter (fun update ->
+    match get_update_id update with
+    | None ->
+        (* No update_id found - shouldn't happen but process anyway *)
+        debug "Processing update: update_id=none (malformed)";
+        (try handler update
+         with exn ->
+           let err = Error.Decode_error ("Handler exception: " ^ Printexc.to_string exn) in
+           (match on_error with
+            | Some f -> f err
+            | None -> ()))
+    | Some update_id ->
+        let module U = Telegram_generated.Gen_types.Update in
+        let json = U.to_yojson update in
+        let update_type = match json with
+          | `Assoc fields ->
+              let types = ["message"; "edited_message"; "channel_post"; "edited_channel_post";
+                          "inline_query"; "chosen_inline_result"; "callback_query"; "shipping_query";
+                          "pre_checkout_query"; "poll"; "poll_answer"; "my_chat_member"; "chat_member";
+                          "chat_join_request"] in
+              List.find_opt (fun t -> List.mem_assoc t fields) types
+              |> Option.value ~default:"unknown"
+          | _ -> "unknown"
+        in
+        tracef "Each update received: update_id=%Ld, type=%s" update_id update_type;
+
+        (* Check if already seen *)
+        if Dedup_window.mem dedup_window update_id then
+          () (* Skip duplicate *)
+        else (
+          (* Mark as seen *)
+          Dedup_window.add dedup_window update_id;
+          (* Process update *)
+          try handler update
+          with exn ->
+            let err = Error.Decode_error ("Handler exception: " ^ Printexc.to_string exn) in
+            (match on_error with
+             | Some f -> f err
+             | None -> ())
+        )
+  ) updates
+
+(* Internal: compute next offset from updates *)
+let next_offset updates current_offset =
+  match updates with
+  | [] ->
+      tracef "Offset calculation: no updates, keeping offset=%Ld" current_offset;
+      current_offset
+  | _ ->
+      (* Get the highest update_id and add 1 *)
+      let module U = Telegram_generated.Gen_types.Update in
+      let max_id = List.fold_left (fun acc update ->
+        (* Access update_id - we extract it from JSON roundtrip *)
+        let json = U.to_yojson update in
+        match json with
+        | `Assoc fields ->
+            (match List.assoc_opt "update_id" fields with
+             | Some (`Intlit s) -> Int64.max acc (Int64.of_string s)
+             | Some (`Int i) -> Int64.max acc (Int64.of_int i)
+             | _ -> acc)
+        | _ -> acc
+      ) 0L updates in
+      let new_offset = Int64.add max_id 1L in
+      tracef "Offset calculation and update: previous=%Ld, max_update_id=%Ld, next=%Ld"
+        current_offset max_id new_offset;
+      new_offset
+
+(* Internal: main polling loop with graceful shutdown *)
+let rec polling_loop client config ~handler ~offset ~should_stop ~dedup_window =
+  (* Check for shutdown signal *)
+  if should_stop () then (
+    debug "Shutdown signal received";
+    info "Graceful shutdown initiated";
+    () (* Exit polling loop immediately *)
+  ) else (
+    (* Fetch updates first, then check shutdown - this ensures in-flight updates are processed *)
+    match get_updates client ~offset config with
+    | Error err ->
+        warn_fields "getUpdates error (will retry)" ~fields:[
+          Flo_semconv.error_message (Format.asprintf "%a" Error.pp err);
+        ];
+
+        (* Check if we should stop before handling error *)
+        if should_stop () then (
+          info "Shutdown during error handling";
+          () (* Graceful shutdown - don't retry on errors during shutdown *)
+        ) else (
+          (* Handle error *)
+          (match config.on_error with
+           | Some f -> f err
+           | None -> ());
+
+          (* Continue polling after a brief delay on errors *)
+          (match err with
+           | Error.Api_error { code = 429; parameters = Some { retry_after = Some delay; _ }; _ } ->
+               warnf "Rate limited: waiting %ds before retry" delay;
+               (* Rate limited: respect retry_after *)
+               Eio.Time.sleep (Client.env client)#clock (float_of_int delay)
+           | Error.Timeout ->
+               (* Timeout is expected in long polling, just continue *)
+               debug "Long polling timeout (expected, continuing)"
+           | Error.Http_error _ | Error.Decode_error _ ->
+               (* HTTP or decode error: brief delay before retry *)
+               Eio.Time.sleep (Client.env client)#clock 1.0
+           | _ ->
+               (* Other errors: brief delay *)
+               Eio.Time.sleep (Client.env client)#clock 1.0);
+
+          polling_loop client config ~handler ~offset ~should_stop ~dedup_window
+        )
+
+  | Ok updates ->
+      (* Log received updates *)
+      let count = List.length updates in
+      if count > 0 then (
+        let update_ids = List.filter_map get_update_id updates in
+        let ids_str = String.concat ", " (List.map Int64.to_string update_ids) in
+        info_fields "Received updates" ~fields:[
+          ("count", Value.int count);
+          ("update_ids", Value.string ids_str);
+        ]
+      );
+
+      (* Process updates with deduplication - always process fetched updates even during shutdown *)
+      if should_stop () && count > 0 then
+        infof "Processing in-flight updates before shutdown: count=%d" count;
+
+      process_updates updates ~handler ~on_error:config.on_error ~dedup_window;
+
+      if should_stop () && count > 0 then
+        debugf "Update queue drained: processed %d updates" count;
+
+      (* Calculate next offset *)
+      let new_offset = next_offset updates offset in
+
+      (* Save offset if persistence is enabled *)
+      (match config.offset_storage with
+       | Some storage ->
+           tracef "Storage operation: saving offset=%Ld" new_offset;
+           storage.save new_offset;
+           info_fields "Offset saved to storage" ~fields:[
+             ("offset", Value.int64 new_offset);
+           ]
+       | None -> ());
+
+      (* Check if we should stop AFTER processing updates *)
+      if should_stop () then (
+        info "Shutdown complete";
+        () (* Graceful shutdown - all fetched updates have been processed *)
+      ) else
+        (* Continue polling *)
+        polling_loop client config ~handler ~offset:new_offset ~should_stop ~dedup_window
+  )
+
+let run_with_config_and_switch client config sw ~handler =
+  (* Use switch to detect cancellation *)
+  let cancelled = ref false in
+  Eio.Switch.on_release sw (fun () -> cancelled := true);
+
+  let should_stop () = !cancelled in
+
+  (* Load initial offset from storage or use 0 *)
+  let initial_offset =
+    match config.offset_storage with
+    | Some storage ->
+        debug "Storage operation: loading offset";
+        (match storage.load () with
+         | Some o ->
+             info_fields "Offset loaded from storage" ~fields:[
+               ("offset", Value.int64 o);
+             ];
+             o
+         | None ->
+             warn "Failed to load offset (using default): offset=0";
+             0L)
+    | None -> 0L
+  in
+
+  (* Create deduplication window *)
+  let dedup_window = Dedup_window.create config.dedup_window in
+
+  info_fields "Long polling started" ~fields:[
+    ("timeout", Value.int config.timeout);
+    ("offset", Value.int64 initial_offset);
+  ];
+
+  polling_loop client config ~handler ~offset:initial_offset ~should_stop ~dedup_window
+
+let run_with_config client config ~handler =
+  (* Run without cancellation support *)
+  let should_stop () = false in
+
+  (* Load initial offset from storage or use 0 *)
+  let initial_offset =
+    match config.offset_storage with
+    | Some storage ->
+        debug "Storage operation: loading offset";
+        (match storage.load () with
+         | Some o ->
+             info_fields "Offset loaded from storage" ~fields:[
+               ("offset", Value.int64 o);
+             ];
+             o
+         | None ->
+             warn "Failed to load offset (using default): offset=0";
+             0L)
+    | None -> 0L
+  in
+
+  (* Create deduplication window *)
+  let dedup_window = Dedup_window.create config.dedup_window in
+
+  info_fields "Long polling started" ~fields:[
+    ("timeout", Value.int config.timeout);
+    ("offset", Value.int64 initial_offset);
+  ];
+
+  polling_loop client config ~handler ~offset:initial_offset ~should_stop ~dedup_window
+
+let run_with_switch client sw ~handler =
+  run_with_config_and_switch client default sw ~handler
+
+let run client ~handler =
+  run_with_config client default ~handler

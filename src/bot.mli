@@ -259,47 +259,23 @@ module type S = sig
   val run_webhook : env:Telegram.Client.env -> client:Telegram.Client.t -> secret_token:string -> addr:[ `Tcp of (string * int) ] -> route list -> unit
 end
 
-(** Functor to create bot module with custom logging backend.
+(** {1 Core Bot Framework}
 
-    This functor composes logging across Bot, Session, and Polling modules,
-    ensuring consistent logging throughout the bot infrastructure.
+    All bot functionality uses flo for logging. Configure logging globally:
 
-    Example:
     {[
-      (* Custom logging configuration *)
-      module My_log = Telegram.Log.Make (Telegram.Log.Console) (struct
-        let src = "Bot"
-        let level = Telegram.Log.Debug  (* More verbose *)
-      end)
+      (* Set log level before running bot *)
+      Flo.set_level Severity.Info   (* Production *)
+      Flo.set_level Severity.Debug  (* Development *)
 
-      (* Instantiate dependencies with custom logging *)
-      module My_session = Telegram.Session.Make (My_log)
-      module My_polling = Telegram.Polling.Make (My_log)
-
-      (* Create bot module with custom logging *)
-      module My_bot = Telegram.Bot.Make (My_log) (My_session) (My_polling)
-
-      (* Use it *)
-      My_bot.make ~env ~client
-      |> My_bot.command "start" (fun ctx _args -> My_bot.Ctx.reply ctx "Welcome!")
-      |> My_bot.run
+      (* Create and run bot *)
+      Bot.make ~env ~client
+      |> Bot.command "start" (fun ctx _args -> Bot.Ctx.reply ctx "Welcome!")
+      |> Bot.run
     ]}
 *)
-module Make
-  (Log : Telegram.Log.S)
-  (Session_impl : Session.S)
-  (Polling_impl : Polling.S)
-  : S
-[@@warning "-67"]
 
-(** {1 Default Implementation}
-
-    The following provides backward compatibility by including the default
-    instantiation of Make with Console logging at Info level.
-
-    For production use with custom logging, use the Make functor directly.
-*)
-
+(* All functions are available at the top level *)
 include S
 
 (** {1 Error Handlers} *)

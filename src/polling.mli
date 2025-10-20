@@ -1,4 +1,4 @@
-(** Long polling for Telegram Bot API updates with composable logging.
+(** Long polling for Telegram Bot API updates with flo logging.
 
     This module provides an elegant, functional interface for receiving updates
     via long polling. It handles offset management, error recovery, and graceful
@@ -16,20 +16,15 @@
       Polling.run client ~handler
     ]}
 
-    {1 Custom Logging}
+    Logging is handled automatically using the flo library. Configure the log
+    level globally:
 
     {[
-      (* Create custom logging configuration *)
-      module My_log = Telegram.Log.Make (Telegram.Log.Console) (struct
-        let src = "Polling"
-        let level = Telegram.Log.Debug  (* More verbose *)
-      end)
+      (* Set minimum log level *)
+      Flo.set_level Severity.Info   (* Production *)
+      Flo.set_level Severity.Debug  (* Development *)
 
-      (* Create polling module with custom logging *)
-      module My_polling = Telegram.Polling.Make (My_log)
-
-      (* Use it *)
-      My_polling.run client ~handler
+      Polling.run client ~handler
     ]}
 *)
 
@@ -109,66 +104,7 @@ val make :
     - dedup_window: 0 (no deduplication) *)
 val default : config
 
-(** {1 Functor Interface} *)
-
-(** Polling module signature - output of Make functor *)
-module type S = sig
-  val run :
-    Telegram.Client.t ->
-    handler:(Telegram_generated.Gen_types.Update.t -> unit) ->
-    unit
-  (** Run long polling with default configuration. *)
-
-  val run_with_config :
-    Telegram.Client.t ->
-    config ->
-    handler:(Telegram_generated.Gen_types.Update.t -> unit) ->
-    unit
-  (** Run long polling with custom configuration. *)
-
-  val run_with_switch :
-    Telegram.Client.t ->
-    Eio.Switch.t ->
-    handler:(Telegram_generated.Gen_types.Update.t -> unit) ->
-    unit
-  (** Run long polling with Eio-based cancellation support. *)
-
-  val run_with_config_and_switch :
-    Telegram.Client.t ->
-    config ->
-    Eio.Switch.t ->
-    handler:(Telegram_generated.Gen_types.Update.t -> unit) ->
-    unit
-  (** Run long polling with full control: custom config and switch. *)
-end
-
-(** Functor to create polling module with custom logging backend.
-
-    Example:
-    {[
-      (* Custom logging configuration *)
-      module My_log = Telegram.Log.Make (Telegram.Log.Console) (struct
-        let src = "Polling"
-        let level = Telegram.Log.Debug  (* More verbose *)
-      end)
-
-      (* Create polling module with custom logging *)
-      module My_polling = Telegram.Polling.Make (My_log)
-
-      (* Use it *)
-      My_polling.run client ~handler
-    ]}
-*)
-module Make (Log : Telegram.Log.S) : S [@@warning "-67"]
-
-(** {1 Default Implementation}
-
-    The following functions use the default logging configuration
-    (Console backend at Info level). This is provided for convenience
-    and backward compatibility.
-
-    For production use or custom logging, use the [Make] functor instead.
-*)
+(** {1 Core Functions} *)
 
 (** Run long polling with default configuration.
 

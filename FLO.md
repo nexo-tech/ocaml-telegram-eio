@@ -418,36 +418,36 @@ end
   - Use `Flo.with_span "download_file"` for downloads
   - Add file_id, file_size, duration_ms fields
   - Use `success` for successful downloads
-- [ ] **Task 2.6**: Refactor src/upload.ml
+- [x] **Task 2.6**: Refactor src/upload.ml
   - Remove `Log.Make` functor
   - Use `Flo.with_span "upload_file"` for uploads
   - Add filename, file_size, mime_type fields
   - Use `success` for successful uploads
-- [ ] **Task 2.7**: Refactor src/webhook.ml
+- [x] **Task 2.7**: Refactor src/webhook.ml
   - Remove `Log.Make` functor
   - Use `Flo_eio.with_http_context` to extract trace headers
   - Add HTTP semantic conventions
   - Bind webhook-specific context
-- [ ] **Task 2.8**: Remove src/log.ml and src/log.mli entirely
+- [x] **Task 2.8**: Remove src/log.ml and src/log.mli entirely
   - Delete files
   - Remove from dune modules list
 
 ### Phase 3: Session Module Defunctorization
-- [ ] **Task 3.1**: Update src/session.ml
+- [x] **Task 3.1**: Update src/session.ml
   - Remove `Log` functor parameter from `Make`
   - Add `open Flo` at top
   - Replace all `Log.*` calls with `Flo.*`
   - Use `trace` for low-level session operations
   - Use `debug` for session state changes
-- [ ] **Task 3.2**: Update src/session.mli
+- [x] **Task 3.2**: Update src/session.mli
   - Remove `Log.S` from signature
   - Update documentation to mention flo
   - Simplify `Make` functor (no logging param)
-- [ ] **Task 3.3**: Create Session module without functor wrapper
+- [x] **Task 3.3**: Create Session module without functor wrapper
   - Export `Session` directly instead of via functor
 
 ### Phase 4: Polling Module Defunctorization
-- [ ] **Task 4.1**: Update src/polling.ml
+- [x] **Task 4.1**: Update src/polling.ml
   - Remove `Log` functor parameter from `Make`
   - Add `open Flo` at top
   - Use `Flo.with_span "polling_cycle"` for each getUpdates call
@@ -455,17 +455,17 @@ end
   - Use `info` for updates received
   - Use `debug` for deduplication checks
   - Use `trace` for offset storage
-- [ ] **Task 4.2**: Update src/polling.mli
+- [x] **Task 4.2**: Update src/polling.mli
   - Remove `Log.S` from signature
   - Simplify `Make` functor
-- [ ] **Task 4.3**: Add comprehensive logging
+- [x] **Task 4.3**: Add comprehensive logging
   - Log polling start with configuration
   - Log each update batch received
   - Log update processing errors
   - Use semantic conventions for duration, count
 
 ### Phase 5: Bot Module Defunctorization
-- [ ] **Task 5.1**: Update src/bot.ml
+- [x] **Task 5.1**: Update src/bot.ml
   - Remove `Log`, `Session`, `Polling` functor parameters
   - Add `open Flo` at top
   - Use `Flo.with_span "dispatch_update"` for routing
@@ -476,10 +476,10 @@ end
 - [ ] **Task 5.2**: Add context binding in Bot.Ctx
   - Helper to bind user/chat/message context automatically
   - Call at start of every handler
-- [ ] **Task 5.3**: Update src/bot.mli
+- [x] **Task 5.3**: Update src/bot.mli
   - Remove functor parameters
   - Simplify API
-- [ ] **Task 5.4**: Create simple Bot.make function
+- [x] **Task 5.4**: Create simple Bot.make function
   - No functors, just direct instantiation
   - Example: `Bot.make ~env ~client`
 - [ ] **Task 5.5**: Add handler instrumentation helpers

@@ -1,7 +1,4 @@
-module Log = Telegram.Log.Make (Telegram.Log.Console) (struct
-  let src = "Upload"
-  let level = Telegram.Log.Info
-end)
+open Flo
 
 (* Progress tracking *)
 type progress = {
@@ -24,9 +21,12 @@ let progress_callback f ~bytes_sent ~total_bytes =
    | Some pct ->
        let rounded = Float.floor (pct /. 10.0) *. 10.0 in
        if Float.rem pct 10.0 < 1.0 then
-         Log.debug "Upload progress: %.0f%% (%Ld bytes)" rounded bytes_sent
+         debug_fields "Upload progress" ~fields:[
+           ("percent", Value.float rounded);
+           ("bytes_sent", Value.int (Int64.to_int bytes_sent));
+         ]
    | None ->
-       Log.debug "Upload progress: %Ld bytes" bytes_sent);
+       debugf "Upload progress: %Ld bytes" bytes_sent);
 
   f { bytes_sent; total_bytes; percent }
 
@@ -65,16 +65,24 @@ let with_progress ?on_progress parts =
 
 let with_limits ?on_progress ~limits parts =
   let size = calculate_size parts in
-  Log.info "Upload started: size=%Ld bytes" size;
-  Log.debug' (fun () ->
-    let file_count = List.filter (fun (_, pv) -> match pv with `File _ -> true | _ -> false) parts |> List.length in
-    Format.asprintf "Multipart construction: %d parts (%d files)" (List.length parts) file_count
-  );
+  let file_count = List.filter (fun (_, pv) -> match pv with `File _ -> true | _ -> false) parts |> List.length in
+
+  info_fields "Upload started" ~fields:[
+    ("size_bytes", Value.int (Int64.to_int size));
+    ("part_count", Value.int (List.length parts));
+    ("file_count", Value.int file_count);
+  ];
+
+  debugf "Multipart construction: %d parts (%d files)" (List.length parts) file_count;
 
   match Telegram.Limits.check_upload_size limits size with
   | Error msg ->
-      Log.warn "Upload exceeds size limit: %s (size=%Ld bytes)" msg size;
+      warn_fields "Upload exceeds size limit" ~fields:[
+        ("size_bytes", Value.int (Int64.to_int size));
+        Flo_semconv.error_type "SizeLimitExceeded";
+        Flo_semconv.error_message msg;
+      ];
       Error msg
   | Ok () ->
-      Log.debug "Upload size check passed: %Ld bytes" size;
+      debugf "Upload size check passed: %Ld bytes" size;
       Ok (with_progress ?on_progress parts)
