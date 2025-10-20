@@ -394,12 +394,12 @@ end
   - Export via src/dune
 
 ### Phase 2: Library Core Refactoring (Internal Modules)
-- [ ] **Task 2.1**: Refactor src/http.ml
+- [x] **Task 2.1**: Refactor src/http.ml
   - Remove `Log.Make` functor
   - Add `open Flo` at top
   - Replace `Log.debug` → `Flo.debugf`
   - Add structured fields for HTTP requests
-- [ ] **Task 2.2**: Refactor src/api.ml
+- [x] **Task 2.2**: Refactor src/api.ml
   - Remove `Log.Make` functor
   - Use `Flo.with_span "api_call"` for each method call
   - Add semantic conventions for HTTP method, status, duration

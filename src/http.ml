@@ -1,9 +1,5 @@
 open Error
-
-module Log = Log.Make (Log.Console) (struct
-  let src = "Http"
-  let level = Log.Info
-end)
+open Flo
 
 type method_ = [ `GET | `POST ]
 type header = string * string
@@ -35,16 +31,20 @@ module Cohttp_eio = struct
   let call _t ~meth ~url ~headers ~body : (response, Error.t) result =
     let start_time = Unix.gettimeofday () in
     let meth_str = match meth with `GET -> "GET" | `POST -> "POST" in
-    Log.info "HTTP request started: %s %s" meth_str url;
-    Log.debug' (fun () ->
-      let headers_str = String.concat ", " (List.map (fun (k, v) -> k ^ "=" ^ v) headers) in
-      let body_preview = match body with
-        | Empty -> "[empty]"
-        | String s -> if String.length s > 100 then String.sub s 0 100 ^ "..." else s
-        | Multipart _ -> "[multipart]"
-        | Multipart_progress _ -> "[multipart with progress]"
-      in
-      Format.asprintf "Headers: %s | Body: %s" headers_str body_preview
+
+    (* Log HTTP request with structured fields *)
+    info_fields "HTTP request started" ~fields:[
+      Flo_semconv.http_method meth_str;
+      Flo_semconv.http_url url;
+    ];
+
+    debugf "HTTP request details: %s %s" meth_str url;
+    debugf "Headers: %s" (String.concat ", " (List.map (fun (k, v) -> k ^ "=" ^ v) headers));
+    debugf "Body preview: %s" (match body with
+      | Empty -> "[empty]"
+      | String s -> if String.length s > 100 then String.sub s 0 100 ^ "..." else s
+      | Multipart _ -> "[multipart]"
+      | Multipart_progress _ -> "[multipart with progress]"
     );
     try
       Eio_main.run @@ fun env ->
@@ -197,12 +197,18 @@ module Cohttp_eio = struct
           Buffer.contents buf
         in
         let duration = (Unix.gettimeofday () -. start_time) *. 1000.0 in
-        Log.info "HTTP request completed: status=%d, duration=%.1fms" status duration;
-        Log.debug' (fun () ->
-          let headers_str = String.concat ", " (List.map (fun (k, v) -> k ^ "=" ^ v) headers) in
-          let body_preview = if String.length body_str > 200 then String.sub body_str 0 200 ^ "..." else body_str in
-          Format.asprintf "Response headers: %s | Body: %s" headers_str body_preview
-        );
+
+        (* Log HTTP response with structured fields *)
+        info_fields "HTTP request completed" ~fields:[
+          Flo_semconv.http_method meth_str;
+          Flo_semconv.http_url url;
+          Flo_semconv.http_status_code status;
+          Flo_semconv.duration_ms duration;
+        ];
+
+        debugf "Response headers: %s" (String.concat ", " (List.map (fun (k, v) -> k ^ "=" ^ v) headers));
+        debugf "Response body preview: %s" (if String.length body_str > 200 then String.sub body_str 0 200 ^ "..." else body_str);
+
         Ok { status; headers; body = body_str }
       in
       (try
@@ -212,11 +218,20 @@ module Cohttp_eio = struct
              let seconds = float_of_string s in
              Eio.Time.with_timeout_exn env#clock seconds run_request
        with Eio.Time.Timeout ->
-         Log.error "HTTP request timeout after %.1fs: %s %s"
-           (match Sys.getenv_opt "TELEGRAM_HTTP_TIMEOUT" with Some s -> float_of_string s | None -> 0.0)
-           meth_str url;
+         let timeout_s = match Sys.getenv_opt "TELEGRAM_HTTP_TIMEOUT" with Some s -> float_of_string s | None -> 0.0 in
+         error_fields "HTTP request timeout" ~fields:[
+           Flo_semconv.http_method meth_str;
+           Flo_semconv.http_url url;
+           Flo_semconv.duration timeout_s;
+           Flo_semconv.error_type "Timeout";
+         ];
          Error Timeout))
     with exn ->
-      Log.error "HTTP request failed: %s %s - %s" meth_str url (Printexc.to_string exn);
+      error_fields "HTTP request failed" ~fields:[
+        Flo_semconv.http_method meth_str;
+        Flo_semconv.http_url url;
+        Flo_semconv.error_type (Printexc.to_string exn);
+        Flo_semconv.error_stack_trace (Printexc.get_backtrace ());
+      ];
       Error (Http_error (0, Printexc.to_string exn))
 end
