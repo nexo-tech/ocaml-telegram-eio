@@ -28,7 +28,7 @@ let () = Flo.set_level Severity.Debug  (* Enable debug logging *)
 let () =
   let open Flo in
 
-  info "=== Command Bot Starting ===";
+  [%log.info "=== Command Bot Starting ==="];
   info_fields "Initializing bot" ~fields:[
     ("stage", Value.string "startup");
   ];
@@ -47,10 +47,10 @@ let () =
         exit 1
   in
 
-  info "Starting Eio event loop...";
+  [%log.info "Starting Eio event loop..."];
   Eio_main.run @@ fun env ->
 
-  info "Creating Telegram HTTP client...";
+  [%log.info "Creating Telegram HTTP client..."];
   let client = Telegram.Client.create ~env ~token () in
   success_fields "HTTP client created" ~fields:[
     ("base_url", Value.string (Telegram.Client.base_url client));
@@ -231,7 +231,7 @@ let () =
     | None -> ()
   in
 
-  info "🤖 Command Bot Started!";
-  info "🔍 Watching for updates (long polling)...";
+  [%log.info "🤖 Command Bot Started!"];
+  [%log.info "🔍 Watching for updates (long polling)..."];
 
   Tg.Polling.run client ~handler:handle_update

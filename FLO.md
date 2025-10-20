@@ -587,12 +587,18 @@ end
   - Note: Full flo function conversion (Eio.traceln → Flo.info/debug) pending for advanced flo features demonstration
 
 ### Phase 9: PPX Integration
-- [ ] **Task 9.1**: Update examples/dune
-  - Add `(preprocess (pps ppx_flo))` to all executables
-- [ ] **Task 9.2**: Convert high-value logs to PPX
-  - Use `[%log.info]` for handler entry/exit
-  - Use `[%span]` for expensive operations
-  - Keep manual API for dynamic fields
+- [x] **Task 9.1**: Update examples/dune
+  - Added `(preprocess (pps ppx_flo))` to all three subdirs (basic, recipes, advanced)
+  - ✅ **All examples compile successfully with ppx_flo preprocessing**
+- [x] **Task 9.2**: Convert high-value logs to PPX
+  - Converted simple log calls to PPX extensions in 3 key examples:
+    - examples/basic/hello_world.ml (12 conversions)
+    - examples/basic/command_bot.ml (5 conversions)
+    - examples/basic/echo_enhanced.ml (10 conversions)
+  - Used `[%log.info]`, `[%log.debug]`, `[%log.success]`, `[%log.fatal]` for automatic location capture
+  - Kept `*_fields` calls (info_fields, debug_fields, etc.) for structured logging
+  - Demonstrated PPX pattern for simple logs vs manual API for dynamic fields
+  - ✅ **All examples compile with zero warnings**
 
 ### Phase 10: Documentation Updates
 - [ ] **Task 10.1**: Update CONTRIBUTING.md

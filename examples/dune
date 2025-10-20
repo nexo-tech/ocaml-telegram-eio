@@ -2,6 +2,7 @@
  (executables
   (names hello_world echo_bot echo_enhanced command_bot command_tutorial keyboard_bot file_bot core_concepts_demo)
   (libraries ocaml_telegram_eio.telegram ocaml_telegram_eio.tg ocaml_telegram_eio.generated eio_main str)
+  (preprocess (pps ppx_flo))
   (promote (until-clean))))
 
 (subdir recipes
@@ -12,6 +13,7 @@
    recipe_poll_quiz_bot recipe_inline_bot recipe_group_management_bot
    recipe_payment_bot recipe_games_bot)
   (libraries ocaml_telegram_eio.telegram ocaml_telegram_eio.tg ocaml_telegram_eio.generated eio_main str)
+  (preprocess (pps ppx_flo))
   (promote (until-clean))))
 
 (subdir advanced
@@ -29,4 +31,5 @@
    ; Reference
    faq index)
   (libraries ocaml_telegram_eio.telegram ocaml_telegram_eio.tg ocaml_telegram_eio.generated eio_main str)
+  (preprocess (pps ppx_flo))
   (promote (until-clean))))

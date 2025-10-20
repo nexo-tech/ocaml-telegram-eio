@@ -29,7 +29,8 @@ let () =
   (* Open flo for convenient logging functions *)
   let open Flo in
 
-  info "=== Hello World Bot Starting ===";
+  (* PPX extension for simple logs - automatic location capture *)
+  [%log.info "=== Hello World Bot Starting ==="];
   info_fields "Initializing bot" ~fields:[
     ("stage", Value.string "startup");
   ];
@@ -48,15 +49,15 @@ let () =
       ];
       t
     with Not_found ->
-      fatal "TELEGRAM_BOT_TOKEN environment variable not set";
+      [%log.fatal "TELEGRAM_BOT_TOKEN environment variable not set"];
       failwith "TELEGRAM_BOT_TOKEN environment variable not set"
   in
 
-  info "Starting Eio event loop...";
+  [%log.info "Starting Eio event loop..."];
   (* Start the Eio event loop *)
   Eio_main.run @@ fun env ->
 
-  info "Creating Telegram HTTP client...";
+  [%log.info "Creating Telegram HTTP client..."];
   (* Create HTTP client for Telegram API *)
   let client = Client.create ~env ~token () in
   success_fields "HTTP client created" ~fields:[
@@ -64,12 +65,12 @@ let () =
   ];
 
   (* Print startup message *)
-  info "🤖 Bot started successfully!";
-  info "📱 Send /start to the bot to interact";
-  info "🔍 Watching for updates (long polling)...";
+  [%log.info "🤖 Bot started successfully!"];
+  [%log.info "📱 Send /start to the bot to interact"];
+  [%log.info "🔍 Watching for updates (long polling)..."];
 
   (* Build bot using functional builder pattern with flo logging *)
-  debug "Building bot with functional API...";
+  [%log.debug "Building bot with functional API..."];
   Bot.make ~env ~client
   (* Add global error handler to catch and log all errors *)
   |> Bot.on_error (fun ctx exn ->
@@ -83,9 +84,9 @@ let () =
         ("chat_id", Value.string (Id.to_string (Bot.Ctx.chat ctx)));
       ];
       (* Try to notify user about the error *)
-      debug "Attempting to send error notification to user...";
+      [%log.debug "Attempting to send error notification to user..."];
       match Bot.Ctx.reply ctx "Sorry, an error occurred. Please try again." with
-      | Ok _ -> success "Error notification sent to user"
+      | Ok _ -> [%log.success "Error notification sent to user"]
       | Error e -> warn_fields "Failed to send error message" ~fields:[
           Flo_semconv.error_message (Format.asprintf "%a" Error.pp e);
         ]
@@ -95,18 +96,18 @@ let () =
       Flo.with_span "handle_start" (fun () ->
         (* Bind handler context for structured logging *)
         Bot.Ctx.with_handler_context ctx (fun () ->
-          info "Received /start command";
+          [%log.info "Received /start command"];
           debug_fields "Request context" ~fields:[
             ("username", Value.string (match Bot.Ctx.user ctx with
              | Some u -> Option.value ~default:"<none>" u.username
              | None -> "<none>"));
           ];
 
-          debug "Executing handler logic...";
+          [%log.debug "Executing handler logic..."];
           (* Use Result-based error handling *)
           let open Bot.Ctx in
           let* () = reply_ ctx "👋 Hello! I'm your first OCaml Telegram bot!" in
-          success "Handler completed successfully";
+          [%log.success "Handler completed successfully"];
           Ok ()
         )
       )

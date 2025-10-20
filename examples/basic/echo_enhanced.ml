@@ -35,7 +35,7 @@ let () =
   (* Open flo for convenient logging functions *)
   let open Flo in
 
-  info "=== Enhanced Echo Bot Starting ===";
+  [%log.info "=== Enhanced Echo Bot Starting ==="];
   info_fields "Initializing bot" ~fields:[
     ("stage", Value.string "startup");
   ];
@@ -58,24 +58,24 @@ let () =
         exit 1
   in
 
-  info "Starting Eio event loop...";
+  [%log.info "Starting Eio event loop..."];
   Eio_main.run @@ fun env ->
 
-  info "Creating Telegram HTTP client...";
+  [%log.info "Creating Telegram HTTP client..."];
   let client = Client.create ~env ~token () in
   success_fields "HTTP client created" ~fields:[
     ("base_url", Value.string (Client.base_url client));
   ];
 
-  info "🤖 Enhanced Echo Bot Started!";
-  info "📋 Available commands:";
-  info "   /start - Welcome message";
-  info "   /help  - Show help text";
-  info "   <text> - Echo any message back";
-  info "🔍 Watching for updates (long polling)...";
+  [%log.info "🤖 Enhanced Echo Bot Started!"];
+  [%log.info "📋 Available commands:"];
+  [%log.info "   /start - Welcome message"];
+  [%log.info "   /help  - Show help text"];
+  [%log.info "   <text> - Echo any message back"];
+  [%log.info "🔍 Watching for updates (long polling)..."];
 
   (* Build bot using functional builder pattern *)
-  debug "Registering routes...";
+  [%log.debug "Registering routes..."];
   Bot.make ~env ~client
   (* Add global error handler to catch and log all errors *)
   |> Bot.on_error (fun ctx exn ->

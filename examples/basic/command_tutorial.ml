@@ -31,18 +31,12 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "CommandBot"
-  let level = Log.Debug  (* Enable debug logging *)
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 let () =
-  Eio.traceln "=== Command Tutorial Bot Starting ===";
+  let open Flo in
+  [%log.info "=== Command Tutorial Bot Starting ==="];
   Eio.traceln "[Init] Loading configuration...";
 
   let token =
@@ -83,40 +77,40 @@ let () =
 
   (* Build bot using functional builder pattern with Bot DSL *)
   Eio.traceln "[Builder] Building bot with Bot DSL...";
-  Verbose_bot.make ~env ~client
+  Bot.make ~env ~client
   (* Add global error handler to catch and log all errors *)
-  |> Verbose_bot.on_error (fun ctx exn ->
+  |> Bot.on_error (fun ctx exn ->
       Eio.traceln "";
       Eio.traceln "[Error] ❌❌❌ Uncaught error in handler ❌❌❌";
       Eio.traceln "[Error] Error: %s" (Printexc.to_string exn);
       Eio.traceln "[Error] User: %s"
-        (match Verbose_bot.Ctx.user ctx with
+        (match Bot.Ctx.user ctx with
          | Some u -> Printf.sprintf "id=%s username=%s"
              (Id.to_string u.id)
              (Option.value ~default:"<none>" u.username)
          | None -> "none");
       Eio.traceln "[Error] Chat: %s"
-        (Id.to_string (Verbose_bot.Ctx.chat ctx));
+        (Id.to_string (Bot.Ctx.chat ctx));
       (* Try to notify user about the error *)
       Eio.traceln "[Error] Attempting to send error notification to user...";
-      match Verbose_bot.Ctx.reply ctx "❌ Sorry, an error occurred. Please try again." with
+      match Bot.Ctx.reply ctx "❌ Sorry, an error occurred. Please try again." with
       | Ok _ -> Eio.traceln "[Error] ✓ Error notification sent"
       | Error e -> Eio.traceln "[Error] ✗ Failed to send error message: %a" Error.pp e;
       Eio.traceln "";
     )
   (* Register /start command *)
   |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'start'"; bot)
-  |> Verbose_bot.command "start" ~desc:"Show welcome message" (fun ctx _args ->
+  |> Bot.command "start" ~desc:"Show welcome message" (fun ctx _args ->
       Eio.traceln "";
       Eio.traceln "[Handler:start] >>> /start command received";
       Eio.traceln "[Handler:start] User: %s"
-        (match Verbose_bot.Ctx.user ctx with
+        (match Bot.Ctx.user ctx with
          | Some u -> Printf.sprintf "id=%s username=%s"
              (Id.to_string u.id)
              (Option.value ~default:"<none>" u.username)
          | None -> "<none>");
 
-      let open Verbose_bot.Ctx in
+      let open Bot.Ctx in
       let* () = reply_ ctx
         "👋 Welcome! I can:\n\
          /start - Show this message\n\
@@ -130,17 +124,17 @@ let () =
     )
   (* Register /help command *)
   |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'help'"; bot)
-  |> Verbose_bot.command "help" ~desc:"Show help information" (fun ctx _args ->
+  |> Bot.command "help" ~desc:"Show help information" (fun ctx _args ->
       Eio.traceln "";
       Eio.traceln "[Handler:help] >>> /help command received";
       Eio.traceln "[Handler:help] User: %s"
-        (match Verbose_bot.Ctx.user ctx with
+        (match Bot.Ctx.user ctx with
          | Some u -> Printf.sprintf "id=%s username=%s"
              (Id.to_string u.id)
              (Option.value ~default:"<none>" u.username)
          | None -> "<none>");
 
-      let open Verbose_bot.Ctx in
+      let open Bot.Ctx in
       let* () = reply_ ctx
         "Available commands:\n\
          /echo <text> - Echo text\n\
@@ -153,7 +147,7 @@ let () =
     )
   (* Register /echo command *)
   |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'echo'"; bot)
-  |> Verbose_bot.command "echo" ~desc:"Echo back text" (fun ctx args ->
+  |> Bot.command "echo" ~desc:"Echo back text" (fun ctx args ->
       Eio.traceln "";
       Eio.traceln "[Handler:echo] >>> /echo command received";
       Eio.traceln "[Handler:echo] Args: %s" (String.concat " " args);
@@ -161,7 +155,7 @@ let () =
       let text = Bot.Args.join_rest args 0 in
       Eio.traceln "[Handler:echo] Joined text: \"%s\"" text;
 
-      let open Verbose_bot.Ctx in
+      let open Bot.Ctx in
       let* () =
         if text = "" then
           reply_ ctx "Usage: /echo <text>\nExample: /echo Hello world"
@@ -174,12 +168,12 @@ let () =
     )
   (* Register /add command with argument parsing *)
   |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'add'"; bot)
-  |> Verbose_bot.command "add" ~desc:"Add two numbers" (fun ctx args ->
+  |> Bot.command "add" ~desc:"Add two numbers" (fun ctx args ->
       Eio.traceln "";
       Eio.traceln "[Handler:add] >>> /add command received";
       Eio.traceln "[Handler:add] Args: %s" (String.concat " " args);
 
-      let open Verbose_bot.Ctx in
+      let open Bot.Ctx in
       let* () =
         match Bot.Args.expect_2 args with
         | Some (a, b) ->
@@ -203,7 +197,7 @@ let () =
     )
   (* Register /upper command *)
   |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'upper'"; bot)
-  |> Verbose_bot.command "upper" ~desc:"Convert text to uppercase" (fun ctx args ->
+  |> Bot.command "upper" ~desc:"Convert text to uppercase" (fun ctx args ->
       Eio.traceln "";
       Eio.traceln "[Handler:upper] >>> /upper command received";
       Eio.traceln "[Handler:upper] Args: %s" (String.concat " " args);
@@ -211,7 +205,7 @@ let () =
       let text = Bot.Args.join_rest args 0 in
       Eio.traceln "[Handler:upper] Joined text: \"%s\"" text;
 
-      let open Verbose_bot.Ctx in
+      let open Bot.Ctx in
       let* () =
         if text = "" then
           reply_ ctx "Usage: /upper <text>\nExample: /upper hello world"
@@ -226,11 +220,11 @@ let () =
     )
   (* Register on_text handler for non-command text *)
   |> (fun bot -> Eio.traceln "[Builder] Registering route: on_text (fallback handler)"; bot)
-  |> Verbose_bot.on_text (fun ctx text ->
+  |> Bot.on_text (fun ctx text ->
       Eio.traceln "";
       Eio.traceln "[Handler:text] >>> Non-command text message received";
       Eio.traceln "[Handler:text] User: %s"
-        (match Verbose_bot.Ctx.user ctx with
+        (match Bot.Ctx.user ctx with
          | Some u -> Printf.sprintf "id=%s username=%s"
              (Id.to_string u.id)
              (Option.value ~default:"<none>" u.username)
@@ -241,7 +235,7 @@ let () =
       let response = Printf.sprintf "You said: %s" text in
       Eio.traceln "[Handler:text] Echoing message back to user...";
 
-      let open Verbose_bot.Ctx in
+      let open Bot.Ctx in
       let* () = reply_ ctx response in
       Eio.traceln "[Handler:text] <<< Text handler completed";
       Eio.traceln "";
@@ -252,4 +246,4 @@ let () =
       Eio.traceln "[Builder] Starting bot...";
       Eio.traceln "";
       bot)
-  |> Verbose_bot.run
+  |> Bot.run
