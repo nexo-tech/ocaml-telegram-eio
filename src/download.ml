@@ -1,7 +1,4 @@
-module Log = Telegram.Log.Make (Telegram.Log.Console) (struct
-  let src = "Download"
-  let level = Telegram.Log.Info
-end)
+open Flo
 
 (* File information type *)
 type file_info = {
@@ -36,7 +33,7 @@ let download_url client ~file_path =
   let base = Telegram.Client.base_url client in
   let token = Telegram.Client.token client in
   let url = Printf.sprintf "%s/file/bot%s/%s" base token file_path in
-  Log.debug "URL construction: %s" url;
+  debugf "Download URL constructed: %s" url;
   url
 
 (* Build download URL from file_info *)
@@ -47,35 +44,60 @@ let download_url_from_info client info =
 
 (* Download file contents to a buffer *)
 let to_buffer client ~file_path buffer =
-  let start_time = Unix.gettimeofday () in
-  let url = download_url client ~file_path in
-  let http = Telegram.Http.Cohttp_eio.v () in
+  (* Wrap download in a span for distributed tracing *)
+  Flo.with_span "download_file" (fun () ->
+    let start_time = Unix.gettimeofday () in
+    let url = download_url client ~file_path in
+    let http = Telegram.Http.Cohttp_eio.v () in
 
-  Log.info "Download started: file_path=%s" file_path;
+    (* Bind file context for all logs in this span *)
+    Flo.bind [
+      ("file_path", Value.string file_path);
+    ];
 
-  let result =
-    match Telegram.Http.Cohttp_eio.call http ~meth:`GET ~url ~headers:[] ~body:Telegram.Http.Empty with
-    | Error e ->
-        Log.error "Download failed: file_path=%s - %a" file_path Telegram.Error.pp e;
-        Error e
-    | Ok response ->
-        let body = response.Telegram.Http.body in
-        let size = Int64.of_int (String.length body) in
-        Log.debug "Download progress: received %Ld bytes" size;
+    info_fields "File download started" ~fields:[
+      ("file_path", Value.string file_path);
+      Flo_semconv.http_method "GET";
+      Flo_semconv.http_url url;
+    ];
 
-        (* Check download size limit *)
-        let limits = Telegram.Client.limits client in
-        (match Telegram.Limits.check_download_size limits size with
-         | Error msg ->
-             Log.error "Download size limit exceeded: %s (size=%Ld bytes)" msg size;
-             Error (Telegram.Error.Decode_error ("Download size limit exceeded: " ^ msg))
-         | Ok () ->
-             Buffer.add_string buffer body;
-             let duration = (Unix.gettimeofday () -. start_time) *. 1000.0 in
-             Log.info "Download completed: size=%Ld bytes, duration=%.1fms" size duration;
-             Ok size)
-  in
-  result
+    let result =
+      match Telegram.Http.Cohttp_eio.call http ~meth:`GET ~url ~headers:[] ~body:Telegram.Http.Empty with
+      | Error e ->
+          error_fields "File download failed" ~fields:[
+            ("file_path", Value.string file_path);
+            Flo_semconv.error_type "DownloadError";
+            Flo_semconv.error_message (Format.asprintf "%a" Telegram.Error.pp e);
+          ];
+          Error e
+      | Ok response ->
+          let body = response.Telegram.Http.body in
+          let size = Int64.of_int (String.length body) in
+          debugf "Download progress: received %Ld bytes" size;
+
+          (* Check download size limit *)
+          let limits = Telegram.Client.limits client in
+          (match Telegram.Limits.check_download_size limits size with
+           | Error msg ->
+               error_fields "Download size limit exceeded" ~fields:[
+                 ("file_path", Value.string file_path);
+                 ("size_bytes", Value.int (Int64.to_int size));
+                 Flo_semconv.error_type "SizeLimitExceeded";
+                 Flo_semconv.error_message msg;
+               ];
+               Error (Telegram.Error.Decode_error ("Download size limit exceeded: " ^ msg))
+           | Ok () ->
+               Buffer.add_string buffer body;
+               let duration = (Unix.gettimeofday () -. start_time) *. 1000.0 in
+               success_fields "File download completed" ~fields:[
+                 ("file_path", Value.string file_path);
+                 ("size_bytes", Value.int (Int64.to_int size));
+                 Flo_semconv.duration_ms duration;
+               ];
+               Ok size)
+    in
+    result
+  )
 
 (* Download file contents as a string *)
 let to_string client ~file_path =

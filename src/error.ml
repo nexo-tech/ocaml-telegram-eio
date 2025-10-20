@@ -1,7 +1,4 @@
-module Log = Log.Make (Log.Console) (struct
-  let src = "Error"
-  let level = Log.Info
-end)
+open Flo
 
 type response_parameters = {
   migrate_to_chat_id : Id.Chat.k Id.t option;
@@ -44,24 +41,34 @@ let is_retryable err =
     | Internal_error _ -> false
   in
 
-  Log.debug' (fun () ->
-    Format.asprintf "is_retryable decision: %a -> %b" pp err retryable
-  );
+  tracef "is_retryable decision: %s -> %b" (Format.asprintf "%a" pp err) retryable;
 
   (match err with
    | Http_error (code, _) when retryable ->
-       Log.warn "Retryable HTTP error detected: code=%d" code
+       warn_fields "Retryable HTTP error detected" ~fields:[
+         Flo_semconv.http_status_code code;
+         Flo_semconv.error_type "HttpError";
+         ("retryable", Value.bool true);
+       ]
    | Api_error { code; description; parameters } when retryable ->
        (match parameters with
         | Some { retry_after = Some seconds; _ } ->
-            Log.warn "Retryable API error detected: code=%d, description=%s, retry_after=%ds"
-              code description seconds
+            warn_fields "Retryable API error with retry_after" ~fields:[
+              Flo_telegram.api_error_code code;
+              Flo_telegram.api_error_description description;
+              ("retry_after_seconds", Value.int seconds);
+              ("retryable", Value.bool true);
+            ]
         | _ ->
-            Log.warn "Retryable API error detected: code=%d, description=%s" code description)
+            warn_fields "Retryable API error detected" ~fields:[
+              Flo_telegram.api_error_code code;
+              Flo_telegram.api_error_description description;
+              ("retryable", Value.bool true);
+            ])
    | Timeout when retryable ->
-       Log.warn "Retryable timeout detected"
+       warn "Retryable timeout detected"
    | _ when not retryable ->
-       Log.info "Non-retryable error: %a" pp err
+       debugf "Non-retryable error: %s" (Format.asprintf "%a" pp err)
    | _ -> ());
 
   retryable
@@ -71,11 +78,9 @@ let retry_after err =
     | Api_error { parameters = Some { retry_after; _ }; _ } -> retry_after
     | _ -> None
   in
-  Log.debug' (fun () ->
-    match result with
-    | Some seconds -> Format.asprintf "Extracted retry_after: %d seconds" seconds
-    | None -> "No retry_after in error"
-  );
+  (match result with
+   | Some seconds -> tracef "Extracted retry_after: %d seconds" seconds
+   | None -> trace "No retry_after in error");
   result
 
 let parameters err =
@@ -83,14 +88,12 @@ let parameters err =
     | Api_error { parameters; _ } -> parameters
     | _ -> None
   in
-  Log.debug' (fun () ->
-    match result with
-    | Some { retry_after; migrate_to_chat_id } ->
-        Format.asprintf "Extracted parameters: retry_after=%s, migrate_to_chat_id=%s"
-          (match retry_after with Some s -> string_of_int s | None -> "none")
-          (match migrate_to_chat_id with Some cid -> Id.to_string cid | None -> "none")
-    | None -> "No parameters in error"
-  );
+  (match result with
+   | Some { retry_after; migrate_to_chat_id } ->
+       tracef "Extracted parameters: retry_after=%s, migrate_to_chat_id=%s"
+         (match retry_after with Some s -> string_of_int s | None -> "none")
+         (match migrate_to_chat_id with Some cid -> Id.to_string cid | None -> "none")
+   | None -> trace "No parameters in error");
   result
 
 let or_fail = function

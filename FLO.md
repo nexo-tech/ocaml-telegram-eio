@@ -404,16 +404,16 @@ end
   - Use `Flo.with_span "api_call"` for each method call
   - Add semantic conventions for HTTP method, status, duration
   - Bind `api_method` to context
-- [ ] **Task 2.3**: Refactor src/retry.ml
+- [x] **Task 2.3**: Refactor src/retry.ml
   - Remove `Log.Make` functor
   - Use `Flo.debug` for retry attempts
   - Use `Flo.warn` for backoff delays
   - Add structured fields: attempt, max_attempts, delay_ms
-- [ ] **Task 2.4**: Refactor src/error.ml
+- [x] **Task 2.4**: Refactor src/error.ml
   - Remove `Log.Make` functor
   - Use `Flo.error_fields` with semantic conventions
   - Add error_type, error_message fields
-- [ ] **Task 2.5**: Refactor src/download.ml
+- [x] **Task 2.5**: Refactor src/download.ml
   - Remove `Log.Make` functor
   - Use `Flo.with_span "download_file"` for downloads
   - Add file_id, file_size, duration_ms fields
