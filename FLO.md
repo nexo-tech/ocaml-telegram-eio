@@ -708,17 +708,30 @@ end
   - **Assessment**: ✅ **COMPLETE** - Core library 100% clean, ALL examples migrated to flo (2000+ replacements), only documentation snippets remain
 
 ### Phase 12: Final Cleanup
-- [ ] **Task 12.1**: Remove unused functor code
-  - Check for any remaining Log.Make patterns
-  - Remove unused functor wrappers
-- [ ] **Task 12.2**: Verify consistent log levels
-  - trace: offset storage, deduplication
-  - debug: session changes, parsing
-  - info: updates, commands, messages
-  - success: successful operations
-  - warn: retries, rate limits
-  - error: API errors, exceptions
-  - fatal: startup failures
+- [x] **Task 12.1**: Remove unused functor code
+  - ✅ Checked for remaining Log.Make patterns → **0 matches** in src/
+  - ✅ No unused functor wrappers found
+  - ✅ `module type S` in bot.ml/bot.mli is actively used (defines public API)
+  - ✅ log.ml and log.mli were removed in earlier phases
+  - **Assessment**: All functor logging code successfully removed
+- [x] **Task 12.2**: Verify consistent log levels
+  - ✅ **trace** (17 uses): offset storage, deduplication, low-level ops
+    - `tracef "Storage operation: saving offset=%Ld"`
+    - `tracef "Deduplication check: update_id=%Ld, seen_before=%b"`
+  - ✅ **debug** (59 uses): session changes, parsing, detailed operations
+    - `debugf "Store access: user_id=%Ld, operation=get_session"`
+    - `debug "Processing update: update_id=none (malformed)"`
+  - ✅ **info** (13 uses): updates, commands, major events
+  - ✅ **success** (5 uses): successful operations
+    - `success_fields "Telegram API call completed"`
+  - ✅ **warn** (12 uses): retries, rate limits, recoverable errors
+    - `warn_fields "Retry attempt"`
+    - `warn_fields "Telegram API returned error"` (recoverable)
+  - ✅ **error** (10 uses): API errors, exceptions, unrecoverable failures
+    - `error_fields "Telegram API call failed"`
+    - `error_fields "Max retry attempts reached, giving up"`
+  - ✅ **fatal** (0 uses): reserved for startup failures (not needed yet)
+  - **Assessment**: Log levels used consistently across all modules
 - [ ] **Task 12.3**: Create comprehensive logging example
   - examples/advanced/logging_guide.ml
   - Show all flo features
