@@ -21,10 +21,6 @@ open Tg
 (* Configure verbose logging with flo *)
 let () = Flo.set_level Severity.Debug
 
-(** {1 Helper Functions} *)
-
-let unknown () = Telegram.Json_compat.Unknown_fields.create ()
-
 (** {1 Game State Types} *)
 
 type cell = Empty | X | O
@@ -35,7 +31,7 @@ type player = Xp | Op
 
 type game_state = {
   id : string;
-  chat_id : Id.Chat.k Id.t;
+  _chat_id : Id.Chat.k Id.t;
   board : board;
   turn : player;
   x_user_id : Id.User.k Id.t;
@@ -62,7 +58,7 @@ let new_game ~id ~chat_id ~x_user_id ~o_user_id =
     id Id.pp x_user_id (match o_user_id with Some u -> Id.to_string u | None -> "waiting");
   {
     id;
-    chat_id;
+    _chat_id = chat_id;
     board = new_board ();
     turn = Xp;
     x_user_id;
@@ -87,7 +83,7 @@ module GameLocks = struct
         Hashtbl.replace table id m;
         m
 
-  let cleanup () =
+  let _cleanup () =
     let count = Hashtbl.length table in
     if count > 0 then
       Eio.traceln "[GameLocks] Active locks: %d" count
@@ -338,7 +334,7 @@ let handle_start ctx _args =
      4. Get 3 in a row to win!"
   in
 
-  let* _msg = answer ctx welcome_text  in
+  let* _msg = answer ctx welcome_text in
   Eio.traceln "[Handler] ✅ Welcome message sent";
   Ok ()
 
@@ -405,7 +401,7 @@ let handle_stats ctx _args =
      else 0.0)
   in
 
-  let* _msg = answer ctx stats_text  in
+  let* _msg = answer ctx stats_text in
   Eio.traceln "[Handler] ✅ Stats sent";
   Ok ()
 
@@ -416,7 +412,7 @@ let handle_leaderboard ctx _args =
   let top_players = Scoreboard.top_n 10 in
   let leaderboard_text = Scoreboard.format_leaderboard top_players in
 
-  let* _msg = answer ctx leaderboard_text  in
+  let* _msg = answer ctx leaderboard_text in
   Eio.traceln "[Handler] ✅ Leaderboard sent: %d players" (List.length top_players);
   Ok ()
 
@@ -447,7 +443,7 @@ let handle_help ctx _args =
      • Check the leaderboard to see top players"
   in
 
-  let* _msg = answer ctx help_text  in
+  let* _msg = answer ctx help_text in
   Eio.traceln "[Handler] ✅ Help sent";
   Ok ()
 
@@ -471,8 +467,8 @@ let handle_join ctx callback_query =
     match session_get ctx game_key with
     | None ->
         Eio.traceln "[Handler] ❌ No game found in session";
-        let* () = Telegram_generated.Gen_methods.answer_callback_query
-          (callback_query.from.id |> Id.User.of_int |> ignore; client ctx |> Result.get_ok)
+        let client = client ctx in
+        let* _result = Telegram_generated.Gen_methods.answer_callback_query client
           ~callback_query_id:callback_query.id
           ~text:"Game not found"
           ~show_alert:true
@@ -481,56 +477,55 @@ let handle_join ctx callback_query =
         Ok ()
     | Some game when game.id <> game_id ->
         Eio.traceln "[Handler] ❌ Wrong game: expected=%s, got=%s" game.id game_id;
-        let* () = Telegram_generated.Gen_methods.answer_callback_query
-          (client ctx |> Result.get_ok)
+        let client = client ctx in
+        let* _result = Telegram_generated.Gen_methods.answer_callback_query client
           ~callback_query_id:callback_query.id
           ~text:"Wrong game"
           ()
         in
         Ok ()
-    | Some game when game.o_user_id <> -1L ->
+    | Some game when Option.is_some game.o_user_id ->
         Eio.traceln "[Handler] ❌ Game already has O player";
-        let* () = Telegram_generated.Gen_methods.answer_callback_query
-          (client ctx |> Result.get_ok)
+        let client = client ctx in
+        let* _result = Telegram_generated.Gen_methods.answer_callback_query client
           ~callback_query_id:callback_query.id
           ~text:"Game already full"
           ()
         in
         Ok ()
-    | Some game when game.x_user_id = user.id ->
+    | Some game when Id.to_string game.x_user_id = Id.to_string user.id ->
         Eio.traceln "[Handler] ❌ Creator cannot join as O";
-        let* () = Telegram_generated.Gen_methods.answer_callback_query
-          (client ctx |> Result.get_ok)
+        let client = client ctx in
+        let* _result = Telegram_generated.Gen_methods.answer_callback_query client
           ~callback_query_id:callback_query.id
           ~text:"You are already X player"
           ()
         in
         Ok ()
     | Some game ->
-        Eio.traceln "[Handler] ✅ Player joining as O: user_id=%Ld" user.id;
+        Eio.traceln "[Handler] ✅ Player joining as O: user_id=%a" Id.pp user.id;
 
         (* Update game with O player *)
-        let game' = { game with o_user_id = user.id } in
+        let game' = { game with o_user_id = Some user.id } in
         session_set ctx game_key game';
 
         (* Answer callback *)
-        let* () = Telegram_generated.Gen_methods.answer_callback_query
-          (client ctx |> Result.get_ok)
+        let client = client ctx in
+        let* _result = Telegram_generated.Gen_methods.answer_callback_query client
           ~callback_query_id:callback_query.id
           ~text:"You joined as ⭕!"
           ()
         in
 
         (* Send game board *)
-        let* client = client ctx in
         let board_msg = BoardRenderer.board_text game' in
         let keyboard = BoardRenderer.render_keyboard game' in
+        let keyboard_json = BoardRenderer.serialize_keyboard keyboard in
 
         let* _board = Telegram_generated.Gen_methods.send_message client
           ~chat_id
           ~text:board_msg
-          
-          ~reply_markup:keyboard
+          ~reply_markup:keyboard_json
           ()
         in
 
@@ -554,13 +549,13 @@ let handle_move ctx callback_query =
         Eio.traceln "[Handler] Move attempt: game_id=%s, idx=%s" game_id idx_str;
 
         let* user = require_user ctx in
-        let* client = client ctx in
+        let client = client ctx in
         let chat_id = chat ctx in
 
         (match session_get ctx game_key with
          | None ->
              Eio.traceln "[Handler] ❌ No active game";
-             let* () = Telegram_generated.Gen_methods.answer_callback_query client
+             let* _result = Telegram_generated.Gen_methods.answer_callback_query client
                ~callback_query_id:callback_query.id
                ~text:"No active game"
                ()
@@ -568,7 +563,7 @@ let handle_move ctx callback_query =
              Ok ()
          | Some game when game.id <> game_id ->
              Eio.traceln "[Handler] ❌ Wrong game";
-             let* () = Telegram_generated.Gen_methods.answer_callback_query client
+             let* _result = Telegram_generated.Gen_methods.answer_callback_query client
                ~callback_query_id:callback_query.id
                ~text:"Wrong game"
                ()
@@ -577,7 +572,7 @@ let handle_move ctx callback_query =
          | Some game when expired game ->
              Eio.traceln "[Handler] ❌ Game expired";
              session_delete ctx game_key;
-             let* () = Telegram_generated.Gen_methods.answer_callback_query client
+             let* _result = Telegram_generated.Gen_methods.answer_callback_query client
                ~callback_query_id:callback_query.id
                ~text:"Game expired"
                ~show_alert:true
@@ -590,7 +585,7 @@ let handle_move ctx callback_query =
                match GameLogic.handle_move game user.id (int_of_string idx_str) with
                | None ->
                    Eio.traceln "[Handler] ❌ Invalid move";
-                   let* () = Telegram_generated.Gen_methods.answer_callback_query client
+                   let* _result = Telegram_generated.Gen_methods.answer_callback_query client
                      ~callback_query_id:callback_query.id
                      ~text:"Invalid move"
                      ()
@@ -601,40 +596,34 @@ let handle_move ctx callback_query =
                    session_set ctx game_key game';
 
                    (* Update board *)
-                   (match callback_query.message with
+                   let* () = match callback_query.message with
                     | Some msg ->
                         let board_msg = BoardRenderer.board_text game' in
                         let keyboard = BoardRenderer.render_keyboard game' in
-                        let* () = Telegram_generated.Gen_methods.edit_message_text client
-                          ~chat_id
+                        let* _result = Telegram_generated.Gen_methods.edit_message_text client
+                          ~chat_id:(Id.to_string chat_id)
                           ~message_id:msg.message_id
                           ~text:board_msg
-                          
                           ~reply_markup:keyboard
                           ()
                         in
                         Ok ()
                     | None -> Ok ()
-                   );
+                   in
 
-                   let* () = Telegram_generated.Gen_methods.answer_callback_query client
+                   let* _result = Telegram_generated.Gen_methods.answer_callback_query client
                      ~callback_query_id:callback_query.id
                      ()
                    in
                    Ok ()
                | Some (game', `Win winner) ->
-                   let winner_user = match winner with
-                     | X -> game'.x_user_id
-                     | O -> game'.o_user_id
-                     | Empty -> -1L
-                   in
-                   let loser_user = match winner with
-                     | X -> game'.o_user_id
-                     | O -> game'.x_user_id
-                     | Empty -> -1L
+                   let (winner_user, loser_user) = match winner with
+                     | X -> (game'.x_user_id, Option.get game'.o_user_id)
+                     | O -> (Option.get game'.o_user_id, game'.x_user_id)
+                     | Empty -> failwith "Empty cell cannot win"
                    in
 
-                   Eio.traceln "[Handler] 🏆 Game won by user: %Ld" winner_user;
+                   Eio.traceln "[Handler] 🏆 Game won by user: %a" Id.pp winner_user;
                    session_delete ctx game_key;
 
                    (* Record win *)
@@ -642,15 +631,15 @@ let handle_move ctx callback_query =
 
                    let win_text = Printf.sprintf
                      "🏆 <b>Game Over!</b>\n\n\
-                      Winner: User %Ld (%s)\n\n\
+                      Winner: User %s (%s)\n\n\
                       Congratulations!"
-                     winner_user
+                     (Id.to_string winner_user)
                      (match winner with X -> "❌ X" | O -> "⭕ O" | Empty -> "")
                    in
 
-                   let* _ = send ctx win_text  in
+                   let* _ = send ctx win_text in
 
-                   let* () = Telegram_generated.Gen_methods.answer_callback_query client
+                   let* _result = Telegram_generated.Gen_methods.answer_callback_query client
                      ~callback_query_id:callback_query.id
                      ~text:"You won! 🎉"
                      ()
@@ -663,7 +652,7 @@ let handle_move ctx callback_query =
                    session_delete ctx game_key;
 
                    (* Record draw *)
-                   Scoreboard.record_draw ~x:game'.x_user_id ~o:game'.o_user_id;
+                   Scoreboard.record_draw ~x:game'.x_user_id ~o:(Option.get game'.o_user_id);
 
                    let draw_text =
                      "🤝 <b>Game Over!</b>\n\n\
@@ -671,9 +660,9 @@ let handle_move ctx callback_query =
                       Well played both players!"
                    in
 
-                   let* _ = send ctx draw_text  in
+                   let* _ = send ctx draw_text in
 
-                   let* () = Telegram_generated.Gen_methods.answer_callback_query client
+                   let* _result = Telegram_generated.Gen_methods.answer_callback_query client
                      ~callback_query_id:callback_query.id
                      ~text:"It's a draw!"
                      ()
@@ -726,7 +715,7 @@ let build_routes bot =
   Eio.traceln "[Builder] ✅ Registered /help";
 
   (* Register callback handler *)
-  let bot = bot |> Bot.on_any handle_callback_events in
+  let bot = bot |> Bot.on Bot.Event.any handle_callback_events in
   Eio.traceln "[Builder] ✅ Registered callback event handler";
 
   Eio.traceln "[Builder] All routes registered";
