@@ -505,7 +505,7 @@ end
   - Use `Flo.with_span "echo_enhanced"` for request flow
   - Add entity parsing logging
   - Use semantic conventions
-- [ ] **Task 6.4**: examples/basic/command_bot.ml
+- [x] **Task 6.4**: examples/basic/command_bot.ml
   - Replace ALL `Printf.printf` with `Flo.info`
   - Replace ALL `Printf.eprintf` with `Flo.error`
   - Use `[%log.info "Command" ~command ~args]` with PPX
@@ -520,7 +520,7 @@ end
   - Add logging for button callbacks
   - Use structured fields: callback_data, button_text
   - Use `success` for callback handled
-- [ ] **Task 6.7**: examples/basic/file_bot.ml
+- [x] **Task 6.7**: examples/basic/file_bot.ml
   - Add span for file upload/download
   - Log file_id, file_size, mime_type
   - Use `success` for successful transfer
