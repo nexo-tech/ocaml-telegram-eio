@@ -4,7 +4,7 @@
     Uses the functional builder pattern API for clean, elegant code.
 
     This example has VERBOSE LOGGING enabled to help troubleshoot issues.
-    Every step is logged to stderr so you can see exactly what's happening.
+    Every step is logged using the flo library with structured fields.
 
     Usage:
       export TELEGRAM_BOT_TOKEN="your_token_here"
@@ -22,87 +22,93 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "HelloBot"
-  let level = Log.Debug  (* Enable debug logging *)
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug  (* Enable debug logging *)
 
 let () =
-  Eio.traceln "=== Hello World Bot Starting ===";
-  Eio.traceln "[Init] Loading configuration...";
+  (* Open flo for convenient logging functions *)
+  let open Flo in
+
+  info "=== Hello World Bot Starting ===";
+  info_fields "Initializing bot" ~fields:[
+    ("stage", Value.string "startup");
+  ];
 
   (* Get bot token from environment *)
   let token =
     try
       let t = Sys.getenv "TELEGRAM_BOT_TOKEN" in
-      Eio.traceln "[Init] ✓ Bot token loaded from TELEGRAM_BOT_TOKEN";
-      Eio.traceln "[Init]   Token: %s...%s (length=%d)"
-        (String.sub t 0 (min 8 (String.length t)))
-        (if String.length t > 8 then String.sub t (String.length t - 4) 4 else "")
-        (String.length t);
+      info_fields "Bot token loaded" ~fields:[
+        ("source", Value.string "TELEGRAM_BOT_TOKEN");
+        ("token_length", Value.int (String.length t));
+      ];
+      debug_fields "Token details" ~fields:[
+        ("prefix", Value.string (String.sub t 0 (min 8 (String.length t))));
+        ("suffix", Value.string (if String.length t > 8 then String.sub t (String.length t - 4) 4 else ""));
+      ];
       t
     with Not_found ->
-      Eio.traceln "[Init] ✗ TELEGRAM_BOT_TOKEN environment variable not set";
+      fatal "TELEGRAM_BOT_TOKEN environment variable not set";
       failwith "TELEGRAM_BOT_TOKEN environment variable not set"
   in
 
-  Eio.traceln "[Init] Starting Eio event loop...";
+  info "Starting Eio event loop...";
   (* Start the Eio event loop *)
   Eio_main.run @@ fun env ->
 
-  Eio.traceln "[Init] Creating Telegram HTTP client...";
+  info "Creating Telegram HTTP client...";
   (* Create HTTP client for Telegram API *)
   let client = Client.create ~env ~token () in
-  Eio.traceln "[Init] ✓ HTTP client created (base_url=%s)" (Client.base_url client);
+  success_fields "HTTP client created" ~fields:[
+    ("base_url", Value.string (Client.base_url client));
+  ];
 
   (* Print startup message *)
-  Eio.traceln "";
-  Eio.traceln "🤖 Bot started successfully!";
-  Eio.traceln "📱 Send /start to the bot to interact";
-  Eio.traceln "🔍 Watching for updates (long polling)...";
-  Eio.traceln "";
+  info "🤖 Bot started successfully!";
+  info "📱 Send /start to the bot to interact";
+  info "🔍 Watching for updates (long polling)...";
 
-  (* Build bot using functional builder pattern with verbose logging *)
-  Eio.traceln "[Builder] Building bot with functional API...";
-  Verbose_bot.make ~env ~client
+  (* Build bot using functional builder pattern with flo logging *)
+  debug "Building bot with functional API...";
+  Bot.make ~env ~client
   (* Add global error handler to catch and log all errors *)
-  |> Verbose_bot.on_error (fun ctx exn ->
-      Eio.traceln "[Error] ❌ Uncaught error in handler: %s" (Printexc.to_string exn);
-      Eio.traceln "[Error] Context: user=%s, chat=%s"
-        (match Verbose_bot.Ctx.user ctx with
-         | Some u -> Printf.sprintf "id=%s" (Id.to_string u.id)
-         | None -> "none")
-        (match Verbose_bot.Ctx.chat ctx with
-         | ch_id -> Id.to_string ch_id);
+  |> Bot.on_error (fun ctx exn ->
+      error_fields "Uncaught error in handler" ~fields:[
+        Flo_semconv.error_type (Printexc.to_string exn);
+        Flo_semconv.error_message (Printexc.to_string exn);
+        Flo_semconv.error_stack_trace (Printexc.get_backtrace ());
+        ("user_id", Value.string (match Bot.Ctx.user ctx with
+         | Some u -> Id.to_string u.id
+         | None -> "none"));
+        ("chat_id", Value.string (Id.to_string (Bot.Ctx.chat ctx)));
+      ];
       (* Try to notify user about the error *)
-      Eio.traceln "[Error] Attempting to send error notification to user...";
-      match Verbose_bot.Ctx.reply ctx "Sorry, an error occurred. Please try again." with
-      | Ok _ -> Eio.traceln "[Error] ✓ Error notification sent to user"
-      | Error e -> Eio.traceln "[Error] ✗ Failed to send error message: %a" Error.pp e
+      debug "Attempting to send error notification to user...";
+      match Bot.Ctx.reply ctx "Sorry, an error occurred. Please try again." with
+      | Ok _ -> success "Error notification sent to user"
+      | Error e -> warn_fields "Failed to send error message" ~fields:[
+          Flo_semconv.error_message (Format.asprintf "%a" Error.pp e);
+        ]
     )
-  |> Verbose_bot.command "start" (fun ctx _args ->
-      Eio.traceln "";
-      Eio.traceln "[Handler] >>> Received /start command";
-      Eio.traceln "[Handler] User: %s"
-        (match Verbose_bot.Ctx.user ctx with
-         | Some u -> Printf.sprintf "id=%s, username=%s"
-             (Id.to_string u.id)
-             (Option.value ~default:"<none>" u.username)
-         | None -> "<none>");
-      Eio.traceln "[Handler] Chat: %s"
-        (Id.to_string (Verbose_bot.Ctx.chat ctx));
+  |> Bot.command "start" (fun ctx _args ->
+      (* Use span for distributed tracing *)
+      Flo.with_span "handle_start" (fun () ->
+        (* Bind handler context for structured logging *)
+        Bot.Ctx.with_handler_context ctx (fun () ->
+          info "Received /start command";
+          debug_fields "Request context" ~fields:[
+            ("username", Value.string (match Bot.Ctx.user ctx with
+             | Some u -> Option.value ~default:"<none>" u.username
+             | None -> "<none>"));
+          ];
 
-      Eio.traceln "[Handler] Executing handler logic...";
-      (* Use Result-based error handling *)
-      let open Verbose_bot.Ctx in
-      let* () = reply_ ctx "👋 Hello! I'm your first OCaml Telegram bot!" in
-      Eio.traceln "[Handler] <<< Handler completed successfully";
-      Eio.traceln "";
-      Ok ()
+          debug "Executing handler logic...";
+          (* Use Result-based error handling *)
+          let open Bot.Ctx in
+          let* () = reply_ ctx "👋 Hello! I'm your first OCaml Telegram bot!" in
+          success "Handler completed successfully";
+          Ok ()
+        )
+      )
     )
-  |> Verbose_bot.run
+  |> Bot.run

@@ -487,7 +487,7 @@ end
   - Automatically binds user, chat, message context
 
 ### Phase 6: Basic Examples (8 examples)
-- [ ] **Task 6.1**: examples/basic/hello_world.ml
+- [x] **Task 6.1**: examples/basic/hello_world.ml
   - Remove all functor composition (4 modules → 0)
   - Replace `Eio.traceln` with `[%log.info]` (PPX)
   - Use `Flo.with_span "handle_start"` for command
@@ -500,7 +500,7 @@ end
   - Use `[%log.info "Echo message" ~user_id ~text_length]`
   - Bind chat context at message handler
   - Use structured fields for message metadata
-- [ ] **Task 6.3**: examples/basic/echo_enhanced.ml
+- [x] **Task 6.3**: examples/basic/echo_enhanced.ml
   - Remove functor composition
   - Use `Flo.with_span "echo_enhanced"` for request flow
   - Add entity parsing logging
