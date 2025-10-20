@@ -52,6 +52,11 @@ and high-level ergonomic helpers (Tg.Polling, Tg.Keyboard, etc.) for building bo
   (domain-name (>= 0.4.0))
   (cstruct (>= 6.0))
 
+  ;; Logging (from GitHub)
+  (flo (>= 0.1.0))
+  (ppx_flo (>= 0.1.0))
+  (ptime (>= 1.0))  ;; Required by flo
+
   ;; Code generation and parsing
   (re (>= 1.10.0))
 

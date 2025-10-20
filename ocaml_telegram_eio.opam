@@ -41,6 +41,9 @@ depends: [
   "uri" {>= "4.0"}
   "domain-name" {>= "0.4.0"}
   "cstruct" {>= "6.0"}
+  "flo" {>= "0.1.0"}
+  "ppx_flo" {>= "0.1.0"}
+  "ptime" {>= "1.0"}
   "re" {>= "1.10.0"}
   "alcotest" {with-test}
   "qcheck" {with-test}

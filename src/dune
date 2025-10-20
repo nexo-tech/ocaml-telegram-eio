@@ -1,13 +1,14 @@
 (library
  (name telegram)
  (public_name ocaml_telegram_eio.telegram)
- (libraries eio eio_main tls-eio ca-certs mirage-crypto-rng-eio domain-name yojson cohttp-eio cohttp uri cstruct)
- (preprocess (pps ppx_deriving_yojson))
- (modules id types money units chat_action parse_mode json_compat input_file param error response retry client request api http version spec_ast spec_norm limits media_group currency log)
+ (libraries eio eio_main tls-eio ca-certs mirage-crypto-rng-eio domain-name yojson cohttp-eio cohttp uri cstruct flo)
+ (preprocess (pps ppx_deriving_yojson ppx_flo))
+ (modules id types money units chat_action parse_mode json_compat input_file param error response retry client request api http version spec_ast spec_norm limits media_group currency log flo_telegram)
  (flags (:standard -w -67-3)))
 
 (library
  (name tg)
  (public_name ocaml_telegram_eio.tg)
- (libraries eio yojson ocaml_telegram_eio.telegram ocaml_telegram_eio.generated)
+ (libraries eio yojson flo ocaml_telegram_eio.telegram ocaml_telegram_eio.generated)
+ (preprocess (pps ppx_flo))
  (modules bot keyboard msg action session download upload album large_file result_syntax polling webhook))
