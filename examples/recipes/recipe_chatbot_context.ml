@@ -16,15 +16,8 @@ open Tg
 
 (** {1 Verbose Logging Setup} *)
 
-(* Functor-based logging modules with Debug level for troubleshooting *)
-module Verbose_log = Telegram.Log.Make (Telegram.Log.Console) (struct
-  let src = "ContextBot"
-  let level = Telegram.Log.Debug
-end)
-
-module Verbose_session = Tg.Session.Make (Verbose_log)
-module Verbose_polling = Tg.Polling.Make (Verbose_log)
-module Verbose_bot = Tg.Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 (** {1 Conversation State Machine} *)
 
@@ -52,7 +45,7 @@ type context_state = {
 }
 
 (* Session keys *)
-let state_key = Verbose_session.make ~name:"profile_wizard"
+let state_key = Session.make ~name:"profile_wizard"
 
 (* Helper functions *)
 let now () = Unix.gettimeofday ()
@@ -82,7 +75,7 @@ let step_name = function
 let build_routes _client bot =
   Eio.traceln "[Builder] Building bot routes...";
 
-  let open Verbose_bot in
+  let open Bot in
   let open Ctx in
 
   (* /start command *)
@@ -383,7 +376,7 @@ let () =
   Eio.traceln "║                     Phase 2: Build Bot                           ║";
   Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
 
-  let bot = Verbose_bot.make ~env ~client:telegram_client in
+  let bot = Bot.make ~env ~client:telegram_client in
   let bot = build_routes telegram_client bot in
 
   Eio.traceln "[Init] Bot created successfully";
@@ -409,4 +402,4 @@ let () =
   Eio.traceln "  - /cancel command";
   Eio.traceln "";
 
-  Verbose_bot.run bot
+  Bot.run bot

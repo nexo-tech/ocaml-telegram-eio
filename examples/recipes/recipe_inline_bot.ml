@@ -14,22 +14,33 @@
 *)
 
 open Telegram
+open Tg
 
 (** {1 Verbose Logging Setup} *)
 
-(* Functor-based logging modules with Debug level for troubleshooting *)
-module Verbose_log = Telegram.Log.Make (Telegram.Log.Console) (struct
-  let src = "InlineBot"
-  let level = Telegram.Log.Debug
-end)
-
-module Verbose_session = Tg.Session.Make (Verbose_log)
-module Verbose_polling = Tg.Polling.Make (Verbose_log)
-module Verbose_bot = Tg.Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 (** {1 Helper Functions} *)
 
 let unknown () = Telegram.Json_compat.Unknown_fields.create ()
+
+(* String contains substring helper *)
+module String = struct
+  include String
+  let contains_s haystack needle =
+    try
+      let _ = String.index haystack needle.[0] in
+      let len_h = String.length haystack in
+      let len_n = String.length needle in
+      let rec check i =
+        if i + len_n > len_h then false
+        else if String.sub haystack i len_n = needle then true
+        else check (i + 1)
+      in
+      check 0
+    with _ -> false
+end
 
 (** {1 Article Database} *)
 
@@ -279,7 +290,7 @@ module InlineKeyboard = struct
           copy_text = None;
           callback_game = None;
           pay = None;
-          unknown_fields = unknown ();
+          unknown_fields = [];
         };
         InlineKeyboardButton.{
           text = "🔍 Share";
@@ -293,10 +304,10 @@ module InlineKeyboard = struct
           copy_text = None;
           callback_game = None;
           pay = None;
-          unknown_fields = unknown ();
+          unknown_fields = [];
         };
       ]];
-      unknown_fields = unknown ();
+      unknown_fields = [];
     }
 
   let create_search_keyboard query =
@@ -317,7 +328,7 @@ module InlineKeyboard = struct
           copy_text = None;
           callback_game = None;
           pay = None;
-          unknown_fields = unknown ();
+          unknown_fields = [];
         };
         InlineKeyboardButton.{
           text = "📝 Search Here";
@@ -331,10 +342,10 @@ module InlineKeyboard = struct
           copy_text = None;
           callback_game = None;
           pay = None;
-          unknown_fields = unknown ();
+          unknown_fields = [];
         };
       ]];
-      unknown_fields = unknown ();
+      unknown_fields = [];
     }
 end
 
@@ -352,7 +363,7 @@ module ResultConverter = struct
       parse_mode = Some "HTML";
       entities = None;
       link_preview_options = None;
-      unknown_fields = unknown ();
+      unknown_fields = [];
     } in
 
     let result = InlineQueryResultArticle.{
@@ -366,7 +377,7 @@ module ResultConverter = struct
       thumbnail_url = article.thumbnail;
       thumbnail_width = None;
       thumbnail_height = None;
-      unknown_fields = unknown ();
+      unknown_fields = [];
     } in
 
     InlineQueryResult.InlineQueryResultArticle result
@@ -392,7 +403,7 @@ module ResultConverter = struct
       show_caption_above_media = None;
       reply_markup = Some (InlineKeyboard.create_search_keyboard "");
       input_message_content = None;
-      unknown_fields = unknown ();
+      unknown_fields = [];
     } in
 
     InlineQueryResult.InlineQueryResultPhoto result
@@ -419,7 +430,7 @@ module ResultConverter = struct
       show_caption_above_media = None;
       reply_markup = None;
       input_message_content = None;
-      unknown_fields = unknown ();
+      unknown_fields = [];
     } in
 
     InlineQueryResult.InlineQueryResultGif result
@@ -608,7 +619,7 @@ end
 
 let handle_start ctx _args =
   Eio.traceln "[Handler] /start command triggered";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   let* user = require_user ctx in
   Eio.traceln "[Handler] User: id=%a, username=%s"
@@ -636,7 +647,7 @@ let handle_start ctx _args =
 
 let handle_help ctx _args =
   Eio.traceln "[Handler] /help command triggered";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   let help_text =
     "📚 Inline Query Bot Help\n\n\
@@ -663,7 +674,7 @@ let handle_help ctx _args =
 
 let handle_stats ctx _args =
   Eio.traceln "[Handler] /stats command triggered";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   let (total_chosen, unique_users, popular_results) = ChosenResults.get_stats () in
   let cache_size = ResultCache.size () in
@@ -692,7 +703,7 @@ let handle_stats ctx _args =
 
 let handle_clearcache ctx _args =
   Eio.traceln "[Handler] /clearcache command triggered";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   let before = ResultCache.size () in
   ResultCache.clear ();
@@ -709,7 +720,7 @@ let handle_inline_query ctx iq =
     iq.Telegram_generated.Gen_types.InlineQuery.query
     iq.offset;
 
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
   let* client = client ctx in
 
   let query = iq.query in
@@ -761,22 +772,22 @@ let handle_chosen_result _ctx chosen =
 let build_routes bot =
   Eio.traceln "[Builder] Registering routes...";
 
-  let bot = bot |> Verbose_bot.command "start" handle_start in
+  let bot = bot |> Bot.command "start" handle_start in
   Eio.traceln "[Builder] ✅ Registered /start";
 
-  let bot = bot |> Verbose_bot.command "help" handle_help in
+  let bot = bot |> Bot.command "help" handle_help in
   Eio.traceln "[Builder] ✅ Registered /help";
 
-  let bot = bot |> Verbose_bot.command "stats" handle_stats in
+  let bot = bot |> Bot.command "stats" handle_stats in
   Eio.traceln "[Builder] ✅ Registered /stats";
 
-  let bot = bot |> Verbose_bot.command "clearcache" handle_clearcache in
+  let bot = bot |> Bot.command "clearcache" handle_clearcache in
   Eio.traceln "[Builder] ✅ Registered /clearcache";
 
-  let bot = bot |> Verbose_bot.on_inline_query handle_inline_query in
+  let bot = bot |> Bot.on_inline_query handle_inline_query in
   Eio.traceln "[Builder] ✅ Registered inline_query handler";
 
-  let bot = bot |> Verbose_bot.on_chosen_inline_result handle_chosen_result in
+  let bot = bot |> Bot.on_chosen_inline_result handle_chosen_result in
   Eio.traceln "[Builder] ✅ Registered chosen_inline_result handler";
 
   Eio.traceln "[Builder] All routes registered";
@@ -816,7 +827,7 @@ let () =
   Eio.traceln "║                     Phase 2: Build Bot                           ║";
   Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
 
-  let bot = Verbose_bot.make ~env ~client:telegram_client in
+  let bot = Bot.make ~env ~client:telegram_client in
   let bot = build_routes bot in
 
   Eio.traceln "[Init] Bot created successfully";
@@ -853,4 +864,4 @@ let () =
   Eio.traceln "  - Use 'page:' prefix for paginated results";
   Eio.traceln "";
 
-  Verbose_bot.run bot
+  Bot.run bot

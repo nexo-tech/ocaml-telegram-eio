@@ -9,7 +9,7 @@
     - State management across interactions
 
     This example has VERBOSE LOGGING enabled to help troubleshoot issues.
-    Every step is logged to stderr so you can see exactly what's happening.
+    Every step is logged using the flo library with structured fields.
 
     Commands:
       /start - Show main menu
@@ -41,15 +41,8 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "KeyboardBot"
-  let level = Log.Debug
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 (* Use the ergonomic Keyboard module from the library *)
 module KB = Keyboard
@@ -77,18 +70,18 @@ let () =
 
   Eio_main.run @@ fun env ->
   let client = Client.create ~env ~token () in
-  let settings_key = Verbose_session.make ~name:"settings" in
+  let settings_key = Session.make ~name:"settings" in
 
   Eio.traceln "🤖 Keyboard Bot Started";
 
-  let session_store = Verbose_session.Memory_store.create () in
+  let session_store = Session.Memory_store.create () in
 
-  Verbose_bot.make ~env ~client
-  |> Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store
+  Bot.make ~env ~client
+  |> Bot.with_sessions (module Session.Memory_store) session_store
 
   (* /start - main menu *)
-  |> Verbose_bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/start] Showing main menu";
 
       let keyboard = KB.inline [
@@ -103,8 +96,8 @@ let () =
     )
 
   (* /settings - settings menu *)
-  |> Verbose_bot.command "settings" ~desc:"Show settings" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "settings" ~desc:"Show settings" (fun ctx _args ->
+      let open Bot.Ctx in
       let settings = session_get_or ctx settings_key ~default:Settings.default in
       Eio.traceln "[/settings] notifications=%b lang=%s theme=%s"
         settings.notifications settings.language settings.theme;
@@ -125,8 +118,8 @@ let () =
     )
 
   (* Callback: menu:main *)
-  |> Verbose_bot.on_callback_data "menu:main" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "menu:main" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[menu:main] Showing main menu";
 
       let keyboard = KB.inline [
@@ -141,8 +134,8 @@ let () =
     )
 
   (* Callback: menu:settings *)
-  |> Verbose_bot.on_callback_data "menu:settings" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "menu:settings" (fun ctx ->
+      let open Bot.Ctx in
       let settings = session_get_or ctx settings_key ~default:Settings.default in
       Eio.traceln "[menu:settings] notifications=%b" settings.notifications;
 
@@ -162,8 +155,8 @@ let () =
     )
 
   (* Callback: toggle_notif *)
-  |> Verbose_bot.on_callback_data "toggle_notif" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "toggle_notif" (fun ctx ->
+      let open Bot.Ctx in
       let settings = session_get_or ctx settings_key ~default:Settings.default in
       let updated = Settings.toggle_notif settings in
       session_set ctx settings_key updated;
@@ -185,8 +178,8 @@ let () =
     )
 
   (* Callback: menu:profile *)
-  |> Verbose_bot.on_callback_data "menu:profile" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "menu:profile" (fun ctx ->
+      let open Bot.Ctx in
 
       let keyboard = KB.inline [
         [KB.callback ~text:"← Back" ~data:"menu:main"];
@@ -198,8 +191,8 @@ let () =
     )
 
   (* Callback: menu:help *)
-  |> Verbose_bot.on_callback_data "menu:help" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "menu:help" (fun ctx ->
+      let open Bot.Ctx in
 
       let keyboard = KB.inline [
         [KB.callback ~text:"← Back" ~data:"menu:main"];
@@ -210,4 +203,4 @@ let () =
       | Error e -> Eio.traceln "[menu:help] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.run
+  |> Bot.run

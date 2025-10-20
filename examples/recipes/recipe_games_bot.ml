@@ -14,18 +14,12 @@
 *)
 
 open Telegram
+open Tg
 
 (** {1 Verbose Logging Setup} *)
 
-(* Functor-based logging modules with Debug level for troubleshooting *)
-module Verbose_log = Telegram.Log.Make (Telegram.Log.Console) (struct
-  let src = "GamesBot"
-  let level = Telegram.Log.Debug
-end)
-
-module Verbose_session = Tg.Session.Make (Verbose_log)
-module Verbose_polling = Tg.Polling.Make (Verbose_log)
-module Verbose_bot = Tg.Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 (** {1 Helper Functions} *)
 
@@ -50,7 +44,7 @@ type game_state = {
   ttl_seconds : int;
 }
 
-let game_key : game_state Verbose_session.key = Verbose_session.make ~name:"ttt_game"
+let game_key : game_state Session.key = Session.make ~name:"ttt_game"
 
 let now () = Unix.gettimeofday ()
 
@@ -285,7 +279,7 @@ module BoardRenderer = struct
             copy_text = None;
             callback_game = None;
             pay = None;
-            unknown_fields = unknown ();
+            unknown_fields = [];
           }
         )
       )
@@ -293,7 +287,7 @@ module BoardRenderer = struct
 
     InlineKeyboardMarkup.{
       inline_keyboard = rows;
-      unknown_fields = unknown ();
+      unknown_fields = [];
     }
 
   let board_text g =
@@ -320,7 +314,7 @@ end
 
 let handle_start ctx _args =
   Eio.traceln "[Handler] /start command triggered";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   let* user = require_user ctx in
   Eio.traceln "[Handler] User: id=%a, username=%s"
@@ -342,13 +336,13 @@ let handle_start ctx _args =
      4. Get 3 in a row to win!"
   in
 
-  let* _msg = answer ctx welcome_text ~parse_mode:"HTML" in
+  let* _msg = answer ctx welcome_text  in
   Eio.traceln "[Handler] ✅ Welcome message sent";
   Ok ()
 
 let handle_new ctx _args =
   Eio.traceln "[Handler] /new command triggered";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   let* user = require_user ctx in
   let* chat_id = chat ctx in
@@ -378,12 +372,12 @@ let handle_new ctx _args =
     copy_text = None;
     callback_game = None;
     pay = None;
-    unknown_fields = unknown ();
+    unknown_fields = [];
   } in
 
   let keyboard = InlineKeyboardMarkup.{
     inline_keyboard = [[join_button]];
-    unknown_fields = unknown ();
+    unknown_fields = [];
   } in
 
   let game_text = Printf.sprintf
@@ -395,13 +389,13 @@ let handle_new ctx _args =
     game_id user.id
   in
 
-  let* _msg = send ctx game_text ~parse_mode:"HTML" ~keyboard in
+  let* _msg = send ctx game_text  ~keyboard in
   Eio.traceln "[Handler] ✅ New game created, waiting for O player";
   Ok ()
 
 let handle_stats ctx _args =
   Eio.traceln "[Handler] /stats command triggered";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   let* user = require_user ctx in
 
@@ -425,24 +419,24 @@ let handle_stats ctx _args =
      else 0.0)
   in
 
-  let* _msg = answer ctx stats_text ~parse_mode:"HTML" in
+  let* _msg = answer ctx stats_text  in
   Eio.traceln "[Handler] ✅ Stats sent";
   Ok ()
 
 let handle_leaderboard ctx _args =
   Eio.traceln "[Handler] /leaderboard command triggered";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   let top_players = Scoreboard.top_n 10 in
   let leaderboard_text = Scoreboard.format_leaderboard top_players in
 
-  let* _msg = answer ctx leaderboard_text ~parse_mode:"HTML" in
+  let* _msg = answer ctx leaderboard_text  in
   Eio.traceln "[Handler] ✅ Leaderboard sent: %d players" (List.length top_players);
   Ok ()
 
 let handle_help ctx _args =
   Eio.traceln "[Handler] /help command triggered";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   let help_text =
     "🎮 <b>Tic-Tac-Toe Help</b>\n\n\
@@ -467,7 +461,7 @@ let handle_help ctx _args =
      • Check the leaderboard to see top players"
   in
 
-  let* _msg = answer ctx help_text ~parse_mode:"HTML" in
+  let* _msg = answer ctx help_text  in
   Eio.traceln "[Handler] ✅ Help sent";
   Ok ()
 
@@ -475,7 +469,7 @@ let handle_help ctx _args =
 
 let handle_join ctx callback_query =
   Eio.traceln "[Handler] Processing join callback";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   let data = Option.value ~default:"" callback_query.Telegram_generated.Gen_types.CallbackQuery.data in
 
@@ -549,7 +543,7 @@ let handle_join ctx callback_query =
         let* _board = Telegram_generated.Gen_methods.send_message client
           ~chat_id
           ~text:board_msg
-          ~parse_mode:"HTML"
+          
           ~reply_markup:keyboard
           ()
         in
@@ -560,7 +554,7 @@ let handle_join ctx callback_query =
 
 let handle_move ctx callback_query =
   Eio.traceln "[Handler] Processing move callback";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   let data = Option.value ~default:"" callback_query.Telegram_generated.Gen_types.CallbackQuery.data in
 
@@ -629,7 +623,7 @@ let handle_move ctx callback_query =
                           ~chat_id
                           ~message_id:msg.message_id
                           ~text:board_msg
-                          ~parse_mode:"HTML"
+                          
                           ~reply_markup:keyboard
                           ()
                         in
@@ -668,7 +662,7 @@ let handle_move ctx callback_query =
                      (match winner with X -> "❌ X" | O -> "⭕ O" | Empty -> "")
                    in
 
-                   let* _ = send ctx win_text ~parse_mode:"HTML" in
+                   let* _ = send ctx win_text  in
 
                    let* () = Telegram_generated.Gen_methods.answer_callback_query client
                      ~callback_query_id:callback_query.id
@@ -691,7 +685,7 @@ let handle_move ctx callback_query =
                       Well played both players!"
                    in
 
-                   let* _ = send ctx draw_text ~parse_mode:"HTML" in
+                   let* _ = send ctx draw_text  in
 
                    let* () = Telegram_generated.Gen_methods.answer_callback_query client
                      ~callback_query_id:callback_query.id
@@ -730,23 +724,23 @@ let handle_callback_events ctx update =
 let build_routes bot =
   Eio.traceln "[Builder] Registering routes...";
 
-  let bot = bot |> Verbose_bot.command "start" handle_start in
+  let bot = bot |> Bot.command "start" handle_start in
   Eio.traceln "[Builder] ✅ Registered /start";
 
-  let bot = bot |> Verbose_bot.command "new" handle_new in
+  let bot = bot |> Bot.command "new" handle_new in
   Eio.traceln "[Builder] ✅ Registered /new";
 
-  let bot = bot |> Verbose_bot.command "stats" handle_stats in
+  let bot = bot |> Bot.command "stats" handle_stats in
   Eio.traceln "[Builder] ✅ Registered /stats";
 
-  let bot = bot |> Verbose_bot.command "leaderboard" handle_leaderboard in
+  let bot = bot |> Bot.command "leaderboard" handle_leaderboard in
   Eio.traceln "[Builder] ✅ Registered /leaderboard";
 
-  let bot = bot |> Verbose_bot.command "help" handle_help in
+  let bot = bot |> Bot.command "help" handle_help in
   Eio.traceln "[Builder] ✅ Registered /help";
 
   (* Register callback handler *)
-  let bot = bot |> Verbose_bot.on_any handle_callback_events in
+  let bot = bot |> Bot.on_any handle_callback_events in
   Eio.traceln "[Builder] ✅ Registered callback event handler";
 
   Eio.traceln "[Builder] All routes registered";
@@ -786,7 +780,7 @@ let () =
   Eio.traceln "║                     Phase 2: Build Bot                           ║";
   Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
 
-  let bot = Verbose_bot.make ~env ~client:telegram_client in
+  let bot = Bot.make ~env ~client:telegram_client in
   let bot = build_routes bot in
 
   Eio.traceln "[Init] Bot created successfully";
@@ -817,4 +811,4 @@ let () =
   Eio.traceln "  - Result-based error handling";
   Eio.traceln "";
 
-  Verbose_bot.run bot
+  Bot.run bot

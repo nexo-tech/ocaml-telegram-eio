@@ -16,15 +16,8 @@ open Tg
 
 (** {1 Verbose Logging Setup} *)
 
-(* Functor-based logging modules with Debug level for troubleshooting *)
-module Verbose_log = Telegram.Log.Make (Telegram.Log.Console) (struct
-  let src = "WebhookBot"
-  let level = Telegram.Log.Debug
-end)
-
-module Verbose_session = Tg.Session.Make (Verbose_log)
-module Verbose_polling = Tg.Polling.Make (Verbose_log)
-module Verbose_bot = Tg.Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 (** {1 Configuration} *)
 

@@ -14,18 +14,12 @@
 *)
 
 open Telegram
+open Tg
 
 (** {1 Verbose Logging Setup} *)
 
-(* Functor-based logging modules with Debug level for troubleshooting *)
-module Verbose_log = Telegram.Log.Make (Telegram.Log.Console) (struct
-  let src = "PollQuizBot"
-  let level = Telegram.Log.Debug
-end)
-
-module Verbose_session = Tg.Session.Make (Verbose_log)
-module Verbose_polling = Tg.Polling.Make (Verbose_log)
-module Verbose_bot = Tg.Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 (** {1 Poll Option Helper} *)
 
@@ -37,7 +31,7 @@ let poll_option (text : string) : Telegram_generated.Gen_types.InputPollOption.t
     text;
     text_parse_mode = None;
     text_entities = None;
-    unknown_fields = unknown ();
+    unknown_fields = [];
   }
 
 (** {1 Poll Metadata Storage} *)
@@ -226,7 +220,7 @@ let store_poll_from_message
 
 let handle_start ctx _args =
   Eio.traceln "[Handler] /start command triggered";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   let* user = require_user ctx in
   Eio.traceln "[Handler] User: id=%a, username=%s"
@@ -253,7 +247,7 @@ let handle_start ctx _args =
 
 let handle_help ctx _args =
   Eio.traceln "[Handler] /help command triggered";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   let help_text =
     "📚 Help - Poll & Quiz Bot\n\n\
@@ -279,7 +273,7 @@ let handle_poll ctx args =
   Eio.traceln "[Handler] /poll command triggered with args: [%s]"
     (String.concat " " args);
 
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
   let* client = client ctx in
   let* chat_id = chat ctx in
 
@@ -311,7 +305,7 @@ let handle_poll ctx args =
 
 let handle_multipoll ctx args =
   Eio.traceln "[Handler] /multipoll command triggered";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
   let* client = client ctx in
   let* chat_id = chat ctx in
 
@@ -338,7 +332,7 @@ let handle_multipoll ctx args =
 
 let handle_timedpoll ctx args =
   Eio.traceln "[Handler] /timedpoll command triggered";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
   let* client = client ctx in
   let* chat_id = chat ctx in
 
@@ -373,7 +367,7 @@ let handle_timedpoll ctx args =
 
 let handle_quiz ctx args =
   Eio.traceln "[Handler] /quiz command triggered";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
   let* client = client ctx in
   let* chat_id = chat ctx in
 
@@ -413,7 +407,7 @@ let handle_quiz ctx args =
 
 let handle_results ctx args =
   Eio.traceln "[Handler] /results command triggered";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
   let* client = client ctx in
 
   match args with
@@ -456,7 +450,7 @@ let handle_results ctx args =
 
 let handle_leaderboard ctx args =
   Eio.traceln "[Handler] /leaderboard command triggered";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   match args with
   | [] ->
@@ -490,7 +484,7 @@ let handle_leaderboard ctx args =
 
 let handle_list ctx _args =
   Eio.traceln "[Handler] /list command triggered";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   let poll_ids = PollMeta.all_poll_ids () in
   Eio.traceln "[Handler] Found %d active polls" (List.length poll_ids);
@@ -533,35 +527,35 @@ let handle_poll_answer update _ctx =
 let build_routes bot =
   Eio.traceln "[Builder] Registering routes...";
 
-  let bot = bot |> Verbose_bot.command "start" handle_start in
+  let bot = bot |> Bot.command "start" handle_start in
   Eio.traceln "[Builder] ✅ Registered /start";
 
-  let bot = bot |> Verbose_bot.command "help" handle_help in
+  let bot = bot |> Bot.command "help" handle_help in
   Eio.traceln "[Builder] ✅ Registered /help";
 
-  let bot = bot |> Verbose_bot.command "poll" handle_poll in
+  let bot = bot |> Bot.command "poll" handle_poll in
   Eio.traceln "[Builder] ✅ Registered /poll";
 
-  let bot = bot |> Verbose_bot.command "multipoll" handle_multipoll in
+  let bot = bot |> Bot.command "multipoll" handle_multipoll in
   Eio.traceln "[Builder] ✅ Registered /multipoll";
 
-  let bot = bot |> Verbose_bot.command "timedpoll" handle_timedpoll in
+  let bot = bot |> Bot.command "timedpoll" handle_timedpoll in
   Eio.traceln "[Builder] ✅ Registered /timedpoll";
 
-  let bot = bot |> Verbose_bot.command "quiz" handle_quiz in
+  let bot = bot |> Bot.command "quiz" handle_quiz in
   Eio.traceln "[Builder] ✅ Registered /quiz";
 
-  let bot = bot |> Verbose_bot.command "results" handle_results in
+  let bot = bot |> Bot.command "results" handle_results in
   Eio.traceln "[Builder] ✅ Registered /results";
 
-  let bot = bot |> Verbose_bot.command "leaderboard" handle_leaderboard in
+  let bot = bot |> Bot.command "leaderboard" handle_leaderboard in
   Eio.traceln "[Builder] ✅ Registered /leaderboard";
 
-  let bot = bot |> Verbose_bot.command "list" handle_list in
+  let bot = bot |> Bot.command "list" handle_list in
   Eio.traceln "[Builder] ✅ Registered /list";
 
   (* Register poll_answer handler using on_any *)
-  let bot = bot |> Verbose_bot.on_any handle_poll_answer in
+  let bot = bot |> Bot.on_any handle_poll_answer in
   Eio.traceln "[Builder] ✅ Registered poll_answer tracker";
 
   Eio.traceln "[Builder] All routes registered";
@@ -601,7 +595,7 @@ let () =
   Eio.traceln "║                     Phase 2: Build Bot                           ║";
   Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
 
-  let bot = Verbose_bot.make ~env ~client:telegram_client in
+  let bot = Bot.make ~env ~client:telegram_client in
   let bot = build_routes bot in
 
   Eio.traceln "[Init] Bot created successfully";
@@ -630,4 +624,4 @@ let () =
   Eio.traceln "  - Result-based error handling";
   Eio.traceln "";
 
-  Verbose_bot.run bot
+  Bot.run bot

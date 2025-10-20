@@ -11,18 +11,12 @@
 *)
 
 open Telegram
+open Tg
 
 (** {1 Verbose Logging Setup} *)
 
-(* Functor-based logging modules with Debug level for troubleshooting *)
-module Verbose_log = Telegram.Log.Make (Telegram.Log.Console) (struct
-  let src = "NotificationBot"
-  let level = Telegram.Log.Debug
-end)
-
-module Verbose_session = Tg.Session.Make (Verbose_log)
-module Verbose_polling = Tg.Polling.Make (Verbose_log)
-module Verbose_bot = Tg.Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 (** {1 Subscription Management} *)
 
@@ -80,7 +74,7 @@ module Admin = struct
     List.mem user_id !admin_ids
 
   let require_admin ctx =
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
     let* user = require_user ctx in
     let user_id = Id.to_string user.id in
     let user_id_int = Int64.of_string user_id in
@@ -99,7 +93,7 @@ type notification_prefs = {
   mute : bool;
 }
 
-let prefs_key = Verbose_session.make ~name:"notification_prefs"
+let prefs_key = Session.make ~name:"notification_prefs"
 
 (** {1 Broadcast Messaging} *)
 
@@ -189,7 +183,7 @@ let start_scheduled_messages client env admin_chat =
 let build_routes telegram_client eio_env bot =
   Eio.traceln "[Builder] Building bot routes...";
 
-  let open Verbose_bot in
+  let open Bot in
   let open Ctx in
 
   (* /start command *)
@@ -411,7 +405,7 @@ let () =
   Eio.traceln "║                     Phase 2: Build Bot                           ║";
   Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
 
-  let bot = Verbose_bot.make ~env ~client:telegram_client in
+  let bot = Bot.make ~env ~client:telegram_client in
   let bot = build_routes telegram_client env bot in
 
   Eio.traceln "[Init] Bot created successfully";
@@ -451,4 +445,4 @@ let () =
     Eio.traceln "  - Admin-only commands (/broadcast, /stats)";
     Eio.traceln "";
 
-    Verbose_bot.run bot
+    Bot.run bot

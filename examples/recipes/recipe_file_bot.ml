@@ -9,17 +9,12 @@
     - Functor-based verbose logging
 *)
 
+open Tg
+
 (** {1 Verbose Logging Setup} *)
 
-(* Functor-based logging modules with Debug level for troubleshooting *)
-module Verbose_log = Telegram.Log.Make (Telegram.Log.Console) (struct
-  let src = "FileBot"
-  let level = Telegram.Log.Debug
-end)
-
-module Verbose_session = Tg.Session.Make (Verbose_log)
-module Verbose_polling = Tg.Polling.Make (Verbose_log)
-module Verbose_bot = Tg.Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 (** {1 File Metadata and Storage} *)
 
@@ -47,8 +42,8 @@ type album_state = {
 }
 
 (* Session keys *)
-let storage_key = Verbose_session.make ~name:"user_storage"
-let album_key = Verbose_session.make ~name:"album_builder"
+let storage_key = Session.make ~name:"user_storage"
+let album_key = Session.make ~name:"album_builder"
 
 (* Storage operations *)
 let empty_storage = {
@@ -170,9 +165,9 @@ let format_timestamp ts =
 let build_routes telegram_client bot =
   bot
   (* Start command *)
-  |> Verbose_bot.command "start" (fun ctx _args ->
+  |> Bot.command "start" (fun ctx _args ->
     Eio.traceln "[Handler] /start command received";
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
     let* () = reply_ ctx
       "📁 File Manager Bot\n\n\
        Commands:\n\
@@ -187,9 +182,9 @@ let build_routes telegram_client bot =
   |>
 
   (* View files *)
-  Verbose_bot.command "files" (fun ctx _args ->
+  Bot.command "files" (fun ctx _args ->
     Eio.traceln "[Handler] /files command received";
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
     let storage = session_get_or ctx storage_key ~default:empty_storage in
 
     Eio.traceln "[Handler] User has %d files" (List.length storage.files);
@@ -209,9 +204,9 @@ let build_routes telegram_client bot =
   |>
 
   (* Storage stats *)
-  Verbose_bot.command "stats" (fun ctx _args ->
+  Bot.command "stats" (fun ctx _args ->
     Eio.traceln "[Handler] /stats command received";
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
     let storage = session_get_or ctx storage_key ~default:empty_storage in
     let used = total_size storage in
     let quota = storage.quota in
@@ -239,9 +234,9 @@ let build_routes telegram_client bot =
   |>
 
   (* Start album builder *)
-  Verbose_bot.command "album" (fun ctx _args ->
+  Bot.command "album" (fun ctx _args ->
     Eio.traceln "[Handler] /album command received";
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
 
     (* Get current album state or create new one *)
     let current_album = session_get_or ctx album_key ~default:empty_album in
@@ -275,13 +270,13 @@ let build_routes telegram_client bot =
   |>
 
   (* Handle document uploads *)
-  Verbose_bot.on_document (fun ctx document ->
+  Bot.on_document (fun ctx document ->
     Eio.traceln "[Handler] Document received: file_id=%s, file_name=%s, size=%Ld"
       document.file_id
       (Option.value document.file_name ~default:"unnamed")
       (Option.value document.file_size ~default:0L);
 
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
     let storage = session_get_or ctx storage_key ~default:empty_storage in
 
     (* Create file entry *)
@@ -310,10 +305,10 @@ let build_routes telegram_client bot =
   |>
 
   (* Handle photo uploads *)
-  Verbose_bot.on_photo (fun ctx photos ->
+  Bot.on_photo (fun ctx photos ->
     Eio.traceln "[Handler] Photo received: %d sizes available" (List.length photos);
 
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
 
     (* Get the largest photo *)
     let largest_photo =
@@ -389,18 +384,18 @@ let build_routes telegram_client bot =
   |>
 
   (* Handle text messages as fallback *)
-  Verbose_bot.on_text (fun ctx text ->
+  Bot.on_text (fun ctx text ->
     Eio.traceln "[Handler] Text message received: %s" text;
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
     let* () = reply_ ctx "💡 Tip: Use /files to see your uploaded files, or /album to start building a photo album!" in
     Ok ()
   )
   |>
 
   (* Handle all file-related callbacks in one handler *)
-  Verbose_bot.on_callback (fun ctx data ->
+  Bot.on_callback (fun ctx data ->
     Eio.traceln "[Callback] File handler received: data='%s'" data;
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
 
     (* Download file *)
     if String.starts_with ~prefix:"file:download:" data then begin
@@ -520,11 +515,11 @@ let build_routes telegram_client bot =
   |>
 
   (* Send album *)
-  Verbose_bot.on_callback (fun ctx data ->
+  Bot.on_callback (fun ctx data ->
     if data <> "album:send" then Ok () else begin
     
     Eio.traceln "[Handler] Send album requested";
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
 
     let state = session_get_or ctx album_key ~default:empty_album in
 
@@ -574,10 +569,10 @@ let build_routes telegram_client bot =
   |>
 
   (* Clear album *)
-  Verbose_bot.on_callback (fun ctx data ->
+  Bot.on_callback (fun ctx data ->
     if data <> "album:clear" then Ok () else begin
     Eio.traceln "[Handler] Clear album requested";
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
 
     session_delete ctx album_key;
     let* _msg = answer ctx "Album cleared" in
@@ -588,9 +583,9 @@ let build_routes telegram_client bot =
   |>
 
   (* Ignore noop callbacks *)
-  Verbose_bot.on_callback (fun ctx data ->
+  Bot.on_callback (fun ctx data ->
     if data <> "noop" then Ok () else begin
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
     let* _msg = answer ctx "" in
     Ok ()
     end
@@ -626,12 +621,12 @@ let () =
   Eio.traceln "[Init] Building bot";
 
   (* Create session store *)
-  let session_store = Verbose_session.Memory_store.create () in
+  let session_store = Session.Memory_store.create () in
   Eio.traceln "[Init] Session store created";
 
-  let bot = Verbose_bot.make ~env ~client:telegram_client in
-  let bot = Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store bot in
-  let bot = Verbose_bot.on_error (fun _ctx exn ->
+  let bot = Bot.make ~env ~client:telegram_client in
+  let bot = Bot.with_sessions (module Session.Memory_store) session_store bot in
+  let bot = Bot.on_error (fun _ctx exn ->
       Eio.traceln "❌ ERROR in handler: %s" (Printexc.to_string exn);
       Eio.traceln "Backtrace: %s" (Printexc.get_backtrace ());
     ) bot
@@ -649,4 +644,4 @@ let () =
   Eio.traceln "[Polling] Bot is ready to receive updates";
   Eio.traceln "";
 
-  Verbose_bot.run bot
+  Bot.run bot

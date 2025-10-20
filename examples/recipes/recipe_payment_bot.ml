@@ -15,18 +15,12 @@
 *)
 
 open Telegram
+open Tg
 
 (** {1 Verbose Logging Setup} *)
 
-(* Functor-based logging modules with Debug level for troubleshooting *)
-module Verbose_log = Telegram.Log.Make (Telegram.Log.Console) (struct
-  let src = "PaymentBot"
-  let level = Telegram.Log.Debug
-end)
-
-module Verbose_session = Tg.Session.Make (Verbose_log)
-module Verbose_polling = Tg.Polling.Make (Verbose_log)
-module Verbose_bot = Tg.Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 (** {1 Helper Functions} *)
 
@@ -228,7 +222,7 @@ module PriceHelper = struct
     Telegram_generated.Gen_types.LabeledPrice.{
       label;
       amount;
-      unknown_fields = unknown ();
+      unknown_fields = [];
     }
 
   let product_prices product =
@@ -262,8 +256,8 @@ module ShippingHelper = struct
     ShippingOption.{
       id;
       title;
-      prices = [LabeledPrice.{ label = title; amount; unknown_fields = unknown () }];
-      unknown_fields = unknown ();
+      prices = [LabeledPrice.{ label = title; amount; unknown_fields = [] }];
+      unknown_fields = [];
     }
 
   let standard = shipping_option ~id:"standard" ~title:"Standard Shipping" ~amount:500L  (* $5.00 *)
@@ -315,7 +309,7 @@ end
 
 let handle_start ctx _args =
   Eio.traceln "[Handler] /start command triggered";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   let* user = require_user ctx in
   Eio.traceln "[Handler] User: id=%a, username=%s"
@@ -338,7 +332,7 @@ let handle_start ctx _args =
 
 let handle_products ctx _args =
   Eio.traceln "[Handler] /products command triggered";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   let catalog = ProductCatalog.format_catalog () in
   let products_text =
@@ -354,7 +348,7 @@ let handle_buy ctx args =
   Eio.traceln "[Handler] /buy command triggered with args: [%s]"
     (String.concat " " args);
 
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   let* client = client ctx in
   let* chat_id = chat ctx in
@@ -411,7 +405,7 @@ let handle_buy ctx args =
 
 let handle_link ctx args =
   Eio.traceln "[Handler] /link command triggered";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   let* client = client ctx in
 
@@ -458,7 +452,7 @@ let handle_link ctx args =
 
 let handle_orders ctx _args =
   Eio.traceln "[Handler] /orders command triggered";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   let* user = require_user ctx in
 
@@ -501,7 +495,7 @@ let handle_orders ctx _args =
 
 let handle_help ctx _args =
   Eio.traceln "[Handler] /help command triggered";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   let help_text =
     "💳 <b>Payment Bot Help</b>\n\n\
@@ -533,7 +527,7 @@ let handle_help ctx _args =
 
 let handle_shipping_query ctx (query : Telegram_generated.Gen_types.ShippingQuery.t) =
   Eio.traceln "[Handler] Shipping query received: query_id=%s" query.id;
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   let* client = client ctx in
 
@@ -568,7 +562,7 @@ let handle_pre_checkout_query ctx (pcq : Telegram_generated.Gen_types.PreCheckou
   Eio.traceln "[Handler] Pre-checkout query received: query_id=%s, payload=%s"
     pcq.id pcq.invoice_payload;
 
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   let* client = client ctx in
 
@@ -618,7 +612,7 @@ let handle_successful_payment ctx (sp : Telegram_generated.Gen_types.SuccessfulP
   Eio.traceln "[Handler] Successful payment received: order=%s, amount=%Ld %s"
     sp.invoice_payload sp.total_amount sp.currency;
 
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   let order_id = sp.invoice_payload in
   let telegram_charge_id = sp.telegram_payment_charge_id in
@@ -665,7 +659,7 @@ let handle_successful_payment ctx (sp : Telegram_generated.Gen_types.SuccessfulP
 
 let handle_payment_events ctx update =
   Eio.traceln "[Handler] Checking for payment-related events";
-  let open Verbose_bot.Ctx in
+  let open Bot.Ctx in
 
   (* Check for shipping query *)
   match update.Telegram_generated.Gen_types.Update.shipping_query with
@@ -697,26 +691,26 @@ let handle_payment_events ctx update =
 let build_routes bot =
   Eio.traceln "[Builder] Registering routes...";
 
-  let bot = bot |> Verbose_bot.command "start" handle_start in
+  let bot = bot |> Bot.command "start" handle_start in
   Eio.traceln "[Builder] ✅ Registered /start";
 
-  let bot = bot |> Verbose_bot.command "products" handle_products in
+  let bot = bot |> Bot.command "products" handle_products in
   Eio.traceln "[Builder] ✅ Registered /products";
 
-  let bot = bot |> Verbose_bot.command "buy" handle_buy in
+  let bot = bot |> Bot.command "buy" handle_buy in
   Eio.traceln "[Builder] ✅ Registered /buy";
 
-  let bot = bot |> Verbose_bot.command "link" handle_link in
+  let bot = bot |> Bot.command "link" handle_link in
   Eio.traceln "[Builder] ✅ Registered /link";
 
-  let bot = bot |> Verbose_bot.command "orders" handle_orders in
+  let bot = bot |> Bot.command "orders" handle_orders in
   Eio.traceln "[Builder] ✅ Registered /orders";
 
-  let bot = bot |> Verbose_bot.command "help" handle_help in
+  let bot = bot |> Bot.command "help" handle_help in
   Eio.traceln "[Builder] ✅ Registered /help";
 
   (* Register payment event handler *)
-  let bot = bot |> Verbose_bot.on_any handle_payment_events in
+  let bot = bot |> Bot.on_any handle_payment_events in
   Eio.traceln "[Builder] ✅ Registered payment event handler";
 
   Eio.traceln "[Builder] All routes registered";
@@ -764,7 +758,7 @@ let () =
   Eio.traceln "║                     Phase 2: Build Bot                           ║";
   Eio.traceln "╚══════════════════════════════════════════════════════════════════╝";
 
-  let bot = Verbose_bot.make ~env ~client:telegram_client in
+  let bot = Bot.make ~env ~client:telegram_client in
   let bot = build_routes bot in
 
   Eio.traceln "[Init] Bot created successfully";
@@ -800,4 +794,4 @@ let () =
   Eio.traceln "  - ENABLE_STARS (optional, set to 'true' to enable Stars)";
   Eio.traceln "";
 
-  Verbose_bot.run bot
+  Bot.run bot

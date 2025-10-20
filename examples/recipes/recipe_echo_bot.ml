@@ -8,7 +8,7 @@
     - Message statistics tracking
 
     This example has VERBOSE LOGGING enabled to help troubleshoot issues.
-    Every step is logged to stderr so you can see exactly what's happening.
+    Every step is logged using the flo library with structured fields.
 
     Commands:
       /start - Welcome message with feature list
@@ -40,15 +40,8 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "EchoBot"
-  let level = Log.Debug  (* Enable debug logging *)
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 (** Text transformation logic - pure functions *)
 module Transform = struct
@@ -242,295 +235,366 @@ module Smart = struct
 end
 
 let () =
-  Eio.traceln "=== Recipe: Echo Bot Starting ===";
-  Eio.traceln "[Init] Loading configuration...";
+  let open Flo in
+
+  info "=== Recipe: Echo Bot Starting ===";
+  debug "Loading configuration...";
 
   let token =
     match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t ->
-        Eio.traceln "[Init] ✓ Bot token loaded from TELEGRAM_BOT_TOKEN";
-        Eio.traceln "[Init]   Token: %s...%s (length=%d)"
-          (String.sub t 0 (min 8 (String.length t)))
-          (if String.length t > 8 then String.sub t (String.length t - 4) 4 else "")
-          (String.length t);
+        success_fields "Bot token loaded" ~fields:[
+          ("source", Value.string "TELEGRAM_BOT_TOKEN");
+          ("token_length", Value.int (String.length t));
+        ];
+        debug_fields "Token details" ~fields:[
+          ("prefix", Value.string (String.sub t 0 (min 8 (String.length t))));
+          ("suffix", Value.string (if String.length t > 8 then String.sub t (String.length t - 4) 4 else ""));
+        ];
         t
     | None ->
-        Eio.traceln "[Init] ✗ TELEGRAM_BOT_TOKEN environment variable not set";
+        fatal "TELEGRAM_BOT_TOKEN environment variable not set";
         Printf.eprintf "Error: TELEGRAM_BOT_TOKEN not set\n";
         exit 1
   in
 
-  Eio.traceln "[Init] Starting Eio event loop...";
+  debug "Starting Eio event loop...";
   Eio_main.run @@ fun env ->
 
-  Eio.traceln "[Init] Creating Telegram HTTP client...";
+  debug "Creating Telegram HTTP client...";
   let client = Client.create ~env ~token () in
-  Eio.traceln "[Init] ✓ HTTP client created (base_url=%s)" (Client.base_url client);
+  success_fields "HTTP client created" ~fields:[
+    ("base_url", Value.string (Client.base_url client));
+  ];
 
-  Eio.traceln "";
-  Eio.traceln "🤖 Echo Bot with Transformations Started!";
-  Eio.traceln "";
-  Eio.traceln "📋 Features:";
-  Eio.traceln "   • Text transformations (upper, lower, reverse, l33t, etc.)";
-  Eio.traceln "   • Formatting styles (plain, bold, italic, code, quote)";
-  Eio.traceln "   • Session-based user preferences";
-  Eio.traceln "   • Smart context-aware prefixes";
-  Eio.traceln "   • Message statistics tracking";
-  Eio.traceln "";
-  Eio.traceln "🔍 Watching for updates (long polling)...";
-  Eio.traceln "";
+  info "";
+  info "Echo Bot with Transformations Started!";
+  info "";
+  info "Features:";
+  info "   • Text transformations (upper, lower, reverse, l33t, etc.)";
+  info "   • Formatting styles (plain, bold, italic, code, quote)";
+  info "   • Session-based user preferences";
+  info "   • Smart context-aware prefixes";
+  info "   • Message statistics tracking";
+  info "";
+  info "Watching for updates (long polling)...";
+  info "";
 
   (* Session keys for user preferences *)
-  let transform_key = Verbose_session.make ~name:"transform" in
-  let style_key = Verbose_session.make ~name:"style" in
-  let count_key = Verbose_session.make ~name:"echo_count" in
+  let transform_key = Session.make ~name:"transform" in
+  let style_key = Session.make ~name:"style" in
+  let count_key = Session.make ~name:"echo_count" in
 
   (* Build bot using functional builder pattern *)
-  Eio.traceln "[Builder] Building bot with functional API...";
-  Verbose_bot.make ~env ~client
+  debug "Building bot with functional API...";
+  Bot.make ~env ~client
   (* Add global error handler *)
-  |> Verbose_bot.on_error (fun ctx exn ->
-      Eio.traceln "";
-      Eio.traceln "[Error] ❌❌❌ Uncaught error in handler ❌❌❌";
-      Eio.traceln "[Error] Error: %s" (Printexc.to_string exn);
-      Eio.traceln "[Error] User: %s"
-        (match Verbose_bot.Ctx.user ctx with
-         | Some u -> Printf.sprintf "id=%s username=%s"
-             (Id.to_string u.id)
-             (Option.value ~default:"<none>" u.username)
-         | None -> "none");
-      match Verbose_bot.Ctx.reply ctx "❌ Sorry, an error occurred. Please try again." with
-      | Ok _ -> Eio.traceln "[Error] ✓ Error notification sent"
-      | Error e -> Eio.traceln "[Error] ✗ Failed to send error: %a" Error.pp e;
-      Eio.traceln "";
+  |> Bot.on_error (fun ctx exn ->
+      error "";
+      error_fields "Uncaught error in handler" ~fields:[
+        Flo_semconv.error_type (Printexc.to_string exn);
+        Flo_semconv.error_message (Printexc.to_string exn);
+        Flo_semconv.error_stack_trace (Printexc.get_backtrace ());
+        ("user_id", Value.string (match Bot.Ctx.user ctx with
+         | Some u -> Id.to_string u.id
+         | None -> "none"));
+        ("username", Value.string (match Bot.Ctx.user ctx with
+         | Some u -> Option.value ~default:"<none>" u.username
+         | None -> "<none>"));
+      ];
+      match Bot.Ctx.reply ctx "Sorry, an error occurred. Please try again." with
+      | Ok _ -> success "Error notification sent"
+      | Error e -> warn_fields "Failed to send error message" ~fields:[
+          Flo_semconv.error_message (Format.asprintf "%a" Error.pp e);
+        ];
+      error "";
     )
 
   (* /start command *)
-  |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'start'"; bot)
-  |> Verbose_bot.command "start" ~desc:"Welcome message" (fun ctx _args ->
-      Eio.traceln "";
-      Eio.traceln "[Handler:start] >>> /start command received";
+  |> (fun bot -> debug "Registering route: command 'start'"; bot)
+  |> Bot.command "start" ~desc:"Welcome message" (fun ctx _args ->
+      Flo.with_span "command_start" (fun () ->
+        Bot.Ctx.with_handler_context ctx (fun () ->
+          info "";
+          info "Received /start command";
 
-      let open Verbose_bot.Ctx in
-      let* () = reply_ ctx
-        "👋 Welcome to Echo Bot Plus!\n\n\
-         ✨ Features:\n\
-         • Text transformations\n\
-         • Formatting styles\n\
-         • Smart context awareness\n\
-         • Statistics tracking\n\n\
-         📝 Commands:\n\
-         /transform <type> - Set transformation\n\
-         /style <type> - Set formatting style\n\
-         /stats - Show your statistics\n\
-         /reset - Reset preferences\n\
-         /help - Show detailed help\n\n\
-         💬 Send me any message to try it out!" in
-      Eio.traceln "[Handler:start] <<< /start completed";
-      Eio.traceln "";
-      Ok ()
+          let open Bot.Ctx in
+          let* () = reply_ ctx
+            "👋 Welcome to Echo Bot Plus!\n\n\
+             ✨ Features:\n\
+             • Text transformations\n\
+             • Formatting styles\n\
+             • Smart context awareness\n\
+             • Statistics tracking\n\n\
+             📝 Commands:\n\
+             /transform <type> - Set transformation\n\
+             /style <type> - Set formatting style\n\
+             /stats - Show your statistics\n\
+             /reset - Reset preferences\n\
+             /help - Show detailed help\n\n\
+             💬 Send me any message to try it out!" in
+          success "Handler /start completed";
+          info "";
+          Ok ()
+        )
+      )
     )
 
   (* /help command *)
-  |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'help'"; bot)
-  |> Verbose_bot.command "help" ~desc:"Show help" (fun ctx _args ->
-      Eio.traceln "";
-      Eio.traceln "[Handler:help] >>> /help command received";
+  |> (fun bot -> debug "Registering route: command 'help'"; bot)
+  |> Bot.command "help" ~desc:"Show help" (fun ctx _args ->
+      Flo.with_span "command_help" (fun () ->
+        Bot.Ctx.with_handler_context ctx (fun () ->
+          info "";
+          info "Received /help command";
 
-      let open Verbose_bot.Ctx in
-      let* () = reply_ ctx
-        "📖 Echo Bot Help\n\n\
-         🔄 Transformations:\n\
-         /transform upper - UPPERCASE\n\
-         /transform lower - lowercase\n\
-         /transform reverse - esrever\n\
-         /transform l33t - 1337 5p34k\n\
-         /transform novowels - rmv vwls\n\
-         /transform count - Word count\n\
-         /transform freq - Character frequency\n\n\
-         🎨 Styles:\n\
-         /style plain - Normal text\n\
-         /style bold - <b>Bold text</b>\n\
-         /style italic - <i>Italic text</i>\n\
-         /style code - <code>Code text</code>\n\
-         /style quote - ❝ Quoted text\n\n\
-         📊 Other:\n\
-         /stats - View statistics\n\
-         /reset - Reset all settings" in
-      Eio.traceln "[Handler:help] <<< /help completed";
-      Eio.traceln "";
-      Ok ()
+          let open Bot.Ctx in
+          let* () = reply_ ctx
+            "📖 Echo Bot Help\n\n\
+             🔄 Transformations:\n\
+             /transform upper - UPPERCASE\n\
+             /transform lower - lowercase\n\
+             /transform reverse - esrever\n\
+             /transform l33t - 1337 5p34k\n\
+             /transform novowels - rmv vwls\n\
+             /transform count - Word count\n\
+             /transform freq - Character frequency\n\n\
+             🎨 Styles:\n\
+             /style plain - Normal text\n\
+             /style bold - <b>Bold text</b>\n\
+             /style italic - <i>Italic text</i>\n\
+             /style code - <code>Code text</code>\n\
+             /style quote - ❝ Quoted text\n\n\
+             📊 Other:\n\
+             /stats - View statistics\n\
+             /reset - Reset all settings" in
+          success "Handler /help completed";
+          info "";
+          Ok ()
+        )
+      )
     )
 
   (* /transform command *)
-  |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'transform'"; bot)
-  |> Verbose_bot.command "transform" ~desc:"Set text transformation" (fun ctx args ->
-      Eio.traceln "";
-      Eio.traceln "[Handler:transform] >>> /transform command received";
-      Eio.traceln "[Handler:transform] Args: %s" (String.concat " " args);
+  |> (fun bot -> debug "Registering route: command 'transform'"; bot)
+  |> Bot.command "transform" ~desc:"Set text transformation" (fun ctx args ->
+      Flo.with_span "command_transform" (fun () ->
+        Bot.Ctx.with_handler_context ctx (fun () ->
+          info "";
+          info_fields "Received /transform command" ~fields:[
+            ("args", Value.string (String.concat " " args));
+          ];
 
-      let open Verbose_bot.Ctx in
-      let* () =
-        match Bot.Args.expect_1 args with
-        | Some transform_str ->
-            Eio.traceln "[Handler:transform] Parsing transform: '%s'" transform_str;
-            (match Transform.of_string transform_str with
-             | Some transform ->
-                 Eio.traceln "[Handler:transform] ✓ Valid transform: %s" (Transform.to_string transform);
-                 session_set ctx transform_key transform;
-                 Eio.traceln "[Handler:transform] Session updated with new transform";
-                 let response = match transform with
-                   | Uppercase -> "✓ Transformation: UPPERCASE"
-                   | Lowercase -> "✓ Transformation: lowercase"
-                   | Reverse -> "✓ Transformation: esrever"
-                   | L33t -> "✓ 7r4n5f0rm4710n: 1337"
-                   | Remove_vowels -> "✓ Trnsfrmtn: rmv vwls"
-                   | Word_count -> "✓ Transformation: word count"
-                   | Character_frequency -> "✓ Transformation: char frequency"
-                 in
-                 reply_ ctx response
-             | None ->
-                 Eio.traceln "[Handler:transform] ✗ Invalid transform: '%s'" transform_str;
-                 reply_ ctx
-                   "❌ Invalid transformation\n\n\
-                    Available: upper, lower, reverse, l33t, novowels, count, freq")
-        | None ->
-            Eio.traceln "[Handler:transform] ✗ No argument provided";
-            reply_ ctx "Usage: /transform <upper|lower|reverse|l33t|novowels|count|freq>"
-      in
-      Eio.traceln "[Handler:transform] <<< /transform completed";
-      Eio.traceln "";
-      Ok ()
+          let open Bot.Ctx in
+          let* () =
+            match Bot.Args.expect_1 args with
+            | Some transform_str ->
+                debug_fields "Parsing transform" ~fields:[
+                  ("transform", Value.string transform_str);
+                ];
+                (match Transform.of_string transform_str with
+                 | Some transform ->
+                     success_fields "Valid transform" ~fields:[
+                       ("transform", Value.string (Transform.to_string transform));
+                     ];
+                     session_set ctx transform_key transform;
+                     debug "Session updated with new transform";
+                     let response = match transform with
+                       | Uppercase -> "✓ Transformation: UPPERCASE"
+                       | Lowercase -> "✓ Transformation: lowercase"
+                       | Reverse -> "✓ Transformation: esrever"
+                       | L33t -> "✓ 7r4n5f0rm4710n: 1337"
+                       | Remove_vowels -> "✓ Trnsfrmtn: rmv vwls"
+                       | Word_count -> "✓ Transformation: word count"
+                       | Character_frequency -> "✓ Transformation: char frequency"
+                     in
+                     reply_ ctx response
+                 | None ->
+                     warn_fields "Invalid transform" ~fields:[
+                       ("transform", Value.string transform_str);
+                     ];
+                     reply_ ctx
+                       "❌ Invalid transformation\n\n\
+                        Available: upper, lower, reverse, l33t, novowels, count, freq")
+            | None ->
+                warn "No argument provided";
+                reply_ ctx "Usage: /transform <upper|lower|reverse|l33t|novowels|count|freq>"
+          in
+          success "Handler /transform completed";
+          info "";
+          Ok ()
+        )
+      )
     )
 
   (* /style command *)
-  |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'style'"; bot)
-  |> Verbose_bot.command "style" ~desc:"Set formatting style" (fun ctx args ->
-      Eio.traceln "";
-      Eio.traceln "[Handler:style] >>> /style command received";
-      Eio.traceln "[Handler:style] Args: %s" (String.concat " " args);
+  |> (fun bot -> debug "Registering route: command 'style'"; bot)
+  |> Bot.command "style" ~desc:"Set formatting style" (fun ctx args ->
+      Flo.with_span "command_style" (fun () ->
+        Bot.Ctx.with_handler_context ctx (fun () ->
+          info "";
+          info_fields "Received /style command" ~fields:[
+            ("args", Value.string (String.concat " " args));
+          ];
 
-      let open Verbose_bot.Ctx in
-      let* () =
-        match Bot.Args.expect_1 args with
-        | Some style_str ->
-            Eio.traceln "[Handler:style] Parsing style: '%s'" style_str;
-            (match Style.of_string style_str with
-             | Some style ->
-                 Eio.traceln "[Handler:style] ✓ Valid style: %s" (Style.to_string style);
-                 session_set ctx style_key style;
-                 Eio.traceln "[Handler:style] Session updated with new style";
-                 let response = match style with
-                   | Plain -> "✓ Style: plain text"
-                   | Bold -> "✓ Style: <b>bold</b>"
-                   | Italic -> "✓ Style: <i>italic</i>"
-                   | Code -> "✓ Style: <code>code</code>"
-                   | Quote -> "✓ Style: ❝ quote"
-                 in
-                 reply_ ctx response
-             | None ->
-                 Eio.traceln "[Handler:style] ✗ Invalid style: '%s'" style_str;
-                 reply_ ctx
-                   "❌ Invalid style\n\n\
-                    Available: plain, bold, italic, code, quote")
-        | None ->
-            Eio.traceln "[Handler:style] ✗ No argument provided";
-            reply_ ctx "Usage: /style <plain|bold|italic|code|quote>"
-      in
-      Eio.traceln "[Handler:style] <<< /style completed";
-      Eio.traceln "";
-      Ok ()
+          let open Bot.Ctx in
+          let* () =
+            match Bot.Args.expect_1 args with
+            | Some style_str ->
+                debug_fields "Parsing style" ~fields:[
+                  ("style", Value.string style_str);
+                ];
+                (match Style.of_string style_str with
+                 | Some style ->
+                     success_fields "Valid style" ~fields:[
+                       ("style", Value.string (Style.to_string style));
+                     ];
+                     session_set ctx style_key style;
+                     debug "Session updated with new style";
+                     let response = match style with
+                       | Plain -> "✓ Style: plain text"
+                       | Bold -> "✓ Style: <b>bold</b>"
+                       | Italic -> "✓ Style: <i>italic</i>"
+                       | Code -> "✓ Style: <code>code</code>"
+                       | Quote -> "✓ Style: ❝ quote"
+                     in
+                     reply_ ctx response
+                 | None ->
+                     warn_fields "Invalid style" ~fields:[
+                       ("style", Value.string style_str);
+                     ];
+                     reply_ ctx
+                       "❌ Invalid style\n\n\
+                        Available: plain, bold, italic, code, quote")
+            | None ->
+                warn "No argument provided";
+                reply_ ctx "Usage: /style <plain|bold|italic|code|quote>"
+          in
+          success "Handler /style completed";
+          info "";
+          Ok ()
+        )
+      )
     )
 
   (* /stats command *)
-  |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'stats'"; bot)
-  |> Verbose_bot.command "stats" ~desc:"Show statistics" (fun ctx _args ->
-      Eio.traceln "";
-      Eio.traceln "[Handler:stats] >>> /stats command received";
+  |> (fun bot -> debug "Registering route: command 'stats'"; bot)
+  |> Bot.command "stats" ~desc:"Show statistics" (fun ctx _args ->
+      Flo.with_span "command_stats" (fun () ->
+        Bot.Ctx.with_handler_context ctx (fun () ->
+          info "";
+          info "Received /stats command";
 
-      let count = Verbose_bot.Ctx.session_get_or ctx count_key ~default:0 in
-      Eio.traceln "[Handler:stats] Message count: %d" count;
+          let count = Bot.Ctx.session_get_or ctx count_key ~default:0 in
+          debug_fields "Retrieved statistics" ~fields:[
+            ("message_count", Value.int count);
+          ];
 
-      let transform = Verbose_bot.Ctx.session_get_or ctx transform_key ~default:Transform.Uppercase in
-      let style = Verbose_bot.Ctx.session_get_or ctx style_key ~default:Style.Plain in
-      Eio.traceln "[Handler:stats] Current transform: %s, style: %s"
-        (Transform.to_string transform) (Style.to_string style);
+          let transform = Bot.Ctx.session_get_or ctx transform_key ~default:Transform.Uppercase in
+          let style = Bot.Ctx.session_get_or ctx style_key ~default:Style.Plain in
+          debug_fields "Current preferences" ~fields:[
+            ("transform", Value.string (Transform.to_string transform));
+            ("style", Value.string (Style.to_string style));
+          ];
 
-      let open Verbose_bot.Ctx in
-      let* () = reply_ ctx
-        (Printf.sprintf
-          "📊 Your Statistics:\n\n\
-           Messages echoed: %d\n\
-           Transform: %s\n\
-           Style: %s"
-          count
-          (Transform.to_string transform)
-          (Style.to_string style)) in
-      Eio.traceln "[Handler:stats] <<< /stats completed";
-      Eio.traceln "";
-      Ok ()
+          let open Bot.Ctx in
+          let* () = reply_ ctx
+            (Printf.sprintf
+              "📊 Your Statistics:\n\n\
+               Messages echoed: %d\n\
+               Transform: %s\n\
+               Style: %s"
+              count
+              (Transform.to_string transform)
+              (Style.to_string style)) in
+          success "Handler /stats completed";
+          info "";
+          Ok ()
+        )
+      )
     )
 
   (* /reset command *)
-  |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'reset'"; bot)
-  |> Verbose_bot.command "reset" ~desc:"Reset preferences" (fun ctx _args ->
-      Eio.traceln "";
-      Eio.traceln "[Handler:reset] >>> /reset command received";
+  |> (fun bot -> debug "Registering route: command 'reset'"; bot)
+  |> Bot.command "reset" ~desc:"Reset preferences" (fun ctx _args ->
+      Flo.with_span "command_reset" (fun () ->
+        Bot.Ctx.with_handler_context ctx (fun () ->
+          info "";
+          info "Received /reset command";
 
-      Verbose_bot.Ctx.session_clear ctx;
-      Eio.traceln "[Handler:reset] Session cleared";
+          Bot.Ctx.session_clear ctx;
+          debug "Session cleared";
 
-      let open Verbose_bot.Ctx in
-      let* () = reply_ ctx "✓ All preferences reset to defaults" in
-      Eio.traceln "[Handler:reset] <<< /reset completed";
-      Eio.traceln "";
-      Ok ()
+          let open Bot.Ctx in
+          let* () = reply_ ctx "✓ All preferences reset to defaults" in
+          success "Handler /reset completed";
+          info "";
+          Ok ()
+        )
+      )
     )
 
   (* on_text handler - echo with transform + style *)
-  |> (fun bot -> Eio.traceln "[Builder] Registering route: on_text (echo handler)"; bot)
-  |> Verbose_bot.on_text (fun ctx text ->
-      Eio.traceln "";
-      Eio.traceln "[Handler:echo] >>> Text message received";
-      Eio.traceln "[Handler:echo] Text: \"%s\" (length=%d)" text (String.length text);
+  |> (fun bot -> debug "Registering route: on_text (echo handler)"; bot)
+  |> Bot.on_text (fun ctx text ->
+      Flo.with_span "text_message" (fun () ->
+        Bot.Ctx.with_handler_context ctx (fun () ->
+          info "";
+          info_fields "Text message received" ~fields:[
+            ("text_length", Value.int (String.length text));
+            ("text_preview", Value.string (if String.length text > 50
+              then String.sub text 0 50 ^ "..."
+              else text));
+          ];
 
-      (* Track message count *)
-      Verbose_bot.Ctx.session_modify ctx count_key ~default:0 (fun n -> n + 1);
-      let new_count = Verbose_bot.Ctx.session_get_or ctx count_key ~default:0 in
-      Eio.traceln "[Handler:echo] Message count updated: %d" new_count;
+          (* Track message count *)
+          Bot.Ctx.session_modify ctx count_key ~default:0 (fun n -> n + 1);
+          let new_count = Bot.Ctx.session_get_or ctx count_key ~default:0 in
+          debug_fields "Message count updated" ~fields:[
+            ("count", Value.int new_count);
+          ];
 
-      (* Get user preferences *)
-      let transform = Verbose_bot.Ctx.session_get_or ctx transform_key ~default:Transform.Uppercase in
-      let style = Verbose_bot.Ctx.session_get_or ctx style_key ~default:Style.Plain in
-      Eio.traceln "[Handler:echo] Preferences: transform=%s, style=%s"
-        (Transform.to_string transform) (Style.to_string style);
+          (* Get user preferences *)
+          let transform = Bot.Ctx.session_get_or ctx transform_key ~default:Transform.Uppercase in
+          let style = Bot.Ctx.session_get_or ctx style_key ~default:Style.Plain in
+          debug_fields "User preferences" ~fields:[
+            ("transform", Value.string (Transform.to_string transform));
+            ("style", Value.string (Style.to_string style));
+          ];
 
-      (* Apply transformation *)
-      Eio.traceln "[Handler:echo] Applying transformation...";
-      let transformed = Transform.apply transform text in
-      Eio.traceln "[Handler:echo] Transformed: \"%s\" (length=%d)"
-        (if String.length transformed > 50 then String.sub transformed 0 50 ^ "..." else transformed)
-        (String.length transformed);
+          (* Apply transformation *)
+          debug "Applying transformation...";
+          let transformed = Transform.apply transform text in
+          debug_fields "Transformed text" ~fields:[
+            ("length", Value.int (String.length transformed));
+            ("preview", Value.string (if String.length transformed > 50
+              then String.sub transformed 0 50 ^ "..."
+              else transformed));
+          ];
 
-      (* Apply style *)
-      Eio.traceln "[Handler:echo] Applying style...";
-      let formatted = Style.apply style transformed in
+          (* Apply style *)
+          debug "Applying style...";
+          let formatted = Style.apply style transformed in
 
-      (* Add smart prefix *)
-      let prefix = Smart.get_prefix text in
-      Eio.traceln "[Handler:echo] Smart prefix: %s" prefix;
-      let response = prefix ^ " " ^ formatted in
+          (* Add smart prefix *)
+          let prefix = Smart.get_prefix text in
+          debug_fields "Smart prefix selected" ~fields:[
+            ("prefix", Value.string prefix);
+          ];
+          let response = prefix ^ " " ^ formatted in
 
-      let open Verbose_bot.Ctx in
-      let* () = reply_ ctx response in
-      Eio.traceln "[Handler:echo] <<< Echo handler completed";
-      Eio.traceln "";
-      Ok ()
+          let open Bot.Ctx in
+          let* () = reply_ ctx response in
+          success "Handler completed successfully";
+          info "";
+          Ok ()
+        )
+      )
     )
 
   |> (fun bot ->
-      Eio.traceln "[Builder] ✓ All routes registered";
-      Eio.traceln "[Builder] Starting bot...";
-      Eio.traceln "";
+      success "All routes registered";
+      debug "Starting bot...";
+      info "";
       bot)
-  |> Verbose_bot.run
+  |> Bot.run

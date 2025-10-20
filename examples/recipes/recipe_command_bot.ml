@@ -11,7 +11,7 @@
     - User feedback and error messages
 
     This example has VERBOSE LOGGING enabled to help troubleshoot issues.
-    Every step is logged to stderr so you can see exactly what's happening.
+    Every step is logged using the flo library with structured fields.
 
     Commands:
       /start - Welcome message
@@ -43,15 +43,8 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "CommandBot"
-  let level = Log.Debug  (* Enable debug logging *)
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 (** Command registry for auto-generated help *)
 module Command_registry = struct
@@ -67,10 +60,11 @@ module Command_registry = struct
   let commands : command_info list ref = ref []
 
   let register cmd =
-    Eio.traceln "[Registry] Registering command: /%s (aliases: %s, admin: %b)"
-      cmd.name
-      (String.concat ", " cmd.aliases)
-      cmd.admin_only;
+    Flo.debug_fields "Registering command" ~fields:[
+      ("command", Value.string cmd.name);
+      ("aliases", Value.string (String.concat ", " cmd.aliases));
+      ("admin_only", Value.bool cmd.admin_only);
+    ];
     commands := cmd :: !commands
 
   let find_command name =
@@ -142,7 +136,7 @@ module Admin = struct
   let require_admin handler =
     fun ctx args ->
       Eio.traceln "[Admin] Checking admin permission...";
-      match Verbose_bot.Ctx.user ctx with
+      match Bot.Ctx.user ctx with
       | Some user ->
           let user_id_str = Id.to_string user.id in
           if is_admin user_id_str then (
@@ -150,13 +144,13 @@ module Admin = struct
             handler ctx args
           ) else (
             Eio.traceln "[Admin] ✗ User %s is not admin, denying access" user_id_str;
-            let open Verbose_bot.Ctx in
+            let open Bot.Ctx in
             let* () = reply_ ctx "⛔ This command requires administrator privileges." in
             Ok ()
           )
       | None ->
           Eio.traceln "[Admin] ✗ No user info available";
-          let open Verbose_bot.Ctx in
+          let open Bot.Ctx in
           let* () = reply_ ctx "⛔ User information not available." in
           Ok ()
 end
@@ -365,13 +359,13 @@ let () =
 
   (* Build bot using functional builder pattern *)
   Eio.traceln "[Builder] Building bot with functional API...";
-  Verbose_bot.make ~env ~client
+  Bot.make ~env ~client
   (* Add global error handler *)
-  |> Verbose_bot.on_error (fun ctx exn ->
+  |> Bot.on_error (fun ctx exn ->
       Eio.traceln "";
       Eio.traceln "[Error] ❌❌❌ Uncaught error in handler ❌❌❌";
       Eio.traceln "[Error] Error: %s" (Printexc.to_string exn);
-      match Verbose_bot.Ctx.reply ctx "❌ Sorry, an error occurred. Please try again." with
+      match Bot.Ctx.reply ctx "❌ Sorry, an error occurred. Please try again." with
       | Ok _ -> Eio.traceln "[Error] ✓ Error notification sent"
       | Error e -> Eio.traceln "[Error] ✗ Failed to send error: %a" Error.pp e;
       Eio.traceln "";
@@ -379,15 +373,15 @@ let () =
 
   (* /start command *)
   |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'start'"; bot)
-  |> Verbose_bot.command "start" ~desc:"Get started" (fun ctx _args ->
+  |> Bot.command "start" ~desc:"Get started" (fun ctx _args ->
       Eio.traceln "";
       Eio.traceln "[Handler:start] >>> /start command";
       (* Track command *)
-      (match Verbose_bot.Ctx.user ctx with
+      (match Bot.Ctx.user ctx with
        | Some u -> Bot_state.track_command state (Id.to_string u.id)
        | None -> ());
 
-      let open Verbose_bot.Ctx in
+      let open Bot.Ctx in
       let* () = reply_ ctx
         "👋 Welcome to CommandBot!\n\n\
          I'm a feature-rich bot with multiple commands.\n\
@@ -403,22 +397,22 @@ let () =
 
   (* /help command with detailed help for specific commands *)
   |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'help'"; bot)
-  |> Verbose_bot.command "help" ~desc:"Show help" (fun ctx args ->
+  |> Bot.command "help" ~desc:"Show help" (fun ctx args ->
       Eio.traceln "";
       Eio.traceln "[Handler:help] >>> /help command";
       Eio.traceln "[Handler:help] Args: %s" (String.concat " " args);
 
       (* Track command *)
-      (match Verbose_bot.Ctx.user ctx with
+      (match Bot.Ctx.user ctx with
        | Some u -> Bot_state.track_command state (Id.to_string u.id)
        | None -> ());
 
-      let is_admin = match Verbose_bot.Ctx.user ctx with
+      let is_admin = match Bot.Ctx.user ctx with
         | Some user -> Admin.is_admin (Id.to_string user.id)
         | None -> false
       in
 
-      let open Verbose_bot.Ctx in
+      let open Bot.Ctx in
       let* () =
         match args with
         | [] ->
@@ -445,39 +439,39 @@ let () =
 
   (* /h alias for /help *)
   |> (fun bot -> Eio.traceln "[Builder] Registering route: alias 'h' -> 'help'"; bot)
-  |> Verbose_bot.command "h" ~desc:"Help alias" (fun ctx _args ->
+  |> Bot.command "h" ~desc:"Help alias" (fun ctx _args ->
       Eio.traceln "[Alias] /h -> /help";
       (* Track command *)
-      (match Verbose_bot.Ctx.user ctx with
+      (match Bot.Ctx.user ctx with
        | Some u -> Bot_state.track_command state (Id.to_string u.id)
        | None -> ());
 
-      let is_admin = match Verbose_bot.Ctx.user ctx with
+      let is_admin = match Bot.Ctx.user ctx with
         | Some user -> Admin.is_admin (Id.to_string user.id)
         | None -> false
       in
 
       let help_text = Command_registry.format_help_text ~is_admin () in
-      let open Verbose_bot.Ctx in
+      let open Bot.Ctx in
       reply_ ctx help_text
     )
 
   (* /echo command *)
   |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'echo'"; bot)
-  |> Verbose_bot.command "echo" ~desc:"Echo text" (fun ctx args ->
+  |> Bot.command "echo" ~desc:"Echo text" (fun ctx args ->
       Eio.traceln "";
       Eio.traceln "[Handler:echo] >>> /echo command";
       Eio.traceln "[Handler:echo] Args: %s" (String.concat " " args);
 
       (* Track command *)
-      (match Verbose_bot.Ctx.user ctx with
+      (match Bot.Ctx.user ctx with
        | Some u -> Bot_state.track_command state (Id.to_string u.id)
        | None -> ());
 
       let text = Bot.Args.join_rest args 0 in
       Eio.traceln "[Handler:echo] Joined text: \"%s\"" text;
 
-      let open Verbose_bot.Ctx in
+      let open Bot.Ctx in
       let* () =
         if text = "" then
           reply_ ctx "Usage: /echo <text>\nExample: /echo Hello, world!"
@@ -491,15 +485,15 @@ let () =
 
   (* /e alias for /echo *)
   |> (fun bot -> Eio.traceln "[Builder] Registering route: alias 'e' -> 'echo'"; bot)
-  |> Verbose_bot.command "e" ~desc:"Echo alias" (fun ctx args ->
+  |> Bot.command "e" ~desc:"Echo alias" (fun ctx args ->
       Eio.traceln "[Alias] /e -> /echo";
       (* Track command *)
-      (match Verbose_bot.Ctx.user ctx with
+      (match Bot.Ctx.user ctx with
        | Some u -> Bot_state.track_command state (Id.to_string u.id)
        | None -> ());
 
       let text = Bot.Args.join_rest args 0 in
-      let open Verbose_bot.Ctx in
+      let open Bot.Ctx in
       if text = "" then
         reply_ ctx "Usage: /e <text>"
       else
@@ -508,12 +502,12 @@ let () =
 
   (* /time command *)
   |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'time'"; bot)
-  |> Verbose_bot.command "time" ~desc:"Show current time" (fun ctx _args ->
+  |> Bot.command "time" ~desc:"Show current time" (fun ctx _args ->
       Eio.traceln "";
       Eio.traceln "[Handler:time] >>> /time command";
 
       (* Track command *)
-      (match Verbose_bot.Ctx.user ctx with
+      (match Bot.Ctx.user ctx with
        | Some u -> Bot_state.track_command state (Id.to_string u.id)
        | None -> ());
 
@@ -528,7 +522,7 @@ let () =
       in
       Eio.traceln "[Handler:time] Generated time: %s" time_str;
 
-      let open Verbose_bot.Ctx in
+      let open Bot.Ctx in
       let* () = reply_ ctx time_str in
       Eio.traceln "[Handler:time] <<< completed";
       Eio.traceln "";
@@ -537,17 +531,17 @@ let () =
 
   (* /calc command with structured argument parsing *)
   |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'calc'"; bot)
-  |> Verbose_bot.command "calc" ~desc:"Calculator" (fun ctx args ->
+  |> Bot.command "calc" ~desc:"Calculator" (fun ctx args ->
       Eio.traceln "";
       Eio.traceln "[Handler:calc] >>> /calc command";
       Eio.traceln "[Handler:calc] Args: %s" (String.concat " " args);
 
       (* Track command *)
-      (match Verbose_bot.Ctx.user ctx with
+      (match Bot.Ctx.user ctx with
        | Some u -> Bot_state.track_command state (Id.to_string u.id)
        | None -> ());
 
-      let open Verbose_bot.Ctx in
+      let open Bot.Ctx in
       let* () =
         match Calculator.parse_args args with
         | Ok operation ->
@@ -566,16 +560,16 @@ let () =
 
   (* /about command *)
   |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'about'"; bot)
-  |> Verbose_bot.command "about" ~desc:"About bot" (fun ctx _args ->
+  |> Bot.command "about" ~desc:"About bot" (fun ctx _args ->
       Eio.traceln "";
       Eio.traceln "[Handler:about] >>> /about command";
 
       (* Track command *)
-      (match Verbose_bot.Ctx.user ctx with
+      (match Bot.Ctx.user ctx with
        | Some u -> Bot_state.track_command state (Id.to_string u.id)
        | None -> ());
 
-      let open Verbose_bot.Ctx in
+      let open Bot.Ctx in
       let* () = reply_ ctx
         "ℹ️ CommandBot v1.0\n\n\
          A multi-command bot demonstrating:\n\
@@ -592,14 +586,14 @@ let () =
 
   (* /info alias for /about *)
   |> (fun bot -> Eio.traceln "[Builder] Registering route: alias 'info' -> 'about'"; bot)
-  |> Verbose_bot.command "info" ~desc:"About alias" (fun ctx _args ->
+  |> Bot.command "info" ~desc:"About alias" (fun ctx _args ->
       Eio.traceln "[Alias] /info -> /about";
       (* Track command *)
-      (match Verbose_bot.Ctx.user ctx with
+      (match Bot.Ctx.user ctx with
        | Some u -> Bot_state.track_command state (Id.to_string u.id)
        | None -> ());
 
-      let open Verbose_bot.Ctx in
+      let open Bot.Ctx in
       reply_ ctx
         "ℹ️ CommandBot v1.0\n\n\
          Built with ocaml-telegram-eio"
@@ -607,7 +601,7 @@ let () =
 
   (* /stats command - admin only *)
   |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'stats' (admin)"; bot)
-  |> Verbose_bot.command "stats" ~desc:"Bot statistics" (Admin.require_admin (fun ctx _args ->
+  |> Bot.command "stats" ~desc:"Bot statistics" (Admin.require_admin (fun ctx _args ->
       Eio.traceln "";
       Eio.traceln "[Handler:stats] >>> /stats command (admin)";
 
@@ -622,7 +616,7 @@ let () =
         cmds users (Bot_state.format_uptime uptime)
       in
 
-      let open Verbose_bot.Ctx in
+      let open Bot.Ctx in
       let* () = reply_ ctx text in
       Eio.traceln "[Handler:stats] <<< completed";
       Eio.traceln "";
@@ -631,7 +625,7 @@ let () =
 
   (* /broadcast command - admin only *)
   |> (fun bot -> Eio.traceln "[Builder] Registering route: command 'broadcast' (admin)"; bot)
-  |> Verbose_bot.command "broadcast" ~desc:"Broadcast message" (Admin.require_admin (fun ctx args ->
+  |> Bot.command "broadcast" ~desc:"Broadcast message" (Admin.require_admin (fun ctx args ->
       Eio.traceln "";
       Eio.traceln "[Handler:broadcast] >>> /broadcast command (admin)";
       Eio.traceln "[Handler:broadcast] Args: %s" (String.concat " " args);
@@ -639,7 +633,7 @@ let () =
       let msg_text = Bot.Args.join_rest args 0 in
       Eio.traceln "[Handler:broadcast] Message: \"%s\"" msg_text;
 
-      let open Verbose_bot.Ctx in
+      let open Bot.Ctx in
       let* () =
         if msg_text = "" then (
           Eio.traceln "[Handler:broadcast] ✗ No message provided";
@@ -659,4 +653,4 @@ let () =
       Eio.traceln "[Builder] Starting bot...";
       Eio.traceln "";
       bot)
-  |> Verbose_bot.run
+  |> Bot.run
