@@ -69,7 +69,10 @@ let config = Tg.Polling.make
   ~limit:100                     (* Get up to 100 updates *)
   ~allowed_updates:["message"; "callback_query"]
   ~on_error:(fun err ->
-    Eio.traceln "Error: %a" Telegram.Error.pp err
+    let open Flo in
+    error_fields "Polling error" ~fields:[
+      Flo_semconv.error_message (Format.asprintf "%a" Telegram.Error.pp err);
+    ]
   )
   ()
 in
@@ -790,6 +793,95 @@ match send_message client chat_id text with
 | Ok msg -> log_success msg.message_id
 | Error err -> log_error err
 ]}
+
+{2 Structured Logging with Flo}
+
+The library uses {{:https://github.com/nexo-tech/flo}flo} for zero-configuration structured logging with OpenTelemetry support.
+
+{3 Configure Logging Level}
+
+{[
+(* At the top of your bot file *)
+let () = Flo.set_level Severity.Debug  (* Development *)
+let () = Flo.set_level Severity.Info   (* Production *)
+]}
+
+{3 Simple Logging with PPX}
+
+{[
+let () =
+  let open Flo in
+  [%log.info "Bot starting..."];
+  [%log.debug "Loading configuration"];
+  [%log.success "Bot initialized"];
+]}
+
+{3 Structured Logging with Fields}
+
+{[
+let handle_update update =
+  let open Flo in
+  debug_fields "Processing update" ~fields:[
+    ("update_id", Value.int update.update_id);
+    ("type", Value.string "message");
+  ];
+  (* ... *)
+]}
+
+{3 Context Binding for Automatic Fields}
+
+{[
+|> Bot.command "start" (fun ctx _args ->
+    (* Bind context to include user_id, chat_id automatically *)
+    Bot.Ctx.with_handler_context ctx (fun () ->
+      let open Flo in
+      [%log.info "Processing command"];  (* Includes user_id, chat_id *)
+      let open Bot.Ctx in
+      let* () = reply_ ctx "Hello!" in
+      [%log.success "Command completed"];
+      Ok ()
+    )
+  )
+]}
+
+{3 Error Logging with Semantic Conventions}
+
+{[
+match Api.call client request with
+| Ok result ->
+    let open Flo in
+    [%log.success "API call succeeded"];
+    Ok result
+| Error err ->
+    let open Flo in
+    error_fields "API call failed" ~fields:[
+      Flo_semconv.error_type "TelegramApiError";
+      Flo_semconv.error_message (Format.asprintf "%a" Error.pp err);
+    ];
+    Error err
+]}
+
+{3 Distributed Tracing with Spans}
+
+{[
+(* Trace expensive operations *)
+Flo.with_span "process_image" (fun () ->
+  let open Flo in
+  info "Processing image...";
+  let result = expensive_image_processing () in
+  success "Image processed";
+  result
+)
+]}
+
+{b Key benefits}:
+- Zero configuration - no functor composition required
+- Structured fields with type-safe [Value.t]
+- OpenTelemetry native - distributed tracing built-in
+- PPX support - automatic location capture with [[%log.*]]
+- Semantic conventions - standardized error attributes
+
+See {{!page-development_workflow}Development Workflow} for comprehensive logging best practices.
 
 {1 Next Steps}
 

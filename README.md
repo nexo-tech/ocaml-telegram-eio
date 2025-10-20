@@ -11,6 +11,7 @@ Type-safe Telegram Bot API client for OCaml using Eio.
 - ✅ **Fully type-safe API** with phantom-typed identifiers
 - ✅ **Complete Bot API coverage**: 449 types, 232 methods (auto-generated from spec)
 - ✅ **Direct-style concurrency** using Eio effects (no monads, no callbacks)
+- ✅ **Structured logging** with [flo](https://github.com/nexo-tech/flo) - OpenTelemetry-native, zero configuration
 - ✅ **Forward-compatible**: preserves unknown fields for new Bot API features
 - ✅ **Streaming file uploads/downloads** for efficient memory usage
 - ✅ **Long polling and webhook** support
@@ -27,12 +28,18 @@ opam install ocaml_telegram_eio
 
 ### Hello World Bot
 
-The simplest bot - responds to `/start` command:
+The simplest bot - responds to `/start` command with structured logging:
 
 ```ocaml
 open Telegram
 
+(* Configure logging *)
+let () = Flo.set_level Severity.Info
+
 let () =
+  let open Flo in
+  [%log.info "Bot starting..."];
+
   let token = Sys.getenv "TELEGRAM_BOT_TOKEN" in
 
   Eio_main.run @@ fun env ->
@@ -40,12 +47,22 @@ let () =
 
   Bot.make ~env ~client
   |> Bot.command "start" (fun ctx _args ->
-      match Bot.Ctx.reply ctx "Hello! I'm your bot." with
-      | Ok _ -> ()
-      | Error err -> Eio.traceln "Error: %a" Error.pp err
+      Bot.Ctx.with_handler_context ctx (fun () ->
+        [%log.info "Processing /start command"];
+        let open Bot.Ctx in
+        let* () = reply_ ctx "Hello! I'm your bot." in
+        [%log.success "Command completed"];
+        Ok ()
+      )
     )
   |> Bot.run
 ```
+
+**Key features shown:**
+- Zero-configuration structured logging with [flo](https://github.com/nexo-tech/flo)
+- PPX extensions for automatic location capture (`[%log.info]`)
+- Context binding for user/chat fields (`Bot.Ctx.with_handler_context`)
+- Result-based error handling (no exceptions)
 
 Run it:
 
@@ -60,9 +77,19 @@ dune exec examples/hello_world.exe
 - **[API Reference](docs/)** - Full API documentation (build with `dune build @doc`)
 - **[Examples](examples/)** - 40+ working bot examples
 - **[CHANGELOG](CHANGELOG.md)** - Version history and release notes
-- **[CONTRIBUTING](CONTRIBUTING.md)** - Development workflow and guidelines
+- **[CONTRIBUTING](CONTRIBUTING.md)** - Development workflow, logging best practices, and guidelines
 - **[VERSIONING](VERSIONING.md)** - Semantic versioning policy
 - **[COMPATIBILITY](COMPATIBILITY.md)** - Bot API compatibility and update policy
+
+### Logging
+
+The library uses [flo](https://github.com/nexo-tech/flo) for structured logging with OpenTelemetry support. See [CONTRIBUTING.md](CONTRIBUTING.md#flo-logging-guidelines) for comprehensive logging guidelines including:
+- Severity levels and configuration
+- Structured logging with fields
+- Context binding for automatic user/chat fields
+- Distributed tracing with spans
+- Semantic conventions for errors
+- PPX extensions for automatic location capture
 
 ## Architecture
 

@@ -1,3 +1,38 @@
+# OLD LOGGING SYSTEM - DEPRECATED
+
+**⚠️ This document describes the OLD functor-based logging system that has been removed.**
+
+**The library now uses [flo](https://github.com/nexo-tech/flo) for structured logging.**
+
+See [CONTRIBUTING.md](../CONTRIBUTING.md#flo-logging-guidelines) for current logging documentation.
+
+---
+
+# Why This Was Replaced
+
+The functor-based approach had several limitations:
+- **Boilerplate**: Every module needed `Log.Make` functor instantiation
+- **Verbosity**: Required functor composition for Session, Polling, Bot modules  
+- **Configuration complexity**: Passing log instances through module chains
+- **Testing difficulty**: Hard to mock or intercept logs
+- **No structured logging**: Printf-style messages without type-safe fields
+- **No distributed tracing**: No built-in spans or trace IDs
+
+## Migration to Flo
+
+Flo provides:
+- Zero configuration - singleton design, no functors
+- Structured logging with type-safe `Value.t` fields
+- OpenTelemetry native - distributed tracing built-in
+- PPX support - automatic location capture
+- Semantic conventions - standardized attributes
+
+See the [FLO.md migration guide](../FLO.md) for details on the migration process.
+
+---
+
+# Original Documentation (Below)
+
 # LOGGING.md
 
 **Functor-Based Structured Logging for Bot Observability**

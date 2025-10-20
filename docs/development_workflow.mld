@@ -130,120 +130,234 @@ let () =
   (* ... *)
 ]}
 
-{1 Debugging Techniques}
+{1 Logging Best Practices}
 
-{2 Basic Logging}
+The library uses {{:https://github.com/nexo-tech/flo}flo} for zero-configuration structured logging with OpenTelemetry support. This section covers best practices for logging in production bots.
 
-{3 Using Eio.traceln}
+{2 Configuration}
 
-Simple, built-in logging:
+{3 Severity Levels}
+
+Configure logging severity at application startup:
+
+{[
+(* Development: see all logs including trace and debug *)
+let () = Flo.set_level Severity.Debug
+
+(* Production: show info and above *)
+let () = Flo.set_level Severity.Info
+
+(* Production critical: only errors and fatal *)
+let () = Flo.set_level Severity.Error
+]}
+
+{3 Environment-Based Configuration}
+
+{[
+let () =
+  let level = match Sys.getenv_opt "ENV" with
+    | Some "development" -> Severity.Debug
+    | Some "staging" -> Severity.Info
+    | Some "production" -> Severity.Warn
+    | _ -> Severity.Info
+  in
+  Flo.set_level level
+]}
+
+{2 Logging Patterns}
+
+{3 Simple Logs with PPX}
+
+For static messages, use PPX extensions for automatic location capture:
+
+{[
+let () =
+  let open Flo in
+  [%log.info "Bot starting..."];
+  [%log.debug "Loading configuration"];
+  [%log.success "Bot started successfully"];
+]}
+
+{3 Structured Logging with Fields}
+
+For logs with dynamic data, use [*_fields] variants:
 
 {[
 let handle_update update =
-  Eio.traceln "📨 Update %Ld received" update.update_id;
+  let open Flo in
+
+  info_fields "Update received" ~fields:[
+    ("update_id", Value.int (Int64.to_int update.update_id));
+    ("has_message", Value.bool (Option.is_some update.message));
+  ];
 
   match update with
   | { message = Some msg; _ } ->
-      Eio.traceln "  From: %s"
-        (Option.value msg.from.first_name ~default:"unknown");
-      Eio.traceln "  Text: %s"
-        (Option.value msg.text ~default:"<no text>");
+      debug_fields "Processing message" ~fields:[
+        ("from_user", Value.string
+          (Option.value msg.from.first_name ~default:"unknown"));
+        ("text_length", Value.int
+          (String.length (Option.value msg.text ~default:"")));
+      ];
 
       (* Process message *)
       let result = handle_message msg in
 
-      Eio.traceln "  Result: %s"
-        (match result with Ok _ -> "✓" | Error _ -> "✗");
+      (match result with
+       | Ok _ -> [%log.success "Message handled"]
+       | Error err ->
+           error_fields "Message handling failed" ~fields:[
+             Flo_semconv.error_message (Error.to_string err);
+           ]);
 
       result
 
   | _ ->
-      Eio.traceln "  Non-message update";
+      [%log.debug "Non-message update, skipping"];
       Ok ()
 ]}
 
-{3 Structured Logging}
+{3 Context Binding}
 
-Better format for production:
-
-{[
-let log level fmt =
-  Printf.ksprintf (fun msg ->
-    let timestamp = Unix.time () |> Unix.gmtime in
-    Printf.printf "[%04d-%02d-%02d %02d:%02d:%02d] [%s] %s\n%!"
-      (1900 + timestamp.tm_year)
-      (timestamp.tm_mon + 1)
-      timestamp.tm_mday
-      timestamp.tm_hour
-      timestamp.tm_min
-      timestamp.tm_sec
-      level
-      msg
-  ) fmt
-
-let () =
-  log "INFO" "Bot started";
-  log "DEBUG" "Processing update %Ld" update_id;
-  log "ERROR" "Failed to send message: %s" error_msg;
-]}
-
-{3 JSON Logging}
-
-For log aggregation:
+Use context binding to automatically include user/chat information:
 
 {[
-let log_json level event data =
-  let json = `Assoc [
-    "timestamp", `Float (Unix.time ());
-    "level", `String level;
-    "event", `String event;
-    "data", data;
-  ] in
-  Yojson.Safe.to_channel stdout json;
-  print_newline ()
+|> Bot.command "start" (fun ctx _args ->
+    (* All logs within this scope include user_id, chat_id, username *)
+    Bot.Ctx.with_handler_context ctx (fun () ->
+      let open Flo in
+      [%log.info "Processing /start command"];
 
-let () =
-  log_json "info" "bot_started" (`Assoc [
-    "version", `String "0.1.0";
-  ]);
+      (* Fields like user_id are automatically included *)
+      debug "Checking user permissions";
 
-  log_json "debug" "update_received" (`Assoc [
-    "update_id", `Int update_id;
-    "type", `String "message";
-  ]);
+      let open Bot.Ctx in
+      let* () = reply_ ctx "Welcome!" in
+      [%log.success "Command completed"];
+      Ok ()
+    )
+  )
 ]}
+
+{3 Error Logging with Semantic Conventions}
+
+Use [Flo_semconv] for standardized error attributes:
+
+{[
+let handle_api_call client request =
+  match Api.call client request with
+  | Ok result ->
+      let open Flo in
+      [%log.success "API call succeeded"];
+      Ok result
+  | Error err ->
+      let open Flo in
+      error_fields "API call failed" ~fields:[
+        Flo_semconv.error_type "TelegramApiError";
+        Flo_semconv.error_message (Format.asprintf "%a" Error.pp err);
+        Flo_semconv.error_stack_trace (Printexc.get_backtrace ());
+      ];
+      Error err
+]}
+
+{2 Distributed Tracing}
+
+{3 Tracing Expensive Operations}
+
+Use [Flo.with_span] to trace operation timing:
+
+{[
+let process_image image_data =
+  Flo.with_span "process_image" (fun () ->
+    let open Flo in
+    info_fields "Image processing started" ~fields:[
+      ("size_bytes", Value.int (String.length image_data));
+    ];
+
+    (* Expensive processing *)
+    let result = expensive_image_processing image_data in
+
+    success_fields "Image processed" ~fields:[
+      ("output_format", Value.string "jpeg");
+    ];
+
+    result
+  )
+]}
+
+{3 Nested Spans}
+
+Track operation breakdown:
+
+{[
+Flo.with_span "handle_file_upload" (fun () ->
+  let open Flo in
+
+  Flo.with_span "download_file" (fun () ->
+    info "Downloading file from Telegram";
+    download_file file_id
+  );
+
+  Flo.with_span "process_file" (fun () ->
+    info "Processing downloaded file";
+    process_file data
+  );
+
+  Flo.with_span "upload_result" (fun () ->
+    info "Uploading processed result";
+    upload_result processed
+  );
+
+  success "File upload handled"
+)
+]}
+
+{2 Debugging Techniques}
 
 {2 Debugging Update Processing}
 
-{3 Print Full Update}
+{3 Debug Full Update}
 
 {[
 let debug_update update =
+  let open Flo in
+
   (* Convert to JSON *)
   let json = Telegram_generated.Gen_types.Update.to_yojson update in
 
-  (* Pretty print *)
-  Eio.traceln "@[<v>Update:@,%a@]"
-    Yojson.Safe.pp json;
+  (* Log with structured field *)
+  debug_fields "Full update" ~fields:[
+    ("update_json", Value.string (Yojson.Safe.to_string json));
+  ];
 
-  (* Or save to file *)
+  (* Or save to file for inspection *)
   let filename = Printf.sprintf "update_%Ld.json" update.update_id in
-  Yojson.Safe.to_file filename json
+  Yojson.Safe.to_file filename json;
+  info_fields "Update saved to file" ~fields:[
+    ("filename", Value.string filename);
+  ]
 ]}
 
-{3 Conditional Debugging}
+{3 Conditional Debug Logging}
 
 {[
-let debug = ref false
-
+(* Set level based on environment *)
 let () =
-  if Sys.getenv_opt "DEBUG" = Some "true" then
-    debug := true
+  let level = match Sys.getenv_opt "DEBUG" with
+    | Some "true" -> Severity.Debug
+    | _ -> Severity.Info
+  in
+  Flo.set_level level
 
 let handle_update update =
-  if !debug then
-    Eio.traceln "Update: %a"
-      Yojson.Safe.pp (Update.to_yojson update);
+  let open Flo in
+
+  (* This only logs when level is Debug or Trace *)
+  debug_fields "Detailed update info" ~fields:[
+    ("update_id", Value.int (Int64.to_int update.update_id));
+    ("update_json", Value.string
+      (Yojson.Safe.to_string (Update.to_yojson update)));
+  ];
 
   (* Process normally *)
   ...

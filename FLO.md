@@ -627,17 +627,47 @@ end
     - Context binding in debug examples
     - Structured fields for debugging
     - Added "Missing context binding" to common issues list
-- [ ] **Task 10.3**: Update .mld documentation files
-  - docs/core_concepts.mld: Add logging section
-  - docs/getting_started.mld: Show flo setup
-  - docs/development_workflow.mld: Logging best practices
-- [ ] **Task 10.4**: Update README.md
-  - Mention flo in features
-  - Show logging example in quick start
-  - Link to CONTRIBUTING.md for details
-- [ ] **Task 10.5**: Archive archive/LOGGING.md
-  - Move to archive/OLD_LOGGING.md
-  - Add deprecation notice
+- [x] **Task 10.3**: Update .mld documentation files
+  - ✅ docs/core_concepts.mld: Added comprehensive "Structured Logging with Flo" section
+    - Configure logging level
+    - Simple logging with PPX
+    - Structured logging with fields
+    - Context binding for automatic fields
+    - Error logging with semantic conventions
+    - Distributed tracing with spans
+    - Key benefits summary
+  - ✅ docs/getting_started.mld: Showed flo setup throughout
+    - Added flo to dependencies list
+    - Updated project setup to include `(preprocess (pps ppx_flo))`
+    - Updated Hello World example with flo configuration
+    - Updated all debugging examples to use flo structured logging
+    - Replaced Eio.traceln with flo in all code examples
+    - Added "Logging Configuration" section
+  - ✅ docs/development_workflow.mld: Added "Logging Best Practices" section
+    - Configuration (severity levels, environment-based)
+    - Logging patterns (PPX, structured fields, context binding, semantic conventions)
+    - Distributed tracing (tracing expensive operations, nested spans)
+    - Debugging techniques updated with flo
+- [x] **Task 10.4**: Update README.md
+  - ✅ Added "Structured logging with flo" to features list with link
+  - ✅ Updated Hello World example to show:
+    - Flo.set_level configuration
+    - PPX extensions ([%log.info], [%log.success])
+    - Context binding (Bot.Ctx.with_handler_context)
+    - Result-based error handling
+  - ✅ Added "Key features shown" section explaining the example
+  - ✅ Added "Logging" subsection in Documentation with:
+    - Link to CONTRIBUTING.md#flo-logging-guidelines
+    - Summary of logging features (6 key points)
+- [x] **Task 10.5**: Archive archive/LOGGING.md
+  - ✅ Moved archive/LOGGING.md to archive/OLD_LOGGING.md
+  - ✅ Added comprehensive deprecation notice at top:
+    - Warning that document describes OLD system
+    - Link to current documentation (CONTRIBUTING.md)
+    - "Why This Was Replaced" section (6 limitations)
+    - "Migration to Flo" section (5 benefits)
+    - Link to FLO.md migration guide
+    - Original documentation preserved below
 
 ### Phase 11: Testing & Verification
 - [ ] **Task 11.1**: Compile all library code

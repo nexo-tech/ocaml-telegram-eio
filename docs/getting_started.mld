@@ -38,6 +38,7 @@ This will install the library and all its dependencies, including:
 - [cohttp-eio] - HTTP client built on Eio
 - [yojson] - JSON parsing and generation
 - [tls-eio] - TLS support for HTTPS
+- [flo] - Zero-configuration structured logging with OpenTelemetry support
 
 {2 Creating Your Bot Token}
 
@@ -89,7 +90,8 @@ mkdir bin
 cat > bin/dune << 'EOF'
 (executable
  (name main)
- (libraries eio_main ocaml_telegram_eio.telegram ocaml_telegram_eio.tg))
+ (libraries eio_main ocaml_telegram_eio.telegram ocaml_telegram_eio.tg)
+ (preprocess (pps ppx_flo)))
 EOF
 ]}
 
@@ -106,19 +108,32 @@ open Eio.Std
 open Telegram  (* Core types and API *)
 open Tg        (* High-level bot DSL *)
 
+(* Configure verbose logging for development *)
+let () = Flo.set_level Severity.Debug
+
 let () =
+  let open Flo in
+  [%log.info "Bot starting..."];
+
   (* Start the Eio event loop *)
   Eio_main.run @@ fun env ->
 
   (* Get bot token from environment *)
   let token =
-    try Sys.getenv "TELEGRAM_BOT_TOKEN"
+    try
+      let t = Sys.getenv "TELEGRAM_BOT_TOKEN" in
+      info_fields "Bot token loaded" ~fields:[
+        ("token_length", Value.int (String.length t));
+      ];
+      t
     with Not_found ->
+      [%log.fatal "TELEGRAM_BOT_TOKEN environment variable not set"];
       failwith "TELEGRAM_BOT_TOKEN environment variable not set"
   in
 
   (* Create HTTP client for Telegram API *)
   let client = Client.create ~env ~token in
+  [%log.success "HTTP client created"];
 
   (* Define how to handle incoming updates *)
   let handle_update update =
@@ -144,7 +159,7 @@ let () =
   in
 
   (* Start long polling (blocking call) *)
-  traceln "🤖 Bot started! Send /start to interact...";
+  [%log.info "🤖 Bot started! Send /start to interact..."];
   Polling.run client handle_update
 ]}
 
@@ -352,7 +367,18 @@ All fibers in a switch are cleaned up automatically, even on errors.
 {2 Optional Variables}
 
 - [TELEGRAM_API_BASE]: Override API base URL (default: [https://api.telegram.org])
-- [RUST_LOG] or [OCAML_LOG]: Enable debug logging
+
+{2 Logging Configuration}
+
+The library uses {{:https://github.com/nexo-tech/flo}flo} for structured logging. Configure severity level in your code:
+
+{[
+(* At the top of your main.ml *)
+let () = Flo.set_level Severity.Debug  (* Development - see all logs *)
+let () = Flo.set_level Severity.Info   (* Production - important events only *)
+]}
+
+See {!page-development_workflow} for comprehensive logging best practices.
 
 {2 Loading Environment Variables}
 
@@ -424,46 +450,59 @@ dune exec bin/main.exe
 # Watch mode (rebuild on changes)
 dune build --watch
 
-# Run with verbose output
-RUST_LOG=debug dune exec bin/main.exe
+# Configure logging level at runtime
+# (Set Flo.set_level in your code instead of env vars)
 ]}
 
 {2 Debugging Techniques}
 
-{3 Enable Debug Logging}
+{3 Enable Debug Logging with Flo}
 
 {[
 (* Add to your main.ml *)
+let () = Flo.set_level Severity.Debug  (* Enable debug logging *)
+
 let () =
+  let open Flo in
   Eio_main.run @@ fun env ->
-  Eio.traceln "Starting bot with token: %s"
-    (String.sub token 0 10 ^ "...");
+
+  info_fields "Starting bot" ~fields:[
+    ("token_prefix", Value.string (String.sub token 0 10 ^ "..."));
+  ];
 
   let handle_update update =
-    Eio.traceln "Received update: %d" update.Bot.Update.update_id;
+    debug_fields "Received update" ~fields:[
+      ("update_id", Value.int update.Bot.Update.update_id);
+    ];
     (* ... *)
   in
   (* ... *)
 ]}
 
-{3 Print API Responses}
+{3 Log API Responses}
 
 {[
 let* response = Api.call client request in
-Eio.traceln "Response: %s"
-  (Yojson.Safe.to_string (Response.to_yojson response));
+let open Flo in
+debug_fields "API response received" ~fields:[
+  ("response_json", Value.string (Yojson.Safe.to_string (Response.to_yojson response)));
+];
 Ok response
 ]}
 
-{3 Handle Errors Explicitly}
+{3 Handle Errors with Structured Logging}
 
 {[
 match Api.call client request with
 | Ok result ->
-    Eio.traceln "✓ Success";
+    let open Flo in
+    [%log.success "API call succeeded"];
     Ok result
 | Error err ->
-    Eio.traceln "✗ Error: %s" (Error.to_string err);
+    let open Flo in
+    error_fields "API call failed" ~fields:[
+      Flo_semconv.error_message (Error.to_string err);
+    ];
     Error err
 ]}
 
@@ -548,7 +587,8 @@ export TELEGRAM_BOT_TOKEN="your-token-here"
 {b Solution}: Add [eio_main] to your dune file:
 {[
 (executable
- (libraries eio_main ocaml_telegram_eio.telegram ocaml_telegram_eio.tg))
+ (libraries eio_main ocaml_telegram_eio.telegram ocaml_telegram_eio.tg)
+ (preprocess (pps ppx_flo)))
 ]}
 
 {3 "SSL/TLS errors"}
@@ -566,9 +606,16 @@ opam install ca-certs ca-certs-nss
 - Polling is running (no errors in console)
 - Handler is matching the update correctly
 
-Add debug output:
+Add debug output with flo:
 {[
-Eio.traceln "Update received: %d" update.update_id;
+(* Configure debug logging *)
+let () = Flo.set_level Severity.Debug
+
+(* In your handler *)
+let open Flo in
+debug_fields "Update received" ~fields:[
+  ("update_id", Value.int update.update_id);
+];
 ]}
 
 {2 Getting Help}
