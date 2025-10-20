@@ -47,7 +47,12 @@ See [CONTRIBUTING.md](CONTRIBUTING.md#result-based-error-handling) for full erro
 |> command "start" (fun ctx _args ->
     match Ctx.reply ctx "Hello!" with
     | Ok _ -> ()  (* Should be Ok () *)
-    | Error err -> Eio.traceln "%a" Error.pp err  (* Should be Error err *)
+    | Error err ->
+        let open Flo in
+        error_fields "Reply failed" ~fields:[
+          Flo_semconv.error_message (Format.asprintf "%a" Error.pp err);
+        ];
+        ()  (* Should be Error err *)
   )
 ```
 
@@ -125,32 +130,50 @@ let dispatch_update client env routes update =
   )
 ```
 
-**RIGHT** ✅:
+**RIGHT** ✅ (with flo structured logging):
 ```ocaml
 |> command "start" (fun ctx _args ->
-    match Ctx.reply ctx "Hello!" with
-    | Ok _ -> ()
-    | Error err -> Eio.traceln "Error: %a" Telegram.Error.pp err
+    Bot.Ctx.with_handler_context ctx (fun () ->
+      let open Flo in
+      [%log.info "Processing /start command"];
+      match Ctx.reply ctx "Hello!" with
+      | Ok _ -> [%log.success "Reply sent"]; Ok ()
+      | Error err ->
+          error_fields "Reply failed" ~fields:[
+            Flo_semconv.error_message (Format.asprintf "%a" Telegram.Error.pp err);
+          ];
+          Error err
+    )
   )
 ```
 
 ### Standard Error Handling Patterns
 
-#### Pattern 1: Simple match with logging (recommended for examples)
+#### Pattern 1: Monadic chaining with context binding (recommended)
+```ocaml
+let handler ctx args =
+  Bot.Ctx.with_handler_context ctx (fun () ->
+    let open Flo in
+    let open Ctx in
+    [%log.info "Handler started"];
+    let* user = require_user ctx in
+    let* () = reply_ ctx "Processing..." in
+    let* result = some_operation ctx in
+    let* () = reply_ ctx (Printf.sprintf "Done: %s" result) in
+    [%log.success "Handler completed"];
+    Ok ()
+  )
+```
+
+#### Pattern 2: Simple match with structured logging
 ```ocaml
 match Ctx.reply ctx "Message" with
 | Ok _ -> ()
-| Error err -> Eio.traceln "Error: %a" Telegram.Error.pp err
-```
-
-#### Pattern 2: Monadic chaining with let* (for complex flows)
-```ocaml
-let handler ctx args =
-  let open Ctx in
-  let* user = require_user ctx in
-  let* () = reply_ ctx "Processing..." in
-  let* result = some_operation ctx in
-  reply_ ctx (Printf.sprintf "Done: %s" result)
+| Error err ->
+    let open Flo in
+    error_fields "Reply failed" ~fields:[
+      Flo_semconv.error_message (Format.asprintf "%a" Telegram.Error.pp err);
+    ]
 ```
 
 #### Pattern 3: Ignore only for non-critical operations
@@ -195,22 +218,37 @@ let reply_or_fail ctx text =
   | Error err -> raise (Failure (Format.asprintf "Reply failed: %a" Telegram.Error.pp err))
 ```
 
-### Pattern: Global error handler with user notification
+### Pattern: Global error handler with structured logging
 
 ```ocaml
 Bot.make ~env ~client
 |> Bot.on_error (fun ctx exn ->
-    Eio.traceln "❌ Error in handler: %s" (Printexc.to_string exn);
-    Eio.traceln "Backtrace: %s" (Printexc.get_backtrace ());
+    let open Flo in
+    error_fields "Uncaught error in handler" ~fields:[
+      Flo_semconv.error_type (Printexc.to_string exn);
+      Flo_semconv.error_message (Printexc.to_string exn);
+      Flo_semconv.error_stack_trace (Printexc.get_backtrace ());
+      ("user_id", Value.string (match Bot.Ctx.user ctx with
+       | Some u -> Id.to_string u.id
+       | None -> "none"));
+      ("chat_id", Value.string (Id.to_string (Bot.Ctx.chat ctx)));
+    ];
     (* Try to notify user about the error *)
     match Ctx.reply ctx "❌ Sorry, an error occurred. Please try again." with
-    | Ok _ -> ()
-    | Error err -> Eio.traceln "Failed to send error message: %a" Telegram.Error.pp err
+    | Ok _ -> [%log.success "Error notification sent to user"]
+    | Error err ->
+        warn_fields "Failed to send error message" ~fields:[
+          Flo_semconv.error_message (Format.asprintf "%a" Telegram.Error.pp err);
+        ]
   )
 |> Bot.command "start" (fun ctx _args ->
-    Eio.traceln "📨 Received /start command";
-    let _ = reply_or_fail ctx "Hello!" in  (* Errors go to on_error handler *)
-    ()
+    Bot.Ctx.with_handler_context ctx (fun () ->
+      let open Flo in
+      [%log.info "Processing /start command"];
+      let _ = reply_or_fail ctx "Hello!" in  (* Errors go to on_error handler *)
+      [%log.success "Command completed"];
+      ()
+    )
   )
 |> Bot.run
 ```
@@ -224,14 +262,30 @@ Bot.make ~env ~client
 
 ### Debugging Silent Bots
 
-If your bot is silent, add tracing to see what's happening:
+If your bot is silent, use flo logging to see what's happening:
 
 ```ocaml
+(* Configure verbose logging first *)
+let () = Flo.set_level Severity.Debug
+
 |> Bot.command "start" (fun ctx _args ->
-    Eio.traceln "📨 Received /start command";  (* Did command trigger? *)
-    let _ = reply_or_fail ctx "Hello!" in
-    Eio.traceln "✅ Reply sent successfully";   (* Did reply succeed? *)
+    Bot.Ctx.with_handler_context ctx (fun () ->
+      let open Flo in
+      [%log.debug "Command matched: /start"];  (* Did command trigger? *)
+      debug_fields "Request details" ~fields:[
+        ("has_user", Value.bool (Option.is_some (Bot.Ctx.user ctx)));
+      ];
+      let _ = reply_or_fail ctx "Hello!" in
+      [%log.success "Reply sent successfully"];  (* Did reply succeed? *)
+      ()
+    )
   )
+```
+
+**Enable comprehensive logging:**
+```ocaml
+(* At top of your bot file *)
+let () = Flo.set_level Severity.Debug  (* See all debug and trace logs *)
 ```
 
 Common issues:
@@ -239,3 +293,4 @@ Common issues:
 - Not handling Result.t at all (operation never runs)
 - Error thrown but no error handler (error lost)
 - Token invalid (check API errors)
+- Missing context binding (logs lack user/chat context)

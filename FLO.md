@@ -601,16 +601,32 @@ end
   - ✅ **All examples compile with zero warnings**
 
 ### Phase 10: Documentation Updates
-- [ ] **Task 10.1**: Update CONTRIBUTING.md
-  - Remove old functor logging section
-  - Add flo logging guidelines
-  - Document context binding pattern
-  - Document semantic conventions usage
-  - Add PPX examples
-- [ ] **Task 10.2**: Update CLAUDE.md
-  - Replace logging patterns with flo
-  - Update error handling examples
-  - Add context binding to handler template
+- [x] **Task 10.1**: Update CONTRIBUTING.md
+  - ✅ No old functor logging section to remove (was already clean)
+  - ✅ Added comprehensive "Flo Logging Guidelines" section with:
+    - Why Flo? (benefits over functor approach)
+    - Logging severity levels (7 levels: trace, debug, info, success, warn, error, fatal)
+    - Structured logging with fields (Value.t types)
+    - Context binding pattern (Bot.Ctx.with_handler_context)
+    - Distributed tracing with spans (Flo.with_span)
+    - Semantic conventions (Flo_semconv module)
+    - PPX extensions (when to use vs manual API)
+    - Best practices (5 key patterns)
+  - ✅ Updated error handling examples to use Flo logging with semantic conventions
+  - ✅ Replaced Eio.traceln with error_fields + Flo_semconv.error_message
+- [x] **Task 10.2**: Update CLAUDE.md
+  - ✅ Replaced all Eio.traceln examples with Flo logging
+  - ✅ Updated error handling patterns to use:
+    - error_fields with Flo_semconv.error_message
+    - PPX extensions ([%log.info], [%log.success], etc.)
+    - Structured logging with fields
+  - ✅ Added context binding to all handler templates (Bot.Ctx.with_handler_context)
+  - ✅ Updated "Global error handler" pattern with comprehensive structured logging
+  - ✅ Updated "Debugging Silent Bots" section with:
+    - Flo.set_level Severity.Debug configuration
+    - Context binding in debug examples
+    - Structured fields for debugging
+    - Added "Missing context binding" to common issues list
 - [ ] **Task 10.3**: Update .mld documentation files
   - docs/core_concepts.mld: Add logging section
   - docs/getting_started.mld: Show flo setup

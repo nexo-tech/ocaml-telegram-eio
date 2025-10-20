@@ -67,7 +67,11 @@ let handle_command ctx args =
 ```ocaml
 match Bot.Ctx.reply ctx "Message" with
 | Ok _ -> ()
-| Error err -> Eio.traceln "Error: %a" Telegram.Error.pp err
+| Error err ->
+    let open Flo in
+    error_fields "Failed to send message" ~fields:[
+      Flo_semconv.error_message (Format.asprintf "%a" Telegram.Error.pp err);
+    ]
 ```
 
 #### Pattern 3: Converting to Result
@@ -95,7 +99,11 @@ ignore (Bot.Ctx.reply ctx "Hello!")  (* Operation never runs! *)
 ```ocaml
 match Bot.Ctx.reply ctx "Hello!" with
 | Ok _ -> ()
-| Error err -> Eio.traceln "Error: %a" Telegram.Error.pp err
+| Error err ->
+    let open Flo in
+    error_fields "Reply failed" ~fields:[
+      Flo_semconv.error_message (Format.asprintf "%a" Telegram.Error.pp err);
+    ]
 ```
 
 ### Migration Checklist
@@ -109,6 +117,273 @@ When refactoring to Result-based error handling:
 - [ ] Add `let*` bindings for error propagation
 - [ ] Update tests to expect Result types
 - [ ] Update examples to use monadic composition
+
+## Flo Logging Guidelines
+
+This library uses the [flo](https://github.com/nexo-tech/flo) logging library for zero-configuration, structured logging with OpenTelemetry support.
+
+### Why Flo?
+
+**Flo benefits:**
+- Zero configuration - singleton design, no functor composition required
+- Structured logging - key-value fields with type-safe `Value.t`
+- OpenTelemetry native - distributed tracing, semantic conventions
+- Eio integration - works seamlessly with OCaml 5 effects
+- PPX support - automatic location capture with `[%log.info]`
+- Multiple backends - console, file, HTTP exporters
+
+**Previous functor approach problems:**
+- Boilerplate - every module needed `Log.Make` functor instantiation
+- Verbose - functor composition for Session, Polling, Bot modules
+- Configuration complexity - passing log instances through module chain
+- Testing difficulty - hard to mock or intercept logs
+
+### Logging Severity Levels
+
+Flo provides 7 severity levels (matching OpenTelemetry):
+
+```ocaml
+Flo.trace "Low-level details"       (* Trace - extremely detailed *)
+Flo.debug "Debug information"       (* Debug - diagnostic info *)
+Flo.info "Normal operation"         (* Info - general information *)
+Flo.success "Operation completed"   (* Success - positive outcome *)
+Flo.warn "Warning condition"        (* Warn - potentially harmful *)
+Flo.error "Error occurred"          (* Error - failure event *)
+Flo.fatal "Fatal error"             (* Fatal - critical failure *)
+```
+
+**Configure severity threshold:**
+```ocaml
+(* Enable debug logging *)
+let () = Flo.set_level Severity.Debug
+
+(* Show only warnings and above *)
+let () = Flo.set_level Severity.Warn
+```
+
+### Structured Logging with Fields
+
+Use `*_fields` variants for structured logging:
+
+```ocaml
+let open Flo in
+
+(* Log with structured fields *)
+info_fields "User authenticated" ~fields:[
+  ("user_id", Value.string "12345");
+  ("username", Value.string "alice");
+  ("auth_method", Value.string "oauth");
+]
+
+debug_fields "API request" ~fields:[
+  ("method", Value.string "getUpdates");
+  ("offset", Value.int offset);
+  ("timeout", Value.int timeout);
+]
+
+error_fields "Request failed" ~fields:[
+  ("http_status", Value.int 429);
+  ("retry_after", Value.int 30);
+  Flo_semconv.error_message "Rate limit exceeded";
+]
+```
+
+**Field value types:**
+- `Value.string` - string values
+- `Value.int` - integer values
+- `Value.float` - float values
+- `Value.bool` - boolean values
+
+### Context Binding Pattern
+
+Use context binding to automatically include context fields in all logs within a scope:
+
+```ocaml
+(* Bind handler context for automatic fields *)
+Bot.Ctx.with_handler_context ctx (fun () ->
+  let open Flo in
+  info "Processing command";        (* Includes user_id, chat_id from ctx *)
+  debug "Validating input";         (* Includes user_id, chat_id from ctx *)
+  success "Command completed";      (* Includes user_id, chat_id from ctx *)
+)
+```
+
+**Handler context automatically includes:**
+- `user_id` - Telegram user ID
+- `chat_id` - Chat ID
+- `username` - Username (if available)
+- `message_id` - Message ID
+- `update_id` - Update ID
+
+### Distributed Tracing with Spans
+
+Use `Flo.with_span` to trace request flow across operations:
+
+```ocaml
+(* Create span for expensive operation *)
+Flo.with_span "handle_command" (fun () ->
+  let open Flo in
+  info "Handler started";
+
+  (* Nested span for sub-operation *)
+  Flo.with_span "database_query" (fun () ->
+    debug "Querying user data";
+    (* ... database operations ... *)
+  );
+
+  success "Handler completed";
+)
+```
+
+**Spans provide:**
+- Operation timing - automatic duration tracking
+- Nested operations - parent/child span relationships
+- Trace IDs - correlate logs across distributed systems
+- Span attributes - attach metadata to spans
+
+### Semantic Conventions
+
+Use `Flo_semconv` module for OpenTelemetry standard attributes:
+
+```ocaml
+let open Flo in
+
+(* Error attributes *)
+error_fields "Operation failed" ~fields:[
+  Flo_semconv.error_type "NetworkError";
+  Flo_semconv.error_message "Connection timeout";
+  Flo_semconv.error_stack_trace (Printexc.get_backtrace ());
+]
+
+(* HTTP attributes *)
+info_fields "HTTP request" ~fields:[
+  Flo_semconv.http_request_method "POST";
+  Flo_semconv.http_response_status_code 200;
+  Flo_semconv.http_request_body_size 1024;
+]
+
+(* Custom attributes *)
+debug_fields "Bot update" ~fields:[
+  ("bot.update.type", Value.string "message");
+  ("bot.command", Value.string "/start");
+]
+```
+
+**Common semantic conventions:**
+- `error_*` - error attributes (type, message, stack trace)
+- `http_*` - HTTP attributes (method, status, headers)
+- `server_*` - server attributes (address, port)
+- `db_*` - database attributes (system, query, table)
+
+### PPX Extensions
+
+Use `ppx_flo` for automatic location capture:
+
+**Enable in dune file:**
+```sexp
+(executable
+  (name my_bot)
+  (libraries ocaml_telegram_eio.telegram eio_main)
+  (preprocess (pps ppx_flo)))
+```
+
+**Use PPX extensions for simple logs:**
+```ocaml
+let () =
+  let open Flo in
+
+  (* PPX extension - automatic location capture *)
+  [%log.info "Bot starting"];
+  [%log.debug "Loading configuration"];
+  [%log.success "Bot started successfully"];
+  [%log.error "Failed to connect"];
+```
+
+**When to use PPX vs manual API:**
+
+✅ **Use PPX extensions** for:
+- Simple log messages without dynamic fields
+- Static strings known at compile time
+- Benefit: Automatic file, line, function location
+
+✅ **Use manual API** for:
+- Logs with structured fields (`*_fields` variants)
+- Dynamic content evaluated at runtime
+- Benefit: Rich structured data, semantic conventions
+
+**Example combining both:**
+```ocaml
+let handle_command ctx args =
+  let open Flo in
+
+  (* PPX for simple messages *)
+  [%log.info "Command received"];
+
+  (* Manual API for structured data *)
+  Bot.Ctx.with_handler_context ctx (fun () ->
+    debug_fields "Command details" ~fields:[
+      ("command", Value.string "start");
+      ("arg_count", Value.int (List.length args));
+    ];
+
+    (* PPX within context *)
+    [%log.debug "Executing handler"];
+
+    (* Manual API for result *)
+    success_fields "Command completed" ~fields:[
+      ("duration_ms", Value.int 42);
+    ];
+  )
+```
+
+### Best Practices
+
+**1. Configure severity level globally:**
+```ocaml
+(* In main executable entry point *)
+let () = Flo.set_level Severity.Debug  (* Development *)
+let () = Flo.set_level Severity.Info   (* Production *)
+```
+
+**2. Use context binding in handlers:**
+```ocaml
+|> Bot.command "start" (fun ctx args ->
+    Bot.Ctx.with_handler_context ctx (fun () ->
+      let open Flo in
+      [%log.info "Processing /start command"];
+      (* All logs here include user_id, chat_id *)
+      Ok ()
+    )
+  )
+```
+
+**3. Use spans for expensive operations:**
+```ocaml
+Flo.with_span "image_processing" (fun () ->
+  let open Flo in
+  info "Processing image";
+  (* ... expensive work ... *)
+  success "Image processed";
+)
+```
+
+**4. Use semantic conventions for errors:**
+```ocaml
+error_fields "API call failed" ~fields:[
+  Flo_semconv.error_type "TelegramApiError";
+  Flo_semconv.error_message "Rate limit exceeded";
+  ("retry_after", Value.int 30);
+]
+```
+
+**5. Choose appropriate severity:**
+- `trace` - Low-level library internals
+- `debug` - Development troubleshooting
+- `info` - Production informational messages
+- `success` - Positive outcomes (handler completed)
+- `warn` - Recoverable issues (deprecated API used)
+- `error` - Failures requiring attention
+- `fatal` - Critical failures (configuration missing)
 
 ## Regenerating code from Telegram Bot API reference
 
