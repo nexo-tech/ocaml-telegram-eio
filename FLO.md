@@ -525,7 +525,7 @@ end
   - Log file_id, file_size, mime_type
   - Use `success` for successful transfer
   - Use `error` for file errors
-- [ ] **Task 6.8**: examples/basic/core_concepts_demo.ml
+- [x] **Task 6.8**: examples/basic/core_concepts_demo.ml
   - Remove functor composition
   - Demonstrate ALL flo features:
     - Basic logging (all 7 levels)

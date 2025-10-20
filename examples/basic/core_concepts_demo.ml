@@ -1,6 +1,8 @@
-(** Core Concepts Demo - Demonstrating fundamental patterns
+(** Core Concepts Demo - Demonstrating fundamental patterns with FLO logging
 
-    This example demonstrates core concepts from core_concepts.mld:
+    This example demonstrates core concepts from core_concepts.mld AND all flo features:
+
+    CORE CONCEPTS:
     - Bot lifecycle (initialization, start, handle, shutdown)
     - High-level Bot DSL with elegant routing
     - Result-based error handling with let* syntax
@@ -8,40 +10,57 @@
     - Type-safe ID handling (phantom types)
     - Clean resource management with Switch
 
-    This example has VERBOSE LOGGING enabled to help troubleshoot issues.
-    Every step is logged to stderr so you can see the lifecycle in action.
+    FLO LOGGING FEATURES (COMPREHENSIVE DEMONSTRATION):
+    - All 7 severity levels (Trace, Debug, Info, Success, Warn, Error, Fatal)
+    - Structured logging with type-safe fields (Value.t GADT)
+    - Context binding with Flo.bind (fiber-local storage)
+    - Distributed tracing with Flo.with_span (hierarchical spans)
+    - Semantic conventions (Flo_semconv, Flo_telegram)
+    - Log level configuration (Flo.set_level, Flo.get_level)
+    - Helper functions (info_fields, debug_fields, error_fields, etc.)
 
     Commands:
       /start - Welcome message (demonstrates basic handler)
       /echo <text> - Echo text (demonstrates Args helpers)
       /error - Trigger error handling (demonstrates error recovery)
       /calc <a> <op> <b> - Calculate (demonstrates Result monadic composition)
+      /trace - Demo TRACE level logging
+      /debug - Demo DEBUG level logging
+      /levels - Show all 7 log levels
       <any text> - Echo back (demonstrates event routing)
 
     Usage:
       export TELEGRAM_BOT_TOKEN="your_token_here"
       dune exec examples/core_concepts_demo.exe
 
-    What you'll see in the logs:
-      - Phase 1: Initialization (Eio runtime, client creation)
-      - Phase 2: Start (Bot builder pattern, route registration)
-      - Phase 3: Handle (Update processing, handler execution)
-      - Error handling (Result-based error propagation)
+    What you'll see:
+      - Phase 1: Initialization (Eio runtime, client creation) with INFO/SUCCESS
+      - Phase 2: Start (Bot builder pattern, route registration) with DEBUG
+      - Phase 3: Handle (Update processing, handler execution) with spans
+      - All log levels demonstrated: TRACE, DEBUG, INFO, SUCCESS, WARN, ERROR, FATAL
+      - Structured fields: user_id, chat_id, message_id, command, args
+      - Context binding: fields attached to fiber-local storage
+      - Spans: hierarchical tracing of operations
       - Phase 4: Shutdown (automatic cleanup via Eio.Switch)
 *)
 
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "CoreConceptsBot"
-  let level = Log.Debug  (* Enable debug logging *)
-end)
+(* ============================================================================
+   FLO FEATURE #1: Log Level Configuration
+   ============================================================================ *)
 
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo - NO FUNCTORS! *)
+let () =
+  (* Set global log level to Debug to see all messages *)
+  Flo.set_level Severity.Debug;
+
+  (* We can query the current level *)
+  let current_level = Flo.get_level () in
+  Printf.printf "🔧 Flo log level configured: %s\n" (Severity.to_string current_level);
+  Printf.printf "   This demonstrates Flo.set_level and Flo.get_level\n";
+  Printf.printf "   Available levels: Trace < Debug < Info < Success < Warn < Error < Fatal\n\n"
 
 (** Business logic layer - pure functions without Telegram-specific code *)
 module Logic = struct
@@ -67,267 +86,446 @@ module Logic = struct
 end
 
 let () =
-  Eio.traceln "=== Core Concepts Demo Bot Starting ===";
-  Eio.traceln "";
-  Eio.traceln "📚 This bot demonstrates fundamental patterns:";
-  Eio.traceln "   • Bot lifecycle (init → start → handle → shutdown)";
-  Eio.traceln "   • Bot DSL with elegant routing";
-  Eio.traceln "   • Result-based error handling";
-  Eio.traceln "   • Type-safe ID handling (phantom types)";
-  Eio.traceln "   • Clean resource management with Eio.Switch";
-  Eio.traceln "";
+  let open Flo in
 
-  (* Phase 1: INITIALIZATION *)
-  Eio.traceln "┌─────────────────────────────────────┐";
-  Eio.traceln "│ Phase 1: INITIALIZATION             │";
-  Eio.traceln "└─────────────────────────────────────┘";
-  Eio.traceln "[Init] Loading bot token from environment...";
+  (* ============================================================================
+     FLO FEATURE #2: Basic Logging (All 7 Levels)
+     ============================================================================ *)
 
-  let token =
-    match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
-    | Some t ->
-        Eio.traceln "[Init] ✓ Bot token loaded from TELEGRAM_BOT_TOKEN";
-        Eio.traceln "[Init]   Token: %s...%s (length=%d)"
-          (String.sub t 0 (min 8 (String.length t)))
-          (if String.length t > 8 then String.sub t (String.length t - 4) 4 else "")
-          (String.length t);
-        t
-    | None ->
-        Eio.traceln "[Init] ✗ TELEGRAM_BOT_TOKEN environment variable not set";
-        Printf.eprintf "Error: TELEGRAM_BOT_TOKEN not set\n";
-        exit 1
-  in
+  info "=== Core Concepts Demo Bot Starting ===";
+  info "";
+  info "📚 This bot demonstrates fundamental patterns:";
+  info "   • Bot lifecycle (init → start → handle → shutdown)";
+  info "   • Bot DSL with elegant routing";
+  info "   • Result-based error handling";
+  info "   • Type-safe ID handling (phantom types)";
+  info "   • Clean resource management with Eio.Switch";
+  info "";
+  info "🔥 AND demonstrates ALL flo logging features:";
+  info "   • All 7 severity levels (Trace/Debug/Info/Success/Warn/Error/Fatal)";
+  info "   • Structured logging with type-safe fields";
+  info "   • Context binding (Flo.bind for fiber-local storage)";
+  info "   • Distributed tracing (Flo.with_span for hierarchical spans)";
+  info "   • Semantic conventions (Flo_semconv, Flo_telegram)";
+  info "   • Log level configuration";
+  info "";
 
-  Eio.traceln "[Init] Starting Eio event loop (structured concurrency runtime)...";
-  (* Create Eio runtime - all async operations happen within this context *)
-  Eio_main.run @@ fun env ->
+  (* ============================================================================
+     Phase 1: INITIALIZATION with FLO SPANS
+     ============================================================================ *)
 
-  Eio.traceln "[Init] Creating Telegram HTTP client...";
-  let client = Client.create ~env ~token () in
-  Eio.traceln "[Init] ✓ HTTP client created (base_url=%s)" (Client.base_url client);
-  Eio.traceln "[Init] ✓ Initialization complete";
-  Eio.traceln "";
+  (* FLO FEATURE #3: Distributed Tracing with Spans *)
+  Flo.with_span "bot_initialization" (fun () ->
+    info "┌─────────────────────────────────────┐";
+    info "│ Phase 1: INITIALIZATION             │";
+    info "└─────────────────────────────────────┘";
+    debug "Loading bot token from environment...";
 
-  (* Phase 2: START *)
-  Eio.traceln "┌─────────────────────────────────────┐";
-  Eio.traceln "│ Phase 2: START (Build Bot DSL)     │";
-  Eio.traceln "└─────────────────────────────────────┘";
-  Eio.traceln "[Start] Building bot with functional builder pattern...";
-  Eio.traceln "";
+    let token =
+      match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
+      | Some t ->
+          (* FLO FEATURE #4: Structured Logging with Fields *)
+          success_fields "Bot token loaded" ~fields:[
+            ("source", Value.string "TELEGRAM_BOT_TOKEN");
+            ("token_length", Value.int (String.length t));
+          ];
+          debug_fields "Token details" ~fields:[
+            ("prefix", Value.string (String.sub t 0 (min 8 (String.length t))));
+            ("suffix", Value.string (if String.length t > 8 then String.sub t (String.length t - 4) 4 else ""));
+          ];
+          t
+      | None ->
+          (* Demonstrate FATAL level *)
+          fatal "TELEGRAM_BOT_TOKEN environment variable not set";
+          Printf.eprintf "Error: TELEGRAM_BOT_TOKEN not set\n";
+          exit 1
+    in
 
-  Eio.traceln "🤖 Core Concepts Demo Bot Started!";
-  Eio.traceln "";
-  Eio.traceln "📋 Available commands:";
-  Eio.traceln "   /start - Welcome message";
-  Eio.traceln "   /echo <text> - Echo text back";
-  Eio.traceln "   /error - Trigger error handling demo";
-  Eio.traceln "   /calc <a> <op> <b> - Calculate (e.g., /calc 5 + 3)";
-  Eio.traceln "   <text> - Echo any message back";
-  Eio.traceln "";
-  Eio.traceln "🔍 Watching for updates (long polling)...";
-  Eio.traceln "";
+    debug "Starting Eio event loop (structured concurrency runtime)...";
 
-  (* Build bot using functional builder pattern (Bot DSL) *)
-  Verbose_bot.make ~env ~client
-  (* Add global error handler - demonstrates error recovery *)
-  |> Verbose_bot.on_error (fun ctx exn ->
-      Eio.traceln "";
-      Eio.traceln "┌─────────────────────────────────────┐";
-      Eio.traceln "│ ERROR RECOVERY                      │";
-      Eio.traceln "└─────────────────────────────────────┘";
-      Eio.traceln "[Error] ❌ Uncaught error in handler: %s" (Printexc.to_string exn);
-      Eio.traceln "[Error] User: %s"
-        (match Verbose_bot.Ctx.user ctx with
-         | Some u -> Printf.sprintf "id=%s username=%s"
-             (Id.to_string u.id)
-             (Option.value ~default:"<none>" u.username)
-         | None -> "none");
-      Eio.traceln "[Error] Chat: %s (phantom type: Id.Chat.k Id.t)"
-        (Id.to_string (Verbose_bot.Ctx.chat ctx));
+    (* Create Eio runtime - all async operations happen within this context *)
+    Eio_main.run @@ fun env ->
 
-      (* Error recovery: try to notify user *)
-      Eio.traceln "[Error] Attempting error recovery: notifying user...";
-      match Verbose_bot.Ctx.reply ctx "❌ Sorry, an error occurred. Please try again." with
-      | Ok _ -> Eio.traceln "[Error] ✓ Error notification sent successfully"
-      | Error e -> Eio.traceln "[Error] ✗ Failed to send error notification: %a" Error.pp e;
-      Eio.traceln "";
-    )
+    (* Continue in initialization span *)
+    debug "Creating Telegram HTTP client...";
+    let client = Client.create ~env ~token () in
+    success_fields "HTTP client created" ~fields:[
+      ("base_url", Value.string (Client.base_url client));
+    ];
+    success "Initialization complete";
+    info "";
 
-  (* Register /start command *)
-  |> (fun bot -> Eio.traceln "[Start] Registering route: command 'start'"; bot)
-  |> Verbose_bot.command "start" ~desc:"Welcome message" (fun ctx _args ->
-      Eio.traceln "";
-      Eio.traceln "┌─────────────────────────────────────┐";
-      Eio.traceln "│ Phase 3: HANDLE UPDATE (/start)    │";
-      Eio.traceln "└─────────────────────────────────────┘";
-      Eio.traceln "[Handler:start] >>> /start command received";
-      Eio.traceln "[Handler:start] User: %s"
-        (match Verbose_bot.Ctx.user ctx with
-         | Some u -> Printf.sprintf "id=%s username=%s"
-             (Id.to_string u.id)
-             (Option.value ~default:"<none>" u.username)
-         | None -> "<none>");
+    (* ============================================================================
+       Phase 2: START (Build Bot DSL)
+       ============================================================================ *)
 
-      Eio.traceln "[Handler:start] Demonstrating Result-based error handling...";
-      (* Result-based handler with let* syntax for clean error propagation *)
-      let open Verbose_bot.Ctx in
-      let* () = reply_ ctx
-        "👋 Welcome to Core Concepts Demo!\n\n\
-         This bot demonstrates:\n\
-         • Bot lifecycle phases\n\
-         • Bot DSL routing\n\
-         • Result-based error handling\n\
-         • Type-safe IDs (phantom types)\n\n\
-         Commands:\n\
-         /echo <text> - Echo text\n\
-         /error - See error handling\n\
-         /calc 5 + 3 - Calculate" in
-      Eio.traceln "[Handler:start] ✓ Message sent successfully (Result = Ok)";
-      Eio.traceln "[Handler:start] <<< /start handler completed";
-      Eio.traceln "";
-      Ok ()
-    )
+    Flo.with_span "bot_building" (fun () ->
+      info "┌─────────────────────────────────────┐";
+      info "│ Phase 2: START (Build Bot DSL)     │";
+      info "└─────────────────────────────────────┘";
+      debug "Building bot with functional builder pattern...";
+      info "";
 
-  (* Register /echo command - demonstrates Args helpers *)
-  |> (fun bot -> Eio.traceln "[Start] Registering route: command 'echo'"; bot)
-  |> Verbose_bot.command "echo" ~desc:"Echo back text" (fun ctx args ->
-      Eio.traceln "";
-      Eio.traceln "┌─────────────────────────────────────┐";
-      Eio.traceln "│ Phase 3: HANDLE UPDATE (/echo)     │";
-      Eio.traceln "└─────────────────────────────────────┘";
-      Eio.traceln "[Handler:echo] >>> /echo command received";
-      Eio.traceln "[Handler:echo] Args (raw): %s" (String.concat " " args);
+      info "🤖 Core Concepts Demo Bot Started!";
+      info "";
+      info "📋 Available commands:";
+      info "   /start - Welcome message";
+      info "   /echo <text> - Echo text back";
+      info "   /error - Trigger error handling demo";
+      info "   /calc <a> <op> <b> - Calculate (e.g., /calc 5 + 3)";
+      info "   /trace - Demo TRACE level logging";
+      info "   /debug - Demo DEBUG level logging";
+      info "   /levels - Show all 7 log levels";
+      info "   <text> - Echo any message back";
+      info "";
+      info "🔍 Watching for updates (long polling)...";
+      info "";
 
-      let text = Bot.Args.join_rest args 0 in
-      Eio.traceln "[Handler:echo] Args (joined): \"%s\"" text;
+      (* Build bot using functional builder pattern (Bot DSL) - NO FUNCTORS! *)
+      Bot.make ~env ~client
 
-      let open Verbose_bot.Ctx in
-      let* () =
-        if text = "" then (
-          Eio.traceln "[Handler:echo] No text provided, sending usage message";
-          reply_ ctx "Usage: /echo <text>\nExample: /echo Hello, world!"
-        ) else (
-          Eio.traceln "[Handler:echo] Echoing: \"%s\"" text;
-          reply_ ctx text
+      (* Add global error handler - demonstrates error recovery *)
+      |> Bot.on_error (fun ctx exn ->
+          info "";
+          info "┌─────────────────────────────────────┐";
+          info "│ ERROR RECOVERY                      │";
+          info "└─────────────────────────────────────┘";
+
+          (* FLO FEATURE #5: Semantic Conventions for Errors *)
+          error_fields "Uncaught error in handler" ~fields:[
+            Flo_semconv.error_type (Printexc.to_string exn);
+            Flo_semconv.error_message (Printexc.to_string exn);
+            Flo_semconv.error_stack_trace (Printexc.get_backtrace ());
+            Flo_telegram.user_id (match Bot.Ctx.user ctx with
+             | Some u -> Id.to_string u.id
+             | None -> "none");
+            Flo_telegram.chat_id (Id.to_string (Bot.Ctx.chat ctx));
+          ];
+
+          (* Error recovery: try to notify user *)
+          debug "Attempting error recovery: notifying user...";
+          match Bot.Ctx.reply ctx "❌ Sorry, an error occurred. Please try again." with
+          | Ok _ -> success "Error notification sent successfully"
+          | Error e -> warn_fields "Failed to send error notification" ~fields:[
+              Flo_semconv.error_message (Format.asprintf "%a" Error.pp e);
+            ];
+          info "";
         )
-      in
-      Eio.traceln "[Handler:echo] <<< /echo handler completed";
-      Eio.traceln "";
-      Ok ()
+
+      (* Register /start command *)
+      |> (fun bot -> debug "Registering route: command 'start'"; bot)
+      |> Bot.command "start" ~desc:"Welcome message" (fun ctx _args ->
+          (* FLO FEATURE #6: Context Binding - attach fields to fiber-local storage *)
+          Flo.with_span "command_start" (fun () ->
+            Bot.Ctx.with_handler_context ctx (fun () ->
+              info "";
+              info "┌─────────────────────────────────────┐";
+              info "│ Phase 3: HANDLE UPDATE (/start)    │";
+              info "└─────────────────────────────────────┘";
+
+              (* All logs in this block will include user_id, chat_id, message_id automatically! *)
+              info "Received /start command";
+              debug "Demonstrating Result-based error handling...";
+
+              (* Result-based handler with let* syntax for clean error propagation *)
+              let open Bot.Ctx in
+              let* () = reply_ ctx
+                "👋 Welcome to Core Concepts Demo!\n\n\
+                 This bot demonstrates:\n\
+                 • Bot lifecycle phases\n\
+                 • Bot DSL routing\n\
+                 • Result-based error handling\n\
+                 • Type-safe IDs (phantom types)\n\
+                 • ALL flo logging features!\n\n\
+                 Commands:\n\
+                 /echo <text> - Echo text\n\
+                 /error - See error handling\n\
+                 /calc 5 + 3 - Calculate\n\
+                 /levels - See all log levels" in
+              success "Message sent successfully (Result = Ok)";
+              success "Handler /start completed";
+              info "";
+              Ok ()
+            )
+          )
+        )
+
+      (* Register /echo command - demonstrates Args helpers *)
+      |> (fun bot -> debug "Registering route: command 'echo'"; bot)
+      |> Bot.command "echo" ~desc:"Echo back text" (fun ctx args ->
+          Flo.with_span "command_echo" (fun () ->
+            Bot.Ctx.with_handler_context ctx (fun () ->
+              info "";
+              info "┌─────────────────────────────────────┐";
+              info "│ Phase 3: HANDLE UPDATE (/echo)     │";
+              info "└─────────────────────────────────────┘";
+
+              debug_fields "Command echo received" ~fields:[
+                ("args_raw", Value.string (String.concat " " args));
+                ("args_count", Value.int (List.length args));
+              ];
+
+              let text = Bot.Args.join_rest args 0 in
+              debug_fields "Args joined" ~fields:[
+                ("text", Value.string text);
+                ("text_length", Value.int (String.length text));
+              ];
+
+              let open Bot.Ctx in
+              let* () =
+                if text = "" then (
+                  warn "No text provided for echo command";
+                  reply_ ctx "Usage: /echo <text>\nExample: /echo Hello, world!"
+                ) else (
+                  debug_fields "Echoing text" ~fields:[
+                    ("text_preview", Value.string (if String.length text > 50
+                      then String.sub text 0 50 ^ "..."
+                      else text));
+                  ];
+                  reply_ ctx text
+                )
+              in
+              success "Handler /echo completed";
+              info "";
+              Ok ()
+            )
+          )
+        )
+
+      (* Register /error command - demonstrates error handling *)
+      |> (fun bot -> debug "Registering route: command 'error'"; bot)
+      |> Bot.command "error" ~desc:"Trigger error handling demo" (fun ctx _args ->
+          Flo.with_span "command_error" (fun () ->
+            Bot.Ctx.with_handler_context ctx (fun () ->
+              info "";
+              info "┌─────────────────────────────────────┐";
+              info "│ Phase 3: HANDLE UPDATE (/error)    │";
+              info "└─────────────────────────────────────┘";
+
+              info "Command /error received - demonstrating error handling";
+              debug "This demonstrates Result-based error handling and error recovery";
+
+              let open Bot.Ctx in
+
+              (* First, send a message explaining what will happen *)
+              let* () = reply_ ctx "I will now demonstrate error handling..." in
+              success "First message sent";
+
+              (* Now trigger an intentional error to demonstrate recovery *)
+              warn "Intentionally triggering error for demonstration...";
+              failwith "Intentional error to demonstrate error recovery pattern"
+            )
+          )
+        )
+
+      (* Register /calc command - demonstrates monadic composition *)
+      |> (fun bot -> debug "Registering route: command 'calc'"; bot)
+      |> Bot.command "calc" ~desc:"Calculate expression" (fun ctx args ->
+          Flo.with_span "command_calc" (fun () ->
+            Bot.Ctx.with_handler_context ctx (fun () ->
+              info "";
+              info "┌─────────────────────────────────────┐";
+              info "│ Phase 3: HANDLE UPDATE (/calc)     │";
+              info "└─────────────────────────────────────┘";
+
+              info_fields "Command calc received" ~fields:[
+                ("args", Value.string (String.concat " " args));
+                ("args_count", Value.int (List.length args));
+              ];
+              debug "Demonstrating monadic Result composition...";
+
+              let open Bot.Ctx in
+              let* () =
+                match Bot.Args.expect_3 args with
+                | Some (a_str, op_str, b_str) ->
+                    debug_fields "Parsing arguments" ~fields:[
+                      ("a", Value.string a_str);
+                      ("op", Value.string op_str);
+                      ("b", Value.string b_str);
+                    ];
+
+                    (* Monadic composition with let* - each step can fail *)
+                    (match Bot.Args.parse_int a_str, Logic.parse_op op_str, Bot.Args.parse_int b_str with
+                     | Some a, Some op, Some b ->
+                         success_fields "Parsed successfully" ~fields:[
+                           ("a_value", Value.int a);
+                           ("operator", Value.string op_str);
+                           ("b_value", Value.int b);
+                         ];
+                         debug "Calling business logic: Logic.calculate";
+
+                         (* Business logic returns Result - error propagates automatically *)
+                         (match Logic.calculate op a b with
+                          | Ok result ->
+                              success_fields "Calculation successful" ~fields:[
+                                ("result", Value.int result);
+                              ];
+                              let response = Logic.format_result a op_str b result in
+                              reply_ ctx response
+                          | Error msg ->
+                              error_fields "Calculation failed" ~fields:[
+                                Flo_semconv.error_message msg;
+                              ];
+                              reply_ ctx (Printf.sprintf "❌ Error: %s" msg))
+
+                     | None, _, _ ->
+                         warn "Failed to parse first number";
+                         reply_ ctx "❌ First argument must be a number"
+                     | _, None, _ ->
+                         warn "Invalid operator provided";
+                         reply_ ctx "❌ Invalid operator. Use: +, -, *, /"
+                     | _, _, None ->
+                         warn "Failed to parse second number";
+                         reply_ ctx "❌ Second argument must be a number")
+
+                | None ->
+                    warn_fields "Wrong number of arguments" ~fields:[
+                      ("expected", Value.int 3);
+                      ("got", Value.int (List.length args));
+                    ];
+                    reply_ ctx "❌ Usage: /calc <number> <operator> <number>\nExample: /calc 5 + 3"
+              in
+              success "Handler /calc completed";
+              info "";
+              Ok ()
+            )
+          )
+        )
+
+      (* Register /trace command - demonstrates TRACE level *)
+      |> (fun bot -> debug "Registering route: command 'trace'"; bot)
+      |> Bot.command "trace" ~desc:"Demo TRACE level logging" (fun ctx _args ->
+          Flo.with_span "command_trace" (fun () ->
+            Bot.Ctx.with_handler_context ctx (fun () ->
+              info "Demonstrating TRACE level logging";
+
+              (* TRACE is the most verbose level - for fine-grained debugging *)
+              trace "This is TRACE level - finest granularity";
+              trace_fields "TRACE with fields" ~fields:[
+                ("level_number", Value.int 0);
+                ("use_case", Value.string "Fine-grained internal state, loops, iterations");
+              ];
+
+              let open Bot.Ctx in
+              let* () = reply_ ctx
+                "📊 TRACE level demonstration:\n\n\
+                 TRACE is the most verbose level.\n\
+                 Use for: fine-grained internal state,\n\
+                 loop iterations, detailed step-by-step.\n\n\
+                 See the console output!" in
+              Ok ()
+            )
+          )
+        )
+
+      (* Register /debug command - demonstrates DEBUG level *)
+      |> (fun bot -> debug "Registering route: command 'debug'"; bot)
+      |> Bot.command "debug" ~desc:"Demo DEBUG level logging" (fun ctx _args ->
+          Flo.with_span "command_debug" (fun () ->
+            Bot.Ctx.with_handler_context ctx (fun () ->
+              info "Demonstrating DEBUG level logging";
+
+              (* DEBUG is for development diagnostics *)
+              debug "This is DEBUG level - development diagnostics";
+              debug_fields "DEBUG with fields" ~fields:[
+                ("level_number", Value.int 1);
+                ("use_case", Value.string "Development diagnostics, parsing, state changes");
+              ];
+
+              let open Bot.Ctx in
+              let* () = reply_ ctx
+                "📊 DEBUG level demonstration:\n\n\
+                 DEBUG is for development diagnostics.\n\
+                 Use for: parsing details, session state,\n\
+                 context binding, route matching.\n\n\
+                 See the console output!" in
+              Ok ()
+            )
+          )
+        )
+
+      (* Register /levels command - demonstrates ALL 7 levels *)
+      |> (fun bot -> debug "Registering route: command 'levels'"; bot)
+      |> Bot.command "levels" ~desc:"Show all 7 log levels" (fun ctx _args ->
+          Flo.with_span "command_levels" (fun () ->
+            Bot.Ctx.with_handler_context ctx (fun () ->
+              info "Demonstrating ALL 7 severity levels";
+
+              (* Demonstrate all 7 levels in order *)
+              trace "1/7 TRACE - Finest granularity (loops, iterations)";
+              debug "2/7 DEBUG - Development diagnostics (parsing, state)";
+              info "3/7 INFO - Important events (bot started, command received)";
+              success "4/7 SUCCESS - Successful operations (message sent, handler complete)";
+              warn "5/7 WARN - Warnings (invalid input, missing data)";
+              error "6/7 ERROR - Errors (failed API calls, exceptions caught)";
+              (* Fatal would exit, so we just mention it *)
+              info "7/7 FATAL - Critical errors (exits process, not safe to demo!)";
+
+              let open Bot.Ctx in
+              let* () = reply_ ctx
+                "📊 All 7 severity levels demonstrated:\n\n\
+                 1. TRACE - Finest granularity\n\
+                 2. DEBUG - Development diagnostics\n\
+                 3. INFO - Important events\n\
+                 4. SUCCESS - Successful operations\n\
+                 5. WARN - Warnings\n\
+                 6. ERROR - Errors\n\
+                 7. FATAL - Critical (exits process)\n\n\
+                 Check your console to see them all!" in
+              success "All 7 levels demonstrated successfully";
+              Ok ()
+            )
+          )
+        )
+
+      (* Register on_text handler - demonstrates event routing *)
+      |> (fun bot -> debug "Registering route: on_text (fallback)"; bot)
+      |> Bot.on_text (fun ctx text ->
+          Flo.with_span "text_message" (fun () ->
+            Bot.Ctx.with_handler_context ctx (fun () ->
+              info "";
+              info "┌─────────────────────────────────────┐";
+              info "│ Phase 3: HANDLE UPDATE (text)      │";
+              info "└─────────────────────────────────────┘";
+
+              info_fields "Non-command text message received" ~fields:[
+                ("text_length", Value.int (String.length text));
+                ("text_preview", Value.string (if String.length text > 50
+                  then String.sub text 0 50 ^ "..."
+                  else text));
+              ];
+
+              let response = Printf.sprintf "You said: %s\n\nTry /calc 5 + 3 or /levels" text in
+
+              let open Bot.Ctx in
+              let* () = reply_ ctx response in
+              success "Text handler completed";
+              info "";
+              Ok ()
+            )
+          )
+        )
+
+      |> (fun bot ->
+          success "All routes registered";
+          debug "Bot builder pattern complete";
+          info "";
+          info "┌─────────────────────────────────────┐";
+          info "│ Phase 3: HANDLE (Starting Loop)    │";
+          info "└─────────────────────────────────────┘";
+          debug "Starting long polling loop...";
+          info "Bot will process updates until Ctrl-C";
+          info "";
+          bot)
+      |> Bot.run
+      (* When this exits (Ctrl-C or error), Eio automatically cleans up resources *)
     )
-
-  (* Register /error command - demonstrates error handling *)
-  |> (fun bot -> Eio.traceln "[Start] Registering route: command 'error'"; bot)
-  |> Verbose_bot.command "error" ~desc:"Trigger error handling demo" (fun ctx _args ->
-      Eio.traceln "";
-      Eio.traceln "┌─────────────────────────────────────┐";
-      Eio.traceln "│ Phase 3: HANDLE UPDATE (/error)    │";
-      Eio.traceln "└─────────────────────────────────────┘";
-      Eio.traceln "[Handler:error] >>> /error command received";
-      Eio.traceln "[Handler:error] This demonstrates Result-based error handling";
-
-      let open Verbose_bot.Ctx in
-
-      (* First, send a message explaining what will happen *)
-      let* () = reply_ ctx "I will now demonstrate error handling..." in
-      Eio.traceln "[Handler:error] ✓ First message sent";
-
-      (* Now trigger an intentional error to demonstrate recovery *)
-      Eio.traceln "[Handler:error] Intentionally triggering error for demonstration...";
-      failwith "Intentional error to demonstrate error recovery pattern"
-    )
-
-  (* Register /calc command - demonstrates monadic composition *)
-  |> (fun bot -> Eio.traceln "[Start] Registering route: command 'calc'"; bot)
-  |> Verbose_bot.command "calc" ~desc:"Calculate expression" (fun ctx args ->
-      Eio.traceln "";
-      Eio.traceln "┌─────────────────────────────────────┐";
-      Eio.traceln "│ Phase 3: HANDLE UPDATE (/calc)     │";
-      Eio.traceln "└─────────────────────────────────────┘";
-      Eio.traceln "[Handler:calc] >>> /calc command received";
-      Eio.traceln "[Handler:calc] Args: %s" (String.concat " " args);
-      Eio.traceln "[Handler:calc] Demonstrating monadic Result composition...";
-
-      let open Verbose_bot.Ctx in
-      let* () =
-        match Bot.Args.expect_3 args with
-        | Some (a_str, op_str, b_str) ->
-            Eio.traceln "[Handler:calc] Parsing: a='%s', op='%s', b='%s'" a_str op_str b_str;
-
-            (* Monadic composition with let* - each step can fail *)
-            (match Bot.Args.parse_int a_str, Logic.parse_op op_str, Bot.Args.parse_int b_str with
-             | Some a, Some op, Some b ->
-                 Eio.traceln "[Handler:calc] ✓ Parsed: a=%d, op=%s, b=%d" a op_str b;
-                 Eio.traceln "[Handler:calc] Calling business logic: Logic.calculate";
-
-                 (* Business logic returns Result - error propagates automatically *)
-                 (match Logic.calculate op a b with
-                  | Ok result ->
-                      Eio.traceln "[Handler:calc] ✓ Result: %d" result;
-                      let response = Logic.format_result a op_str b result in
-                      reply_ ctx response
-                  | Error msg ->
-                      Eio.traceln "[Handler:calc] ✗ Error from business logic: %s" msg;
-                      reply_ ctx (Printf.sprintf "❌ Error: %s" msg))
-
-             | None, _, _ ->
-                 Eio.traceln "[Handler:calc] ✗ Failed to parse first number";
-                 reply_ ctx "❌ First argument must be a number"
-             | _, None, _ ->
-                 Eio.traceln "[Handler:calc] ✗ Invalid operator";
-                 reply_ ctx "❌ Invalid operator. Use: +, -, *, /"
-             | _, _, None ->
-                 Eio.traceln "[Handler:calc] ✗ Failed to parse second number";
-                 reply_ ctx "❌ Second argument must be a number")
-
-        | None ->
-            Eio.traceln "[Handler:calc] ✗ Expected 3 arguments, got %d" (List.length args);
-            reply_ ctx "❌ Usage: /calc <number> <operator> <number>\nExample: /calc 5 + 3"
-      in
-      Eio.traceln "[Handler:calc] <<< /calc handler completed";
-      Eio.traceln "";
-      Ok ()
-    )
-
-  (* Register on_text handler - demonstrates event routing *)
-  |> (fun bot -> Eio.traceln "[Start] Registering route: on_text (fallback)"; bot)
-  |> Verbose_bot.on_text (fun ctx text ->
-      Eio.traceln "";
-      Eio.traceln "┌─────────────────────────────────────┐";
-      Eio.traceln "│ Phase 3: HANDLE UPDATE (text)      │";
-      Eio.traceln "└─────────────────────────────────────┘";
-      Eio.traceln "[Handler:text] >>> Non-command text message received";
-      Eio.traceln "[Handler:text] User: %s"
-        (match Verbose_bot.Ctx.user ctx with
-         | Some u -> Printf.sprintf "id=%s (phantom type: Id.User.k Id.t) username=%s"
-             (Id.to_string u.id)
-             (Option.value ~default:"<none>" u.username)
-         | None -> "<none>");
-      Eio.traceln "[Handler:text] Text: \"%s\" (length=%d)" text (String.length text);
-
-      let response = Printf.sprintf "You said: %s\n\nTry /calc 5 + 3 or /help" text in
-
-      let open Verbose_bot.Ctx in
-      let* () = reply_ ctx response in
-      Eio.traceln "[Handler:text] <<< Text handler completed";
-      Eio.traceln "";
-      Ok ()
-    )
-
-  |> (fun bot ->
-      Eio.traceln "[Start] ✓ All routes registered";
-      Eio.traceln "[Start] Bot builder pattern complete";
-      Eio.traceln "";
-      Eio.traceln "┌─────────────────────────────────────┐";
-      Eio.traceln "│ Phase 3: HANDLE (Starting Loop)    │";
-      Eio.traceln "└─────────────────────────────────────┘";
-      Eio.traceln "[Handle] Starting long polling loop...";
-      Eio.traceln "[Handle] Bot will process updates until Ctrl-C";
-      Eio.traceln "";
-      bot)
-  |> Verbose_bot.run
-  (* When this exits (Ctrl-C or error), Eio automatically cleans up resources *)
+  );
 
   (* Phase 4: SHUTDOWN *)
   (* This code is unreachable in normal operation (bot runs forever) *)
   (* But if it exits, Eio handles cleanup automatically via structured concurrency *)
+  info "┌─────────────────────────────────────┐";
+  info "│ Phase 4: SHUTDOWN                   │";
+  info "└─────────────────────────────────────┘";
+  success "Bot shutdown complete (Eio automatic cleanup)"
