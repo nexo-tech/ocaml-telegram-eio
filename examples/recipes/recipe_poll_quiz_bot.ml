@@ -23,8 +23,6 @@ let () = Flo.set_level Severity.Debug
 
 (** {1 Poll Option Helper} *)
 
-let unknown () = Telegram.Json_compat.Unknown_fields.create ()
-
 let poll_option (text : string) : Telegram_generated.Gen_types.InputPollOption.t =
   Eio.traceln "[PollOption] Creating option: text='%s'" text;
   Telegram_generated.Gen_types.InputPollOption.{
@@ -118,29 +116,6 @@ module VoteTracker = struct
         in
         UMap.replace table uid a.option_ids;
         Eio.traceln "[VoteTracker] ✅ Tracked vote: user_id=%Ld" uid
-
-  let aggregate_counts poll_id ~option_count : int array =
-    Eio.traceln "[VoteTracker] Aggregating counts: poll_id=%s, option_count=%d"
-      poll_id option_count;
-
-    let counts = Array.make option_count 0 in
-    match PMap.find_opt by_poll poll_id with
-    | None ->
-        Eio.traceln "[VoteTracker] No votes recorded for poll_id=%s" poll_id;
-        counts
-    | Some t ->
-        UMap.iter (fun _user opts ->
-          List.iter (fun idx ->
-            let i = Int64.to_int idx in
-            if i >= 0 && i < option_count then begin
-              counts.(i) <- counts.(i) + 1;
-              Eio.traceln "[VoteTracker] Vote counted: option_idx=%d, new_count=%d" i counts.(i)
-            end
-          ) opts
-        ) t;
-        Eio.traceln "[VoteTracker] ✅ Aggregated counts: [%s]"
-          (counts |> Array.to_list |> List.map string_of_int |> String.concat ", ");
-        counts
 
   let get_user_votes poll_id : (int64 * int64 list) list =
     Eio.traceln "[VoteTracker] Getting all user votes for poll_id=%s" poll_id;
@@ -274,8 +249,8 @@ let handle_poll ctx args =
     (String.concat " " args);
 
   let open Bot.Ctx in
-  let* client = client ctx in
-  let* chat_id = chat ctx in
+  let client = client ctx in
+  let chat_id = chat ctx in
 
   match args with
   | [] ->
@@ -306,8 +281,8 @@ let handle_poll ctx args =
 let handle_multipoll ctx args =
   Eio.traceln "[Handler] /multipoll command triggered";
   let open Bot.Ctx in
-  let* client = client ctx in
-  let* chat_id = chat ctx in
+  let client = client ctx in
+  let chat_id = chat ctx in
 
   match args with
   | [] ->
@@ -333,8 +308,8 @@ let handle_multipoll ctx args =
 let handle_timedpoll ctx args =
   Eio.traceln "[Handler] /timedpoll command triggered";
   let open Bot.Ctx in
-  let* client = client ctx in
-  let* chat_id = chat ctx in
+  let client = client ctx in
+  let chat_id = chat ctx in
 
   match args with
   | [] ->
@@ -368,8 +343,8 @@ let handle_timedpoll ctx args =
 let handle_quiz ctx args =
   Eio.traceln "[Handler] /quiz command triggered";
   let open Bot.Ctx in
-  let* client = client ctx in
-  let* chat_id = chat ctx in
+  let client = client ctx in
+  let chat_id = chat ctx in
 
   match args with
   | [] ->
@@ -387,13 +362,12 @@ let handle_quiz ctx args =
           (* First option is the correct one *)
           let correct_option_id = 0L in
           let options_values = List.map poll_option options in
-          let explanation = Some "<b>Quiz completed!</b> Check the results." in
 
           let* msg = Telegram_generated.Gen_methods.send_poll client
             ~chat_id ~question ~options:options_values
             ~type_:"quiz"
             ~correct_option_id
-            ~explanation
+            ~explanation:"<b>Quiz completed!</b> Check the results."
             ~explanation_parse_mode:"HTML"
             ~is_anonymous:false  (* Enable vote tracking *)
             () in
@@ -408,7 +382,7 @@ let handle_quiz ctx args =
 let handle_results ctx args =
   Eio.traceln "[Handler] /results command triggered";
   let open Bot.Ctx in
-  let* client = client ctx in
+  let client = client ctx in
 
   match args with
   | [] ->
@@ -429,7 +403,7 @@ let handle_results ctx args =
            Eio.traceln "[Handler] Poll stopped, formatting results";
            let results =
              poll.options
-             |> List.mapi (fun i opt ->
+             |> List.mapi (fun i (opt : Telegram_generated.Gen_types.PollOption.t) ->
                   let count = Int64.to_int opt.voter_count in
                   Eio.traceln "[Handler] Option %d: '%s' - %d votes" i opt.text count;
                   Printf.sprintf "%c) %s — %d %s"
@@ -512,7 +486,7 @@ let handle_list ctx _args =
 
 (** {1 Vote Tracking Handler} *)
 
-let handle_poll_answer update _ctx =
+let handle_poll_answer _ctx update =
   Eio.traceln "[Handler] Processing update for poll_answer";
   match update.Telegram_generated.Gen_types.Update.poll_answer with
   | Some ans ->
@@ -554,8 +528,8 @@ let build_routes bot =
   let bot = bot |> Bot.command "list" handle_list in
   Eio.traceln "[Builder] ✅ Registered /list";
 
-  (* Register poll_answer handler using on_any *)
-  let bot = bot |> Bot.on_any handle_poll_answer in
+  (* Register poll_answer handler using Event.any *)
+  let bot = bot |> Bot.on Bot.Event.any handle_poll_answer in
   Eio.traceln "[Builder] ✅ Registered poll_answer tracker";
 
   Eio.traceln "[Builder] All routes registered";

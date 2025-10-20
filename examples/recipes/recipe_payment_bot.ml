@@ -22,10 +22,6 @@ open Tg
 (* Configure verbose logging with flo *)
 let () = Flo.set_level Severity.Debug
 
-(** {1 Helper Functions} *)
-
-let unknown () = Telegram.Json_compat.Unknown_fields.create ()
-
 (** {1 Product Catalog} *)
 
 type product = {
@@ -89,7 +85,7 @@ module ProductCatalog = struct
         Eio.traceln "[ProductCatalog] ❌ Product not found: id=%s" id;
         None
 
-  let list_all () =
+  let _list_all () =
     Eio.traceln "[ProductCatalog] Listing all products: count=%d" (List.length products);
     products
 
@@ -110,20 +106,20 @@ type order_status =
   | AwaitingPayment
   | Paid
   | Fulfilled
-  | Refunded
+  | Refunded [@warning "-37"]
 
 module OrderManager = struct
   type order = {
     order_id : string;
     product_id : string;
-    user_id : int64;
-    chat_id : Id.Chat.k Id.t;
+    user_id : Id.User.k Id.t;
+    _chat_id : Id.Chat.k Id.t;
     status : order_status;
     total_amount : int64;
-    currency : string;
-    telegram_charge_id : string option;
-    provider_charge_id : string option;
-    created_at : float;
+    _currency : string;
+    _telegram_charge_id : string option;
+    _provider_charge_id : string option;
+    _created_at : float;
   }
 
   let orders : (string, order) Hashtbl.t = Hashtbl.create 100
@@ -140,13 +136,13 @@ module OrderManager = struct
           order_id;
           product_id;
           user_id;
-          chat_id;
+          _chat_id = chat_id;
           status = Pending;
           total_amount = product.price_cents;
-          currency = product.currency;
-          telegram_charge_id = None;
-          provider_charge_id = None;
-          created_at = Unix.time ();
+          _currency = product.currency;
+          _telegram_charge_id = None;
+          _provider_charge_id = None;
+          _created_at = Unix.time ();
         } in
 
         Hashtbl.replace orders order_id order;
@@ -194,8 +190,8 @@ module OrderManager = struct
         let updated = {
           order with
           status = Paid;
-          telegram_charge_id = Some telegram_charge_id;
-          provider_charge_id = Some provider_charge_id;
+          _telegram_charge_id = Some telegram_charge_id;
+          _provider_charge_id = Some provider_charge_id;
         } in
         Hashtbl.replace orders order_id updated;
         Eio.traceln "[OrderManager] ✅ Marked order as paid: order_id=%s, telegram_charge=%s"
@@ -206,9 +202,9 @@ module OrderManager = struct
         Error (Error.Internal_error "Order not found")
 
   let get_user_orders user_id =
-    Eio.traceln "[OrderManager] Getting orders for user: user_id=%Ld" user_id;
+    Eio.traceln "[OrderManager] Getting orders for user: user_id=%a" Id.pp user_id;
     let user_orders = Hashtbl.fold (fun _ order acc ->
-      if order.user_id = user_id then order :: acc else acc
+      if Id.to_string order.user_id = Id.to_string user_id then order :: acc else acc
     ) orders [] in
     Eio.traceln "[OrderManager] Found %d orders for user" (List.length user_orders);
     user_orders
@@ -226,7 +222,7 @@ module PriceHelper = struct
     }
 
   let product_prices product =
-    Eio.traceln "[PriceHelper] Creating prices for product: %s" product.ProductCatalog.name;
+    Eio.traceln "[PriceHelper] Creating prices for product: %s" product.name;
     [
       price ~label:product.name ~amount:product.price_cents;
     ]
@@ -267,7 +263,7 @@ module ShippingHelper = struct
   let get_available_options (address : Telegram_generated.Gen_types.ShippingAddress.t) =
     Eio.traceln "[ShippingHelper] Determining shipping options for: country=%s, city=%s"
       address.country_code
-      (Option.value ~default:"unknown" address.city);
+      address.city;
 
     (* Simple logic: different options based on country *)
     match address.country_code with
@@ -301,7 +297,7 @@ module PaymentProvider = struct
     supports_stars := true;
     Eio.traceln "[PaymentProvider] ✅ Stars payments enabled"
 
-  let is_stars_payment currency =
+  let _is_stars_payment currency =
     String.equal (String.uppercase_ascii currency) "XTR"
 end
 
@@ -326,7 +322,7 @@ let handle_start ctx _args =
      /help - Show help information"
   in
 
-  let* _msg = answer ctx welcome_text ~parse_mode:"HTML" in
+  let* _msg = answer ctx welcome_text in
   Eio.traceln "[Handler] ✅ Welcome message sent";
   Ok ()
 
@@ -340,7 +336,7 @@ let handle_products ctx _args =
     "\n\nUse /buy &lt;product_id&gt; to purchase."
   in
 
-  let* _msg = answer ctx products_text ~parse_mode:"HTML" in
+  let* _msg = answer ctx products_text in
   Eio.traceln "[Handler] ✅ Products list sent";
   Ok ()
 
@@ -350,8 +346,8 @@ let handle_buy ctx args =
 
   let open Bot.Ctx in
 
-  let* client = client ctx in
-  let* chat_id = chat ctx in
+  let client = client ctx in
+  let chat_id = chat ctx in
   let* user = require_user ctx in
 
   match args with
@@ -407,7 +403,7 @@ let handle_link ctx args =
   Eio.traceln "[Handler] /link command triggered";
   let open Bot.Ctx in
 
-  let* client = client ctx in
+  let client = client ctx in
 
   match args with
   | [] ->
@@ -425,7 +421,7 @@ let handle_link ctx args =
 
            Eio.traceln "[Handler] Creating payment link for: %s" product.name;
 
-           let* link = Telegram_generated.Gen_methods.create_invoice_link client
+           let* link_json = Telegram_generated.Gen_methods.create_invoice_link client
              ~title:product.name
              ~description:product.description
              ~payload:(Printf.sprintf "link_%s_%f" product_id (Unix.time ()))
@@ -433,6 +429,12 @@ let handle_link ctx args =
              ~prices
              ~provider_token
              ()
+           in
+
+           (* Extract string from JSON response *)
+           let link = match link_json with
+             | `String s -> s
+             | _ -> Yojson.Safe.to_string link_json
            in
 
            let link_text = Printf.sprintf
@@ -445,7 +447,7 @@ let handle_link ctx args =
              link
            in
 
-           let* _msg = answer ctx link_text ~parse_mode:"HTML" in
+           let* _msg = answer ctx link_text in
            Eio.traceln "[Handler] ✅ Payment link sent";
            Ok ()
       )
@@ -488,7 +490,7 @@ let handle_orders ctx _args =
       String.concat "\n\n" order_lines
     in
 
-    let* _msg = answer ctx orders_text ~parse_mode:"HTML" in
+    let* _msg = answer ctx orders_text in
     Eio.traceln "[Handler] ✅ Orders list sent: count=%d" (List.length user_orders);
     Ok ()
   end
@@ -519,7 +521,7 @@ let handle_help ctx _args =
      • Automatic fulfillment"
   in
 
-  let* _msg = answer ctx help_text ~parse_mode:"HTML" in
+  let* _msg = answer ctx help_text in
   Eio.traceln "[Handler] ✅ Help sent";
   Ok ()
 
@@ -529,7 +531,7 @@ let handle_shipping_query ctx (query : Telegram_generated.Gen_types.ShippingQuer
   Eio.traceln "[Handler] Shipping query received: query_id=%s" query.id;
   let open Bot.Ctx in
 
-  let* client = client ctx in
+  let client = client ctx in
 
   let address = query.shipping_address in
 
@@ -537,7 +539,7 @@ let handle_shipping_query ctx (query : Telegram_generated.Gen_types.ShippingQuer
   | Error err ->
       Eio.traceln "[Handler] ❌ Failed to get shipping options: %a" Error.pp err;
 
-      let* () = Telegram_generated.Gen_methods.answer_shipping_query client
+      let* _result = Telegram_generated.Gen_methods.answer_shipping_query client
         ~shipping_query_id:query.id
         ~ok:false
         ~error_message:"Unable to determine shipping options"
@@ -548,7 +550,7 @@ let handle_shipping_query ctx (query : Telegram_generated.Gen_types.ShippingQuer
   | Ok options ->
       Eio.traceln "[Handler] ✅ Answering shipping query with %d options" (List.length options);
 
-      let* () = Telegram_generated.Gen_methods.answer_shipping_query client
+      let* _result = Telegram_generated.Gen_methods.answer_shipping_query client
         ~shipping_query_id:query.id
         ~ok:true
         ~shipping_options:options
@@ -564,14 +566,14 @@ let handle_pre_checkout_query ctx (pcq : Telegram_generated.Gen_types.PreCheckou
 
   let open Bot.Ctx in
 
-  let* client = client ctx in
+  let client = client ctx in
 
   (* Validate order exists *)
   match OrderManager.find pcq.invoice_payload with
   | None ->
       Eio.traceln "[Handler] ❌ Invalid order payload: %s" pcq.invoice_payload;
 
-      let* () = Telegram_generated.Gen_methods.answer_pre_checkout_query client
+      let* _result = Telegram_generated.Gen_methods.answer_pre_checkout_query client
         ~pre_checkout_query_id:pcq.id
         ~ok:false
         ~error_message:"Invalid order. Please try again."
@@ -588,7 +590,7 @@ let handle_pre_checkout_query ctx (pcq : Telegram_generated.Gen_types.PreCheckou
         Eio.traceln "[Handler] ❌ Amount mismatch: expected=%Ld, provided=%Ld"
           expected_amount provided_amount;
 
-        let* () = Telegram_generated.Gen_methods.answer_pre_checkout_query client
+        let* _result = Telegram_generated.Gen_methods.answer_pre_checkout_query client
           ~pre_checkout_query_id:pcq.id
           ~ok:false
           ~error_message:"Price mismatch. Please try again."
@@ -598,7 +600,7 @@ let handle_pre_checkout_query ctx (pcq : Telegram_generated.Gen_types.PreCheckou
       end else begin
         Eio.traceln "[Handler] ✅ Pre-checkout validation passed";
 
-        let* () = Telegram_generated.Gen_methods.answer_pre_checkout_query client
+        let* _result = Telegram_generated.Gen_methods.answer_pre_checkout_query client
           ~pre_checkout_query_id:pcq.id
           ~ok:true
           ()
@@ -649,7 +651,7 @@ let handle_successful_payment ctx (sp : Telegram_generated.Gen_types.SuccessfulP
     (String.sub order_id 0 (min 12 (String.length order_id)))
   in
 
-  let* _msg = answer ctx confirmation_text ~parse_mode:"HTML" in
+  let* _msg = answer ctx confirmation_text in
 
   (* Mark as fulfilled (in real app, this would happen after actual fulfillment) *)
   let* () = OrderManager.update_status order_id Fulfilled in
@@ -659,7 +661,6 @@ let handle_successful_payment ctx (sp : Telegram_generated.Gen_types.SuccessfulP
 
 let handle_payment_events ctx update =
   Eio.traceln "[Handler] Checking for payment-related events";
-  let open Bot.Ctx in
 
   (* Check for shipping query *)
   match update.Telegram_generated.Gen_types.Update.shipping_query with
@@ -710,7 +711,7 @@ let build_routes bot =
   Eio.traceln "[Builder] ✅ Registered /help";
 
   (* Register payment event handler *)
-  let bot = bot |> Bot.on_any handle_payment_events in
+  let bot = bot |> Bot.on Bot.Event.any handle_payment_events in
   Eio.traceln "[Builder] ✅ Registered payment event handler";
 
   Eio.traceln "[Builder] All routes registered";
