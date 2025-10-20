@@ -26,15 +26,8 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "KeyboardDemo"
-  let level = Log.Debug
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 (* Use the Keyboard module *)
 module KB = Keyboard
@@ -53,14 +46,14 @@ let () =
 
   Eio.traceln "🤖 Keyboard Demo Bot Started";
 
-  let session_store = Verbose_session.Memory_store.create () in
+  let session_store = Session.Memory_store.create () in
 
-  Verbose_bot.make ~env ~client
-  |> Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store
+  Bot.make ~env ~client
+  |> Bot.with_sessions (module Session.Memory_store) session_store
 
   (* /start - Main menu *)
-  |> Verbose_bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/start] Showing main menu";
 
       let keyboard = KB.inline [
@@ -77,8 +70,8 @@ let () =
     )
 
   (* Callback: demo:inline_basic *)
-  |> Verbose_bot.on_callback_data "demo:inline_basic" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "demo:inline_basic" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[inline_basic] Demonstrating basic inline keyboard";
 
       (* Basic inline keyboard with callback buttons *)
@@ -99,8 +92,8 @@ let () =
     )
 
   (* Callback: demo:inline_url *)
-  |> Verbose_bot.on_callback_data "demo:inline_url" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "demo:inline_url" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[inline_url] Demonstrating URL buttons";
 
       (* Inline keyboard with URL buttons *)
@@ -121,8 +114,8 @@ let () =
     )
 
   (* Callback: demo:layouts *)
-  |> Verbose_bot.on_callback_data "demo:layouts" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "demo:layouts" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[layouts] Demonstrating layout helpers";
 
       (* Grid layout: 3 columns *)
@@ -143,8 +136,8 @@ let () =
     )
 
   (* Callback: demo:patterns *)
-  |> Verbose_bot.on_callback_data "demo:patterns" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "demo:patterns" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[patterns] Demonstrating common patterns";
 
       (* Yes/No pattern *)
@@ -164,8 +157,8 @@ let () =
     )
 
   (* Callback: answer:yes *)
-  |> Verbose_bot.on_callback_data "answer:yes" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "answer:yes" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[answer:yes] User chose yes, showing confirm pattern";
 
       (* Confirmation pattern *)
@@ -185,8 +178,8 @@ let () =
     )
 
   (* Callback: answer:no *)
-  |> Verbose_bot.on_callback_data "answer:no" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "answer:no" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[answer:no] User chose no, going back";
 
       let keyboard = KB.inline [[KB.callback ~text:"← Back to Menu" ~data:"demo:menu"]] in
@@ -197,8 +190,8 @@ let () =
     )
 
   (* Callback: confirmed *)
-  |> Verbose_bot.on_callback_data "confirmed" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "confirmed" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[confirmed] User confirmed, showing pagination";
 
       (* Pagination pattern *)
@@ -221,8 +214,8 @@ let () =
     )
 
   (* Callback: cancelled *)
-  |> Verbose_bot.on_callback_data "cancelled" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "cancelled" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[cancelled] User cancelled";
 
       let keyboard = KB.inline [[KB.callback ~text:"← Back to Menu" ~data:"demo:menu"]] in
@@ -233,8 +226,8 @@ let () =
     )
 
   (* Callback: demo:reply *)
-  |> Verbose_bot.on_callback_data "demo:reply" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "demo:reply" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[reply] Demonstrating reply keyboard";
 
       (* Note: Reply keyboards are created with KB.reply, but we're just explaining here *)
@@ -257,8 +250,8 @@ let () =
     )
 
   (* Callback: demo:menu - Back to main menu *)
-  |> Verbose_bot.on_callback_data "demo:menu" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "demo:menu" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[menu] Returning to main menu";
 
       let keyboard = KB.inline [
@@ -275,9 +268,9 @@ let () =
     )
 
   (* Handle number selections from grid *)
-  |> Verbose_bot.on_callback (fun ctx data ->
+  |> Bot.on_callback (fun ctx data ->
       if String.starts_with ~prefix:"num:" data then (
-        let open Verbose_bot.Ctx in
+        let open Bot.Ctx in
         let num = String.sub data 4 (String.length data - 4) in
         Eio.traceln "[num] User selected: %s" num;
 
@@ -290,9 +283,9 @@ let () =
     )
 
   (* Handle page navigation from pagination *)
-  |> Verbose_bot.on_callback (fun ctx data ->
+  |> Bot.on_callback (fun ctx data ->
       if String.starts_with ~prefix:"page:" data then (
-        let open Verbose_bot.Ctx in
+        let open Bot.Ctx in
         let page_str = String.sub data 5 (String.length data - 5) in
         let page = int_of_string page_str in
         Eio.traceln "[page] Navigating to page %d" page;
@@ -312,9 +305,9 @@ let () =
     )
 
   (* Handle generic selections *)
-  |> Verbose_bot.on_callback (fun ctx data ->
+  |> Bot.on_callback (fun ctx data ->
       if String.starts_with ~prefix:"select:" data then (
-        let open Verbose_bot.Ctx in
+        let open Bot.Ctx in
         let selection = String.sub data 7 (String.length data - 7) in
         Eio.traceln "[select] User selected: %s" selection;
 
@@ -326,4 +319,4 @@ let () =
       ) else Ok ()
     )
 
-  |> Verbose_bot.run
+  |> Bot.run

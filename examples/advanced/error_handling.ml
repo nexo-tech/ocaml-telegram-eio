@@ -28,15 +28,8 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "ErrorDemo"
-  let level = Log.Debug
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 (** Error message formatting for users *)
 module ErrorMessages = struct
@@ -102,14 +95,14 @@ let () =
 
   Eio.traceln "🤖 Error Handling Demo Bot Started";
 
-  let session_store = Verbose_session.Memory_store.create () in
+  let session_store = Session.Memory_store.create () in
 
-  Verbose_bot.make ~env ~client
-  |> Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store
+  Bot.make ~env ~client
+  |> Bot.with_sessions (module Session.Memory_store) session_store
 
   (* Global error handler - catches all uncaught exceptions *)
-  |> Verbose_bot.on_error (fun ctx exn ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_error (fun ctx exn ->
+      let open Bot.Ctx in
       Eio.traceln "[on_error] Caught exception: %s" (Printexc.to_string exn);
       Eio.traceln "[on_error] Backtrace: %s" (Printexc.get_backtrace ());
 
@@ -120,8 +113,8 @@ let () =
     )
 
   (* /start - Show available features *)
-  |> Verbose_bot.command "start" ~desc:"Show available features" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "start" ~desc:"Show available features" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/start] Showing main menu";
 
       let text =
@@ -144,8 +137,8 @@ let () =
     )
 
   (* /send_ok - Successful operation *)
-  |> Verbose_bot.command "send_ok" ~desc:"Successful message send" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "send_ok" ~desc:"Successful message send" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/send_ok] Sending successful message";
 
       (* This will succeed *)
@@ -159,8 +152,8 @@ let () =
     )
 
   (* /send_invalid - Trigger API error *)
-  |> Verbose_bot.command "send_invalid" ~desc:"Trigger API error" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "send_invalid" ~desc:"Trigger API error" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/send_invalid] Attempting to send to invalid chat";
 
       (* Try to send to invalid chat_id (will fail) *)
@@ -192,8 +185,8 @@ let () =
     )
 
   (* /send_with_fallback - Demonstrate fallback pattern *)
-  |> Verbose_bot.command "send_with_fallback" ~desc:"Fallback error handling" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "send_with_fallback" ~desc:"Fallback error handling" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/send_with_fallback] Demonstrating fallback pattern";
 
       (* Try primary method *)
@@ -224,7 +217,7 @@ let () =
     )
 
   (* /trigger_error - Test global error handler *)
-  |> Verbose_bot.command "trigger_error" ~desc:"Test exception handler" (fun _ctx _args ->
+  |> Bot.command "trigger_error" ~desc:"Test exception handler" (fun _ctx _args ->
       Eio.traceln "[/trigger_error] Throwing exception to test error handler";
 
       (* This will trigger the global on_error handler *)
@@ -232,8 +225,8 @@ let () =
     )
 
   (* /error_types - Explain error types *)
-  |> Verbose_bot.command "error_types" ~desc:"Explain Telegram error types" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "error_types" ~desc:"Explain Telegram error types" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/error_types] Explaining error types";
 
       let text =
@@ -261,8 +254,8 @@ let () =
     )
 
   (* /monadic - Demonstrate monadic error propagation *)
-  |> Verbose_bot.command "monadic" ~desc:"Monadic error handling" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "monadic" ~desc:"Monadic error handling" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/monadic] Demonstrating monadic error propagation";
 
       (* Chain multiple operations - error stops propagation *)
@@ -304,8 +297,8 @@ let () =
     )
 
   (* /recover - Demonstrate error recovery *)
-  |> Verbose_bot.command "recover" ~desc:"Error recovery pattern" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "recover" ~desc:"Error recovery pattern" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/recover] Demonstrating error recovery";
 
       (* Simulate operation that might fail *)
@@ -345,8 +338,8 @@ let () =
     )
 
   (* /partial - Demonstrate partial success handling *)
-  |> Verbose_bot.command "partial" ~desc:"Partial success pattern" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "partial" ~desc:"Partial success pattern" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/partial] Demonstrating partial success";
 
       (* Simulate multiple operations *)
@@ -395,8 +388,8 @@ let () =
     )
 
   (* /help - Show all commands *)
-  |> Verbose_bot.command "help" ~desc:"Show all commands" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "help" ~desc:"Show all commands" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/help] Showing help";
 
       let text =
@@ -418,4 +411,4 @@ let () =
       | Error e -> Eio.traceln "[/help] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.run
+  |> Bot.run

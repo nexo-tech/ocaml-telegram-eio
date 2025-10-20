@@ -36,21 +36,14 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "MiddlewareDemo"
-  let level = Log.Debug
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 module KB = Keyboard
 
 (** Custom middleware implementations *)
 module CustomMiddleware = struct
-  open Verbose_bot
+  open Bot
 
   (** Logging middleware - logs before and after handler *)
   let logging_mw name =
@@ -125,7 +118,7 @@ module CustomMiddleware = struct
 
   (** Context enrichment middleware - adds request timestamp *)
   let enrich_timestamp_mw =
-    let timestamp_key = Verbose_session.make ~name:"request_timestamp" in
+    let timestamp_key = Session.make ~name:"request_timestamp" in
     Eio.traceln "[CustomMiddleware] Creating timestamp enrichment middleware";
     Middleware.make
       ~before:(fun ctx ->
@@ -145,7 +138,7 @@ module CustomMiddleware = struct
 
   (** Request counter middleware *)
   let request_counter_mw =
-    let counter_key = Verbose_session.make ~name:"request_count" in
+    let counter_key = Session.make ~name:"request_count" in
     Eio.traceln "[CustomMiddleware] Creating request counter middleware";
     Middleware.make
       ~before:(fun ctx ->
@@ -200,7 +193,7 @@ let () =
   Eio.traceln "Premium users: %d configured" (List.length (Auth.premium_user_ids ()));
   Eio.traceln "";
 
-  let session_store = Verbose_session.Memory_store.create () in
+  let session_store = Session.Memory_store.create () in
 
   (* Create middleware instances *)
   let admin_mw = CustomMiddleware.admin_only_mw (Auth.admin_user_ids ()) in
@@ -211,12 +204,12 @@ let () =
 
   Eio.traceln "=== Building Bot with Middleware ===";
 
-  Verbose_bot.make ~env ~client
-  |> Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store
+  Bot.make ~env ~client
+  |> Bot.with_sessions (module Session.Memory_store) session_store
 
   (* /start - No middleware *)
-  |> Verbose_bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[Handler] /start (no middleware)";
 
       let text =
@@ -240,8 +233,8 @@ let () =
     )
 
   (* /public - Logging middleware only *)
-  |> Verbose_bot.command "public" ~desc:"Public command with logging" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "public" ~desc:"Public command with logging" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[Handler] /public executing";
 
       match reply ctx
@@ -252,11 +245,11 @@ let () =
       | Ok _ -> Eio.traceln "[Handler] /public ✓"; Ok ()
       | Error e -> Eio.traceln "[Handler] /public ✗ %a" Error.pp e; Ok ()
     )
-  |> Verbose_bot.use logging_mw
+  |> Bot.use logging_mw
 
   (* /logged - Detailed logging *)
-  |> Verbose_bot.command "logged" ~desc:"Command with detailed logging" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "logged" ~desc:"Command with detailed logging" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[Handler] /logged executing";
 
       match reply ctx
@@ -268,14 +261,14 @@ let () =
       | Ok _ -> Eio.traceln "[Handler] /logged ✓"; Ok ()
       | Error e -> Eio.traceln "[Handler] /logged ✗ %a" Error.pp e; Ok ()
     )
-  |> Verbose_bot.use (CustomMiddleware.logging_mw "detailed")
+  |> Bot.use (CustomMiddleware.logging_mw "detailed")
 
   (* /enriched - Context enrichment *)
-  |> Verbose_bot.command "enriched" ~desc:"Context enrichment middleware" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "enriched" ~desc:"Context enrichment middleware" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[Handler] /enriched executing";
 
-      let timestamp_key = Verbose_session.make ~name:"request_timestamp" in
+      let timestamp_key = Session.make ~name:"request_timestamp" in
       let timestamp = session_get ctx timestamp_key in
 
       let timestamp_str = match timestamp with
@@ -294,11 +287,11 @@ let () =
       | Ok _ -> Eio.traceln "[Handler] /enriched ✓"; Ok ()
       | Error e -> Eio.traceln "[Handler] /enriched ✗ %a" Error.pp e; Ok ()
     )
-  |> Verbose_bot.use enrich_mw
+  |> Bot.use enrich_mw
 
   (* /admin - Admin-only command *)
-  |> Verbose_bot.command "admin" ~desc:"Admin-only command" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "admin" ~desc:"Admin-only command" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[Handler] /admin executing (admin-only)";
 
       match reply ctx
@@ -309,11 +302,11 @@ let () =
       | Ok _ -> Eio.traceln "[Handler] /admin ✓"; Ok ()
       | Error e -> Eio.traceln "[Handler] /admin ✗ %a" Error.pp e; Ok ()
     )
-  |> Verbose_bot.use admin_mw
+  |> Bot.use admin_mw
 
   (* /premium - Premium-only command *)
-  |> Verbose_bot.command "premium" ~desc:"Premium-only command" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "premium" ~desc:"Premium-only command" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[Handler] /premium executing (premium-only)";
 
       match reply ctx
@@ -324,14 +317,14 @@ let () =
       | Ok _ -> Eio.traceln "[Handler] /premium ✓"; Ok ()
       | Error e -> Eio.traceln "[Handler] /premium ✗ %a" Error.pp e; Ok ()
     )
-  |> Verbose_bot.use premium_mw
+  |> Bot.use premium_mw
 
   (* /counted - Request counter middleware *)
-  |> Verbose_bot.command "counted" ~desc:"Command with request counter" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "counted" ~desc:"Command with request counter" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[Handler] /counted executing";
 
-      let counter_key = Verbose_session.make ~name:"request_count" in
+      let counter_key = Session.make ~name:"request_count" in
       let count = session_get_or ctx counter_key ~default:0 in
 
       let text = Printf.sprintf
@@ -345,24 +338,24 @@ let () =
       | Ok _ -> Eio.traceln "[Handler] /counted ✓"; Ok ()
       | Error e -> Eio.traceln "[Handler] /counted ✗ %a" Error.pp e; Ok ()
     )
-  |> Verbose_bot.use counter_mw
+  |> Bot.use counter_mw
 
   (* /error_test - Test error middleware *)
-  |> Verbose_bot.command "error_test" ~desc:"Test error handling middleware" (fun _ctx _args ->
+  |> Bot.command "error_test" ~desc:"Test error handling middleware" (fun _ctx _args ->
       Eio.traceln "[Handler] /error_test throwing exception";
       failwith "This is a test exception to demonstrate error middleware!"
     )
-  |> Verbose_bot.use (CustomMiddleware.logging_mw "error_handler")
+  |> Bot.use (CustomMiddleware.logging_mw "error_handler")
 
   (* /layered - Multiple middleware layers *)
-  |> Verbose_bot.command "layered" ~desc:"Multiple middleware layers" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "layered" ~desc:"Multiple middleware layers" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[Handler] /layered executing";
 
-      let counter_key = Verbose_session.make ~name:"request_count" in
+      let counter_key = Session.make ~name:"request_count" in
       let count = session_get_or ctx counter_key ~default:0 in
 
-      let timestamp_key = Verbose_session.make ~name:"request_timestamp" in
+      let timestamp_key = Session.make ~name:"request_timestamp" in
       let timestamp = session_get_or ctx timestamp_key ~default:0.0 in
 
       let text = Printf.sprintf
@@ -379,13 +372,13 @@ let () =
       | Ok _ -> Eio.traceln "[Handler] /layered ✓"; Ok ()
       | Error e -> Eio.traceln "[Handler] /layered ✗ %a" Error.pp e; Ok ()
     )
-  |> Verbose_bot.use (CustomMiddleware.logging_mw "layer1")
-  |> Verbose_bot.use counter_mw
-  |> Verbose_bot.use enrich_mw
+  |> Bot.use (CustomMiddleware.logging_mw "layer1")
+  |> Bot.use counter_mw
+  |> Bot.use enrich_mw
 
   (* /middleware_info - Show middleware information *)
-  |> Verbose_bot.command "middleware_info" ~desc:"Middleware stack information" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "middleware_info" ~desc:"Middleware stack information" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[Handler] /middleware_info showing info";
 
       let text =
@@ -412,4 +405,4 @@ let () =
       | Error e -> Eio.traceln "[Handler] /middleware_info ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.run
+  |> Bot.run

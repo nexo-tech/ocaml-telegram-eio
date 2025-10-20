@@ -27,15 +27,8 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "FAQ"
-  let level = Log.Debug
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 module KB = Keyboard
 
@@ -284,14 +277,14 @@ let () =
   Eio.traceln "🤖 FAQ Demo Started";
   Eio.traceln "FAQ entries loaded: %d" (List.length FAQ.entries);
 
-  let session_store = Verbose_session.Memory_store.create () in
+  let session_store = Session.Memory_store.create () in
 
-  Verbose_bot.make ~env ~client
-  |> Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store
+  Bot.make ~env ~client
+  |> Bot.with_sessions (module Session.Memory_store) session_store
 
   (* /start - Main menu *)
-  |> Verbose_bot.command "start" ~desc:"Show FAQ main menu" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "start" ~desc:"Show FAQ main menu" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/start] Showing FAQ main menu";
 
       let categories = FAQ.all_categories () in
@@ -316,8 +309,8 @@ let () =
     )
 
   (* /search - Search FAQ *)
-  |> Verbose_bot.command "search" ~desc:"Search FAQ" (fun ctx args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "search" ~desc:"Search FAQ" (fun ctx args ->
+      let open Bot.Ctx in
       Eio.traceln "[/search] Searching FAQ";
 
       match args with
@@ -356,8 +349,8 @@ let () =
     )
 
   (* /troubleshooting - Quick troubleshooting *)
-  |> Verbose_bot.command "troubleshooting" ~desc:"Common issues" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "troubleshooting" ~desc:"Common issues" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/troubleshooting] Showing troubleshooting";
 
       let troubleshooting_faqs = FAQ.by_category "Troubleshooting" in
@@ -381,9 +374,9 @@ let () =
     )
 
   (* Callback: category:<name> *)
-  |> Verbose_bot.on_callback (fun ctx data ->
+  |> Bot.on_callback (fun ctx data ->
       if String.starts_with ~prefix:"category:" data then (
-        let open Verbose_bot.Ctx in
+        let open Bot.Ctx in
         let category = String.sub data 9 (String.length data - 9) in
 
         Eio.traceln "[category] Filtering by: %s" category;
@@ -411,9 +404,9 @@ let () =
     )
 
   (* Callback: faq:<id> *)
-  |> Verbose_bot.on_callback (fun ctx data ->
+  |> Bot.on_callback (fun ctx data ->
       if String.starts_with ~prefix:"faq:" data then (
-        let open Verbose_bot.Ctx in
+        let open Bot.Ctx in
         let id = String.sub data 4 (String.length data - 4) in
 
         Eio.traceln "[faq] Showing FAQ: %s" id;
@@ -442,8 +435,8 @@ let () =
     )
 
   (* Callback: action:categories *)
-  |> Verbose_bot.on_callback_data "action:categories" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "action:categories" (fun ctx ->
+      let open Bot.Ctx in
 
       let categories = FAQ.all_categories () in
       let cat_buttons = List.map (fun cat ->
@@ -458,8 +451,8 @@ let () =
     )
 
   (* Callback: action:browse_all *)
-  |> Verbose_bot.on_callback_data "action:browse_all" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "action:browse_all" (fun ctx ->
+      let open Bot.Ctx in
 
       let all_faqs = FAQ.entries in
 
@@ -481,8 +474,8 @@ let () =
     )
 
   (* Callback: action:search_prompt *)
-  |> Verbose_bot.on_callback_data "action:search_prompt" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "action:search_prompt" (fun ctx ->
+      let open Bot.Ctx in
 
       match edit ctx
         "🔍 <b>Search FAQ</b>\n\n\
@@ -497,4 +490,4 @@ let () =
       | Error e -> Eio.traceln "[action:search_prompt] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.run
+  |> Bot.run

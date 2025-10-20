@@ -28,15 +28,8 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "EntertainmentBots"
-  let level = Log.Debug
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 module KB = Keyboard
 
@@ -191,8 +184,8 @@ module Leaderboard = struct
 end
 
 (** Session keys *)
-let quiz_state_key = Verbose_session.make ~name:"quiz_state"
-let riddle_answer_key = Verbose_session.make ~name:"riddle_answer"
+let quiz_state_key = Session.make ~name:"quiz_state"
+let riddle_answer_key = Session.make ~name:"riddle_answer"
 
 let () =
   Printexc.record_backtrace true;
@@ -212,14 +205,14 @@ let () =
   Eio.traceln "Fact bank: %d facts" (List.length Facts.facts);
   Eio.traceln "Joke bank: %d jokes" (List.length Jokes.jokes);
 
-  let session_store = Verbose_session.Memory_store.create () in
+  let session_store = Session.Memory_store.create () in
 
-  Verbose_bot.make ~env ~client
-  |> Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store
+  Bot.make ~env ~client
+  |> Bot.with_sessions (module Session.Memory_store) session_store
 
   (* /start - Main menu *)
-  |> Verbose_bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/start] Showing main menu";
 
       let keyboard = KB.inline [
@@ -247,8 +240,8 @@ let () =
     )
 
   (* /quiz - Start quiz *)
-  |> Verbose_bot.command "quiz" ~desc:"Start quiz" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "quiz" ~desc:"Start quiz" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/quiz] Starting quiz";
 
       let question = QuestionBank.pick_random () in
@@ -279,9 +272,9 @@ let () =
     )
 
   (* Handle quiz answers *)
-  |> Verbose_bot.on_callback (fun ctx data ->
+  |> Bot.on_callback (fun ctx data ->
       if String.starts_with ~prefix:"quiz:answer:" data then (
-        let open Verbose_bot.Ctx in
+        let open Bot.Ctx in
 
         let parts = String.split_on_char ':' data in
         match parts with
@@ -374,8 +367,8 @@ let () =
     )
 
   (* /score - Show current score *)
-  |> Verbose_bot.command "score" ~desc:"Show your quiz score" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "score" ~desc:"Show your quiz score" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/score] Showing score";
 
       match session_get ctx quiz_state_key with
@@ -403,8 +396,8 @@ let () =
     )
 
   (* /leaderboard - Show top scores *)
-  |> Verbose_bot.command "leaderboard" ~desc:"Show top scorers" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "leaderboard" ~desc:"Show top scorers" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/leaderboard] Showing leaderboard";
 
       let leaderboard_text = Leaderboard.format_leaderboard 10 in
@@ -415,8 +408,8 @@ let () =
     )
 
   (* /fact - Random fact *)
-  |> Verbose_bot.command "fact" ~desc:"Random interesting fact" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "fact" ~desc:"Random interesting fact" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/fact] Generating random fact";
 
       let fact = Facts.random () in
@@ -427,8 +420,8 @@ let () =
     )
 
   (* /joke - Random joke *)
-  |> Verbose_bot.command "joke" ~desc:"Random joke" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "joke" ~desc:"Random joke" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/joke] Generating random joke";
 
       let joke = Jokes.random () in
@@ -439,8 +432,8 @@ let () =
     )
 
   (* /riddle - Random riddle *)
-  |> Verbose_bot.command "riddle" ~desc:"Random riddle" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "riddle" ~desc:"Random riddle" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/riddle] Generating random riddle";
 
       let riddle = Riddles.random () in
@@ -460,8 +453,8 @@ let () =
     )
 
   (* /reset_score - Reset score *)
-  |> Verbose_bot.command "reset_score" ~desc:"Reset your score" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "reset_score" ~desc:"Reset your score" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/reset_score] Resetting score";
 
       session_delete ctx quiz_state_key;
@@ -476,8 +469,8 @@ let () =
     )
 
   (* Callback: action:quiz *)
-  |> Verbose_bot.on_callback_data "action:quiz" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "action:quiz" (fun ctx ->
+      let open Bot.Ctx in
 
       let question = QuestionBank.pick_random () in
 
@@ -503,8 +496,8 @@ let () =
     )
 
   (* Callback: action:fact *)
-  |> Verbose_bot.on_callback_data "action:fact" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "action:fact" (fun ctx ->
+      let open Bot.Ctx in
       let fact = Facts.random () in
       match edit ctx fact with
       | Ok () -> Ok ()
@@ -512,8 +505,8 @@ let () =
     )
 
   (* Callback: action:joke *)
-  |> Verbose_bot.on_callback_data "action:joke" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "action:joke" (fun ctx ->
+      let open Bot.Ctx in
       let joke = Jokes.random () in
       match edit ctx ("😄 " ^ joke) with
       | Ok () -> Ok ()
@@ -521,8 +514,8 @@ let () =
     )
 
   (* Callback: action:riddle *)
-  |> Verbose_bot.on_callback_data "action:riddle" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "action:riddle" (fun ctx ->
+      let open Bot.Ctx in
 
       let riddle = Riddles.random () in
       session_set ctx riddle_answer_key riddle.answer;
@@ -537,8 +530,8 @@ let () =
     )
 
   (* Callback: action:leaderboard *)
-  |> Verbose_bot.on_callback_data "action:leaderboard" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "action:leaderboard" (fun ctx ->
+      let open Bot.Ctx in
       let leaderboard_text = Leaderboard.format_leaderboard 10 in
       match edit ctx leaderboard_text with
       | Ok () -> Ok ()
@@ -546,8 +539,8 @@ let () =
     )
 
   (* Callback: riddle:answer *)
-  |> Verbose_bot.on_callback_data "riddle:answer" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "riddle:answer" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[riddle:answer] Showing riddle answer";
 
       match session_get ctx riddle_answer_key with
@@ -562,4 +555,4 @@ let () =
            | Error e -> Eio.traceln "[riddle:answer] ✗ %a" Error.pp e; Ok ())
     )
 
-  |> Verbose_bot.run
+  |> Bot.run

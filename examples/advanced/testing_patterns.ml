@@ -28,15 +28,8 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "TestingDemo"
-  let level = Log.Debug
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 (** Pure business logic - Fully testable without I/O *)
 module BusinessLogic = struct
@@ -237,14 +230,14 @@ let () =
 
   Eio.traceln "🤖 Testing Patterns Demo Bot Started";
 
-  let session_store = Verbose_session.Memory_store.create () in
+  let session_store = Session.Memory_store.create () in
 
-  Verbose_bot.make ~env ~client
-  |> Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store
+  Bot.make ~env ~client
+  |> Bot.with_sessions (module Session.Memory_store) session_store
 
   (* /start - Main menu *)
-  |> Verbose_bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/start] Showing main menu";
 
       let text =
@@ -269,8 +262,8 @@ let () =
     )
 
   (* /self_test - Run all self-tests *)
-  |> Verbose_bot.command "self_test" ~desc:"Run all self-tests" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "self_test" ~desc:"Run all self-tests" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/self_test] Running all tests";
 
       let results = SelfTest.run_all_tests () in
@@ -282,8 +275,8 @@ let () =
     )
 
   (* /test_validation - Test validation functions *)
-  |> Verbose_bot.command "test_validation" ~desc:"Test validators" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "test_validation" ~desc:"Test validators" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/test_validation] Testing validators";
 
       let result = SelfTest.run_test "name_validation" SelfTest.test_name_validation in
@@ -297,8 +290,8 @@ let () =
     )
 
   (* /test_args - Test Args module *)
-  |> Verbose_bot.command "test_args" ~desc:"Test argument parsing" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "test_args" ~desc:"Test argument parsing" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/test_args] Testing Args module";
 
       let result = SelfTest.run_test "args_parsing" SelfTest.test_args_parsing in
@@ -310,8 +303,8 @@ let () =
     )
 
   (* /test_calculation - Test business calculations *)
-  |> Verbose_bot.command "test_calculation" ~desc:"Test calculations" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "test_calculation" ~desc:"Test calculations" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/test_calculation] Testing calculations";
 
       let result = SelfTest.run_test "discount_calculation" SelfTest.test_discount_calculation in
@@ -323,8 +316,8 @@ let () =
     )
 
   (* /register - Testable registration handler *)
-  |> Verbose_bot.command "register" ~desc:"Register with name and email" (fun ctx args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "register" ~desc:"Register with name and email" (fun ctx args ->
+      let open Bot.Ctx in
       Eio.traceln "[/register] Registration request with %d args" (List.length args);
 
       match Bot.Args.expect_2 args with
@@ -374,8 +367,8 @@ let () =
     )
 
   (* /calculate - Testable calculation handler *)
-  |> Verbose_bot.command "calculate" ~desc:"Calculate discounted price" (fun ctx args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "calculate" ~desc:"Calculate discounted price" (fun ctx args ->
+      let open Bot.Ctx in
       Eio.traceln "[/calculate] Calculation request";
 
       match Bot.Args.expect_2 args with
@@ -426,8 +419,8 @@ let () =
     )
 
   (* /validate_email - Test email validation *)
-  |> Verbose_bot.command "validate_email" ~desc:"Validate an email address" (fun ctx args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "validate_email" ~desc:"Validate an email address" (fun ctx args ->
+      let open Bot.Ctx in
       Eio.traceln "[/validate_email] Validating email";
 
       match Bot.Args.expect_1 args with
@@ -451,8 +444,8 @@ let () =
     )
 
   (* /validate_name - Test name validation *)
-  |> Verbose_bot.command "validate_name" ~desc:"Validate a name" (fun ctx args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "validate_name" ~desc:"Validate a name" (fun ctx args ->
+      let open Bot.Ctx in
       Eio.traceln "[/validate_name] Validating name";
 
       match Bot.Args.expect_1 args with
@@ -475,4 +468,4 @@ let () =
            | Error e -> Eio.traceln "[/validate_name] ✗ %a" Error.pp e; Ok ())
     )
 
-  |> Verbose_bot.run
+  |> Bot.run

@@ -34,15 +34,8 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "IntegrationBots"
-  let level = Log.Debug
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 module KB = Keyboard
 
@@ -288,14 +281,14 @@ let () =
   Eio.traceln "🤖 Integration Bots Demo Started";
   Eio.traceln "Admin users: %d configured" (List.length (AdminAuth.admin_user_ids ()));
 
-  let session_store = Verbose_session.Memory_store.create () in
+  let session_store = Session.Memory_store.create () in
 
-  Verbose_bot.make ~env ~client
-  |> Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store
+  Bot.make ~env ~client
+  |> Bot.with_sessions (module Session.Memory_store) session_store
 
   (* /start - Main menu *)
-  |> Verbose_bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/start] Showing main menu";
 
       let keyboard = KB.inline [
@@ -321,8 +314,8 @@ let () =
     )
 
   (* /ci_status - Check CI/CD status *)
-  |> Verbose_bot.command "ci_status" ~desc:"Check CI/CD build status" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "ci_status" ~desc:"Check CI/CD build status" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/ci_status] Checking build status";
 
       let build = CICD.get_status () in
@@ -334,8 +327,8 @@ let () =
     )
 
   (* /db_query - Database query *)
-  |> Verbose_bot.command "db_query" ~desc:"Run database query" (fun ctx args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "db_query" ~desc:"Run database query" (fun ctx args ->
+      let open Bot.Ctx in
       Eio.traceln "[/db_query] Database query request";
 
       match args with
@@ -374,8 +367,8 @@ let () =
     )
 
   (* /api_call - Backend API call *)
-  |> Verbose_bot.command "api_call" ~desc:"Call backend API" (fun ctx args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "api_call" ~desc:"Call backend API" (fun ctx args ->
+      let open Bot.Ctx in
       Eio.traceln "[/api_call] API call request";
 
       match args with
@@ -407,8 +400,8 @@ let () =
     )
 
   (* /webhook_test - Simulate webhook *)
-  |> Verbose_bot.command "webhook_test" ~desc:"Simulate GitHub webhook" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "webhook_test" ~desc:"Simulate GitHub webhook" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/webhook_test] Simulating GitHub webhook";
 
       let keyboard = KB.inline [
@@ -427,8 +420,8 @@ let () =
     )
 
   (* /integration_status - Show all integration statuses *)
-  |> Verbose_bot.command "integration_status" ~desc:"Show integration status" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "integration_status" ~desc:"Show integration status" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/integration_status] Showing integration status";
 
       let build = CICD.get_status () in
@@ -458,8 +451,8 @@ let () =
     )
 
   (* /trigger_ci - Trigger CI build (admin only) *)
-  |> Verbose_bot.command "trigger_ci" ~desc:"Trigger CI build (admin)" (fun ctx args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "trigger_ci" ~desc:"Trigger CI build (admin)" (fun ctx args ->
+      let open Bot.Ctx in
       Eio.traceln "[/trigger_ci] CI build trigger request";
 
       (* Check admin *)
@@ -500,8 +493,8 @@ let () =
     )
 
   (* Callback: action:ci_status *)
-  |> Verbose_bot.on_callback_data "action:ci_status" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "action:ci_status" (fun ctx ->
+      let open Bot.Ctx in
 
       let build = CICD.get_status () in
       let text = CICD.format_build build in
@@ -512,8 +505,8 @@ let () =
     )
 
   (* Callback: action:db_query *)
-  |> Verbose_bot.on_callback_data "action:db_query" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "action:db_query" (fun ctx ->
+      let open Bot.Ctx in
 
       let query_buttons = List.map (fun q ->
         [KB.callback ~text:q ~data:("db:" ^ q)]
@@ -532,9 +525,9 @@ let () =
     )
 
   (* Callback: db:<query> *)
-  |> Verbose_bot.on_callback (fun ctx data ->
+  |> Bot.on_callback (fun ctx data ->
       if String.starts_with ~prefix:"db:" data then (
-        let open Verbose_bot.Ctx in
+        let open Bot.Ctx in
         let query = String.sub data 3 (String.length data - 3) in
 
         Eio.traceln "[db] Running query: %s" query;
@@ -560,8 +553,8 @@ let () =
     )
 
   (* Callback: action:api_call *)
-  |> Verbose_bot.on_callback_data "action:api_call" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "action:api_call" (fun ctx ->
+      let open Bot.Ctx in
 
       let api_buttons = [
         [KB.callback ~text:"Users" ~data:"api:users"];
@@ -577,9 +570,9 @@ let () =
     )
 
   (* Callback: api:<endpoint> *)
-  |> Verbose_bot.on_callback (fun ctx data ->
+  |> Bot.on_callback (fun ctx data ->
       if String.starts_with ~prefix:"api:" data then (
-        let open Verbose_bot.Ctx in
+        let open Bot.Ctx in
         let endpoint = String.sub data 4 (String.length data - 4) in
 
         Eio.traceln "[api] Calling endpoint: %s" endpoint;
@@ -599,8 +592,8 @@ let () =
     )
 
   (* Callback: action:github *)
-  |> Verbose_bot.on_callback_data "action:github" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "action:github" (fun ctx ->
+      let open Bot.Ctx in
 
       let keyboard = KB.inline [
         [KB.callback ~text:"⬆️ Push Event" ~data:"webhook:push"];
@@ -613,8 +606,8 @@ let () =
     )
 
   (* Callback: webhook:push *)
-  |> Verbose_bot.on_callback_data "webhook:push" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "webhook:push" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[webhook:push] Simulating push event";
 
       let event = GitHub.simulate_push () in
@@ -626,8 +619,8 @@ let () =
     )
 
   (* Callback: webhook:pr *)
-  |> Verbose_bot.on_callback_data "webhook:pr" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "webhook:pr" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[webhook:pr] Simulating PR event";
 
       let event = GitHub.simulate_pr () in
@@ -638,4 +631,4 @@ let () =
       | Error e -> Eio.traceln "[webhook:pr] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.run
+  |> Bot.run

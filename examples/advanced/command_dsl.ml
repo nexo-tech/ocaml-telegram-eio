@@ -30,15 +30,8 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "CommandDSL"
-  let level = Log.Debug
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 (* Argument parsers for command_with *)
 module Parsers = struct
@@ -102,11 +95,11 @@ let () =
 
   Eio.traceln "🤖 Command DSL Demo Bot Started";
 
-  Verbose_bot.make ~env ~client
+  Bot.make ~env ~client
 
   (* /start - Welcome message *)
-  |> Verbose_bot.command "start" ~desc:"Welcome message" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "start" ~desc:"Welcome message" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/start] User started bot";
 
       match reply ctx
@@ -119,8 +112,8 @@ let () =
     )
 
   (* /help - Auto-generated help from command descriptions *)
-  |> Verbose_bot.command "help" ~desc:"Show available commands" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "help" ~desc:"Show available commands" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/help] Generating help message";
 
       (* In a real implementation, commands() would return list of (name, desc) *)
@@ -145,8 +138,8 @@ let () =
     )
 
   (* /echo - Basic command with raw string arguments *)
-  |> Verbose_bot.command "echo" ~desc:"Echo back your text" (fun ctx args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "echo" ~desc:"Echo back your text" (fun ctx args ->
+      let open Bot.Ctx in
       Eio.traceln "[/echo] Args count: %d" (List.length args);
 
       match args with
@@ -164,8 +157,8 @@ let () =
     )
 
   (* /calc - Command with manual two-argument parsing *)
-  |> Verbose_bot.command "calc" ~desc:"Add two numbers" (fun ctx args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "calc" ~desc:"Add two numbers" (fun ctx args ->
+      let open Bot.Ctx in
       Eio.traceln "[/calc] Parsing arguments";
 
       match Bot.Args.expect_2 args with
@@ -194,10 +187,10 @@ let () =
     )
 
   (* /multiply - Command with typed parser using command_with *)
-  |> Verbose_bot.command_with "multiply" ~desc:"Multiply three numbers"
+  |> Bot.command_with "multiply" ~desc:"Multiply three numbers"
       Parsers.three_ints_parser
       (fun ctx (a, b, c) ->
-        let open Verbose_bot.Ctx in
+        let open Bot.Ctx in
         Eio.traceln "[/multiply] Computing: %d * %d * %d" a b c;
 
         let result = a * b * c in
@@ -209,10 +202,10 @@ let () =
       )
 
   (* /greet - Command with single string argument using command_with *)
-  |> Verbose_bot.command_with "greet" ~desc:"Greet someone"
+  |> Bot.command_with "greet" ~desc:"Greet someone"
       Parsers.string_parser
       (fun ctx name ->
-        let open Verbose_bot.Ctx in
+        let open Bot.Ctx in
         Eio.traceln "[/greet] Greeting: %s" name;
 
         let response = Printf.sprintf "👋 Hello, %s! Nice to meet you!" name in
@@ -223,10 +216,10 @@ let () =
       )
 
   (* /check - Command with boolean parser using command_with *)
-  |> Verbose_bot.command_with "check" ~desc:"Parse boolean value"
+  |> Bot.command_with "check" ~desc:"Parse boolean value"
       Parsers.bool_parser
       (fun ctx value ->
-        let open Verbose_bot.Ctx in
+        let open Bot.Ctx in
         Eio.traceln "[/check] Boolean value: %b" value;
 
         let response = if value then
@@ -241,8 +234,8 @@ let () =
       )
 
   (* /remind - Command with title and remaining text *)
-  |> Verbose_bot.command "remind" ~desc:"Create reminder" (fun ctx args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "remind" ~desc:"Create reminder" (fun ctx args ->
+      let open Bot.Ctx in
       Eio.traceln "[/remind] Processing reminder";
 
       match args with
@@ -269,10 +262,10 @@ let () =
     )
 
   (* /square - Command using int_parser with command_with *)
-  |> Verbose_bot.command_with "square" ~desc:"Square a number"
+  |> Bot.command_with "square" ~desc:"Square a number"
       Parsers.int_parser
       (fun ctx n ->
-        let open Verbose_bot.Ctx in
+        let open Bot.Ctx in
         Eio.traceln "[/square] Computing: %d²" n;
 
         let result = n * n in
@@ -284,10 +277,10 @@ let () =
       )
 
   (* /subtract - Command using two_ints_parser with command_with *)
-  |> Verbose_bot.command_with "subtract" ~desc:"Subtract two numbers"
+  |> Bot.command_with "subtract" ~desc:"Subtract two numbers"
       Parsers.two_ints_parser
       (fun ctx (a, b) ->
-        let open Verbose_bot.Ctx in
+        let open Bot.Ctx in
         Eio.traceln "[/subtract] Computing: %d - %d" a b;
 
         let result = a - b in
@@ -299,8 +292,8 @@ let () =
       )
 
   (* /info - Show bot information *)
-  |> Verbose_bot.command "info" ~desc:"Show bot information" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "info" ~desc:"Show bot information" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/info] Showing bot info";
 
       let info_text =
@@ -321,4 +314,4 @@ let () =
       | Error e -> Eio.traceln "[/info] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.run
+  |> Bot.run

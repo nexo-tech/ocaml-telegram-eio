@@ -29,15 +29,8 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "ContentBots"
-  let level = Log.Debug
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 module KB = Keyboard
 
@@ -150,8 +143,8 @@ module Subscriptions = struct
 end
 
 (** Session keys *)
-let subscribed_key = Verbose_session.make ~name:"is_subscribed"
-let last_browse_offset_key = Verbose_session.make ~name:"browse_offset"
+let subscribed_key = Session.make ~name:"is_subscribed"
+let last_browse_offset_key = Session.make ~name:"browse_offset"
 
 (** Format content item for display *)
 let format_item item =
@@ -203,7 +196,7 @@ let () =
   Eio.traceln "🤖 Content Bots Demo Started";
   Eio.traceln "Content items loaded: %d" (List.length !(ContentLibrary.items));
 
-  let session_store = Verbose_session.Memory_store.create () in
+  let session_store = Session.Memory_store.create () in
 
   (* Global switch for background tasks *)
   Eio.Switch.run @@ fun global_sw ->
@@ -245,12 +238,12 @@ let () =
     done
   );
 
-  Verbose_bot.make ~env ~client
-  |> Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store
+  Bot.make ~env ~client
+  |> Bot.with_sessions (module Session.Memory_store) session_store
 
   (* /start - Main menu *)
-  |> Verbose_bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/start] Showing main menu";
 
       let keyboard = KB.inline [
@@ -276,8 +269,8 @@ let () =
     )
 
   (* /browse - Browse content library *)
-  |> Verbose_bot.command "browse" ~desc:"Browse content library" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "browse" ~desc:"Browse content library" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/browse] Browsing content";
 
       let items = !(ContentLibrary.items) in
@@ -309,8 +302,8 @@ let () =
     )
 
   (* /search - Search content *)
-  |> Verbose_bot.command "search" ~desc:"Search content" (fun ctx args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "search" ~desc:"Search content" (fun ctx args ->
+      let open Bot.Ctx in
       Eio.traceln "[/search] Searching content";
 
       match args with
@@ -349,8 +342,8 @@ let () =
     )
 
   (* /category - Filter by category *)
-  |> Verbose_bot.command "category" ~desc:"Filter by category" (fun ctx args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "category" ~desc:"Filter by category" (fun ctx args ->
+      let open Bot.Ctx in
       Eio.traceln "[/category] Filtering by category";
 
       match args with
@@ -402,8 +395,8 @@ let () =
     )
 
   (* /latest - Show latest content *)
-  |> Verbose_bot.command "latest" ~desc:"Show latest content" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "latest" ~desc:"Show latest content" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/latest] Showing latest content";
 
       let latest = ContentLibrary.latest 5 in
@@ -426,8 +419,8 @@ let () =
     )
 
   (* /subscribe - Subscribe to digest *)
-  |> Verbose_bot.command "subscribe" ~desc:"Subscribe to daily digest" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "subscribe" ~desc:"Subscribe to daily digest" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/subscribe] Processing subscription";
 
       match user ctx with
@@ -459,8 +452,8 @@ let () =
     )
 
   (* /unsubscribe - Unsubscribe from digest *)
-  |> Verbose_bot.command "unsubscribe" ~desc:"Unsubscribe from digest" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "unsubscribe" ~desc:"Unsubscribe from digest" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/unsubscribe] Processing unsubscription";
 
       match user ctx with
@@ -487,8 +480,8 @@ let () =
     )
 
   (* /status - Subscription status *)
-  |> Verbose_bot.command "status" ~desc:"Show subscription status" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "status" ~desc:"Show subscription status" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/status] Showing status";
 
       match user ctx with
@@ -516,9 +509,9 @@ let () =
     )
 
   (* Callback: view:<id> - View content item *)
-  |> Verbose_bot.on_callback (fun ctx data ->
+  |> Bot.on_callback (fun ctx data ->
       if String.starts_with ~prefix:"view:" data then (
-        let open Verbose_bot.Ctx in
+        let open Bot.Ctx in
         let id = String.sub data 5 (String.length data - 5) in
         Eio.traceln "[view] Viewing item: %s" id;
 
@@ -536,9 +529,9 @@ let () =
     )
 
   (* Callback: browse:page:<offset> - Pagination *)
-  |> Verbose_bot.on_callback (fun ctx data ->
+  |> Bot.on_callback (fun ctx data ->
       if String.starts_with ~prefix:"browse:page:" data then (
-        let open Verbose_bot.Ctx in
+        let open Bot.Ctx in
         let offset_str = String.sub data 12 (String.length data - 12) in
         let offset = int_of_string offset_str in
 
@@ -573,9 +566,9 @@ let () =
     )
 
   (* Callback: cat:<category> - Category filter *)
-  |> Verbose_bot.on_callback (fun ctx data ->
+  |> Bot.on_callback (fun ctx data ->
       if String.starts_with ~prefix:"cat:" data then (
-        let open Verbose_bot.Ctx in
+        let open Bot.Ctx in
         let category = String.sub data 4 (String.length data - 4) in
         Eio.traceln "[cat] Filtering by: %s" category;
 
@@ -600,8 +593,8 @@ let () =
     )
 
   (* Callback: action:browse *)
-  |> Verbose_bot.on_callback_data "action:browse" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "action:browse" (fun ctx ->
+      let open Bot.Ctx in
 
       let items = !(ContentLibrary.items) in
       let offset = 0 in
@@ -625,8 +618,8 @@ let () =
     )
 
   (* Callback: action:categories *)
-  |> Verbose_bot.on_callback_data "action:categories" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "action:categories" (fun ctx ->
+      let open Bot.Ctx in
 
       let categories = ContentLibrary.categories () in
       let cat_buttons = List.map (fun cat ->
@@ -641,8 +634,8 @@ let () =
     )
 
   (* Callback: action:subscribe *)
-  |> Verbose_bot.on_callback_data "action:subscribe" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "action:subscribe" (fun ctx ->
+      let open Bot.Ctx in
 
       match user ctx with
       | Some u ->
@@ -661,4 +654,4 @@ let () =
       | None -> Ok ()
     )
 
-  |> Verbose_bot.run
+  |> Bot.run

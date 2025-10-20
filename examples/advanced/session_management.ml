@@ -29,21 +29,14 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "SessionDemo"
-  let level = Log.Debug
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 module KB = Keyboard
 
 (** Session keys - typed for safety *)
-let name_key = Verbose_session.make ~name:"user_name"
-let counter_key = Verbose_session.make ~name:"counter"
+let name_key = Session.make ~name:"user_name"
+let counter_key = Session.make ~name:"counter"
 
 (** Multi-step wizard state *)
 type wizard_step =
@@ -52,10 +45,10 @@ type wizard_step =
   | AskingAge
   | AskingCity
 
-let wizard_step_key = Verbose_session.make ~name:"wizard_step"
-let wizard_name_key = Verbose_session.make ~name:"wizard_name"
-let wizard_age_key = Verbose_session.make ~name:"wizard_age"
-let wizard_city_key = Verbose_session.make ~name:"wizard_city"
+let wizard_step_key = Session.make ~name:"wizard_step"
+let wizard_name_key = Session.make ~name:"wizard_name"
+let wizard_age_key = Session.make ~name:"wizard_age"
+let wizard_city_key = Session.make ~name:"wizard_city"
 
 (** User preferences type *)
 type preferences = {
@@ -64,7 +57,7 @@ type preferences = {
   theme: string;
 }
 
-let prefs_key = Verbose_session.make ~name:"preferences"
+let prefs_key = Session.make ~name:"preferences"
 
 let default_prefs = {
   language = "English";
@@ -86,14 +79,14 @@ let () =
 
   Eio.traceln "🤖 Session Management Demo Bot Started";
 
-  let session_store = Verbose_session.Memory_store.create () in
+  let session_store = Session.Memory_store.create () in
 
-  Verbose_bot.make ~env ~client
-  |> Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store
+  Bot.make ~env ~client
+  |> Bot.with_sessions (module Session.Memory_store) session_store
 
   (* /start - Main menu *)
-  |> Verbose_bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/start] Showing main menu";
 
       let text =
@@ -115,8 +108,8 @@ let () =
     )
 
   (* /set_name - Set name in session *)
-  |> Verbose_bot.command "set_name" ~desc:"Store your name" (fun ctx args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "set_name" ~desc:"Store your name" (fun ctx args ->
+      let open Bot.Ctx in
       Eio.traceln "[/set_name] Setting name in session";
 
       match args with
@@ -139,8 +132,8 @@ let () =
     )
 
   (* /get_name - Retrieve name from session *)
-  |> Verbose_bot.command "get_name" ~desc:"Retrieve stored name" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "get_name" ~desc:"Retrieve stored name" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/get_name] Retrieving name from session";
 
       match session_get ctx name_key with
@@ -157,8 +150,8 @@ let () =
     )
 
   (* /counter - Increment session counter *)
-  |> Verbose_bot.command "counter" ~desc:"Increment session counter" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "counter" ~desc:"Increment session counter" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/counter] Incrementing counter";
 
       (* Get current value or default to 0 *)
@@ -183,8 +176,8 @@ let () =
     )
 
   (* /preferences - Manage user preferences *)
-  |> Verbose_bot.command "preferences" ~desc:"Manage preferences" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "preferences" ~desc:"Manage preferences" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/preferences] Showing preferences";
 
       let prefs = session_get_or ctx prefs_key ~default:default_prefs in
@@ -217,8 +210,8 @@ let () =
     )
 
   (* Callback: pref:toggle_notif *)
-  |> Verbose_bot.on_callback_data "pref:toggle_notif" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "pref:toggle_notif" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[pref:toggle_notif] Toggling notifications";
 
       let prefs = session_get_or ctx prefs_key ~default:default_prefs in
@@ -252,8 +245,8 @@ let () =
     )
 
   (* /wizard - Multi-step form wizard *)
-  |> Verbose_bot.command "wizard" ~desc:"Start multi-step wizard" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "wizard" ~desc:"Start multi-step wizard" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/wizard] Starting wizard";
 
       (* Initialize wizard state *)
@@ -274,8 +267,8 @@ let () =
     )
 
   (* Handle wizard text input *)
-  |> Verbose_bot.on_text (fun ctx text ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_text (fun ctx text ->
+      let open Bot.Ctx in
 
       let step = session_get_or ctx wizard_step_key ~default:Idle in
 
@@ -343,8 +336,8 @@ let () =
     )
 
   (* Callback: wizard:cancel *)
-  |> Verbose_bot.on_callback_data "wizard:cancel" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "wizard:cancel" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[wizard:cancel] Cancelling wizard";
 
       session_set ctx wizard_step_key Idle;
@@ -360,8 +353,8 @@ let () =
     )
 
   (* /session_info - Show current session contents *)
-  |> Verbose_bot.command "session_info" ~desc:"Inspect session data" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "session_info" ~desc:"Inspect session data" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/session_info] Inspecting session";
 
       let name = session_get ctx name_key in
@@ -412,8 +405,8 @@ let () =
     )
 
   (* /clear_session - Clear all session data *)
-  |> Verbose_bot.command "clear_session" ~desc:"Clear all session data" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "clear_session" ~desc:"Clear all session data" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/clear_session] Clearing session";
 
       session_clear ctx;
@@ -430,8 +423,8 @@ let () =
     )
 
   (* /modify_demo - Demonstrate session_modify *)
-  |> Verbose_bot.command "modify_demo" ~desc:"Demonstrate modify function" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "modify_demo" ~desc:"Demonstrate modify function" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/modify_demo] Demonstrating modify";
 
       (* Use modify to increment counter (creates if missing) *)
@@ -455,8 +448,8 @@ let () =
     )
 
   (* /exists_demo - Demonstrate session_exists *)
-  |> Verbose_bot.command "exists_demo" ~desc:"Check if keys exist" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "exists_demo" ~desc:"Check if keys exist" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/exists_demo] Checking key existence";
 
       let name_exists = session_exists ctx name_key in
@@ -482,4 +475,4 @@ let () =
       | Error e -> Eio.traceln "[/exists_demo] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.run
+  |> Bot.run

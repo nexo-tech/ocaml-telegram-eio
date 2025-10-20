@@ -29,15 +29,8 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "ProjectStructure"
-  let level = Log.Debug
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 module KB = Keyboard
 
@@ -196,7 +189,7 @@ module Templates = struct
      • Module organization patterns\n\
      • Best practices\n\n\
      <b>Module organization within this file:</b>\n\
-     • Verbose_log, Verbose_session, Verbose_bot - Functor composition\n\
+     • Flo logging - Debug level logging\n\
      • Templates - Static content module\n\
      • Main - Bot builder with commands\n\n\
      For a real bot, you'd split these into separate files."
@@ -243,14 +236,14 @@ let () =
 
   Eio.traceln "🤖 Project Structure Demo Started";
 
-  let session_store = Verbose_session.Memory_store.create () in
+  let session_store = Session.Memory_store.create () in
 
-  Verbose_bot.make ~env ~client
-  |> Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store
+  Bot.make ~env ~client
+  |> Bot.with_sessions (module Session.Memory_store) session_store
 
   (* /start - Main menu *)
-  |> Verbose_bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/start] Showing main menu";
 
       let keyboard = KB.inline [
@@ -274,8 +267,8 @@ let () =
     )
 
   (* /small - Small bot structure *)
-  |> Verbose_bot.command "small" ~desc:"Small bot structure" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "small" ~desc:"Small bot structure" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/small] Showing small bot structure";
 
       match reply ctx Templates.small_structure with
@@ -284,8 +277,8 @@ let () =
     )
 
   (* /medium - Medium bot structure *)
-  |> Verbose_bot.command "medium" ~desc:"Medium bot structure" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "medium" ~desc:"Medium bot structure" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/medium] Showing medium bot structure";
 
       match reply ctx Templates.medium_structure with
@@ -294,8 +287,8 @@ let () =
     )
 
   (* /large - Large bot structure *)
-  |> Verbose_bot.command "large" ~desc:"Large bot structure" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "large" ~desc:"Large bot structure" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/large] Showing large bot structure";
 
       match reply ctx Templates.large_structure with
@@ -304,8 +297,8 @@ let () =
     )
 
   (* /this_bot - Show this bot's structure *)
-  |> Verbose_bot.command "this_bot" ~desc:"Show this bot's structure" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "this_bot" ~desc:"Show this bot's structure" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/this_bot] Showing this bot's structure";
 
       match reply ctx Templates.this_bot_structure with
@@ -314,8 +307,8 @@ let () =
     )
 
   (* /dune_config - Dune configuration examples *)
-  |> Verbose_bot.command "dune_config" ~desc:"Dune configuration examples" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "dune_config" ~desc:"Dune configuration examples" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/dune_config] Showing dune examples";
 
       match reply ctx Templates.dune_examples with
@@ -324,8 +317,8 @@ let () =
     )
 
   (* /best_practices - Best practices *)
-  |> Verbose_bot.command "best_practices" ~desc:"Project best practices" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "best_practices" ~desc:"Project best practices" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/best_practices] Showing best practices";
 
       match reply ctx Templates.best_practices with
@@ -334,8 +327,8 @@ let () =
     )
 
   (* /modules - Module organization *)
-  |> Verbose_bot.command "modules" ~desc:"Module organization patterns" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "modules" ~desc:"Module organization patterns" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/modules] Showing module organization";
 
       match reply ctx Templates.module_organization with
@@ -344,47 +337,47 @@ let () =
     )
 
   (* Callback: structure:* *)
-  |> Verbose_bot.on_callback_data "structure:small" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "structure:small" (fun ctx ->
+      let open Bot.Ctx in
       match edit ctx Templates.small_structure with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[structure:small] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "structure:medium" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "structure:medium" (fun ctx ->
+      let open Bot.Ctx in
       match edit ctx Templates.medium_structure with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[structure:medium] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "structure:large" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "structure:large" (fun ctx ->
+      let open Bot.Ctx in
       match edit ctx Templates.large_structure with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[structure:large] ✗ %a" Error.pp e; Ok ()
     )
 
   (* Callback: info:* *)
-  |> Verbose_bot.on_callback_data "info:dune" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "info:dune" (fun ctx ->
+      let open Bot.Ctx in
       match edit ctx Templates.dune_examples with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[info:dune] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "info:practices" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "info:practices" (fun ctx ->
+      let open Bot.Ctx in
       match edit ctx Templates.best_practices with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[info:practices] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "info:modules" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "info:modules" (fun ctx ->
+      let open Bot.Ctx in
       match edit ctx Templates.module_organization with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[info:modules] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.run
+  |> Bot.run

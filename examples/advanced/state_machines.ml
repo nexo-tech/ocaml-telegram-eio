@@ -31,15 +31,8 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "StateMachineDemo"
-  let level = Log.Debug
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 module KB = Keyboard
 
@@ -52,9 +45,9 @@ module Registration = struct
     | AwaitingConfirmation
     | Complete
 
-  let state_key = Verbose_session.make ~name:"registration_state"
-  let name_key = Verbose_session.make ~name:"reg_name"
-  let age_key = Verbose_session.make ~name:"reg_age"
+  let state_key = Session.make ~name:"registration_state"
+  let name_key = Session.make ~name:"reg_name"
+  let age_key = Session.make ~name:"reg_age"
 
   let state_to_string = function
     | Idle -> "Idle"
@@ -64,7 +57,7 @@ module Registration = struct
     | Complete -> "Complete"
 
   let start ctx =
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
     Eio.traceln "[Registration] Starting: Idle → AwaitingName";
     session_set ctx state_key AwaitingName;
 
@@ -77,7 +70,7 @@ module Registration = struct
        Step 1/2: What's your name?"
 
   let handle_text ctx text =
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
     let state = session_get_or ctx state_key ~default:Idle in
 
     Eio.traceln "[Registration] Current state: %s, Input: %s" (state_to_string state) text;
@@ -133,7 +126,7 @@ module Registration = struct
          | Error e -> Eio.traceln "[Registration] ✗ %a" Error.pp e; Ok ())
 
   let cancel ctx =
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
     Eio.traceln "[Registration] Cancelling, state → Idle";
     session_set ctx state_key Idle;
     session_delete ctx name_key;
@@ -141,7 +134,7 @@ module Registration = struct
     edit ctx "❌ Registration cancelled."
 
   let confirm ctx =
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
     Eio.traceln "[Registration] Confirming, state → Complete";
     let name = session_get_or ctx name_key ~default:"" in
     let age = session_get_or ctx age_key ~default:0 in
@@ -170,7 +163,7 @@ module Order = struct
     | CheckingOut of { items: item list; total: float }
     | Complete
 
-  let state_key = Verbose_session.make ~name:"order_state"
+  let state_key = Session.make ~name:"order_state"
 
   let items_db = [
     { id = 1; name = "Coffee"; price = 3.50 };
@@ -188,7 +181,7 @@ module Order = struct
     | Complete -> "Complete"
 
   let start ctx =
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
     Eio.traceln "[Order] Starting: → Browsing";
     session_set ctx state_key Browsing;
 
@@ -203,7 +196,7 @@ module Order = struct
        Choose an item to view:"
 
   let view_item ctx item =
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
     Eio.traceln "[Order] Transition: Browsing → ViewingItem(id=%d)" item.id;
 
     session_set ctx state_key (ViewingItem { item });
@@ -220,7 +213,7 @@ module Order = struct
       item.name item.price)
 
   let add_to_cart ctx item =
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
 
     let state = session_get_or ctx state_key ~default:Browsing in
 
@@ -240,7 +233,7 @@ module Order = struct
     edit ~keyboard ctx (Printf.sprintf "✅ Added %s to cart!\n\nItems in cart: %d" item.name (List.length items))
 
   let show_cart ctx =
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
 
     let state = session_get_or ctx state_key ~default:Browsing in
 
@@ -267,7 +260,7 @@ module Order = struct
         edit ctx "🛒 Your cart is empty!\n\nUse /order to start shopping."
 
   let checkout ctx =
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
 
     let state = session_get_or ctx state_key ~default:Browsing in
 
@@ -293,7 +286,7 @@ module Order = struct
         edit ctx "Cart is empty!"
 
   let complete_payment ctx =
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
     Eio.traceln "[Order] Transition: CheckingOut → Complete";
 
     session_set ctx state_key Complete;
@@ -312,7 +305,7 @@ module Support = struct
     | AwaitingResponse of { category: category; details: string }
     | Resolved
 
-  let state_key = Verbose_session.make ~name:"support_state"
+  let state_key = Session.make ~name:"support_state"
 
   let category_to_string = function
     | Technical -> "Technical"
@@ -327,7 +320,7 @@ module Support = struct
     | Resolved -> "Resolved"
 
   let start ctx =
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
     Eio.traceln "[Support] Starting: Idle → SelectingCategory";
     session_set ctx state_key SelectingCategory;
 
@@ -342,7 +335,7 @@ module Support = struct
        What type of issue are you experiencing?"
 
   let select_category ctx category =
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
     let cat_str = category_to_string category in
 
     Eio.traceln "[Support] Transition: SelectingCategory → CollectingDetails(%s)" cat_str;
@@ -354,7 +347,7 @@ module Support = struct
       cat_str)
 
   let handle_details ctx text =
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
 
     let state = session_get_or ctx state_key ~default:Idle in
 
@@ -383,7 +376,7 @@ module Support = struct
         Ok ()
 
   let resolve ctx =
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
     Eio.traceln "[Support] Transition: AwaitingResponse → Resolved";
 
     session_set ctx state_key Resolved;
@@ -405,14 +398,14 @@ let () =
 
   Eio.traceln "🤖 State Machines Demo Bot Started";
 
-  let session_store = Verbose_session.Memory_store.create () in
+  let session_store = Session.Memory_store.create () in
 
-  Verbose_bot.make ~env ~client
-  |> Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store
+  Bot.make ~env ~client
+  |> Bot.with_sessions (module Session.Memory_store) session_store
 
   (* /start - Main menu *)
-  |> Verbose_bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/start] Showing main menu";
 
       let keyboard = KB.inline [
@@ -434,29 +427,29 @@ let () =
     )
 
   (* Callback: demo:register *)
-  |> Verbose_bot.on_callback_data "demo:register" (fun ctx ->
+  |> Bot.on_callback_data "demo:register" (fun ctx ->
       match Registration.start ctx with
       | Ok _ -> Ok ()
       | Error e -> Eio.traceln "[demo:register] ✗ %a" Error.pp e; Ok ()
     )
 
   (* Callback: demo:order *)
-  |> Verbose_bot.on_callback_data "demo:order" (fun ctx ->
+  |> Bot.on_callback_data "demo:order" (fun ctx ->
       match Order.start ctx with
       | Ok _ -> Ok ()
       | Error e -> Eio.traceln "[demo:order] ✗ %a" Error.pp e; Ok ()
     )
 
   (* Callback: demo:support *)
-  |> Verbose_bot.on_callback_data "demo:support" (fun ctx ->
+  |> Bot.on_callback_data "demo:support" (fun ctx ->
       match Support.start ctx with
       | Ok _ -> Ok ()
       | Error e -> Eio.traceln "[demo:support] ✗ %a" Error.pp e; Ok ()
     )
 
   (* Callback: demo:state_info *)
-  |> Verbose_bot.on_callback_data "demo:state_info" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "demo:state_info" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[state_info] Showing state information";
 
       let reg_state = session_get_or ctx Registration.state_key ~default:Registration.Idle in
@@ -480,26 +473,26 @@ let () =
     )
 
   (* Registration callbacks *)
-  |> Verbose_bot.on_callback_data "reg:confirm" (fun ctx ->
+  |> Bot.on_callback_data "reg:confirm" (fun ctx ->
       match Registration.confirm ctx with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[reg:confirm] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "reg:cancel" (fun ctx ->
+  |> Bot.on_callback_data "reg:cancel" (fun ctx ->
       match Registration.cancel ctx with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[reg:cancel] ✗ %a" Error.pp e; Ok ()
     )
 
   (* Order callbacks *)
-  |> Verbose_bot.on_callback_data "order:menu" (fun ctx ->
+  |> Bot.on_callback_data "order:menu" (fun ctx ->
       match Order.start ctx with
       | Ok _ -> Ok ()
       | Error e -> Eio.traceln "[order:menu] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback (fun ctx data ->
+  |> Bot.on_callback (fun ctx data ->
       if String.starts_with ~prefix:"order:view:" data then (
         let id_str = String.sub data 11 (String.length data - 11) in
         let id = int_of_string id_str in
@@ -514,7 +507,7 @@ let () =
       ) else Ok ()
     )
 
-  |> Verbose_bot.on_callback (fun ctx data ->
+  |> Bot.on_callback (fun ctx data ->
       if String.starts_with ~prefix:"order:add:" data then (
         let id_str = String.sub data 10 (String.length data - 10) in
         let id = int_of_string id_str in
@@ -529,26 +522,26 @@ let () =
       ) else Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "order:cart" (fun ctx ->
+  |> Bot.on_callback_data "order:cart" (fun ctx ->
       match Order.show_cart ctx with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[order:cart] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "order:checkout" (fun ctx ->
+  |> Bot.on_callback_data "order:checkout" (fun ctx ->
       match Order.checkout ctx with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[order:checkout] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "order:pay" (fun ctx ->
+  |> Bot.on_callback_data "order:pay" (fun ctx ->
       match Order.complete_payment ctx with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[order:pay] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "order:cancel" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "order:cancel" (fun ctx ->
+      let open Bot.Ctx in
       session_set ctx Order.state_key Order.Browsing;
       match edit ctx "❌ Order cancelled" with
       | Ok () -> Ok ()
@@ -556,33 +549,33 @@ let () =
     )
 
   (* Support ticket callbacks *)
-  |> Verbose_bot.on_callback_data "support:tech" (fun ctx ->
+  |> Bot.on_callback_data "support:tech" (fun ctx ->
       match Support.select_category ctx Support.Technical with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[support:tech] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "support:billing" (fun ctx ->
+  |> Bot.on_callback_data "support:billing" (fun ctx ->
       match Support.select_category ctx Support.Billing with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[support:billing] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "support:general" (fun ctx ->
+  |> Bot.on_callback_data "support:general" (fun ctx ->
       match Support.select_category ctx Support.General with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[support:general] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "support:resolve" (fun ctx ->
+  |> Bot.on_callback_data "support:resolve" (fun ctx ->
       match Support.resolve ctx with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[support:resolve] ✗ %a" Error.pp e; Ok ()
     )
 
   (* Text handler - routes to active state machine *)
-  |> Verbose_bot.on_text (fun ctx text ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_text (fun ctx text ->
+      let open Bot.Ctx in
 
       (* Check which state machine is active *)
       let reg_state = session_get_or ctx Registration.state_key ~default:Registration.Idle in
@@ -603,8 +596,8 @@ let () =
     )
 
   (* /reset - Reset all state machines *)
-  |> Verbose_bot.command "reset" ~desc:"Reset all state machines" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "reset" ~desc:"Reset all state machines" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/reset] Resetting all state machines";
 
       session_set ctx Registration.state_key Registration.Idle;
@@ -624,4 +617,4 @@ let () =
       | Error e -> Eio.traceln "[/reset] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.run
+  |> Bot.run

@@ -35,15 +35,8 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "MessageDemo"
-  let level = Log.Debug
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 (** HTML formatting helpers *)
 module Html = struct
@@ -95,11 +88,11 @@ let () =
 
   Eio.traceln "🤖 Message Handling Demo Bot Started";
 
-  Verbose_bot.make ~env ~client
+  Bot.make ~env ~client
 
   (* /start - Welcome *)
-  |> Verbose_bot.command "start" ~desc:"Show welcome message" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "start" ~desc:"Show welcome message" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/start] Sending welcome";
 
       let user_opt = user ctx in
@@ -116,8 +109,8 @@ let () =
     )
 
   (* /format_html - Demonstrate HTML formatting *)
-  |> Verbose_bot.command "format_html" ~desc:"Show HTML formatting examples" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "format_html" ~desc:"Show HTML formatting examples" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/format_html] Demonstrating HTML formatting";
 
       let text =
@@ -136,8 +129,8 @@ let () =
     )
 
   (* /format_markdown - Demonstrate MarkdownV2 formatting *)
-  |> Verbose_bot.command "format_markdown" ~desc:"Show MarkdownV2 examples" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "format_markdown" ~desc:"Show MarkdownV2 examples" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/format_markdown] Demonstrating MarkdownV2";
 
       (* MarkdownV2 requires escaping special chars *)
@@ -159,8 +152,8 @@ let () =
     )
 
   (* /entities - Extract and display entities from next message *)
-  |> Verbose_bot.command "entities" ~desc:"Show entity extraction" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "entities" ~desc:"Show entity extraction" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/entities] Requesting entities";
 
       match reply ctx
@@ -176,8 +169,8 @@ let () =
     )
 
   (* /edit_test - Send and edit message *)
-  |> Verbose_bot.command "edit_test" ~desc:"Demonstrate message editing" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "edit_test" ~desc:"Demonstrate message editing" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/edit_test] Testing message editing";
 
       match reply ctx "⏳ Original message... (will be edited in 2 seconds)" with
@@ -203,8 +196,8 @@ let () =
     )
 
   (* /delete_test - Send and delete after delay *)
-  |> Verbose_bot.command "delete_test" ~desc:"Send and auto-delete message" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "delete_test" ~desc:"Send and auto-delete message" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/delete_test] Testing message deletion";
 
       match reply ctx "🗑️ This message will self-destruct in 5 seconds..." with
@@ -230,8 +223,8 @@ let () =
     )
 
   (* /info - Show message metadata *)
-  |> Verbose_bot.command "info" ~desc:"Show bot and message information" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "info" ~desc:"Show bot and message information" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/info] Showing message info";
 
       let msg = message ctx in
@@ -260,8 +253,8 @@ let () =
     )
 
   (* /template_demo - Demonstrate message templates *)
-  |> Verbose_bot.command "template_demo" ~desc:"Show message template examples" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "template_demo" ~desc:"Show message template examples" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/template_demo] Showing templates";
 
       let text = Printf.sprintf
@@ -277,8 +270,8 @@ let () =
     )
 
   (* Handle text messages - echo with entity analysis *)
-  |> Verbose_bot.on_text (fun ctx text ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_text (fun ctx text ->
+      let open Bot.Ctx in
       Eio.traceln "[on_text] Received text: %s" text;
 
       (* Extract entities using Bot.Entity *)
@@ -287,7 +280,7 @@ let () =
 
       let entity_summary = if List.length entities_list > 0 then
         let entity_lines = List.map (fun ent ->
-          let open Verbose_bot.Entity in
+          let open Bot.Entity in
           match ent.entity_type with
           | Mention -> Printf.sprintf "• @mention: %s" (Html.escape ent.text)
           | Hashtag -> Printf.sprintf "• #hashtag: %s" (Html.escape ent.text)
@@ -327,8 +320,8 @@ let () =
     )
 
   (* Handle photo messages *)
-  |> Verbose_bot.on_photo (fun ctx photos ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_photo (fun ctx photos ->
+      let open Bot.Ctx in
       Eio.traceln "[on_photo] Received %d photo sizes" (List.length photos);
 
       let msg = message ctx in
@@ -365,8 +358,8 @@ let () =
     )
 
   (* Handle document messages *)
-  |> Verbose_bot.on_message (fun ctx msg ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_message (fun ctx msg ->
+      let open Bot.Ctx in
       let open Telegram_generated.Gen_types.Message in
 
       match msg.document with
@@ -401,8 +394,8 @@ let () =
     )
 
   (* Handle location messages *)
-  |> Verbose_bot.on_message (fun ctx msg ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_message (fun ctx msg ->
+      let open Bot.Ctx in
       let open Telegram_generated.Gen_types.Message in
 
       match msg.location with
@@ -428,8 +421,8 @@ let () =
     )
 
   (* Handle contact messages *)
-  |> Verbose_bot.on_message (fun ctx msg ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_message (fun ctx msg ->
+      let open Bot.Ctx in
       let open Telegram_generated.Gen_types.Message in
 
       match msg.contact with
@@ -458,4 +451,4 @@ let () =
           Ok ()
     )
 
-  |> Verbose_bot.run
+  |> Bot.run

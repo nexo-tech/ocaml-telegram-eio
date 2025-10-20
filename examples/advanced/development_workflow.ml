@@ -31,15 +31,8 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "DevWorkflow"
-  let level = Log.Debug
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 module KB = Keyboard
 
@@ -234,18 +227,18 @@ let () =
 
   Eio.traceln "🤖 Development Workflow Demo Started";
 
-  let session_store = Verbose_session.Memory_store.create () in
+  let session_store = Session.Memory_store.create () in
 
   (* Statistics tracking *)
   let total_updates = ref 0 in
   let start_time = Unix.time () in
 
-  Verbose_bot.make ~env ~client
-  |> Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store
+  Bot.make ~env ~client
+  |> Bot.with_sessions (module Session.Memory_store) session_store
 
   (* /start - Main menu *)
-  |> Verbose_bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/start] Showing main menu";
       incr total_updates;
 
@@ -276,8 +269,8 @@ let () =
     )
 
   (* /env_check - Check environment *)
-  |> Verbose_bot.command "env_check" ~desc:"Check environment configuration" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "env_check" ~desc:"Check environment configuration" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/env_check] Checking environment";
 
       let env_status = Diagnostics.check_env () in
@@ -288,8 +281,8 @@ let () =
     )
 
   (* /diagnostics - Runtime diagnostics *)
-  |> Verbose_bot.command "diagnostics" ~desc:"Run bot diagnostics" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "diagnostics" ~desc:"Run bot diagnostics" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/diagnostics] Running diagnostics";
 
       let runtime_info = Diagnostics.runtime_info () in
@@ -317,8 +310,8 @@ let () =
     )
 
   (* /log_example - Demonstrate logging *)
-  |> Verbose_bot.command "log_example" ~desc:"Logging example" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "log_example" ~desc:"Logging example" (fun ctx _args ->
+      let open Bot.Ctx in
 
       Eio.traceln "[/log_example] === Logging Example Start ===";
       Eio.traceln "[/log_example] Debug: This is a debug message";
@@ -346,8 +339,8 @@ let () =
     )
 
   (* /error_example - Demonstrate error handling *)
-  |> Verbose_bot.command "error_example" ~desc:"Error handling example" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "error_example" ~desc:"Error handling example" (fun ctx _args ->
+      let open Bot.Ctx in
 
       Eio.traceln "[/error_example] Demonstrating error handling";
 
@@ -385,8 +378,8 @@ let () =
     )
 
   (* /performance - Show performance stats *)
-  |> Verbose_bot.command "performance" ~desc:"Show performance statistics" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "performance" ~desc:"Show performance statistics" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/performance] Showing performance stats";
 
       let uptime = Unix.time () -. start_time in
@@ -419,44 +412,44 @@ let () =
     )
 
   (* Callback: guide:* *)
-  |> Verbose_bot.on_callback_data "guide:setup" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "guide:setup" (fun ctx ->
+      let open Bot.Ctx in
       match edit ctx Templates.local_setup with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[guide:setup] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "guide:logging" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "guide:logging" (fun ctx ->
+      let open Bot.Ctx in
       match edit ctx Templates.logging_guide with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[guide:logging] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "guide:debugging" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "guide:debugging" (fun ctx ->
+      let open Bot.Ctx in
       match edit ctx Templates.debugging_guide with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[guide:debugging] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "guide:testing" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "guide:testing" (fun ctx ->
+      let open Bot.Ctx in
       match edit ctx Templates.testing_workflow with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[guide:testing] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "guide:monitoring" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "guide:monitoring" (fun ctx ->
+      let open Bot.Ctx in
       match edit ctx Templates.monitoring_guide with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[guide:monitoring] ✗ %a" Error.pp e; Ok ()
     )
 
   (* Callback: action:env_check *)
-  |> Verbose_bot.on_callback_data "action:env_check" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "action:env_check" (fun ctx ->
+      let open Bot.Ctx in
       let env_status = Diagnostics.check_env () in
       match edit ctx env_status with
       | Ok () -> Ok ()
@@ -464,8 +457,8 @@ let () =
     )
 
   (* Callback: action:diagnostics *)
-  |> Verbose_bot.on_callback_data "action:diagnostics" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "action:diagnostics" (fun ctx ->
+      let open Bot.Ctx in
 
       let runtime_info = Diagnostics.runtime_info () in
       let uptime = Unix.time () -. start_time in
@@ -490,4 +483,4 @@ let () =
       | Error e -> Eio.traceln "[action:diagnostics] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.run
+  |> Bot.run

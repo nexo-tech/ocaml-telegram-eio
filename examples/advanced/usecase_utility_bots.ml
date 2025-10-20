@@ -32,15 +32,8 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "UtilityBots"
-  let level = Log.Debug
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 module KB = Keyboard
 
@@ -243,14 +236,14 @@ let () =
 
   Eio.traceln "🤖 Utility Bots Demo Started";
 
-  let session_store = Verbose_session.Memory_store.create () in
+  let session_store = Session.Memory_store.create () in
 
-  Verbose_bot.make ~env ~client
-  |> Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store
+  Bot.make ~env ~client
+  |> Bot.with_sessions (module Session.Memory_store) session_store
 
   (* /start - Main menu *)
-  |> Verbose_bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/start] Showing main menu";
 
       let text =
@@ -279,8 +272,8 @@ let () =
     )
 
   (* /calc - Calculator *)
-  |> Verbose_bot.command "calc" ~desc:"Calculate expression" (fun ctx args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "calc" ~desc:"Calculate expression" (fun ctx args ->
+      let open Bot.Ctx in
       Eio.traceln "[/calc] Calculating expression";
 
       match args with
@@ -315,8 +308,8 @@ let () =
     )
 
   (* /convert - Unit converter *)
-  |> Verbose_bot.command "convert" ~desc:"Convert units" (fun ctx args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "convert" ~desc:"Convert units" (fun ctx args ->
+      let open Bot.Ctx in
       Eio.traceln "[/convert] Converting units";
 
       match args with
@@ -359,8 +352,8 @@ let () =
     )
 
   (* /roll_dice - Random dice *)
-  |> Verbose_bot.command "roll_dice" ~desc:"Roll a dice" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "roll_dice" ~desc:"Roll a dice" (fun ctx _args ->
+      let open Bot.Ctx in
       let result = Random.int 6 + 1 in
       Eio.traceln "[/roll_dice] Rolled: %d" result;
 
@@ -382,8 +375,8 @@ let () =
     )
 
   (* /flip_coin - Random coin flip *)
-  |> Verbose_bot.command "flip_coin" ~desc:"Flip a coin" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "flip_coin" ~desc:"Flip a coin" (fun ctx _args ->
+      let open Bot.Ctx in
       let result = if Random.bool () then "Heads" else "Tails" in
       Eio.traceln "[/flip_coin] Result: %s" result;
 
@@ -395,8 +388,8 @@ let () =
     )
 
   (* /random - Random number in range *)
-  |> Verbose_bot.command "random" ~desc:"Random number in range" (fun ctx args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "random" ~desc:"Random number in range" (fun ctx args ->
+      let open Bot.Ctx in
       Eio.traceln "[/random] Generating random number";
 
       match args with
@@ -428,8 +421,8 @@ let () =
     )
 
   (* /choose - Random choice *)
-  |> Verbose_bot.command "choose" ~desc:"Choose random option" (fun ctx args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "choose" ~desc:"Choose random option" (fun ctx args ->
+      let open Bot.Ctx in
       Eio.traceln "[/choose] Choosing from %d options" (List.length args);
 
       match args with
@@ -453,8 +446,8 @@ let () =
     )
 
   (* /time - Current time *)
-  |> Verbose_bot.command "time" ~desc:"Show current time" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "time" ~desc:"Show current time" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/time] Showing current time";
 
       let now = Unix.time () in
@@ -476,8 +469,8 @@ let () =
     )
 
   (* /timestamp - Unix timestamp *)
-  |> Verbose_bot.command "timestamp" ~desc:"Unix timestamp" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "timestamp" ~desc:"Unix timestamp" (fun ctx _args ->
+      let open Bot.Ctx in
       let timestamp = Unix.time () |> int_of_float in
       Eio.traceln "[/timestamp] Current timestamp: %d" timestamp;
 
@@ -489,8 +482,8 @@ let () =
     )
 
   (* /wordcount - Count words *)
-  |> Verbose_bot.command "wordcount" ~desc:"Count words in text" (fun ctx args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "wordcount" ~desc:"Count words in text" (fun ctx args ->
+      let open Bot.Ctx in
       Eio.traceln "[/wordcount] Counting words";
 
       match args with
@@ -520,8 +513,8 @@ let () =
     )
 
   (* /reverse - Reverse text *)
-  |> Verbose_bot.command "reverse" ~desc:"Reverse text" (fun ctx args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "reverse" ~desc:"Reverse text" (fun ctx args ->
+      let open Bot.Ctx in
       Eio.traceln "[/reverse] Reversing text";
 
       match args with
@@ -544,8 +537,8 @@ let () =
     )
 
   (* /upper - Uppercase text *)
-  |> Verbose_bot.command "upper" ~desc:"Convert to uppercase" (fun ctx args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "upper" ~desc:"Convert to uppercase" (fun ctx args ->
+      let open Bot.Ctx in
 
       match args with
       | [] ->
@@ -565,8 +558,8 @@ let () =
     )
 
   (* /lower - Lowercase text *)
-  |> Verbose_bot.command "lower" ~desc:"Convert to lowercase" (fun ctx args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "lower" ~desc:"Convert to lowercase" (fun ctx args ->
+      let open Bot.Ctx in
 
       match args with
       | [] ->
@@ -585,4 +578,4 @@ let () =
            | Error e -> Eio.traceln "[/lower] ✗ %a" Error.pp e; Ok ())
     )
 
-  |> Verbose_bot.run
+  |> Bot.run

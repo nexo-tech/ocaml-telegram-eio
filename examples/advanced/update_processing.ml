@@ -35,15 +35,8 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "UpdateDemo"
-  let level = Log.Debug
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 module KB = Keyboard
 
@@ -93,14 +86,14 @@ let () =
 
   Eio.traceln "🤖 Update Processing Demo Bot Started";
 
-  let session_store = Verbose_session.Memory_store.create () in
+  let session_store = Session.Memory_store.create () in
 
-  Verbose_bot.make ~env ~client
-  |> Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store
+  Bot.make ~env ~client
+  |> Bot.with_sessions (module Session.Memory_store) session_store
 
   (* /start - Show bot information *)
-  |> Verbose_bot.command "start" ~desc:"Show bot information" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "start" ~desc:"Show bot information" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/start] Showing information";
 
       Stats.increment_messages ();
@@ -127,8 +120,8 @@ let () =
     )
 
   (* /update_types - Explain update types *)
-  |> Verbose_bot.command "update_types" ~desc:"Explain update types" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "update_types" ~desc:"Explain update types" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/update_types] Explaining update types";
 
       Stats.increment_messages ();
@@ -160,8 +153,8 @@ let () =
     )
 
   (* /edit_test - Send editable message *)
-  |> Verbose_bot.command "edit_test" ~desc:"Send message you can edit" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "edit_test" ~desc:"Send message you can edit" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/edit_test] Sending editable message";
 
       Stats.increment_messages ();
@@ -179,8 +172,8 @@ let () =
     )
 
   (* /stats - Show update statistics *)
-  |> Verbose_bot.command "stats" ~desc:"Show update statistics" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "stats" ~desc:"Show update statistics" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/stats] Showing statistics";
 
       Stats.increment_messages ();
@@ -198,7 +191,7 @@ let () =
     )
 
   (* Handle ALL messages for logging/stats *)
-  |> Verbose_bot.on_message (fun _ctx msg ->
+  |> Bot.on_message (fun _ctx msg ->
       let open Telegram_generated.Gen_types.Message in
 
       (* Increment stats for non-command messages *)
@@ -216,11 +209,11 @@ let () =
     )
 
   (* Handle edited messages *)
-  |> Verbose_bot.on (Verbose_bot.Event.when_ Verbose_bot.Event.any (fun upd ->
+  |> Bot.on (Bot.Event.when_ Bot.Event.any (fun upd ->
       let open Telegram_generated.Gen_types.Update in
       upd.edited_message <> None
     )) (fun ctx upd ->
-      let open Verbose_bot.Ctx in
+      let open Bot.Ctx in
       let open Telegram_generated.Gen_types.Update in
 
       match upd.edited_message with
@@ -252,8 +245,8 @@ let () =
     )
 
   (* Callback: test:button *)
-  |> Verbose_bot.on_callback_data "test:button" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "test:button" (fun ctx ->
+      let open Bot.Ctx in
 
       Stats.increment_callbacks ();
 
@@ -265,8 +258,8 @@ let () =
     )
 
   (* Callback: show:stats *)
-  |> Verbose_bot.on_callback_data "show:stats" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "show:stats" (fun ctx ->
+      let open Bot.Ctx in
 
       Stats.increment_callbacks ();
 
@@ -285,8 +278,8 @@ let () =
     )
 
   (* Callback: reset:stats *)
-  |> Verbose_bot.on_callback_data "reset:stats" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "reset:stats" (fun ctx ->
+      let open Bot.Ctx in
 
       Eio.traceln "[reset:stats] Resetting statistics";
 
@@ -302,9 +295,9 @@ let () =
     )
 
   (* Log all callbacks for demonstration *)
-  |> Verbose_bot.on_callback (fun _ctx data ->
+  |> Bot.on_callback (fun _ctx data ->
       Eio.traceln "[on_callback] Received callback_query with data: %s" data;
       Ok ()
     )
 
-  |> Verbose_bot.run
+  |> Bot.run

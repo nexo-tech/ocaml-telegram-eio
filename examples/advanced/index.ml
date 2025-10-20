@@ -28,15 +28,8 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "DocIndex"
-  let level = Log.Debug
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 module KB = Keyboard
 
@@ -176,14 +169,14 @@ let () =
   Eio.traceln "Documentation pages: %d" (List.length DocIndex.pages);
   Eio.traceln "Documentation sections: %d" (List.length (DocIndex.all_sections ()));
 
-  let session_store = Verbose_session.Memory_store.create () in
+  let session_store = Session.Memory_store.create () in
 
-  Verbose_bot.make ~env ~client
-  |> Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store
+  Bot.make ~env ~client
+  |> Bot.with_sessions (module Session.Memory_store) session_store
 
   (* /start - Main documentation index *)
-  |> Verbose_bot.command "start" ~desc:"Show documentation index" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "start" ~desc:"Show documentation index" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/start] Showing documentation index";
 
       let sections = DocIndex.all_sections () in
@@ -215,8 +208,8 @@ let () =
     )
 
   (* /overview - Library overview *)
-  |> Verbose_bot.command "overview" ~desc:"Library overview" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "overview" ~desc:"Library overview" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/overview] Showing overview";
 
       let text =
@@ -241,8 +234,8 @@ let () =
     )
 
   (* /search_docs - Search documentation *)
-  |> Verbose_bot.command "search_docs" ~desc:"Search documentation" (fun ctx args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "search_docs" ~desc:"Search documentation" (fun ctx args ->
+      let open Bot.Ctx in
       Eio.traceln "[/search_docs] Searching documentation";
 
       match args with
@@ -281,9 +274,9 @@ let () =
     )
 
   (* Callback: section:<name> *)
-  |> Verbose_bot.on_callback (fun ctx data ->
+  |> Bot.on_callback (fun ctx data ->
       if String.starts_with ~prefix:"section:" data then (
-        let open Verbose_bot.Ctx in
+        let open Bot.Ctx in
         let section = String.sub data 8 (String.length data - 8) in
 
         Eio.traceln "[section] Showing section: %s" section;
@@ -311,9 +304,9 @@ let () =
     )
 
   (* Callback: page:<id> *)
-  |> Verbose_bot.on_callback (fun ctx data ->
+  |> Bot.on_callback (fun ctx data ->
       if String.starts_with ~prefix:"page:" data then (
-        let open Verbose_bot.Ctx in
+        let open Bot.Ctx in
         let id = String.sub data 5 (String.length data - 5) in
 
         Eio.traceln "[page] Showing page: %s" id;
@@ -348,8 +341,8 @@ let () =
     )
 
   (* Callback: info:overview *)
-  |> Verbose_bot.on_callback_data "info:overview" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "info:overview" (fun ctx ->
+      let open Bot.Ctx in
 
       let text = Printf.sprintf
         "📖 <b>Library Overview</b>\n\n\
@@ -374,8 +367,8 @@ let () =
     )
 
   (* Callback: action:index *)
-  |> Verbose_bot.on_callback_data "action:index" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "action:index" (fun ctx ->
+      let open Bot.Ctx in
 
       let sections = DocIndex.all_sections () in
       let section_buttons = List.map (fun section ->
@@ -397,8 +390,8 @@ let () =
     )
 
   (* Callback: action:search_prompt *)
-  |> Verbose_bot.on_callback_data "action:search_prompt" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "action:search_prompt" (fun ctx ->
+      let open Bot.Ctx in
 
       match edit ctx
         "🔍 <b>Search Documentation</b>\n\n\
@@ -413,4 +406,4 @@ let () =
       | Error e -> Eio.traceln "[action:search_prompt] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.run
+  |> Bot.run

@@ -45,15 +45,8 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "BotComposition"
-  let level = Log.Debug
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 module KB = Keyboard
 
@@ -91,7 +84,7 @@ module AdminAuth = struct
     ) admins
 
   let require_admin ctx handler =
-    let open Verbose_bot.Ctx in
+    let open Bot.Ctx in
     match user ctx with
     | Some u when is_admin u.id ->
         Eio.traceln "[AdminAuth] Access granted to user %s"
@@ -114,8 +107,8 @@ module UserCommands = struct
     Eio.traceln "[UserCommands] Building user commands module";
 
     bot
-    |> Verbose_bot.command "profile" ~desc:"View your profile" (fun ctx _args ->
-        let open Verbose_bot.Ctx in
+    |> Bot.command "profile" ~desc:"View your profile" (fun ctx _args ->
+        let open Bot.Ctx in
         Eio.traceln "[UserCommands] /profile command";
 
         let user_opt = user ctx in
@@ -136,8 +129,8 @@ module UserCommands = struct
         | Error e -> Eio.traceln "[UserCommands] /profile ✗ %a" Error.pp e; Ok ()
       )
 
-    |> Verbose_bot.command "settings" ~desc:"Manage settings" (fun ctx _args ->
-        let open Verbose_bot.Ctx in
+    |> Bot.command "settings" ~desc:"Manage settings" (fun ctx _args ->
+        let open Bot.Ctx in
         Eio.traceln "[UserCommands] /settings command";
 
         let keyboard = KB.inline [
@@ -163,9 +156,9 @@ module AdminCommands = struct
     Eio.traceln "[AdminCommands] Building admin commands module";
 
     bot
-    |> Verbose_bot.command "admin_stats" ~desc:"Admin statistics" (fun ctx _args ->
+    |> Bot.command "admin_stats" ~desc:"Admin statistics" (fun ctx _args ->
         AdminAuth.require_admin ctx (fun ctx ->
-          let open Verbose_bot.Ctx in
+          let open Bot.Ctx in
           Eio.traceln "[AdminCommands] /admin_stats command";
 
           let text =
@@ -182,9 +175,9 @@ module AdminCommands = struct
         )
       )
 
-    |> Verbose_bot.command "broadcast_test" ~desc:"Test broadcast" (fun ctx _args ->
+    |> Bot.command "broadcast_test" ~desc:"Test broadcast" (fun ctx _args ->
         AdminAuth.require_admin ctx (fun ctx ->
-          let open Verbose_bot.Ctx in
+          let open Bot.Ctx in
           Eio.traceln "[AdminCommands] /broadcast_test command";
 
           let text =
@@ -206,8 +199,8 @@ module HelpCommands = struct
     Eio.traceln "[HelpCommands] Building help commands module";
 
     bot
-    |> Verbose_bot.command "help" ~desc:"Show help" (fun ctx _args ->
-        let open Verbose_bot.Ctx in
+    |> Bot.command "help" ~desc:"Show help" (fun ctx _args ->
+        let open Bot.Ctx in
         Eio.traceln "[HelpCommands] /help command";
 
         let text =
@@ -232,8 +225,8 @@ module HelpCommands = struct
         | Error e -> Eio.traceln "[HelpCommands] /help ✗ %a" Error.pp e; Ok ()
       )
 
-    |> Verbose_bot.command "about" ~desc:"About this bot" (fun ctx _args ->
-        let open Verbose_bot.Ctx in
+    |> Bot.command "about" ~desc:"About this bot" (fun ctx _args ->
+        let open Bot.Ctx in
         Eio.traceln "[HelpCommands] /about command";
 
         let text =
@@ -262,8 +255,8 @@ module GamesCommands = struct
       Eio.traceln "[GamesCommands] Building games commands module";
 
       bot
-      |> Verbose_bot.command "roll_dice" ~desc:"Roll a dice" (fun ctx _args ->
-          let open Verbose_bot.Ctx in
+      |> Bot.command "roll_dice" ~desc:"Roll a dice" (fun ctx _args ->
+          let open Bot.Ctx in
           Eio.traceln "[GamesCommands] /roll_dice command";
 
           let result = Random.int 6 + 1 in
@@ -279,8 +272,8 @@ module GamesCommands = struct
           | Error e -> Eio.traceln "[GamesCommands] /roll_dice ✗ %a" Error.pp e; Ok ()
         )
 
-      |> Verbose_bot.command "flip_coin" ~desc:"Flip a coin" (fun ctx _args ->
-          let open Verbose_bot.Ctx in
+      |> Bot.command "flip_coin" ~desc:"Flip a coin" (fun ctx _args ->
+          let open Bot.Ctx in
           Eio.traceln "[GamesCommands] /flip_coin command";
 
           let result = if Random.bool () then "Heads" else "Tails" in
@@ -304,8 +297,8 @@ module UtilsCommands = struct
     Eio.traceln "[UtilsCommands] Building utils commands module";
 
     bot
-    |> Verbose_bot.command "time" ~desc:"Show current time" (fun ctx _args ->
-        let open Verbose_bot.Ctx in
+    |> Bot.command "time" ~desc:"Show current time" (fun ctx _args ->
+        let open Bot.Ctx in
         Eio.traceln "[UtilsCommands] /time command";
 
         let time = Unix.time () |> int_of_float in
@@ -325,8 +318,8 @@ module UtilsCommands = struct
         | Error e -> Eio.traceln "[UtilsCommands] /time ✗ %a" Error.pp e; Ok ()
       )
 
-    |> Verbose_bot.command "ping" ~desc:"Ping pong" (fun ctx _args ->
-        let open Verbose_bot.Ctx in
+    |> Bot.command "ping" ~desc:"Ping pong" (fun ctx _args ->
+        let open Bot.Ctx in
         Eio.traceln "[UtilsCommands] /ping command";
 
         match reply ctx "🏓 Pong!\n\nThis is from the Utils Commands module." with
@@ -355,18 +348,18 @@ let () =
   Eio.traceln "Admin users: %d configured" (List.length (AdminAuth.admin_user_ids ()));
   Eio.traceln "";
 
-  let session_store = Verbose_session.Memory_store.create () in
+  let session_store = Session.Memory_store.create () in
 
   (* Build bot by composing modules using builder pattern *)
   Eio.traceln "=== Building Bot via Composition ===";
 
   let bot =
-    Verbose_bot.make ~env ~client
-    |> Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store
+    Bot.make ~env ~client
+    |> Bot.with_sessions (module Session.Memory_store) session_store
 
     (* /start - Main entry point *)
-    |> Verbose_bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
-        let open Verbose_bot.Ctx in
+    |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
+        let open Bot.Ctx in
         Eio.traceln "[Main] /start command";
 
         let games_status = if FeatureFlags.games_enabled () then
@@ -395,8 +388,8 @@ let () =
       )
 
     (* /modules - List all modules *)
-    |> Verbose_bot.command "modules" ~desc:"List bot modules" (fun ctx _args ->
-        let open Verbose_bot.Ctx in
+    |> Bot.command "modules" ~desc:"List bot modules" (fun ctx _args ->
+        let open Bot.Ctx in
         Eio.traceln "[Main] /modules command";
 
         let modules = [
@@ -440,8 +433,8 @@ let () =
     |> UtilsCommands.build
 
     (* Settings callbacks *)
-    |> Verbose_bot.on_callback_data "setting:notifications" (fun ctx ->
-        let open Verbose_bot.Ctx in
+    |> Bot.on_callback_data "setting:notifications" (fun ctx ->
+        let open Bot.Ctx in
         Eio.traceln "[UserCommands] Notifications callback";
 
         match edit ctx "🔔 Notification settings\n\n(Demo - not implemented)" with
@@ -449,8 +442,8 @@ let () =
         | Error e -> Eio.traceln "[UserCommands] ✗ %a" Error.pp e; Ok ()
       )
 
-    |> Verbose_bot.on_callback_data "setting:language" (fun ctx ->
-        let open Verbose_bot.Ctx in
+    |> Bot.on_callback_data "setting:language" (fun ctx ->
+        let open Bot.Ctx in
         Eio.traceln "[UserCommands] Language callback";
 
         match edit ctx "🌐 Language settings\n\n(Demo - not implemented)" with
@@ -464,4 +457,4 @@ let () =
   Eio.traceln "Starting polling...";
   Eio.traceln "";
 
-  Verbose_bot.run bot
+  Bot.run bot

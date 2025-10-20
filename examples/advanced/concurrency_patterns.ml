@@ -31,15 +31,8 @@ open Telegram
 open Tg
 open Eio.Std
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "ConcurrencyDemo"
-  let level = Log.Debug
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 module KB = Keyboard
 
@@ -94,7 +87,7 @@ module Stats = struct
 end
 
 (** Session keys *)
-let subscriber_key = Verbose_session.make ~name:"is_subscriber"
+let subscriber_key = Session.make ~name:"is_subscriber"
 
 let () =
   Printexc.record_backtrace true;
@@ -110,7 +103,7 @@ let () =
 
   Eio.traceln "🤖 Concurrency Patterns Demo Bot Started";
 
-  let session_store = Verbose_session.Memory_store.create () in
+  let session_store = Session.Memory_store.create () in
   let stats = Stats.create () in
 
   (* Global switch for background tasks *)
@@ -129,12 +122,12 @@ let () =
     done
   );
 
-  Verbose_bot.make ~env ~client
-  |> Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store
+  Bot.make ~env ~client
+  |> Bot.with_sessions (module Session.Memory_store) session_store
 
   (* /start - Main menu *)
-  |> Verbose_bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/start] Showing main menu";
 
       Stats.increment_messages stats;
@@ -165,8 +158,8 @@ let () =
     )
 
   (* Callback: demo:fiber *)
-  |> Verbose_bot.on_callback_data "demo:fiber" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "demo:fiber" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[demo:fiber] Demonstrating fibers";
 
       (* Spawn multiple concurrent fibers *)
@@ -216,8 +209,8 @@ let () =
     )
 
   (* Callback: demo:promise *)
-  |> Verbose_bot.on_callback_data "demo:promise" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "demo:promise" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[demo:promise] Demonstrating promises";
 
       (* Use promises to get fiber return values *)
@@ -263,8 +256,8 @@ let () =
     )
 
   (* Callback: demo:broadcast *)
-  |> Verbose_bot.on_callback_data "demo:broadcast" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "demo:broadcast" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[demo:broadcast] Demonstrating concurrent broadcast";
 
       (* Simulate multiple subscribers *)
@@ -337,8 +330,8 @@ let () =
     )
 
   (* Callback: demo:rate_limit *)
-  |> Verbose_bot.on_callback_data "demo:rate_limit" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "demo:rate_limit" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[demo:rate_limit] Demonstrating rate limiting";
 
       (* Create semaphore: max 2 concurrent operations *)
@@ -388,8 +381,8 @@ let () =
     )
 
   (* Callback: demo:stats *)
-  |> Verbose_bot.on_callback_data "demo:stats" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "demo:stats" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[demo:stats] Showing statistics";
 
       let summary = Stats.summary stats in
@@ -400,8 +393,8 @@ let () =
     )
 
   (* Callback: demo:timeout *)
-  |> Verbose_bot.on_callback_data "demo:timeout" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "demo:timeout" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[demo:timeout] Demonstrating timeout";
 
       (* Operation with timeout *)
@@ -446,8 +439,8 @@ let () =
     )
 
   (* Callback: demo:concurrent_ops *)
-  |> Verbose_bot.on_callback_data "demo:concurrent_ops" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "demo:concurrent_ops" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[demo:concurrent_ops] Running concurrent operations";
 
       (* Run 3 operations concurrently and collect results *)
@@ -499,8 +492,8 @@ let () =
     )
 
   (* /subscribe - For broadcast demo *)
-  |> Verbose_bot.command "subscribe" ~desc:"Subscribe to broadcasts" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "subscribe" ~desc:"Subscribe to broadcasts" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/subscribe] User subscribing";
 
       session_set ctx subscriber_key true;
@@ -514,8 +507,8 @@ let () =
     )
 
   (* /stats - Show statistics *)
-  |> Verbose_bot.command "stats" ~desc:"Show bot statistics" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "stats" ~desc:"Show bot statistics" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/stats] Showing statistics";
 
       Stats.increment_messages stats;
@@ -527,4 +520,4 @@ let () =
       | Error e -> Eio.traceln "[/stats] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.run
+  |> Bot.run

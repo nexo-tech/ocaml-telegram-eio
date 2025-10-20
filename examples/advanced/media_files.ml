@@ -33,21 +33,14 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "MediaDemo"
-  let level = Log.Debug
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 module KB = Keyboard
 
 (** Session key for storing last file_id *)
-let last_photo_key = Verbose_session.make ~name:"last_photo_file_id"
-let last_document_key = Verbose_session.make ~name:"last_document_file_id"
+let last_photo_key = Session.make ~name:"last_photo_file_id"
+let last_document_key = Session.make ~name:"last_document_file_id"
 
 let () =
   Printexc.record_backtrace true;
@@ -63,14 +56,14 @@ let () =
 
   Eio.traceln "🤖 Media Files Demo Bot Started";
 
-  let session_store = Verbose_session.Memory_store.create () in
+  let session_store = Session.Memory_store.create () in
 
-  Verbose_bot.make ~env ~client
-  |> Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store
+  Bot.make ~env ~client
+  |> Bot.with_sessions (module Session.Memory_store) session_store
 
   (* /start - Main menu *)
-  |> Verbose_bot.command "start" ~desc:"Show available features" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "start" ~desc:"Show available features" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/start] Showing main menu";
 
       let text =
@@ -89,8 +82,8 @@ let () =
     )
 
   (* /send_photo_url - Send photo from URL *)
-  |> Verbose_bot.command "send_photo_url" ~desc:"Send photo from URL" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "send_photo_url" ~desc:"Send photo from URL" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/send_photo_url] Sending photo from URL";
 
       (* Send photo from public URL *)
@@ -108,8 +101,8 @@ let () =
     )
 
   (* /send_document - Generate and send text document *)
-  |> Verbose_bot.command "send_document" ~desc:"Send generated text file" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "send_document" ~desc:"Send generated text file" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/send_document] Generating and sending document";
 
       (* Generate a simple text file *)
@@ -149,8 +142,8 @@ let () =
     )
 
   (* /send_album - Send photo album *)
-  |> Verbose_bot.command "send_album" ~desc:"Send photo album from URLs" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "send_album" ~desc:"Send photo album from URLs" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/send_album] Sending photo album";
 
       let chat_id = chat ctx in
@@ -174,8 +167,8 @@ let () =
     )
 
   (* /file_info - Show info about last received file *)
-  |> Verbose_bot.command "file_info" ~desc:"Show last file information" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "file_info" ~desc:"Show last file information" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/file_info] Retrieving last file info";
 
       match session_get ctx last_photo_key with
@@ -235,8 +228,8 @@ let () =
     )
 
   (* Handle photo messages *)
-  |> Verbose_bot.on_photo (fun ctx photos ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_photo (fun ctx photos ->
+      let open Bot.Ctx in
       Eio.traceln "[on_photo] Received %d photo sizes" (List.length photos);
 
       (* Get largest photo *)
@@ -282,8 +275,8 @@ let () =
     )
 
   (* Handle document messages *)
-  |> Verbose_bot.on_message (fun ctx msg ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_message (fun ctx msg ->
+      let open Bot.Ctx in
       let open Telegram_generated.Gen_types.Message in
 
       match msg.document with
@@ -350,8 +343,8 @@ let () =
     )
 
   (* Handle video messages *)
-  |> Verbose_bot.on_message (fun ctx msg ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_message (fun ctx msg ->
+      let open Bot.Ctx in
       let open Telegram_generated.Gen_types.Message in
 
       match msg.video with
@@ -385,8 +378,8 @@ let () =
     )
 
   (* Callback: resend_photo *)
-  |> Verbose_bot.on_callback (fun ctx data ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback (fun ctx data ->
+      let open Bot.Ctx in
 
       if String.starts_with ~prefix:"resend_photo:" data then (
         let file_id = String.sub data 13 (String.length data - 13) in
@@ -407,8 +400,8 @@ let () =
     )
 
   (* Callback: get_file_info *)
-  |> Verbose_bot.on_callback_data "get_file_info" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "get_file_info" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[get_file_info] Retrieving file info";
 
       match session_get ctx last_photo_key with
@@ -446,4 +439,4 @@ let () =
            | Error e -> Eio.traceln "[get_file_info] ✗ %a" Error.pp e; Ok ())
     )
 
-  |> Verbose_bot.run
+  |> Bot.run

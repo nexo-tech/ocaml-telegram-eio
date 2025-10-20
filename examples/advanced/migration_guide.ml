@@ -28,15 +28,8 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "MigrationGuide"
-  let level = Log.Debug
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 module KB = Keyboard
 
@@ -240,14 +233,14 @@ let () =
 
   Eio.traceln "🤖 Migration Guide Demo Started";
 
-  let session_store = Verbose_session.Memory_store.create () in
+  let session_store = Session.Memory_store.create () in
 
-  Verbose_bot.make ~env ~client
-  |> Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store
+  Bot.make ~env ~client
+  |> Bot.with_sessions (module Session.Memory_store) session_store
 
   (* /start - Main menu *)
-  |> Verbose_bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/start] Showing main menu";
 
       let keyboard = KB.inline [
@@ -278,8 +271,8 @@ let () =
     )
 
   (* /lwt_to_eio - Lwt to Eio guide *)
-  |> Verbose_bot.command "lwt_to_eio" ~desc:"Lwt to Eio migration" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "lwt_to_eio" ~desc:"Lwt to Eio migration" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/lwt_to_eio] Showing Lwt to Eio guide";
 
       match reply ctx Templates.lwt_to_eio with
@@ -288,8 +281,8 @@ let () =
     )
 
   (* /raw_to_typed - Raw to typed guide *)
-  |> Verbose_bot.command "raw_to_typed" ~desc:"Raw API to typed methods" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "raw_to_typed" ~desc:"Raw API to typed methods" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/raw_to_typed] Showing raw to typed guide";
 
       match reply ctx Templates.raw_to_typed with
@@ -298,8 +291,8 @@ let () =
     )
 
   (* /id_types - ID types guide *)
-  |> Verbose_bot.command "id_types" ~desc:"ID type safety migration" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "id_types" ~desc:"ID type safety migration" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/id_types] Showing ID types guide";
 
       match reply ctx Templates.id_types_guide with
@@ -308,8 +301,8 @@ let () =
     )
 
   (* /error_handling - Error handling guide *)
-  |> Verbose_bot.command "error_handling" ~desc:"Error handling migration" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "error_handling" ~desc:"Error handling migration" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/error_handling] Showing error handling guide";
 
       match reply ctx Templates.error_handling_migration with
@@ -318,8 +311,8 @@ let () =
     )
 
   (* /concurrency - Concurrency patterns *)
-  |> Verbose_bot.command "concurrency" ~desc:"Concurrency migration" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "concurrency" ~desc:"Concurrency migration" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/concurrency] Showing concurrency patterns";
 
       match reply ctx Templates.concurrency_patterns with
@@ -328,8 +321,8 @@ let () =
     )
 
   (* /bot_dsl - Bot DSL guide *)
-  |> Verbose_bot.command "bot_dsl" ~desc:"Bot DSL migration" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "bot_dsl" ~desc:"Bot DSL migration" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/bot_dsl] Showing Bot DSL guide";
 
       match reply ctx Templates.bot_dsl_migration with
@@ -338,8 +331,8 @@ let () =
     )
 
   (* /key_differences - Key differences *)
-  |> Verbose_bot.command "key_differences" ~desc:"Key design differences" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "key_differences" ~desc:"Key design differences" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/key_differences] Showing key differences";
 
       match reply ctx Templates.key_differences with
@@ -348,53 +341,53 @@ let () =
     )
 
   (* Callback handlers for guides *)
-  |> Verbose_bot.on_callback_data "guide:lwt_eio" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "guide:lwt_eio" (fun ctx ->
+      let open Bot.Ctx in
       match edit ctx Templates.lwt_to_eio with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[guide:lwt_eio] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "guide:raw_typed" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "guide:raw_typed" (fun ctx ->
+      let open Bot.Ctx in
       match edit ctx Templates.raw_to_typed with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[guide:raw_typed] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "guide:id_types" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "guide:id_types" (fun ctx ->
+      let open Bot.Ctx in
       match edit ctx Templates.id_types_guide with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[guide:id_types] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "guide:errors" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "guide:errors" (fun ctx ->
+      let open Bot.Ctx in
       match edit ctx Templates.error_handling_migration with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[guide:errors] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "guide:concurrency" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "guide:concurrency" (fun ctx ->
+      let open Bot.Ctx in
       match edit ctx Templates.concurrency_patterns with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[guide:concurrency] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "guide:bot_dsl" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "guide:bot_dsl" (fun ctx ->
+      let open Bot.Ctx in
       match edit ctx Templates.bot_dsl_migration with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[guide:bot_dsl] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "guide:differences" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "guide:differences" (fun ctx ->
+      let open Bot.Ctx in
       match edit ctx Templates.key_differences with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[guide:differences] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.run
+  |> Bot.run

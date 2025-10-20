@@ -28,15 +28,8 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging via functor composition *)
-module Verbose_log = Log.Make (Log.Console) (struct
-  let src = "CallbackDemo"
-  let level = Log.Debug
-end)
-
-module Verbose_session = Session.Make (Verbose_log)
-module Verbose_polling = Polling.Make (Verbose_log)
-module Verbose_bot = Bot.Make (Verbose_log) (Verbose_session) (Verbose_polling)
+(* Configure verbose logging with flo *)
+let () = Flo.set_level Severity.Debug
 
 module KB = Keyboard
 
@@ -69,8 +62,8 @@ module CallbackAction = struct
 end
 
 (** Session keys for state management *)
-let page_key = Verbose_session.make ~name:"current_page"
-let likes_key = Verbose_session.make ~name:"liked_items"
+let page_key = Session.make ~name:"current_page"
+let likes_key = Session.make ~name:"liked_items"
 
 let () =
   Printexc.record_backtrace true;
@@ -86,14 +79,14 @@ let () =
 
   Eio.traceln "🤖 Callback Queries Demo Bot Started";
 
-  let session_store = Verbose_session.Memory_store.create () in
+  let session_store = Session.Memory_store.create () in
 
-  Verbose_bot.make ~env ~client
-  |> Verbose_bot.with_sessions (module Verbose_session.Memory_store) session_store
+  Bot.make ~env ~client
+  |> Bot.with_sessions (module Session.Memory_store) session_store
 
   (* /start - Main menu *)
-  |> Verbose_bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
-      let open Verbose_bot.Ctx in
+  |> Bot.command "start" ~desc:"Show main menu" (fun ctx _args ->
+      let open Bot.Ctx in
       Eio.traceln "[/start] Showing main menu";
 
       let keyboard = KB.inline [
@@ -111,8 +104,8 @@ let () =
     )
 
   (* Callback: demo:simple *)
-  |> Verbose_bot.on_callback_data "demo:simple" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "demo:simple" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[demo:simple] Showing simple callbacks";
 
       let keyboard = KB.inline [
@@ -132,24 +125,24 @@ let () =
     )
 
   (* Handle simple button presses *)
-  |> Verbose_bot.on_callback_data "simple:a" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "simple:a" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[simple:a] Button A pressed";
       match edit ctx "✅ You pressed Button A!" with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[simple:a] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "simple:b" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "simple:b" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[simple:b] Button B pressed";
       match edit ctx "✅ You pressed Button B!" with
       | Ok () -> Ok ()
       | Error e -> Eio.traceln "[simple:b] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "simple:c" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "simple:c" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[simple:c] Button C pressed";
       match edit ctx "✅ You pressed Button C!" with
       | Ok () -> Ok ()
@@ -157,8 +150,8 @@ let () =
     )
 
   (* Callback: demo:structured *)
-  |> Verbose_bot.on_callback_data "demo:structured" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "demo:structured" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[demo:structured] Showing structured data";
 
       let keyboard = KB.inline [
@@ -178,8 +171,8 @@ let () =
     )
 
   (* Handle structured callbacks with parsing *)
-  |> Verbose_bot.on_callback (fun ctx data ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback (fun ctx data ->
+      let open Bot.Ctx in
 
       match String.split_on_char ':' data with
       | ["edit"; typ; id] ->
@@ -206,8 +199,8 @@ let () =
     )
 
   (* Callback: demo:typed *)
-  |> Verbose_bot.on_callback_data "demo:typed" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "demo:typed" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[demo:typed] Showing type-safe callbacks";
 
       let keyboard = KB.inline [
@@ -227,8 +220,8 @@ let () =
     )
 
   (* Handle typed callbacks *)
-  |> Verbose_bot.on_callback (fun ctx data ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback (fun ctx data ->
+      let open Bot.Ctx in
 
       match CallbackAction.decode data with
       | Some (CallbackAction.Like id) ->
@@ -283,8 +276,8 @@ let () =
     )
 
   (* Callback: demo:confirm *)
-  |> Verbose_bot.on_callback_data "demo:confirm" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "demo:confirm" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[demo:confirm] Showing confirmation pattern";
 
       let keyboard = KB.inline [
@@ -301,8 +294,8 @@ let () =
     )
 
   (* Handle initial delete request - show confirmation *)
-  |> Verbose_bot.on_callback (fun ctx data ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback (fun ctx data ->
+      let open Bot.Ctx in
 
       match String.split_on_char ':' data with
       | ["confirm"; "delete"; id] ->
@@ -323,8 +316,8 @@ let () =
     )
 
   (* Handle delete confirmation *)
-  |> Verbose_bot.on_callback (fun ctx data ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback (fun ctx data ->
+      let open Bot.Ctx in
 
       if String.starts_with ~prefix:"delete_confirmed:" data then (
         let id = String.sub data 17 (String.length data - 17) in
@@ -336,8 +329,8 @@ let () =
       ) else Ok ()
     )
 
-  |> Verbose_bot.on_callback_data "delete_cancelled" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "delete_cancelled" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[delete_cancelled] Deletion cancelled";
 
       match edit ctx "❌ Deletion cancelled" with
@@ -346,8 +339,8 @@ let () =
     )
 
   (* Callback: demo:paginate *)
-  |> Verbose_bot.on_callback_data "demo:paginate" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "demo:paginate" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[demo:paginate] Showing pagination pattern";
 
       (* Reset to page 1 *)
@@ -371,8 +364,8 @@ let () =
     )
 
   (* Handle page navigation *)
-  |> Verbose_bot.on_callback (fun ctx data ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback (fun ctx data ->
+      let open Bot.Ctx in
 
       if String.starts_with ~prefix:"page:" data then (
         let page_str = String.sub data 5 (String.length data - 5) in
@@ -398,12 +391,12 @@ let () =
     )
 
   (* Callback: demo:toggle *)
-  |> Verbose_bot.on_callback_data "demo:toggle" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "demo:toggle" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[demo:toggle] Showing toggle pattern";
 
       (* Initialize toggle state *)
-      let notifications_key = Verbose_session.make ~name:"notifications_enabled" in
+      let notifications_key = Session.make ~name:"notifications_enabled" in
       let enabled = session_get_or ctx notifications_key ~default:true in
 
       let button_text = if enabled then "🔔 Notifications: ON" else "🔕 Notifications: OFF" in
@@ -423,9 +416,9 @@ let () =
     )
 
   (* Handle toggle *)
-  |> Verbose_bot.on_callback_data "toggle:notifications" (fun ctx ->
-      let open Verbose_bot.Ctx in
-      let notifications_key = Verbose_session.make ~name:"notifications_enabled" in
+  |> Bot.on_callback_data "toggle:notifications" (fun ctx ->
+      let open Bot.Ctx in
+      let notifications_key = Session.make ~name:"notifications_enabled" in
 
       let enabled = session_get_or ctx notifications_key ~default:true in
       let new_state = not enabled in
@@ -451,8 +444,8 @@ let () =
     )
 
   (* Callback: demo:menu - Back to main menu *)
-  |> Verbose_bot.on_callback_data "demo:menu" (fun ctx ->
-      let open Verbose_bot.Ctx in
+  |> Bot.on_callback_data "demo:menu" (fun ctx ->
+      let open Bot.Ctx in
       Eio.traceln "[demo:menu] Returning to main menu";
 
       let keyboard = KB.inline [
@@ -469,4 +462,4 @@ let () =
       | Error e -> Eio.traceln "[demo:menu] ✗ %a" Error.pp e; Ok ()
     )
 
-  |> Verbose_bot.run
+  |> Bot.run
