@@ -38,8 +38,8 @@ type game_state = {
   chat_id : Id.Chat.k Id.t;
   board : board;
   turn : player;
-  x_user_id : int64;
-  o_user_id : int64;
+  x_user_id : Id.User.k Id.t;
+  o_user_id : Id.User.k Id.t option;
   started_at : float;
   ttl_seconds : int;
 }
@@ -58,8 +58,8 @@ let expired g =
 let new_board () = Array.make 9 Empty
 
 let new_game ~id ~chat_id ~x_user_id ~o_user_id =
-  Eio.traceln "[Game] Creating new game: id=%s, x_user=%Ld, o_user=%Ld"
-    id x_user_id o_user_id;
+  Eio.traceln "[Game] Creating new game: id=%s, x_user=%a, o_user=%s"
+    id Id.pp x_user_id (match o_user_id with Some u -> Id.to_string u | None -> "waiting");
   {
     id;
     chat_id;
@@ -142,18 +142,18 @@ module GameLogic = struct
     | O -> "O"
 
   let handle_move (g : game_state) user_id idx : (game_state * [ `Continue | `Win of cell | `Draw ]) option =
-    Eio.traceln "[GameLogic] Processing move: game=%s, user=%Ld, idx=%d" g.id user_id idx;
+    Eio.traceln "[GameLogic] Processing move: game=%s, user=%a, idx=%d" g.id Id.pp user_id idx;
 
     if idx < 0 || idx > 8 then begin
       Eio.traceln "[GameLogic] ❌ Invalid index: %d" idx;
       None
-    end else if g.o_user_id = -1L then begin
+    end else if Option.is_none g.o_user_id then begin
       Eio.traceln "[GameLogic] ❌ Game not started, waiting for O player";
       None
     end else begin
-      let expected_user = match g.turn with Xp -> g.x_user_id | Op -> g.o_user_id in
-      if user_id <> expected_user then begin
-        Eio.traceln "[GameLogic] ❌ Wrong player: expected=%Ld, got=%Ld" expected_user user_id;
+      let expected_user = match g.turn with Xp -> g.x_user_id | Op -> Option.get g.o_user_id in
+      if Id.to_string user_id <> Id.to_string expected_user then begin
+        Eio.traceln "[GameLogic] ❌ Wrong player: expected=%a, got=%a" Id.pp expected_user Id.pp user_id;
         None
       end else begin
         match g.board.(idx) with
@@ -193,32 +193,34 @@ module Scoreboard = struct
     losses : int;
   }
 
-  let table : (int64, entry) Hashtbl.t = Hashtbl.create 1000
+  let table : (string, entry) Hashtbl.t = Hashtbl.create 1000
 
   let get user_id =
-    match Hashtbl.find_opt table user_id with
+    let key = Id.to_string user_id in
+    match Hashtbl.find_opt table key with
     | Some e ->
-        Eio.traceln "[Scoreboard] Found entry for user %Ld: W:%d D:%d L:%d"
-          user_id e.wins e.draws e.losses;
+        Eio.traceln "[Scoreboard] Found entry for user %s: W:%d D:%d L:%d"
+          key e.wins e.draws e.losses;
         e
     | None ->
-        Eio.traceln "[Scoreboard] New user %Ld" user_id;
+        Eio.traceln "[Scoreboard] New user %s" key;
         { wins = 0; draws = 0; losses = 0 }
 
   let set user_id e =
-    Hashtbl.replace table user_id e;
-    Eio.traceln "[Scoreboard] Updated user %Ld: W:%d D:%d L:%d"
-      user_id e.wins e.draws e.losses
+    let key = Id.to_string user_id in
+    Hashtbl.replace table key e;
+    Eio.traceln "[Scoreboard] Updated user %s: W:%d D:%d L:%d"
+      key e.wins e.draws e.losses
 
   let record_win ~winner ~loser =
-    Eio.traceln "[Scoreboard] Recording win: winner=%Ld, loser=%Ld" winner loser;
+    Eio.traceln "[Scoreboard] Recording win: winner=%a, loser=%a" Id.pp winner Id.pp loser;
     let w = get winner in
     let l = get loser in
     set winner { w with wins = w.wins + 1 };
     set loser { l with losses = l.losses + 1 }
 
   let record_draw ~x ~o =
-    Eio.traceln "[Scoreboard] Recording draw: x=%Ld, o=%Ld" x o;
+    Eio.traceln "[Scoreboard] Recording draw: x=%a, o=%a" Id.pp x Id.pp o;
     let a = get x in
     let b = get o in
     set x { a with draws = a.draws + 1 };
@@ -243,7 +245,7 @@ module Scoreboard = struct
           | 2 -> "🥉"
           | _ -> Printf.sprintf "%d." (i + 1)
         in
-        Printf.sprintf "%s User %Ld — W:%d D:%d L:%d"
+        Printf.sprintf "%s User %s — W:%d D:%d L:%d"
           medal user_id e.wins e.draws e.losses
       ) entries in
       "🏆 <b>Leaderboard</b>\n\n" ^ String.concat "\n" lines
@@ -297,11 +299,11 @@ module BoardRenderer = struct
     Printf.sprintf
       "🎮 <b>Tic-Tac-Toe</b>\n\n\
        Turn: %s %s\n\
-       X: User %Ld\n\
-       O: User %Ld"
+       X: User %s\n\
+       O: User %s"
       turn_symbol turn_name
-      g.x_user_id
-      g.o_user_id
+      (Id.to_string g.x_user_id)
+      (Option.fold ~none:"Waiting..." ~some:Id.to_string g.o_user_id)
 
   let serialize_keyboard keyboard =
     let open Telegram_generated.Gen_types in
@@ -345,51 +347,35 @@ let handle_new ctx _args =
   let open Bot.Ctx in
 
   let* user = require_user ctx in
-  let* chat_id = chat ctx in
+  let chat_id = chat ctx in
 
   (* Generate game ID *)
   let game_id = Printf.sprintf "ttt_%d_%f" (Random.int 1000000) (Unix.time ()) in
 
-  Eio.traceln "[Handler] Creating new game: game_id=%s, creator=%Ld" game_id user.id;
+  Eio.traceln "[Handler] Creating new game: game_id=%s, creator=%a" game_id Id.pp user.id;
 
   (* Create game state with creator as X, waiting for O *)
-  let game = new_game ~id:game_id ~chat_id ~x_user_id:user.id ~o_user_id:(-1L) in
+  let game = new_game ~id:game_id ~chat_id ~x_user_id:user.id ~o_user_id:None in
 
   (* Save to session *)
   let () = session_set ctx game_key game in
 
-  (* Create join button *)
-  let open Telegram_generated.Gen_types in
-  let join_button = InlineKeyboardButton.{
+  (* Create join button using high-level API *)
+  let join_button = Types.Callback_button {
     text = "Join as ⭕";
-    url = None;
-    callback_data = Some (Printf.sprintf "ttt:join:%s" game_id);
-    web_app = None;
-    login_url = None;
-    switch_inline_query = None;
-    switch_inline_query_current_chat = None;
-    switch_inline_query_chosen_chat = None;
-    copy_text = None;
-    callback_game = None;
-    pay = None;
-    unknown_fields = [];
-  } in
-
-  let keyboard = InlineKeyboardMarkup.{
-    inline_keyboard = [[join_button]];
-    unknown_fields = [];
+    data = Printf.sprintf "ttt:join:%s" game_id
   } in
 
   let game_text = Printf.sprintf
     "🎮 <b>New Game!</b>\n\n\
      Game ID: <code>%s</code>\n\
-     ❌ X: User %Ld\n\
+     ❌ X: User %s\n\
      ⭕ O: Waiting...\n\n\
      Click the button below to join!"
-    game_id user.id
+    game_id (Id.to_string user.id)
   in
 
-  let* _msg = send ctx game_text  ~keyboard in
+  let* _msg = send ctx game_text ~keyboard:[[join_button]] in
   Eio.traceln "[Handler] ✅ New game created, waiting for O player";
   Ok ()
 
@@ -403,13 +389,13 @@ let handle_stats ctx _args =
 
   let stats_text = Printf.sprintf
     "📊 <b>Your Statistics</b>\n\n\
-     User ID: %Ld\n\
+     User ID: %s\n\
      🏆 Wins: %d\n\
      🤝 Draws: %d\n\
      ❌ Losses: %d\n\
      📈 Total Games: %d\n\
      💯 Win Rate: %.1f%%"
-    user.id
+    (Id.to_string user.id)
     entry.wins
     entry.draws
     entry.losses
@@ -480,7 +466,7 @@ let handle_join ctx callback_query =
     Eio.traceln "[Handler] Join request for game: game_id=%s" game_id;
 
     let* user = require_user ctx in
-    let* chat_id = chat ctx in
+    let chat_id = chat ctx in
 
     match session_get ctx game_key with
     | None ->
@@ -569,7 +555,7 @@ let handle_move ctx callback_query =
 
         let* user = require_user ctx in
         let* client = client ctx in
-        let* chat_id = chat ctx in
+        let chat_id = chat ctx in
 
         (match session_get ctx game_key with
          | None ->

@@ -44,8 +44,8 @@ module AdminCheck = struct
   let require_admin ctx =
     Eio.traceln "[AdminCheck] Verifying admin permissions";
     let open Bot.Ctx in
-    let* client = client ctx in
-    let* chat_id = chat ctx in
+    let client = client ctx in
+    let chat_id = chat ctx in
     let* user = require_user ctx in
 
     match check_admin client chat_id user.id with
@@ -63,8 +63,8 @@ module AdminCheck = struct
   let require_admin_with_permission ~permission ctx =
     Eio.traceln "[AdminCheck] Verifying admin permission: %s" permission;
     let open Bot.Ctx in
-    let* client = client ctx in
-    let* chat_id = chat ctx in
+    let client = client ctx in
+    let chat_id = chat ctx in
     let* user = require_user ctx in
 
     match check_admin client chat_id user.id with
@@ -199,10 +199,10 @@ module CaptchaVerification = struct
           copy_text = None;
           callback_game = None;
           pay = None;
-          unknown_fields = unknown ();
+          unknown_fields = [];
         };
       ]];
-      unknown_fields = unknown ();
+      unknown_fields = [];
     }
 end
 
@@ -227,7 +227,7 @@ module Permissions = struct
       can_invite_users = None;
       can_pin_messages = None;
       can_manage_topics = None;
-      unknown_fields = unknown ();
+      unknown_fields = [];
     }
 
   let read_only () =
@@ -252,7 +252,7 @@ module Permissions = struct
       can_invite_users = None;
       can_pin_messages = None;
       can_manage_topics = None;
-      unknown_fields = unknown ();
+      unknown_fields = [];
     }
 
   let lockdown () =
@@ -273,7 +273,7 @@ module Permissions = struct
       can_invite_users = None;
       can_pin_messages = None;
       can_manage_topics = None;
-      unknown_fields = unknown ();
+      unknown_fields = [];
     }
 end
 
@@ -307,7 +307,7 @@ let handle_start ctx _args =
      • Admin permission checks"
   in
 
-  let* _msg = answer ctx welcome_text ~parse_mode:"HTML" in
+  let* _msg = answer ctx welcome_text in
   Eio.traceln "[Handler] ✅ Welcome message sent";
   Ok ()
 
@@ -320,9 +320,9 @@ let handle_ban ctx args =
   (* Check admin permission *)
   let* () = AdminCheck.require_admin_with_permission ~permission:"restrict_members" ctx in
 
-  let* client = client ctx in
-  let* chat_id = chat ctx in
-  let* msg = message ctx in
+  let client = client ctx in
+  let chat_id = chat ctx in
+  let msg = message ctx in
 
   match msg.reply_to_message with
   | None ->
@@ -365,8 +365,8 @@ let handle_unban ctx args =
 
   let* () = AdminCheck.require_admin_with_permission ~permission:"restrict_members" ctx in
 
-  let* client = client ctx in
-  let* chat_id = chat ctx in
+  let client = client ctx in
+  let chat_id = chat ctx in
 
   match args with
   | [] ->
@@ -394,9 +394,9 @@ let handle_kick ctx _args =
 
   let* () = AdminCheck.require_admin_with_permission ~permission:"restrict_members" ctx in
 
-  let* client = client ctx in
-  let* chat_id = chat ctx in
-  let* msg = message ctx in
+  let client = client ctx in
+  let chat_id = chat ctx in
+  let msg = message ctx in
 
   match msg.reply_to_message with
   | None ->
@@ -428,9 +428,9 @@ let handle_mute ctx args =
 
   let* () = AdminCheck.require_admin_with_permission ~permission:"restrict_members" ctx in
 
-  let* client = client ctx in
-  let* chat_id = chat ctx in
-  let* msg = message ctx in
+  let client = client ctx in
+  let chat_id = chat ctx in
+  let msg = message ctx in
 
   match msg.reply_to_message with
   | None ->
@@ -466,9 +466,9 @@ let handle_unmute ctx _args =
 
   let* () = AdminCheck.require_admin_with_permission ~permission:"restrict_members" ctx in
 
-  let* client = client ctx in
-  let* chat_id = chat ctx in
-  let* msg = message ctx in
+  let client = client ctx in
+  let chat_id = chat ctx in
+  let msg = message ctx in
 
   match msg.reply_to_message with
   | None ->
@@ -497,8 +497,8 @@ let handle_promote ctx args =
 
   let* () = AdminCheck.require_admin_with_permission ~permission:"promote_members" ctx in
 
-  let* client = client ctx in
-  let* chat_id = chat ctx in
+  let client = client ctx in
+  let chat_id = chat ctx in
 
   match args with
   | [] ->
@@ -531,8 +531,8 @@ let handle_demote ctx args =
 
   let* () = AdminCheck.require_admin_with_permission ~permission:"promote_members" ctx in
 
-  let* client = client ctx in
-  let* chat_id = chat ctx in
+  let client = client ctx in
+  let chat_id = chat ctx in
 
   match args with
   | [] ->
@@ -565,9 +565,9 @@ let handle_pin ctx _args =
 
   let* () = AdminCheck.require_admin_with_permission ~permission:"delete_messages" ctx in
 
-  let* client = client ctx in
-  let* chat_id = chat ctx in
-  let* msg = message ctx in
+  let client = client ctx in
+  let chat_id = chat ctx in
+  let msg = message ctx in
 
   match msg.reply_to_message with
   | None ->
@@ -589,9 +589,9 @@ let handle_unpin ctx _args =
 
   let* () = AdminCheck.require_admin_with_permission ~permission:"delete_messages" ctx in
 
-  let* client = client ctx in
-  let* chat_id = chat ctx in
-  let* msg = message ctx in
+  let client = client ctx in
+  let chat_id = chat ctx in
+  let msg = message ctx in
 
   match msg.reply_to_message with
   | None ->
@@ -619,8 +619,8 @@ let handle_lockdown ctx _args =
 
   let* () = AdminCheck.require_admin ctx in
 
-  let* client = client ctx in
-  let* chat_id = chat ctx in
+  let client = client ctx in
+  let chat_id = chat ctx in
 
   Eio.traceln "[Handler] Locking down chat";
 
@@ -628,7 +628,7 @@ let handle_lockdown ctx _args =
   let* () = Telegram_generated.Gen_methods.set_chat_permissions client
     ~chat_id ~permissions:perms () in
 
-  let* _ = answer ctx "🔒 <b>Chat locked down.</b>\n\nOnly admins can send messages." ~parse_mode:"HTML" in
+  let* _ = answer ctx "🔒 <b>Chat locked down.</b>\n\nOnly admins can send messages." in
   Eio.traceln "[Handler] ✅ Chat locked down";
   Ok ()
 
@@ -638,8 +638,8 @@ let handle_unlock ctx _args =
 
   let* () = AdminCheck.require_admin ctx in
 
-  let* client = client ctx in
-  let* chat_id = chat ctx in
+  let client = client ctx in
+  let chat_id = chat ctx in
 
   Eio.traceln "[Handler] Unlocking chat";
 
@@ -647,7 +647,7 @@ let handle_unlock ctx _args =
   let* () = Telegram_generated.Gen_methods.set_chat_permissions client
     ~chat_id ~permissions:perms () in
 
-  let* _ = answer ctx "🔓 <b>Chat unlocked.</b>\n\nMembers can send messages again." ~parse_mode:"HTML" in
+  let* _ = answer ctx "🔓 <b>Chat unlocked.</b>\n\nMembers can send messages again." in
   Eio.traceln "[Handler] ✅ Chat unlocked";
   Ok ()
 
@@ -657,7 +657,7 @@ let handle_warn ctx _args =
 
   let* () = AdminCheck.require_admin ctx in
 
-  let* msg = message ctx in
+  let msg = message ctx in
 
   match msg.reply_to_message with
   | None ->
@@ -678,7 +678,7 @@ let handle_warn ctx _args =
 
            let warn_text = Printf.sprintf "⚠️ <b>Warning</b>\n\n%s, please follow the group rules." username in
 
-           let* _ = answer ctx warn_text ~parse_mode:"HTML" in
+           let* _ = answer ctx warn_text in
            Eio.traceln "[Handler] ✅ Warning issued";
            Ok ()
       )
@@ -689,8 +689,8 @@ let handle_new_member ctx update =
   Eio.traceln "[Handler] New chat member event";
   let open Bot.Ctx in
 
-  let* client = client ctx in
-  let* chat_id = chat ctx in
+  let client = client ctx in
+  let chat_id = chat ctx in
 
   match update.Telegram_generated.Gen_types.Update.message with
   | Some msg ->
@@ -721,8 +721,8 @@ let handle_spam_detection ctx update =
   Eio.traceln "[Handler] Checking message for spam";
   let open Bot.Ctx in
 
-  let* client = client ctx in
-  let* chat_id = chat ctx in
+  let client = client ctx in
+  let chat_id = chat ctx in
 
   match update.Telegram_generated.Gen_types.Update.message with
   | Some msg when SpamDetector.is_spam msg ->
@@ -741,7 +741,7 @@ let handle_captcha_callback ctx callback_query =
   Eio.traceln "[Handler] Handling CAPTCHA callback";
   let open Bot.Ctx in
 
-  let* client = client ctx in
+  let client = client ctx in
 
   let data = callback_query.Telegram_generated.Gen_types.CallbackQuery.data in
   let clicker_user = callback_query.from in

@@ -540,7 +540,10 @@ end
 - [x] **Task 7.1-7.12**: Refactor all recipe examples
   - Removed functor composition from all 12 files
   - Added `let () = Flo.set_level Severity.Debug` configuration
-  - Fixed compilation for 7/12 files (5 files have pre-existing API bugs unrelated to flo)
+  - ✅ **7/12 files compile successfully**: echo_bot, command_bot, keyboard_bot, webhook_bot, chatbot_context, file_bot, notification_bot
+  - ⚠️  **5/12 files have pre-existing API bugs**: games_bot, group_management_bot, inline_bot, payment_bot, poll_quiz_bot
+    - Root cause: Mixing low-level Telegram_generated API with high-level Bot.Ctx API
+    - Require architectural refactoring to use consistent API layer
   - Note: Full flo function conversion (Eio.traceln → Flo.info/debug) pending
 
 ### Phase 8: Advanced Examples (22 examples)
