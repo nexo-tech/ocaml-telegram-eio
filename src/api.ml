@@ -1,5 +1,9 @@
 open Error
-open Flo
+
+(** Scoped logger for API operations *)
+module Log = Flo_scoped.Make(struct
+  let namespace = "telegram.api"
+end)
 
 let string_of_chat_id (id : Id.Chat.k Id.t) =
   Id.to_string id
@@ -92,23 +96,25 @@ let call (type a) (client : Client.t) (req : a Request.t) : (a, Error.t) result 
                with _ -> Error (Decode_error "message decode")))
 
 let call_json client ~method_name body =
+  let open Flo in
   (* Wrap entire API call in a span for distributed tracing *)
-  Flo.with_span "api_call" (fun () ->
+  with_span "api_call" (fun () ->
     let url = Printf.sprintf "%s/bot%s/%s" (Client.base_url client) (Client.token client) method_name in
     let http = Http.Cohttp_eio.v () in
 
     (* Bind API method to context for all logs in this span *)
-    Flo.bind [
+    bind [
       Flo_telegram.api_method method_name;
     ];
 
-    info_fields "Telegram API call" ~fields:[
+    (* Debug level: API call details (hidden by default) *)
+    Log.debug_fields "Telegram API call" ~fields:[
       Flo_telegram.api_method method_name;
       Flo_semconv.http_method "POST";
       Flo_semconv.http_url url;
     ];
 
-    debugf "Request JSON: %s" (Yojson.Safe.to_string body);
+    Log.debugf "Request JSON: %s" (Yojson.Safe.to_string body);
 
     let start_time = Unix.gettimeofday () in
     let result =
@@ -116,7 +122,7 @@ let call_json client ~method_name body =
       | Error e -> Error e
       | Ok resp ->
           let preview = if String.length resp.body > 500 then String.sub resp.body 0 500 ^ "..." else resp.body in
-          debugf "Response JSON: %s" preview;
+          Log.debugf "Response JSON: %s" preview;
           Response.parse_json resp.body
     in
 
@@ -125,13 +131,15 @@ let call_json client ~method_name body =
     (* Log result with structured fields *)
     (match result with
      | Ok _ ->
-         success_fields "Telegram API call completed" ~fields:[
+         (* Debug level: successful API call (hidden by default) *)
+         Log.debug_fields "Telegram API call completed" ~fields:[
            Flo_telegram.api_method method_name;
            Flo_telegram.api_response_ok true;
            Flo_semconv.duration_ms duration_ms;
          ]
      | Error (Api_error { code; description; _ }) ->
-         warn_fields "Telegram API returned error" ~fields:[
+         (* Warn level: API-level errors (visible by default) *)
+         Log.warn_fields "Telegram API returned error" ~fields:[
            Flo_telegram.api_method method_name;
            Flo_telegram.api_response_ok false;
            Flo_telegram.api_error_code code;
@@ -139,7 +147,8 @@ let call_json client ~method_name body =
            Flo_semconv.duration_ms duration_ms;
          ]
      | Error e ->
-         error_fields "Telegram API call failed" ~fields:[
+         (* Error level: connection/parsing errors (always visible) *)
+         Log.error_fields "Telegram API call failed" ~fields:[
            Flo_telegram.api_method method_name;
            Flo_telegram.api_response_ok false;
            Flo_semconv.error_type "ApiError";
@@ -152,26 +161,28 @@ let call_json client ~method_name body =
 
 (* New unified call_method that auto-detects JSON vs multipart *)
 let call_method client ~method_name params =
+  let open Flo in
   (* Wrap entire API call in a span for distributed tracing *)
-  Flo.with_span "api_call" (fun () ->
+  with_span "api_call" (fun () ->
     let url = build_url client method_name in
     let http = Http.Cohttp_eio.v () in
     let has_files = Param.has_files params in
 
     (* Bind API method to context for all logs in this span *)
-    Flo.bind [
+    bind [
       Flo_telegram.api_method method_name;
       ("has_files", Value.bool has_files);
     ];
 
-    info_fields "Telegram API call" ~fields:[
+    (* Debug level: API call details (hidden by default) *)
+    Log.debug_fields "Telegram API call" ~fields:[
       Flo_telegram.api_method method_name;
       Flo_semconv.http_method "POST";
       Flo_semconv.http_url url;
       ("encoding", Value.string (if has_files then "multipart" else "json"));
     ];
 
-    debugf "Request parameters: %s" (
+    Log.debugf "Request parameters: %s" (
       if has_files then "[multipart with files]"
       else Yojson.Safe.to_string (Param.to_json params)
     );
@@ -187,7 +198,7 @@ let call_method client ~method_name params =
         | Error e -> Error e
         | Ok resp ->
             let preview = if String.length resp.body > 500 then String.sub resp.body 0 500 ^ "..." else resp.body in
-            debugf "Response JSON: %s" preview;
+            Log.debugf "Response JSON: %s" preview;
             Response.parse_json resp.body
       else
         (* Use application/json for simple requests *)
@@ -196,7 +207,7 @@ let call_method client ~method_name params =
         | Error e -> Error e
         | Ok resp ->
             let preview = if String.length resp.body > 500 then String.sub resp.body 0 500 ^ "..." else resp.body in
-            debugf "Response JSON: %s" preview;
+            Log.debugf "Response JSON: %s" preview;
             Response.parse_json resp.body
     in
 
@@ -205,13 +216,15 @@ let call_method client ~method_name params =
     (* Log result with structured fields *)
     (match result with
      | Ok _ ->
-         success_fields "Telegram API call completed" ~fields:[
+         (* Debug level: successful API call (hidden by default) *)
+         Log.debug_fields "Telegram API call completed" ~fields:[
            Flo_telegram.api_method method_name;
            Flo_telegram.api_response_ok true;
            Flo_semconv.duration_ms duration_ms;
          ]
      | Error (Api_error { code; description; _ }) ->
-         warn_fields "Telegram API returned error" ~fields:[
+         (* Warn level: API-level errors (visible by default) *)
+         Log.warn_fields "Telegram API returned error" ~fields:[
            Flo_telegram.api_method method_name;
            Flo_telegram.api_response_ok false;
            Flo_telegram.api_error_code code;
@@ -219,7 +232,8 @@ let call_method client ~method_name params =
            Flo_semconv.duration_ms duration_ms;
          ]
      | Error e ->
-         error_fields "Telegram API call failed" ~fields:[
+         (* Error level: connection/parsing errors (always visible) *)
+         Log.error_fields "Telegram API call failed" ~fields:[
            Flo_telegram.api_method method_name;
            Flo_telegram.api_response_ok false;
            Flo_semconv.error_type "ApiError";

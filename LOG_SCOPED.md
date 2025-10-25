@@ -62,12 +62,12 @@ telegram                           # Root namespace for all library logs
   - Connection errors → Error level
   - Rate limiting → Warn level
 
-- [ ] Task 2.3: Migrate `src/api.ml` to scoped logging
+- [x] Task 2.3: Migrate `src/api.ml` to scoped logging
   - Use namespace `telegram.api`
   - API calls → Debug level
   - API errors → Error level
 
-- [ ] Task 2.4: Migrate `src/request.ml` and `src/response.ml`
+- [x] Task 2.4: Migrate `src/request.ml` and `src/response.ml`
   - Use namespace `telegram.api.request` and `telegram.api.response`
   - Request/response parsing → Debug level
   - Validation errors → Warn level
