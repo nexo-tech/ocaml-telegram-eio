@@ -1,13 +1,96 @@
-(** Telegram-specific semantic conventions for Flo logging.
+(** Telegram-specific semantic conventions and scoped loggers for Flo logging.
 
-    This module provides OpenTelemetry-style semantic conventions specifically
-    for Telegram Bot API operations. Use these helpers to ensure consistent
-    attribute names across all logging in the telegram bot library.
+    This module provides:
+    1. Scoped loggers with hierarchical namespaces for the telegram library
+    2. OpenTelemetry-style semantic conventions for structured logging
 
     See: https://opentelemetry.io/docs/specs/semconv/ for semantic convention patterns
 *)
 
 open Flo
+
+(** {1 Scoped Loggers for Internal Library Use} *)
+
+(** Root logger for the telegram library.
+
+    All internal library logs should use this logger or create sub-namespace
+    loggers using {!create_logger}. This ensures application developers can
+    control library log verbosity independently.
+
+    Example (internal library use):
+    {[
+      module Log = Flo_telegram.Log
+
+      let connect () =
+        Log.debug "Connecting to Telegram API";
+        Log.info_fields "Connection established" ~fields:[
+          Flo_telegram.api_method "getMe";
+        ]
+    ]}
+
+    Example (application configuration):
+    {[
+      (* Default: Info level - hides debug logs *)
+      Flo.set_level Severity.Info;
+
+      (* Enable debug for telegram library *)
+      Flo.set_level_for "telegram" Severity.Debug;
+
+      (* Or fine-grained control *)
+      Flo.set_level_for "telegram.polling" Severity.Debug;
+      Flo.set_level_for "telegram.client.http" Severity.Warn;
+    ]}
+*)
+module Log = Flo_scoped.Make(struct
+  let namespace = "telegram"
+end)
+
+(** Create a scoped logger for a telegram sub-component.
+
+    This is a convenience function for creating sub-namespace loggers.
+    The sub-namespace inherits level configuration from parent namespaces.
+
+    @param component Component name (e.g., "polling", "client.http")
+    @return First-class module implementing LOGGER with the sub-namespace
+
+    Example:
+    {[
+      (* In src/polling.ml *)
+      let logger = Flo_telegram.create_logger "polling"
+      let module Log = (val logger : Flo_scoped.LOGGER) in
+
+      let poll_updates () =
+        Log.debug "Fetching updates from Telegram";
+        Log.info_fields "Updates received" ~fields:[
+          Flo_telegram.polling_updates_received 5;
+        ]
+    ]}
+*)
+let create_logger component =
+  Flo_scoped.create ("telegram." ^ component)
+
+(** Create a scoped logger with explicit namespace.
+
+    Use when you need full control over the namespace path.
+
+    @param namespace Full namespace path (e.g., "telegram.bot.middleware.auth")
+    @return First-class module implementing LOGGER
+
+    Example:
+    {[
+      let logger = Flo_telegram.create_logger_with_namespace "telegram.bot.dispatch"
+      let module Log = (val logger : Flo_scoped.LOGGER) in
+      Log.debug "Dispatching update to handler"
+    ]}
+*)
+let create_logger_with_namespace namespace =
+  Flo_scoped.create namespace
+
+(** {1 Semantic Conventions} *)
+
+(** The following functions provide OpenTelemetry-style semantic conventions
+    for structured logging. All functions return [(string * Flo.Value.t)] tuples
+    suitable for use with structured logging. *)
 
 (** {1 Update Attributes} *)
 

@@ -91,6 +91,79 @@ The library uses [flo](https://github.com/nexo-tech/flo) for structured logging 
 - Semantic conventions for errors
 - PPX extensions for automatic location capture
 
+### Debugging & Log Level Control
+
+The library uses **namespace-based logging** to give you fine-grained control over log verbosity. By default, library internals log at `Debug` level (hidden), while user-facing events use `Info` level (visible).
+
+**Enable debug logs for the entire telegram library:**
+```ocaml
+let () =
+  Eio_main.run @@ fun env ->
+    (* Enable debug for all telegram library components *)
+    Flo.set_level_for "telegram" Severity.Debug;
+
+    let client = Telegram.Client.create ~env ~token () in
+    (* Now you'll see detailed internal logs *)
+```
+
+**Fine-grained control per component:**
+```ocaml
+let () =
+  Eio_main.run @@ fun env ->
+    (* Default: Info level (hides debug logs) *)
+    Flo.set_level Severity.Info;
+
+    (* Debug specific components *)
+    Flo.set_level_for "telegram.polling" Severity.Debug;  (* See polling details *)
+    Flo.set_level_for "telegram.bot.dispatch" Severity.Debug;  (* See event routing *)
+
+    (* Quiet verbose components *)
+    Flo.set_level_for "telegram.client.http" Severity.Warn;  (* Only warnings/errors *)
+
+    let client = Telegram.Client.create ~env ~token () in
+    (* ... *)
+```
+
+**Available namespaces:**
+```
+telegram                           # Root namespace
+├── telegram.client                # Client operations
+│   ├── telegram.client.http       # HTTP requests/responses
+│   └── telegram.client.session    # Session management
+├── telegram.polling               # Long polling
+├── telegram.webhook               # Webhook server
+├── telegram.bot                   # Bot framework
+│   ├── telegram.bot.dispatch      # Event routing
+│   ├── telegram.bot.middleware    # Middleware execution
+│   └── telegram.bot.context       # Context operations
+├── telegram.api                   # API calls
+├── telegram.upload                # File uploads
+├── telegram.download              # File downloads
+└── telegram.retry                 # Retry logic
+```
+
+**Common debugging scenarios:**
+
+1. **Bot not responding to commands?**
+   ```ocaml
+   Flo.set_level_for "telegram.bot.dispatch" Severity.Debug;
+   (* See which routes are matching *)
+   ```
+
+2. **Polling issues?**
+   ```ocaml
+   Flo.set_level_for "telegram.polling" Severity.Debug;
+   (* See update fetching and processing *)
+   ```
+
+3. **API errors?**
+   ```ocaml
+   Flo.set_level_for "telegram.client.http" Severity.Debug;
+   (* See full HTTP requests/responses *)
+   ```
+
+See [LOG_SCOPED.md](LOG_SCOPED.md) for the complete migration plan and namespace documentation.
+
 ## Architecture
 
 The library provides two API layers:

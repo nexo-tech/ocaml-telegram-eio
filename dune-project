@@ -52,7 +52,9 @@ and high-level ergonomic helpers (Tg.Polling, Tg.Keyboard, etc.) for building bo
   (domain-name (>= 0.4.0))
   (cstruct (>= 6.0))
 
-  ;; Logging (from GitHub)
+  ;; Logging (from GitHub - pinned to latest commit with scoped logging)
+  ;; Pin command: opam pin add flo ./flo -y && opam pin add ppx_flo ./flo -y
+  ;; Commit: b45f6452061ef309767eb8e9985532c41abdfeaa (2025-10-22)
   (flo (>= 0.1.0))
   (ppx_flo (>= 0.1.0))
   (ptime (>= 1.0))  ;; Required by flo
