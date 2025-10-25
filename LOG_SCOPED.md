@@ -74,13 +74,13 @@ telegram                           # Root namespace for all library logs
 
 ### Phase 3: Polling & Webhook
 
-- [ ] Task 3.1: Migrate `src/polling.ml` to scoped logging
+- [x] Task 3.1: Migrate `src/polling.ml` to scoped logging
   - Use namespace `telegram.polling`
   - Poll loop lifecycle → Info level
   - Update fetching details → Debug level
   - Long polling errors → Warn/Error level
 
-- [ ] Task 3.2: Migrate `src/webhook.ml` to scoped logging
+- [x] Task 3.2: Migrate `src/webhook.ml` to scoped logging
   - Use namespace `telegram.webhook`
   - Webhook server lifecycle → Info level
   - Request handling → Debug level

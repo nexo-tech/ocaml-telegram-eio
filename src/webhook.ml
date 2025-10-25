@@ -1,7 +1,11 @@
-(** Webhook server implementation for Telegram Bot API. *)
+(** Webhook server implementation for Telegram Bot API with scoped logging. *)
 
 open Telegram
-open Flo
+
+(** Scoped logger for webhook operations *)
+module Log = Flo_scoped.Make(struct
+  let namespace = "telegram.webhook"
+end)
 
 type request_info = {
   client_addr : string;
@@ -83,15 +87,18 @@ let ip_in_range ip cidr =
 
 (* Create IP validator from allowlist *)
 let make_ip_validator allowlist request =
+  let open Flo in
   let ip_allowed = List.exists (fun cidr -> ip_in_range request.client_addr cidr) allowlist in
-  debug_fields "IP validation check" ~fields:[
+  (* Debug level: validation details (hidden by default) *)
+  Log.debug_fields "IP validation check" ~fields:[
     ("source_ip", Value.string request.client_addr);
     ("is_allowed", Value.bool ip_allowed);
   ];
   if ip_allowed then
     Accept
   else (
-    warn_fields "IP validation failed" ~fields:[
+    (* Warn level: validation failure (visible by default) *)
+    Log.warn_fields "IP validation failed" ~fields:[
       ("source_ip", Value.string request.client_addr);
       ("allowed_ranges", Value.string (String.concat ", " allowlist));
     ];
@@ -100,11 +107,13 @@ let make_ip_validator allowlist request =
 
 (* Parse JSON body and decode Update *)
 let parse_update body =
+  let open Flo in
   try
     match Yojson.Safe.from_string body with
     | exception exn ->
         let preview = if String.length body > 200 then String.sub body 0 200 ^ "..." else body in
-        error_fields "JSON parse error" ~fields:[
+        (* Error level: parse errors (always visible) *)
+        Log.error_fields "JSON parse error" ~fields:[
           Flo_semconv.error_type "JsonParseError";
           Flo_semconv.error_message (Printexc.to_string exn);
           ("body_preview", Value.string preview);
@@ -114,13 +123,15 @@ let parse_update body =
         (match Telegram_generated.Gen_types.Update.of_yojson json with
          | Ok update -> Ok update
          | Error msg ->
-             error_fields "Update decode error" ~fields:[
+             (* Error level: decode errors (always visible) *)
+             Log.error_fields "Update decode error" ~fields:[
                Flo_semconv.error_type "DecodeError";
                Flo_semconv.error_message msg;
              ];
              Error (Error.Decode_error ("Failed to decode Update: " ^ msg)))
   with exn ->
-    error_fields "Exception parsing webhook body" ~fields:[
+    (* Error level: unexpected exceptions (always visible) *)
+    Log.error_fields "Exception parsing webhook body" ~fields:[
       Flo_semconv.error_type "ParseException";
       Flo_semconv.error_message (Printexc.to_string exn);
       Flo_semconv.error_stack_trace (Printexc.get_backtrace ());
@@ -142,7 +153,8 @@ let handle_update_body flow chunk content_length handler on_error =
   let body_str = Buffer.contents body_buf in
 
   let preview = if String.length body_str > 500 then String.sub body_str 0 500 ^ "..." else body_str in
-  debugf "Request body preview: %s" preview;
+  (* Debug level: request details (hidden by default) *)
+  Log.debugf "Request body preview: %s" preview;
 
   (* Parse and handle update *)
   match parse_update body_str with
@@ -154,10 +166,12 @@ let handle_update_body flow chunk content_length handler on_error =
   | Ok update ->
       (try
          handler update;
-         success "Update dispatched successfully";
+         (* Debug level: successful dispatch (hidden by default) *)
+         Log.debug "Update dispatched successfully";
        with exn ->
          let err = Error.Decode_error ("Handler exception: " ^ Printexc.to_string exn) in
-         error_fields "Handler exception" ~fields:[
+         (* Error level: handler exceptions (always visible) *)
+         Log.error_fields "Handler exception" ~fields:[
            Flo_semconv.error_type "HandlerException";
            Flo_semconv.error_message (Printexc.to_string exn);
            Flo_semconv.error_stack_trace (Printexc.get_backtrace ());
@@ -172,7 +186,9 @@ let run_server client config sw ~handler =
   let env = Client.env client in
   let on_error = config.on_error in
 
-  info_fields "Webhook server started" ~fields:[
+  let open Flo in
+  (* Info level: lifecycle event (visible by default) *)
+  Log.info_fields "Webhook server started" ~fields:[
     ("host", Value.string "127.0.0.1");
     ("port", Value.int config.port);
     ("path", Value.string config.path);
@@ -181,7 +197,8 @@ let run_server client config sw ~handler =
 
   (* Register cleanup on switch release *)
   Eio.Switch.on_release sw (fun () ->
-    info "Webhook server stopped"
+    (* Info level: lifecycle event (visible by default) *)
+    Log.info "Webhook server stopped"
   );
 
   (* Start HTTP server *)
@@ -270,7 +287,9 @@ let run_server client config sw ~handler =
           method_ = !method_type;
         } in
 
-        info_fields "Webhook request received" ~fields:[
+        let open Flo in
+        (* Debug level: request details (hidden by default) *)
+        Log.debug_fields "Webhook request received" ~fields:[
           ("source_ip", Value.string client_ip);
           Flo_semconv.http_method !method_type;
           ("path", Value.string !path_info);
@@ -278,12 +297,14 @@ let run_server client config sw ~handler =
 
         let headers_str = List.map (fun (k, v) -> k ^ ": " ^ v) request_info.headers
                          |> String.concat ", " in
-        debugf "Request headers: %s" headers_str;
+        (* Debug level: request headers (hidden by default) *)
+        Log.debugf "Request headers: %s" headers_str;
 
         (* Validate request *)
         let response_status, response_body =
           if !method_type <> "POST" || !path_info <> config.path then (
-            warn_fields "Invalid request: wrong method or path" ~fields:[
+            (* Warn level: validation failures (visible by default) *)
+            Log.warn_fields "Invalid request: wrong method or path" ~fields:[
               Flo_semconv.http_method !method_type;
               ("path", Value.string !path_info);
               ("expected_path", Value.string config.path);
@@ -295,20 +316,24 @@ let run_server client config sw ~handler =
               String.lowercase_ascii name = "content-type" &&
               String.contains (String.lowercase_ascii value) 'j'  (* contains 'j' for json *)
             ) request_info.headers in
-            debugf "Content-Type header check: has_json=%b" has_json_ct;
+            (* Debug level: header validation (hidden by default) *)
+            Log.debugf "Content-Type header check: has_json=%b" has_json_ct;
 
             (* Check secret token *)
             let token_valid = match config.secret_token with
               | None ->
-                  trace "Secret token validation: no token configured, accepting";
+                  (* Trace level: internal validation decisions (hidden by default) *)
+                  Log.trace "Secret token validation: no token configured, accepting";
                   true
               | Some expected ->
                   let is_valid = !secret_token_header = Some expected in
-                  debug_fields "Secret token validation" ~fields:[
+                  (* Debug level: validation details (hidden by default) *)
+                  Log.debug_fields "Secret token validation" ~fields:[
                     ("is_valid", Value.bool is_valid);
                   ];
                   if not is_valid then (
-                    warn_fields "Secret token mismatch" ~fields:[
+                    (* Warn level: validation failures (visible by default) *)
+                    Log.warn_fields "Secret token mismatch" ~fields:[
                       ("expected", Value.string "[REDACTED]");
                       ("received", Value.string (match !secret_token_header with Some _ -> "[REDACTED]" | None -> "[none]"));
                     ]
@@ -323,12 +348,14 @@ let run_server client config sw ~handler =
             match config.ip_allowlist with
             | Some allowlist ->
                 let ip_allowed = List.exists (fun cidr -> ip_in_range client_ip cidr) allowlist in
-                debug_fields "IP validation check" ~fields:[
+                (* Debug level: validation details (hidden by default) *)
+                Log.debug_fields "IP validation check" ~fields:[
                   ("source_ip", Value.string client_ip);
                   ("is_allowed", Value.bool ip_allowed);
                 ];
                 if not ip_allowed then (
-                  warn_fields "IP validation failed" ~fields:[
+                  (* Warn level: validation failures (visible by default) *)
+                  Log.warn_fields "IP validation failed" ~fields:[
                     ("source_ip", Value.string client_ip);
                     ("allowed_ranges", Value.string (String.concat ", " allowlist));
                   ];
@@ -342,7 +369,8 @@ let run_server client config sw ~handler =
                            (* Proceed to handle update *)
                            handle_update_body flow chunk !content_length handler on_error
                        | Reject reason ->
-                           warn_fields "Custom validator rejected request" ~fields:[
+                           (* Warn level: validation failures (visible by default) *)
+                           Log.warn_fields "Custom validator rejected request" ~fields:[
                              ("reason", Value.string reason);
                            ];
                            ("403 Forbidden", "Forbidden: " ^ reason))
@@ -358,7 +386,8 @@ let run_server client config sw ~handler =
                       | Accept ->
                           handle_update_body flow chunk !content_length handler on_error
                       | Reject reason ->
-                          warn_fields "Custom validator rejected request" ~fields:[
+                          (* Warn level: validation failures (visible by default) *)
+                          Log.warn_fields "Custom validator rejected request" ~fields:[
                             ("reason", Value.string reason);
                           ];
                           ("403 Forbidden", "Forbidden: " ^ reason))
