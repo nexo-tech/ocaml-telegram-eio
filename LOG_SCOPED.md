@@ -50,13 +50,13 @@ telegram                           # Root namespace for all library logs
 
 ### Phase 2: Core Library Migration
 
-- [ ] Task 2.1: Migrate `src/client.ml` to scoped logging
+- [x] Task 2.1: Migrate `src/client.ml` to scoped logging
   - Use namespace `telegram.client`
   - All internal operations → Debug level
   - Connection lifecycle → Info level
   - Keep current function signatures unchanged
 
-- [ ] Task 2.2: Migrate `src/http.ml` to scoped logging
+- [x] Task 2.2: Migrate `src/http.ml` to scoped logging
   - Use namespace `telegram.client.http`
   - HTTP requests/responses → Debug level
   - Connection errors → Error level

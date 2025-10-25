@@ -1,5 +1,9 @@
 open Error
-open Flo
+
+(** Scoped logger for HTTP operations *)
+module Log = Flo_scoped.Make(struct
+  let namespace = "telegram.client.http"
+end)
 
 type method_ = [ `GET | `POST ]
 type header = string * string
@@ -32,15 +36,15 @@ module Cohttp_eio = struct
     let start_time = Unix.gettimeofday () in
     let meth_str = match meth with `GET -> "GET" | `POST -> "POST" in
 
-    (* Log HTTP request with structured fields *)
-    info_fields "HTTP request started" ~fields:[
+    (* Debug level: HTTP request details (hidden by default) *)
+    Log.debug_fields "HTTP request started" ~fields:[
       Flo_semconv.http_method meth_str;
       Flo_semconv.http_url url;
     ];
 
-    debugf "HTTP request details: %s %s" meth_str url;
-    debugf "Headers: %s" (String.concat ", " (List.map (fun (k, v) -> k ^ "=" ^ v) headers));
-    debugf "Body preview: %s" (match body with
+    Log.debugf "HTTP request details: %s %s" meth_str url;
+    Log.debugf "Headers: %s" (String.concat ", " (List.map (fun (k, v) -> k ^ "=" ^ v) headers));
+    Log.debugf "Body preview: %s" (match body with
       | Empty -> "[empty]"
       | String s -> if String.length s > 100 then String.sub s 0 100 ^ "..." else s
       | Multipart _ -> "[multipart]"
@@ -198,16 +202,16 @@ module Cohttp_eio = struct
         in
         let duration = (Unix.gettimeofday () -. start_time) *. 1000.0 in
 
-        (* Log HTTP response with structured fields *)
-        info_fields "HTTP request completed" ~fields:[
+        (* Debug level: HTTP response details (hidden by default) *)
+        Log.debug_fields "HTTP request completed" ~fields:[
           Flo_semconv.http_method meth_str;
           Flo_semconv.http_url url;
           Flo_semconv.http_status_code status;
           Flo_semconv.duration_ms duration;
         ];
 
-        debugf "Response headers: %s" (String.concat ", " (List.map (fun (k, v) -> k ^ "=" ^ v) headers));
-        debugf "Response body preview: %s" (if String.length body_str > 200 then String.sub body_str 0 200 ^ "..." else body_str);
+        Log.debugf "Response headers: %s" (String.concat ", " (List.map (fun (k, v) -> k ^ "=" ^ v) headers));
+        Log.debugf "Response body preview: %s" (if String.length body_str > 200 then String.sub body_str 0 200 ^ "..." else body_str);
 
         Ok { status; headers; body = body_str }
       in
@@ -219,7 +223,8 @@ module Cohttp_eio = struct
              Eio.Time.with_timeout_exn env#clock seconds run_request
        with Eio.Time.Timeout ->
          let timeout_s = match Sys.getenv_opt "TELEGRAM_HTTP_TIMEOUT" with Some s -> float_of_string s | None -> 0.0 in
-         error_fields "HTTP request timeout" ~fields:[
+         (* Error level: connection errors (always visible) *)
+         Log.error_fields "HTTP request timeout" ~fields:[
            Flo_semconv.http_method meth_str;
            Flo_semconv.http_url url;
            Flo_semconv.duration timeout_s;
@@ -227,7 +232,8 @@ module Cohttp_eio = struct
          ];
          Error Timeout))
     with exn ->
-      error_fields "HTTP request failed" ~fields:[
+      (* Error level: connection errors (always visible) *)
+      Log.error_fields "HTTP request failed" ~fields:[
         Flo_semconv.http_method meth_str;
         Flo_semconv.http_url url;
         Flo_semconv.error_type (Printexc.to_string exn);
