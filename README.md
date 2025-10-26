@@ -128,18 +128,20 @@ let () =
 ```
 telegram                           # Root namespace
 ├── telegram.client                # Client operations
-│   ├── telegram.client.http       # HTTP requests/responses
-│   └── telegram.client.session    # Session management
+│   └── telegram.client.http       # HTTP requests/responses
+├── telegram.api                   # API method calls
+│   └── telegram.api.response      # Response parsing
 ├── telegram.polling               # Long polling
 ├── telegram.webhook               # Webhook server
 ├── telegram.bot                   # Bot framework
 │   ├── telegram.bot.dispatch      # Event routing
 │   ├── telegram.bot.middleware    # Middleware execution
 │   └── telegram.bot.context       # Context operations
-├── telegram.api                   # API calls
 ├── telegram.upload                # File uploads
 ├── telegram.download              # File downloads
-└── telegram.retry                 # Retry logic
+├── telegram.retry                 # Retry logic
+├── telegram.session               # Session management
+└── telegram.error                 # Error analysis
 ```
 
 **Common debugging scenarios:**
@@ -162,7 +164,15 @@ telegram                           # Root namespace
    (* See full HTTP requests/responses *)
    ```
 
-See [LOG_SCOPED.md](LOG_SCOPED.md) for the complete migration plan and namespace documentation.
+4. **State machine or session issues?**
+   ```ocaml
+   Flo.set_level_for "telegram.session" Severity.Debug;
+   (* See session get/set operations *)
+   ```
+
+**For comprehensive logging documentation, see:**
+- [LOGGING.md](LOGGING.md) - Complete logging guide with troubleshooting
+- [examples/recipes/debug_logging.ml](examples/recipes/debug_logging.ml) - Interactive debugging tutorial
 
 ## Architecture
 

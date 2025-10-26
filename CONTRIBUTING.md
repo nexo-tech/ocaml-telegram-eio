@@ -385,6 +385,251 @@ error_fields "API call failed" ~fields:[
 - `error` - Failures requiring attention
 - `fatal` - Critical failures (configuration missing)
 
+## Scoped Logging with Namespaces
+
+The library uses **namespace-based scoped logging** to provide fine-grained control over log verbosity. This allows users to enable debug logs for specific components without flooding the console.
+
+### Namespace Design
+
+All library internals use hierarchical namespaces under the `telegram` root:
+
+```
+telegram                           # Root namespace
+├── telegram.client                # Client operations
+│   └── telegram.client.http       # HTTP requests/responses
+├── telegram.api                   # API method calls
+│   └── telegram.api.response      # Response parsing
+├── telegram.polling               # Long polling
+├── telegram.webhook               # Webhook server
+├── telegram.bot                   # Bot framework
+│   ├── telegram.bot.dispatch      # Event routing
+│   ├── telegram.bot.middleware    # Middleware execution
+│   └── telegram.bot.context       # Context operations
+├── telegram.upload                # File uploads
+├── telegram.download              # File downloads
+├── telegram.retry                 # Retry logic
+├── telegram.session               # Session management
+└── telegram.error                 # Error analysis
+```
+
+### Creating Scoped Loggers
+
+Each module creates its own scoped logger using `Flo_scoped.Make`:
+
+```ocaml
+(* src/polling.ml *)
+module Log = Flo_scoped.Make(struct
+  let namespace = "telegram.polling"
+end)
+
+(* Now use Log module for all logging in this file *)
+let run client ~handler =
+  Log.info "Polling started";  (* Logs with namespace "telegram.polling" *)
+  Log.debug "Fetching updates";  (* Hidden by default *)
+```
+
+### Guidelines for Adding Logging
+
+#### 1. Always Use Scoped Loggers
+
+**❌ WRONG**: Using global Flo directly in library code
+```ocaml
+(* DON'T do this in library modules *)
+let handle_update update =
+  Flo.debug "Processing update";  (* No namespace! *)
+```
+
+**✅ CORRECT**: Use module-level scoped logger
+```ocaml
+(* Create scoped logger at module level *)
+module Log = Flo_scoped.Make(struct
+  let namespace = "telegram.polling"
+end)
+
+let handle_update update =
+  Log.debug "Processing update";  (* Has namespace *)
+```
+
+#### 2. Choose Appropriate Log Levels
+
+**Library internals should use Debug/Trace:**
+```ocaml
+(* Internal operations - hidden by default *)
+Log.debug "Fetching updates from offset";
+Log.trace "Calculating next offset";  (* Very detailed *)
+
+(* User-facing events - visible by default *)
+Log.info "Polling started";
+Log.warn "getUpdates error (will retry)";
+Log.error "Connection failed";
+```
+
+**Level guidelines for library code:**
+- **Trace**: Extremely detailed internal state (offset calculations, store sizes)
+- **Debug**: Internal operations useful for debugging (route matching, HTTP requests)
+- **Info**: User-visible lifecycle events (bot started, upload complete)
+- **Warn**: Recoverable errors (retry attempts, rate limiting)
+- **Error**: Critical errors requiring attention (connection failures, decode errors)
+
+#### 3. Use Structured Fields
+
+Always use structured fields for structured data:
+
+```ocaml
+(* ❌ WRONG: String concatenation *)
+Log.debug (Printf.sprintf "Received %d updates" count);
+
+(* ✅ CORRECT: Structured fields *)
+Log.debug_fields "Received updates" ~fields:[
+  ("count", Flo.Value.int count);
+  ("update_ids", Flo.Value.string ids_str);
+]
+```
+
+#### 4. Use Semantic Conventions
+
+Use `Flo_semconv` for standard attributes:
+
+```ocaml
+(* HTTP operations *)
+Log.debug_fields "HTTP request" ~fields:[
+  Flo_semconv.http_method "GET";
+  Flo_semconv.http_url url;
+  Flo_semconv.duration duration_ms;
+]
+
+(* Errors *)
+Log.error_fields "API error" ~fields:[
+  Flo_semconv.error_type "ApiError";
+  Flo_semconv.error_message description;
+  Flo_telegram.api_error_code code;
+]
+```
+
+### Namespace Conventions
+
+#### Parent/Child Relationships
+
+Organize namespaces hierarchically:
+
+```ocaml
+(* Parent namespace *)
+(* src/client.ml *)
+module Log = Flo_scoped.Make(struct
+  let namespace = "telegram.client"
+end)
+
+(* Child namespace *)
+(* src/http.ml *)
+module Log = Flo_scoped.Make(struct
+  let namespace = "telegram.client.http"  (* Child of telegram.client *)
+end)
+```
+
+#### Namespace Naming
+
+Follow these conventions:
+
+1. **Use dot notation**: `telegram.component.subcomponent`
+2. **Start with `telegram`**: All library namespaces under root
+3. **Use lowercase**: `telegram.polling` not `telegram.Polling`
+4. **Be descriptive**: `telegram.bot.dispatch` not `telegram.bot.d`
+5. **Group related**: Put subsystems under parents
+
+**Examples:**
+- ✅ `telegram.client.http` - HTTP operations under client
+- ✅ `telegram.bot.middleware` - Middleware under bot framework
+- ❌ `client.http` - Missing telegram prefix
+- ❌ `telegram.http` - Should be under client
+- ❌ `telegram.Bot.Dispatch` - Use lowercase
+
+### Adding New Namespaces
+
+When adding a new module with logging:
+
+**Step 1: Choose namespace**
+
+Consider the component's role and parent:
+- Top-level feature? → `telegram.feature`
+- Sub-component? → `telegram.parent.child`
+- Cross-cutting? → `telegram.concern`
+
+**Step 2: Create scoped logger**
+
+```ocaml
+(* src/my_module.ml *)
+module Log = Flo_scoped.Make(struct
+  let namespace = "telegram.my_module"
+end)
+```
+
+**Step 3: Update documentation**
+
+Add namespace to:
+- `README.md` - Namespace hierarchy tree
+- `API_REFERENCE.md` - Component logging details
+- `LOGGING.md` - Troubleshooting guide (if applicable)
+
+**Step 4: Document in module**
+
+Add comment explaining what logs appear at each level:
+
+```ocaml
+(* src/my_module.ml *)
+
+(* Scoped logger for my_module operations *)
+module Log = Flo_scoped.Make(struct
+  let namespace = "telegram.my_module"
+end)
+
+(* Logging levels:
+   - Info: Module lifecycle (started, stopped)
+   - Debug: Internal operations
+   - Trace: Detailed state changes
+   - Warn: Recoverable errors
+   - Error: Critical failures
+*)
+```
+
+### Testing Logging
+
+When testing components with logging:
+
+```ocaml
+(* Enable debug for component being tested *)
+let () =
+  Flo.set_level Severity.Info;  (* Global *)
+  Flo.set_level_for "telegram.my_module" Severity.Debug;  (* Component *)
+
+(* Run tests *)
+let test_my_module () =
+  (* ... test code ... *)
+  (* Debug logs from my_module will be visible *)
+```
+
+### Examples Must Show Logging
+
+All examples should demonstrate logging configuration:
+
+```ocaml
+(* examples/basic/my_example.ml *)
+
+(* Configure logging *)
+let () =
+  Flo.set_level Severity.Info;  (* Default *)
+
+  (* Uncomment to debug specific components: *)
+  (* Flo.set_level_for "telegram.polling" Severity.Debug; *)
+  (* Flo.set_level_for "telegram.bot.dispatch" Severity.Debug; *)
+
+let () =
+  Eio_main.run @@ fun env ->
+    let client = Telegram.Client.create ~env ~token () in
+    (* ... *)
+```
+
+See [examples/recipes/debug_logging.ml](examples/recipes/debug_logging.ml) for a comprehensive logging example.
+
 ## Regenerating code from Telegram Bot API reference
 
 This project includes offline copies of the spec in `reference/`. We generate OCaml types and method wrappers from `reference/api.html`.
