@@ -88,18 +88,18 @@ telegram                           # Root namespace for all library logs
 
 ### Phase 4: Bot Framework
 
-- [ ] Task 4.1: Migrate `src/bot.ml` - Event routing to scoped logging
+- [x] Task 4.1: Migrate `src/bot.ml` - Event routing to scoped logging
   - Use namespace `telegram.bot.dispatch`
   - Route matching → Debug level
   - Handler execution → Debug level
   - Handler errors → Error level
 
-- [ ] Task 4.2: Migrate `src/bot.ml` - Middleware to scoped logging
+- [x] Task 4.2: Migrate `src/bot.ml` - Middleware to scoped logging
   - Use namespace `telegram.bot.middleware`
   - Middleware execution → Debug level
   - Middleware errors → Error level
 
-- [ ] Task 4.3: Migrate `src/bot.ml` - Context operations to scoped logging
+- [x] Task 4.3: Migrate `src/bot.ml` - Context operations to scoped logging
   - Use namespace `telegram.bot.context`
   - Context creation → Debug level
   - Reply/send operations → Debug level

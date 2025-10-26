@@ -2,6 +2,19 @@ open Flo
 open Telegram
 open Telegram.Error
 
+(* Scoped loggers for bot framework *)
+module Log_dispatch = Flo_scoped.Make(struct
+  let namespace = "telegram.bot.dispatch"
+end)
+
+module Log_middleware = Flo_scoped.Make(struct
+  let namespace = "telegram.bot.middleware"
+end)
+
+module Log_context = Flo_scoped.Make(struct
+  let namespace = "telegram.bot.context"
+end)
+
 type +'s ctx = {
   client : Client.t option;
   env : Client.env option;
@@ -341,7 +354,7 @@ module Entity = struct
       This function parses entities only once to avoid infinite loops. *)
   let parse_command_args text entities =
     let ent_count = match entities with Some e -> List.length e | None -> 0 in
-    debugf "Command parsing: raw_text=%s, entities=%d" text ent_count;
+    Log_dispatch.debugf "Command parsing: raw_text=%s, entities=%d" text ent_count;
 
     (* Find the bot_command entity *)
     let parsed = parse_entities text entities in
@@ -359,7 +372,7 @@ module Entity = struct
         let cmd_name = (match String.index_opt cmd_text_no_slash '@' with
           | Some idx ->
               let botname = String.sub cmd_text_no_slash (idx + 1) (String.length cmd_text_no_slash - idx - 1) in
-              debugf "Command name normalization: @botname stripped (%s)" botname;
+              Log_dispatch.debugf "Command name normalization: @botname stripped (%s)" botname;
               String.sub cmd_text_no_slash 0 idx
           | None -> cmd_text_no_slash) in
 
@@ -374,7 +387,7 @@ module Entity = struct
           else String.split_on_char ' ' trimmed |> List.filter (fun s -> s <> "")
         in
 
-        debugf "Arguments extracted: args=[%s]" (String.concat ", " args);
+        Log_dispatch.debugf "Arguments extracted: args=[%s]" (String.concat ", " args);
 
         Some (cmd_name, args)
 end
@@ -465,7 +478,7 @@ module Event = struct
         | Filter _ -> "Filter"
       in
 
-      debugf "Event.match_event called: event_type=%s, update_type=%s"
+      Log_dispatch.debugf "Event.match_event called: event_type=%s, update_type=%s"
         event_type_str update_type;
 
       match event with
@@ -548,8 +561,11 @@ module Event = struct
                              | Some user -> Int64.to_string user.id
                              | None -> "unknown"
                            in
-                           infof "Command received: command_name=%s, user_id=%s, args_count=%d"
-                             cmd_name user_id (List.length args);
+                           Log_dispatch.debug_fields "Command received" ~fields:[
+                             ("command_name", Value.string cmd_name);
+                             ("user_id", Value.string user_id);
+                             ("args_count", Value.int (List.length args));
+                           ];
                            match match_event Message upd_param with
                            | Some (_, ctx) -> Some (args, ctx)
                            | None -> None
@@ -605,7 +621,9 @@ module Event = struct
           (match match_event event upd_param with
            | Some (value, ctx) ->
                let pred_result = predicate value in
-               debugf "Filter predicate evaluated: result=%b" pred_result;
+               Log_dispatch.debug_fields "Filter predicate evaluated" ~fields:[
+                 ("result", Value.bool pred_result);
+               ];
                if pred_result then Some (value, ctx) else None
            | None -> None)
 end
@@ -648,16 +666,24 @@ module Middleware = struct
           let user_id = u.Telegram.Types.id in
           let user_id_str = Telegram.Id.to_string user_id in
           let is_allowed = List.mem user_id allowed_ids in
-          debugf "User whitelist check: user_id=%s, is_allowed=%b" user_id_str is_allowed;
+          Log_middleware.debug_fields "User whitelist check" ~fields:[
+            ("user_id", Value.string user_id_str);
+            ("is_allowed", Value.bool is_allowed);
+          ];
           if is_allowed then
             Ok ctx
           else (
-            warnf "Unauthorized access attempt: user_id=%s, required_role=whitelisted_user"
-              user_id_str;
+            Log_middleware.warn_fields "Unauthorized access attempt" ~fields:[
+              ("user_id", Value.string user_id_str);
+              ("required_role", Value.string "whitelisted_user");
+            ];
             Error "Unauthorized user"
           )
       | None ->
-          warnf "Unauthorized access attempt: user_id=none, required_role=whitelisted_user";
+          Log_middleware.warn_fields "Unauthorized access attempt" ~fields:[
+            ("user_id", Value.string "none");
+            ("required_role", Value.string "whitelisted_user");
+          ];
           Error "No user in update")
     "only_users"
 
@@ -667,10 +693,16 @@ module Middleware = struct
       match ctx.user with
       | Some u ->
           let user_id_str = Telegram.Id.to_string u.Telegram.Types.id in
-          debugf "Authorization check: user_id=%s, has_permission=true" user_id_str;
+          Log_middleware.debug_fields "Authorization check" ~fields:[
+            ("user_id", Value.string user_id_str);
+            ("has_permission", Value.bool true);
+          ];
           Ok ctx
       | None ->
-          warnf "Authorization check failed: user_id=none, required_role=any_user";
+          Log_middleware.warn_fields "Authorization check failed" ~fields:[
+            ("user_id", Value.string "none");
+            ("required_role", Value.string "any_user");
+          ];
           Error "User required")
     "require_user"
 
@@ -680,10 +712,16 @@ module Middleware = struct
       match ctx.chat with
       | Some chat_id ->
           let chat_id_str = Telegram.Id.to_string chat_id in
-          debugf "Authorization check: chat_id=%s, has_permission=true" chat_id_str;
+          Log_middleware.debug_fields "Authorization check" ~fields:[
+            ("chat_id", Value.string chat_id_str);
+            ("has_permission", Value.bool true);
+          ];
           Ok ctx
       | None ->
-          warnf "Authorization check failed: chat_id=none, required_role=any_chat";
+          Log_middleware.warn_fields "Authorization check failed" ~fields:[
+            ("chat_id", Value.string "none");
+            ("required_role", Value.string "any_chat");
+          ];
           Error "Chat required")
     "require_chat"
 
@@ -712,22 +750,37 @@ module Middleware = struct
 
           (* Reset if window expired *)
           if now -. !first_req > 60.0 then (
-            debugf "Rate limit window expired: user_id=%s, resetting counter" user_id_str;
+            Log_middleware.debug_fields "Rate limit window expired, resetting counter" ~fields:[
+              ("user_id", Value.string user_id_str);
+            ];
             counter := 1;
             first_req := now;
             H.replace requests user_id (counter, first_req);
-            debugf "Rate counter incremented: user_id=%s, new_count=%d" user_id_str !counter;
+            Log_middleware.debug_fields "Rate counter incremented" ~fields:[
+              ("user_id", Value.string user_id_str);
+              ("new_count", Value.int !counter);
+            ];
             Ok ctx
           ) else if !counter >= max_per_minute then (
-            warnf "Rate limit exceeded: user_id=%s, current=%d, limit=%d"
-              user_id_str !counter max_per_minute;
+            Log_middleware.warn_fields "Rate limit exceeded" ~fields:[
+              ("user_id", Value.string user_id_str);
+              ("current", Value.int !counter);
+              ("limit", Value.int max_per_minute);
+            ];
             Error "Rate limit exceeded"
           ) else (
-            debugf "Rate check: user_id=%s, count=%d, limit=%d, window=60s"
-              user_id_str !counter max_per_minute;
+            Log_middleware.debug_fields "Rate check" ~fields:[
+              ("user_id", Value.string user_id_str);
+              ("count", Value.int !counter);
+              ("limit", Value.int max_per_minute);
+              ("window", Value.string "60s");
+            ];
             incr counter;
             H.replace requests user_id (counter, first_req);
-            debugf "Rate counter incremented: user_id=%s, new_count=%d" user_id_str !counter;
+            Log_middleware.debug_fields "Rate counter incremented" ~fields:[
+              ("user_id", Value.string user_id_str);
+              ("new_count", Value.int !counter);
+            ];
             Ok ctx
           )
       | None -> Ok ctx (* No user, no rate limit *))
@@ -857,6 +910,14 @@ module Ctx = struct
     let cli = client c in
     let chat_id = chat c in
     let msg = message c in
+
+    Log_context.debug_fields "Sending reply" ~fields:[
+      ("chat_id", Value.string (Id.to_string chat_id));
+      ("reply_to_message_id", Value.int msg.message_id);
+      ("text_length", Value.int (String.length text));
+      ("has_keyboard", Value.bool (Option.is_some keyboard));
+    ];
+
     let base_params = [
       ("chat_id", Param.string (Id.to_string chat_id));
       ("text", Param.string text);
@@ -870,8 +931,17 @@ module Ctx = struct
     in
     let* json = Api.call_method cli ~method_name:"sendMessage" params in
     match Telegram_generated.Gen_types.Message.of_yojson json with
-    | Ok m -> Ok m
-    | Error err -> Error (Decode_error ("Failed to decode sent message: " ^ err))
+    | Ok m ->
+        Log_context.debug_fields "Reply sent successfully" ~fields:[
+          ("message_id", Value.string (Int64.to_string m.message_id));
+        ];
+        Ok m
+    | Error err ->
+        Log_context.error_fields "Failed to decode reply message" ~fields:[
+          Flo_semconv.error_type "DecodeError";
+          Flo_semconv.error_message err;
+        ];
+        Error (Decode_error ("Failed to decode sent message: " ^ err))
 
   (* Alias for reply *)
   let answer = reply
@@ -881,6 +951,13 @@ module Ctx = struct
     let open Result_syntax in
     let cli = client c in
     let chat_id = chat c in
+
+    Log_context.debug_fields "Sending message" ~fields:[
+      ("chat_id", Value.string (Id.to_string chat_id));
+      ("text_length", Value.int (String.length text));
+      ("has_keyboard", Value.bool (Option.is_some keyboard));
+    ];
+
     let base_params = [
       ("chat_id", Param.string (Id.to_string chat_id));
       ("text", Param.string text);
@@ -891,8 +968,17 @@ module Ctx = struct
     in
     let* json = Api.call_method cli ~method_name:"sendMessage" params in
     match Telegram_generated.Gen_types.Message.of_yojson json with
-    | Ok m -> Ok m
-    | Error err -> Error (Decode_error ("Failed to decode sent message: " ^ err))
+    | Ok m ->
+        Log_context.debug_fields "Message sent successfully" ~fields:[
+          ("message_id", Value.string (Int64.to_string m.message_id));
+        ];
+        Ok m
+    | Error err ->
+        Log_context.error_fields "Failed to decode sent message" ~fields:[
+          Flo_semconv.error_type "DecodeError";
+          Flo_semconv.error_message err;
+        ];
+        Error (Decode_error ("Failed to decode sent message: " ^ err))
 
   (* Edit the current message (for callback queries) *)
   let edit ?keyboard (c : [ `Chat ] t) text =
@@ -900,6 +986,14 @@ module Ctx = struct
     let cli = client c in
     let chat_id = chat c in
     let msg = message c in
+
+    Log_context.debug_fields "Editing message" ~fields:[
+      ("chat_id", Value.string (Id.to_string chat_id));
+      ("message_id", Value.int msg.message_id);
+      ("text_length", Value.int (String.length text));
+      ("has_keyboard", Value.bool (Option.is_some keyboard));
+    ];
+
     let base_params = [
       ("chat_id", Param.string (Id.to_string chat_id));
       ("message_id", Param.int msg.message_id);
@@ -911,11 +1005,20 @@ module Ctx = struct
     in
     let* json = Api.call_method cli ~method_name:"editMessageText" params in
     match json with
-    | `Bool true -> Ok ()
+    | `Bool true ->
+        Log_context.debug "Message edited successfully";
+        Ok ()
     | _ ->
         (match Telegram_generated.Gen_types.Message.of_yojson json with
-         | Ok _ -> Ok ()
-         | Error err -> Error (Decode_error ("Failed to decode edited message: " ^ err)))
+         | Ok _ ->
+             Log_context.debug "Message edited successfully";
+             Ok ()
+         | Error err ->
+             Log_context.error_fields "Failed to decode edited message" ~fields:[
+               Flo_semconv.error_type "DecodeError";
+               Flo_semconv.error_message err;
+             ];
+             Error (Decode_error ("Failed to decode edited message: " ^ err)))
 
   (* Entity access helpers *)
   let entities (c : [ `Chat ] t) =
@@ -1185,7 +1288,10 @@ let dispatch_update client env routes update =
       ("update_type", Value.string update_type);
     ];
 
-    infof "Dispatching update: update_id=%Ld, type=%s" update_id update_type;
+    Log_dispatch.debug_fields "Dispatching update" ~fields:[
+      ("update_id", Value.string (Int64.to_string update_id));
+      ("update_type", Value.string update_type);
+    ];
 
   let route_index = ref 0 in
   let matched_route = ref None in
@@ -1193,7 +1299,10 @@ let dispatch_update client env routes update =
   let rec try_routes = function
     | [] ->
         if !matched_route = None then
-          warnf "No route matched for update: update_id=%Ld, type=%s" update_id update_type;
+          Log_dispatch.warn_fields "No route matched for update" ~fields:[
+            ("update_id", Value.string (Int64.to_string update_id));
+            ("update_type", Value.string update_type);
+          ];
         () (* No route matched *)
     | route :: rest ->
         let current_index = !route_index in
@@ -1212,12 +1321,17 @@ let dispatch_update client env routes update =
           | Event.Filter _ -> "Filter"
         in
 
-        debugf "Trying route: route_index=%d, event_type=%s" current_index event_type_str;
+        Log_dispatch.debug_fields "Trying route" ~fields:[
+          ("route_index", Value.int current_index);
+          ("event_type", Value.string event_type_str);
+        ];
 
         (match Event.match_event event update with
          | Some (value, ctx) ->
              matched_route := Some current_index;
-             infof "Route matched: route_index=%d" current_index;
+             Log_dispatch.debug_fields "Route matched" ~fields:[
+               ("route_index", Value.int current_index);
+             ];
 
              let start_time = Unix.gettimeofday () in
 
@@ -1227,34 +1341,47 @@ let dispatch_update client env routes update =
              let has_user = ctx.user <> None in
              let has_chat = ctx.chat <> None in
              let has_message = ctx.msg <> None in
-             debugf "Context preparation: has_user=%b, has_chat=%b, has_message=%b"
-               has_user has_chat has_message;
+             Log_dispatch.debug_fields "Context preparation" ~fields:[
+               ("has_user", Value.bool has_user);
+               ("has_chat", Value.bool has_chat);
+               ("has_message", Value.bool has_message);
+             ];
 
              (* Run middleware before hooks *)
              let middleware_count = List.length middleware in
              if middleware_count > 0 then
-               infof "Middleware chain started: middleware_count=%d" middleware_count;
+               Log_middleware.debug_fields "Middleware chain started" ~fields:[
+                 ("middleware_count", Value.int middleware_count);
+               ];
 
              let ctx_result = List.fold_left (fun acc mw ->
                match acc with
                | Error _ as e -> e
                | Ok ctx ->
-                   debugf "Middleware.before: middleware_name=%s" mw.Middleware.name;
+                   Log_middleware.debug_fields "Middleware.before" ~fields:[
+                     ("middleware_name", Value.string mw.Middleware.name);
+                   ];
                    match mw.Middleware.before ctx with
                    | Ok enriched_ctx -> Ok enriched_ctx
                    | Error reason ->
-                       debugf "Middleware rejected request: middleware_name=%s, reason=%s"
-                         mw.Middleware.name reason;
+                       Log_middleware.debug_fields "Middleware rejected request" ~fields:[
+                         ("middleware_name", Value.string mw.Middleware.name);
+                         ("reason", Value.string reason);
+                       ];
                        Error reason
              ) (Ok ctx) middleware in
 
              (match ctx_result with
               | Error err ->
                   (* Middleware rejected the request *)
-                  warnf "Middleware rejected: %s" err;
+                  Log_middleware.warn_fields "Middleware rejected" ~fields:[
+                    ("reason", Value.string err);
+                  ];
                   Printf.eprintf "Middleware rejected: %s\n%!" err
               | Ok enriched_ctx ->
-                  infof "Handler executing: handler_type=%s" event_type_str;
+                  Log_dispatch.debug_fields "Handler executing" ~fields:[
+                    ("handler_type", Value.string event_type_str);
+                  ];
 
                   (* Call the handler - it returns Result *)
                   let handler_result = handler value enriched_ctx in
@@ -1262,25 +1389,31 @@ let dispatch_update client env routes update =
 
                   (match handler_result with
                    | Ok () ->
-                       infof "Handler returned Ok";
-                       infof "Handler execution completed: duration=%.1fms" duration;
-                       debugf "Handler result: Ok";
+                       Log_dispatch.debug "Handler returned Ok";
+                       Log_dispatch.debug_fields "Handler execution completed" ~fields:[
+                         Flo_semconv.duration duration;
+                       ];
                        (* Handler succeeded, run middleware after hooks *)
                        List.iter (fun mw ->
-                         debugf "Middleware.after: middleware_name=%s" mw.Middleware.name;
+                         Log_middleware.debug_fields "Middleware.after" ~fields:[
+                           ("middleware_name", Value.string mw.Middleware.name);
+                         ];
                          mw.Middleware.after enriched_ctx
                        ) (List.rev middleware);
                        if middleware_count > 0 then
-                         infof "Middleware chain completed"
+                         Log_middleware.debug "Middleware chain completed"
                    | Error err ->
-                       errorf "Handler returned Error: %s" (Format.asprintf "%a" Error.pp err);
-                       debugf "Handler result: Error";
+                       Log_dispatch.error_fields "Handler returned Error" ~fields:[
+                         Flo_semconv.error_message (Format.asprintf "%a" Error.pp err);
+                       ];
                        (* Handler returned error, run error handlers *)
                        (* Run middleware error hooks - middleware expects exn *)
                        let exn_err = Bot_error err in
                        List.iter (fun mw ->
-                         debugf "Middleware.on_error: middleware_name=%s, error=%s"
-                           mw.Middleware.name (Format.asprintf "%a" Error.pp err);
+                         Log_middleware.debug_fields "Middleware.on_error" ~fields:[
+                           ("middleware_name", Value.string mw.Middleware.name);
+                           Flo_semconv.error_message (Format.asprintf "%a" Error.pp err);
+                         ];
                          mw.Middleware.on_error enriched_ctx exn_err
                        ) (List.rev middleware);
                        (* Call route-specific error handler if present *)
@@ -1429,22 +1562,32 @@ let on_callback_data expected_data handler bot =
     | Some cbq ->
         let data = Option.value cbq.Telegram_generated.Gen_types.CallbackQuery.data ~default:"" in
         let matches = data = expected_data in
-        debugf "on_callback_data filter: expected=\"%s\", actual=\"%s\", matches=%b"
-          expected_data data matches;
+        Log_dispatch.debug_fields "on_callback_data filter" ~fields:[
+          ("expected", Value.string expected_data);
+          ("actual", Value.string data);
+          ("matches", Value.bool matches);
+        ];
         matches
     | None -> false
   ) in
   let wrapped_handler ctx _upd =
     (* Context is already enriched by match_event *)
-    debugf "on_callback_data wrapped_handler called for: \"%s\"" expected_data;
-    debugf "on_callback_data: calling user handler";
+    Log_dispatch.debug_fields "on_callback_data wrapped_handler called" ~fields:[
+      ("callback_data", Value.string expected_data);
+    ];
+    Log_dispatch.debug "on_callback_data: calling user handler";
     (try
       let result = handler ctx in
-      debugf "on_callback_data: handler returned %s" (match result with Ok () -> "Ok" | Error _ -> "Error");
+      let result_str = match result with Ok () -> "Ok" | Error _ -> "Error" in
+      Log_dispatch.debug_fields "on_callback_data: handler returned" ~fields:[
+        ("result", Value.string result_str);
+      ];
       result
     with exn ->
-      errorf "on_callback_data: handler threw exception: %s" (Printexc.to_string exn);
-      errorf "on_callback_data: backtrace: %s" (Printexc.get_backtrace ());
+      Log_dispatch.error_fields "on_callback_data: handler threw exception" ~fields:[
+        Flo_semconv.error_type (Printexc.to_string exn);
+        Flo_semconv.error_stack_trace (Printexc.get_backtrace ());
+      ];
       Error (Internal_error ("Handler exception: " ^ Printexc.to_string exn)))
   in
   on callback_event wrapped_handler bot
