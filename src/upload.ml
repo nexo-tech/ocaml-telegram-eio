@@ -21,17 +21,20 @@ let progress_callback f ~bytes_sent ~total_bytes =
     | Some _ -> None
   in
 
-  (* Log progress every 10% *)
-  (match percent with
-   | Some pct ->
-       let rounded = Float.floor (pct /. 10.0) *. 10.0 in
-       if Float.rem pct 10.0 < 1.0 then
-         Log.debug_fields "Upload progress" ~fields:[
-           ("percent", Value.float rounded);
-           ("bytes_sent", Value.int (Int64.to_int bytes_sent));
-         ]
-   | None ->
-       Log.debugf "Upload progress: %Ld bytes" bytes_sent);
+  (* Log progress every 10% - guarded for contexts without Eio *)
+  (try
+    match percent with
+    | Some pct ->
+        let rounded = Float.floor (pct /. 10.0) *. 10.0 in
+        if Float.rem pct 10.0 < 1.0 then
+          Log.debug_fields "Upload progress" ~fields:[
+            ("percent", Value.float rounded);
+            ("bytes_sent", Value.int (Int64.to_int bytes_sent));
+          ]
+    | None ->
+        Log.debugf "Upload progress: %Ld bytes" bytes_sent
+   with Stdlib.Effect.Unhandled _ -> ()
+  );
 
   f { bytes_sent; total_bytes; percent }
 
