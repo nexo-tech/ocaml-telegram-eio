@@ -1,5 +1,10 @@
 open Flo
 
+(* Scoped logger for download operations *)
+module Log = Flo_scoped.Make(struct
+  let namespace = "telegram.download"
+end)
+
 (* File information type *)
 type file_info = {
   file_id : string;
@@ -33,7 +38,10 @@ let download_url client ~file_path =
   let base = Telegram.Client.base_url client in
   let token = Telegram.Client.token client in
   let url = Printf.sprintf "%s/file/bot%s/%s" base token file_path in
-  debugf "Download URL constructed: %s" url;
+  Log.debug_fields "Download URL constructed" ~fields:[
+    ("file_path", Value.string file_path);
+    Flo_semconv.http_url url;
+  ];
   url
 
 (* Build download URL from file_info *)
@@ -55,7 +63,7 @@ let to_buffer client ~file_path buffer =
       ("file_path", Value.string file_path);
     ];
 
-    info_fields "File download started" ~fields:[
+    Log.info_fields "File download started" ~fields:[
       ("file_path", Value.string file_path);
       Flo_semconv.http_method "GET";
       Flo_semconv.http_url url;
@@ -64,7 +72,7 @@ let to_buffer client ~file_path buffer =
     let result =
       match Telegram.Http.Cohttp_eio.call http ~meth:`GET ~url ~headers:[] ~body:Telegram.Http.Empty with
       | Error e ->
-          error_fields "File download failed" ~fields:[
+          Log.error_fields "File download failed" ~fields:[
             ("file_path", Value.string file_path);
             Flo_semconv.error_type "DownloadError";
             Flo_semconv.error_message (Format.asprintf "%a" Telegram.Error.pp e);
@@ -73,13 +81,15 @@ let to_buffer client ~file_path buffer =
       | Ok response ->
           let body = response.Telegram.Http.body in
           let size = Int64.of_int (String.length body) in
-          debugf "Download progress: received %Ld bytes" size;
+          Log.debug_fields "Download progress" ~fields:[
+            ("size_bytes", Value.string (Int64.to_string size));
+          ];
 
           (* Check download size limit *)
           let limits = Telegram.Client.limits client in
           (match Telegram.Limits.check_download_size limits size with
            | Error msg ->
-               error_fields "Download size limit exceeded" ~fields:[
+               Log.error_fields "Download size limit exceeded" ~fields:[
                  ("file_path", Value.string file_path);
                  ("size_bytes", Value.int (Int64.to_int size));
                  Flo_semconv.error_type "SizeLimitExceeded";
@@ -89,10 +99,10 @@ let to_buffer client ~file_path buffer =
            | Ok () ->
                Buffer.add_string buffer body;
                let duration = (Unix.gettimeofday () -. start_time) *. 1000.0 in
-               success_fields "File download completed" ~fields:[
+               Log.info_fields "File download completed" ~fields:[
                  ("file_path", Value.string file_path);
                  ("size_bytes", Value.int (Int64.to_int size));
-                 Flo_semconv.duration_ms duration;
+                 Flo_semconv.duration duration;
                ];
                Ok size)
     in

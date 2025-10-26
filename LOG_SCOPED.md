@@ -105,20 +105,20 @@ telegram                           # Root namespace for all library logs
   - Reply/send operations → Debug level
   - Context errors → Error level
 
-- [ ] Task 4.4: Add context propagation helper
+- [x] Task 4.4: Add context propagation helper
   - Create `Bot.Ctx.with_handler_context` for automatic span creation
   - Automatically binds user_id, chat_id, message_id to logs
   - Use in examples to show best practices
 
 ### Phase 5: File Operations
 
-- [ ] Task 5.1: Migrate `src/upload.ml` to scoped logging
+- [x] Task 5.1: Migrate `src/upload.ml` to scoped logging
   - Use namespace `telegram.upload`
   - Upload start/complete → Info level
   - Upload progress → Debug level
   - Upload errors → Error level
 
-- [ ] Task 5.2: Migrate `src/download.ml` to scoped logging
+- [x] Task 5.2: Migrate `src/download.ml` to scoped logging
   - Use namespace `telegram.download`
   - Download start/complete → Info level
   - Download progress → Debug level

@@ -1,5 +1,10 @@
 open Flo
 
+(* Scoped logger for upload operations *)
+module Log = Flo_scoped.Make(struct
+  let namespace = "telegram.upload"
+end)
+
 (* Progress tracking *)
 type progress = {
   bytes_sent : int64;
@@ -21,12 +26,12 @@ let progress_callback f ~bytes_sent ~total_bytes =
    | Some pct ->
        let rounded = Float.floor (pct /. 10.0) *. 10.0 in
        if Float.rem pct 10.0 < 1.0 then
-         debug_fields "Upload progress" ~fields:[
+         Log.debug_fields "Upload progress" ~fields:[
            ("percent", Value.float rounded);
            ("bytes_sent", Value.int (Int64.to_int bytes_sent));
          ]
    | None ->
-       debugf "Upload progress: %Ld bytes" bytes_sent);
+       Log.debugf "Upload progress: %Ld bytes" bytes_sent);
 
   f { bytes_sent; total_bytes; percent }
 
@@ -67,22 +72,27 @@ let with_limits ?on_progress ~limits parts =
   let size = calculate_size parts in
   let file_count = List.filter (fun (_, pv) -> match pv with `File _ -> true | _ -> false) parts |> List.length in
 
-  info_fields "Upload started" ~fields:[
+  Log.info_fields "Upload started" ~fields:[
     ("size_bytes", Value.int (Int64.to_int size));
     ("part_count", Value.int (List.length parts));
     ("file_count", Value.int file_count);
   ];
 
-  debugf "Multipart construction: %d parts (%d files)" (List.length parts) file_count;
+  Log.debug_fields "Multipart construction" ~fields:[
+    ("part_count", Value.int (List.length parts));
+    ("file_count", Value.int file_count);
+  ];
 
   match Telegram.Limits.check_upload_size limits size with
   | Error msg ->
-      warn_fields "Upload exceeds size limit" ~fields:[
+      Log.warn_fields "Upload exceeds size limit" ~fields:[
         ("size_bytes", Value.int (Int64.to_int size));
         Flo_semconv.error_type "SizeLimitExceeded";
         Flo_semconv.error_message msg;
       ];
       Error msg
   | Ok () ->
-      debugf "Upload size check passed: %Ld bytes" size;
+      Log.debug_fields "Upload size check passed" ~fields:[
+        ("size_bytes", Value.string (Int64.to_string size));
+      ];
       Ok (with_progress ?on_progress parts)
