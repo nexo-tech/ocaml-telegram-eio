@@ -19,7 +19,12 @@
       /set_name - Set your name in session
       /get_name - Retrieve name from session
 
-    This example has VERBOSE LOGGING enabled for troubleshooting.
+    Debugging session management:
+      Enable debug logs for session operations to see how data is stored/retrieved:
+        - Flo.set_level_for "telegram.session" Severity.Debug
+          → See all session get/set/delete operations
+        - Flo.set_level_for "telegram.session" Severity.Trace
+          → See store size and internal session details
 
     Usage:
       export TELEGRAM_BOT_TOKEN="your_token_here"
@@ -29,8 +34,15 @@
 open Telegram
 open Tg
 
-(* Configure verbose logging with flo *)
-let () = Flo.set_level Severity.Debug
+(* Configure logging to debug session operations *)
+let () =
+  Flo.set_level Severity.Info;  (* Default level *)
+
+  (* Enable debug logs for session operations - see all get/set/delete *)
+  Flo.set_level_for "telegram.session" Severity.Debug;
+
+  (* Uncomment to see even more detail (store size, key counts): *)
+  (* Flo.set_level_for "telegram.session" Severity.Trace; *)
 
 module KB = Keyboard
 

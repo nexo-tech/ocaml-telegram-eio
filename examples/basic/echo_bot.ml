@@ -5,16 +5,34 @@
     - Using long polling to receive updates
     - Basic message handling and responding
     - Clean error handling
+    - Namespace-based logging configuration
 
     Usage:
       export TELEGRAM_BOT_TOKEN="your_token_here"
       dune exec examples/echo_bot.exe
+
+    Debugging:
+      To see internal library logs, enable debug for specific components:
+        - Set Flo.set_level_for "telegram.polling" Severity.Debug to see polling details
+        - Set Flo.set_level_for "telegram.client.http" Severity.Debug to see HTTP requests
+        - Set Flo.set_level_for "telegram" Severity.Debug to see all library logs
 *)
 
-(* Configure verbose logging *)
-let () = Flo.set_level Severity.Info
-
+(* Configure logging with namespace control *)
 let () =
+  (* Set default log level to Info *)
+  Flo.set_level Severity.Info;
+
+  (* Example: Enable debug logs for specific components *)
+  (* Uncomment to see internal polling details: *)
+  (* Flo.set_level_for "telegram.polling" Severity.Debug; *)
+
+  (* Uncomment to see HTTP request/response details: *)
+  (* Flo.set_level_for "telegram.client.http" Severity.Debug; *)
+
+  (* Uncomment to see all telegram library debug logs: *)
+  (* Flo.set_level_for "telegram" Severity.Debug; *)
+
   (* Get bot token from environment *)
   let token =
     match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with

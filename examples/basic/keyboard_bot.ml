@@ -5,16 +5,43 @@
     - Inline keyboard with callback buttons
     - Callback query handling
     - Keyboard removal
+    - Hierarchical namespace-based logging
 
     Usage:
       export TELEGRAM_BOT_TOKEN="your_token_here"
       dune exec examples/keyboard_bot.exe
+
+    Debugging with hierarchical namespaces:
+      The library uses hierarchical namespaces that inherit log levels:
+        - "telegram" (root) - all library logs
+        - "telegram.client" - client operations
+        - "telegram.client.http" - HTTP operations (inherits from telegram.client)
+        - "telegram.api" - API method calls
+        - "telegram.polling" - polling operations
+
+      Examples:
+        - Flo.set_level_for "telegram.client" Severity.Debug
+          → Also enables debug for "telegram.client.http" (child namespace)
+        - Flo.set_level_for "telegram.client.http" Severity.Warn
+          → Overrides parent to reduce HTTP noise
 *)
 
-(* Configure verbose logging *)
-let () = Flo.set_level Severity.Info
-
+(* Configure logging with hierarchical namespace control *)
 let () =
+  (* Default level for all logs *)
+  Flo.set_level Severity.Info;
+
+  (* Example 1: Enable debug for entire client subsystem (includes HTTP) *)
+  (* Flo.set_level_for "telegram.client" Severity.Debug; *)
+
+  (* Example 2: Hierarchical override - quiet HTTP but keep client debug *)
+  (* Flo.set_level_for "telegram.client" Severity.Debug; *)
+  (* Flo.set_level_for "telegram.client.http" Severity.Warn; *)
+
+  (* Example 3: Debug only specific components *)
+  (* Flo.set_level_for "telegram.polling" Severity.Debug; *)
+  (* Flo.set_level_for "telegram.api" Severity.Debug; *)
+
   let token =
     match Sys.getenv_opt "TELEGRAM_BOT_TOKEN" with
     | Some t -> t

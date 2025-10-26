@@ -21,18 +21,38 @@
       /state_info - Show current state
       /reset - Reset all state machines
 
-    This example has VERBOSE LOGGING enabled for troubleshooting.
+    This example demonstrates namespace-based logging for debugging state machines.
 
     Usage:
       export TELEGRAM_BOT_TOKEN="your_token_here"
       dune exec examples/state_machines_demo.exe
+
+    Debugging state machines:
+      State machines rely on session management and bot dispatch.
+      Enable debug logs for these components to troubleshoot:
+        - Flo.set_level_for "telegram.session" Severity.Debug
+          → See session get/set operations for state persistence
+        - Flo.set_level_for "telegram.bot.dispatch" Severity.Debug
+          → See route matching and handler execution
+        - Flo.set_level_for "telegram.bot.context" Severity.Debug
+          → See reply/send message operations
 *)
 
 open Telegram
 open Tg
 
-(* Configure verbose logging with flo *)
-let () = Flo.set_level Severity.Debug
+(* Configure logging for state machine debugging *)
+let () =
+  Flo.set_level Severity.Info;  (* Default level *)
+
+  (* Enable debug logs for session operations (state persistence) *)
+  Flo.set_level_for "telegram.session" Severity.Debug;
+
+  (* Enable debug logs for bot routing (state transitions) *)
+  Flo.set_level_for "telegram.bot.dispatch" Severity.Debug;
+
+  (* Uncomment to see all library internals: *)
+  (* Flo.set_level_for "telegram" Severity.Debug; *)
 
 module KB = Keyboard
 

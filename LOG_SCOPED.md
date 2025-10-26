@@ -142,20 +142,20 @@ telegram                           # Root namespace for all library logs
 
 ### Phase 7: Examples Migration
 
-- [ ] Task 7.1: Update `examples/basic/echo.ml`
+- [x] Task 7.1: Update `examples/basic/echo.ml`
   - Add namespace configuration at startup
   - Show how to enable debug logs for specific components
   - Use `Bot.Ctx.with_handler_context` in handlers
 
-- [ ] Task 7.2: Update `examples/basic/keyboard.ml`
+- [x] Task 7.2: Update `examples/basic/keyboard.ml`
   - Add namespace configuration
   - Show hierarchical namespace configuration
 
-- [ ] Task 7.3: Update `examples/advanced/`
+- [x] Task 7.3: Update `examples/advanced/`
   - Add namespace configuration to all advanced examples
   - Show how to debug specific components
 
-- [ ] Task 7.4: Create new example `examples/recipes/debug_logging.ml`
+- [x] Task 7.4: Create new example `examples/recipes/debug_logging.ml`
   - Show how to enable debug logs for different components
   - Demonstrate hierarchical namespace inheritance
   - Show dynamic log level adjustment
