@@ -126,17 +126,17 @@ telegram                           # Root namespace for all library logs
 
 ### Phase 6: Supporting Modules
 
-- [ ] Task 6.1: Migrate `src/retry.ml` to scoped logging
+- [x] Task 6.1: Migrate `src/retry.ml` to scoped logging
   - Use namespace `telegram.retry`
   - Retry attempts → Debug level
   - Retry exhausted → Warn level
 
-- [ ] Task 6.2: Migrate `src/session.ml` to scoped logging
+- [x] Task 6.2: Migrate `src/session.ml` to scoped logging
   - Use namespace `telegram.session`
   - Session operations → Debug level
   - Session errors → Warn level
 
-- [ ] Task 6.3: Update `src/error.ml` error formatting
+- [x] Task 6.3: Update `src/error.ml` error formatting
   - Ensure errors log with structured fields
   - Use `Flo_semconv.error_*` fields
 

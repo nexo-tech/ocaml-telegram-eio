@@ -2,6 +2,11 @@
 
 open Flo
 
+(* Scoped logger for session operations *)
+module Log = Flo_scoped.Make(struct
+  let namespace = "telegram.session"
+end)
+
 (* Typed session keys using phantom types *)
 module K = struct
   type 'a t = int
@@ -33,17 +38,27 @@ let get s k =
     | B (k', v) :: tl -> if k = k' then Some (Obj.magic v) else go tl
   in
   let result = go s.store in
-  debugf "Session key access: operation=get, key_id=%d, found=%b" k (Option.is_some result);
+  Log.debug_fields "Session key access" ~fields:[
+    ("operation", Value.string "get");
+    ("key_id", Value.int k);
+    ("found", Value.bool (Option.is_some result));
+  ];
   result
 
 (* Set value for key *)
 let set s k v =
-  debugf "Session state modified: operation=set, key_id=%d" k;
+  Log.debug_fields "Session state modified" ~fields:[
+    ("operation", Value.string "set");
+    ("key_id", Value.int k);
+  ];
   s.store <- B (k, v) :: List.filter (fun (B (k', _)) -> k <> k') s.store
 
 (* Delete key from session *)
 let delete s k =
-  debugf "Session state modified: operation=delete, key_id=%d" k;
+  Log.debug_fields "Session state modified" ~fields:[
+    ("operation", Value.string "delete");
+    ("key_id", Value.int k);
+  ];
   s.store <- List.filter (fun (B (k', _)) -> k <> k') s.store
 
 (* Check if key exists *)
@@ -69,7 +84,10 @@ let update s k f =
 (* Modify - like update but sets default if missing *)
 let modify s k ~default f =
   let has_value = exists s k in
-  debugf "Session.modify: key_id=%d, has_value=%b" k has_value;
+  Log.debug_fields "Session.modify" ~fields:[
+    ("key_id", Value.int k);
+    ("has_value", Value.bool has_value);
+  ];
   let v = get_or s k ~default in
   set s k (f v)
 
@@ -91,15 +109,18 @@ module Memory_store : STORE = struct
   let create () = Hashtbl.create 100
 
   let get_session store ~user_id =
-    debugf "Store access: user_id=%Ld, operation=get_session" user_id;
+    Log.debug_fields "Store access" ~fields:[
+      ("user_id", Value.int64 user_id);
+      ("operation", Value.string "get_session");
+    ];
     try
       let session = Hashtbl.find store user_id in
       let keys_count = List.length session.store in
-      info_fields "Session loaded" ~fields:[
+      Log.debug_fields "Session loaded" ~fields:[
         ("user_id", Value.int64 user_id);
         ("keys_count", Value.int keys_count);
       ];
-      debug_fields "Store size" ~fields:[
+      Log.trace_fields "Store size" ~fields:[
         ("session_count", Value.int (Hashtbl.length store));
         ("total_keys", Value.int (Hashtbl.fold (fun _ sess acc ->
           acc + List.length sess.store
@@ -107,38 +128,47 @@ module Memory_store : STORE = struct
       ];
       session
     with Not_found ->
-      debugf "Session load failed: user_id=%Ld, reason=not found, creating new" user_id;
+      Log.debug_fields "Session load failed, creating new" ~fields:[
+        ("user_id", Value.int64 user_id);
+        ("reason", Value.string "not found");
+      ];
       let session = { store = [] } in
       Hashtbl.add store user_id session;
-      info_fields "Session loaded" ~fields:[
+      Log.debug_fields "Session loaded" ~fields:[
         ("user_id", Value.int64 user_id);
         ("keys_count", Value.int 0);
       ];
-      debug_fields "Store size" ~fields:[
+      Log.trace_fields "Store size" ~fields:[
         ("session_count", Value.int (Hashtbl.length store));
         ("total_keys", Value.int 0);
       ];
       session
 
   let set_session store ~user_id session =
-    debugf "Store access: user_id=%Ld, operation=set_session" user_id;
+    Log.debug_fields "Store access" ~fields:[
+      ("user_id", Value.int64 user_id);
+      ("operation", Value.string "set_session");
+    ];
     let keys_count = List.length session.store in
-    info_fields "Session saved" ~fields:[
+    Log.debug_fields "Session saved" ~fields:[
       ("user_id", Value.int64 user_id);
       ("keys_count", Value.int keys_count);
     ];
     Hashtbl.replace store user_id session
 
   let delete_session store ~user_id =
-    debugf "Store access: user_id=%Ld, operation=delete_session" user_id;
-    info_fields "Session deleted" ~fields:[
+    Log.debug_fields "Store access" ~fields:[
+      ("user_id", Value.int64 user_id);
+      ("operation", Value.string "delete_session");
+    ];
+    Log.debug_fields "Session deleted" ~fields:[
       ("user_id", Value.int64 user_id);
     ];
     Hashtbl.remove store user_id
 
   let clear_all store =
     let session_count = Hashtbl.length store in
-    info_fields "Store cleared" ~fields:[
+    Log.debug_fields "Store cleared" ~fields:[
       ("session_count", Value.int session_count);
     ];
     Hashtbl.clear store

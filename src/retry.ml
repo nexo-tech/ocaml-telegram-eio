@@ -2,6 +2,11 @@
 
 open Flo
 
+(* Scoped logger for retry operations *)
+module Log = Flo_scoped.Make(struct
+  let namespace = "telegram.retry"
+end)
+
 module Strategy = struct
   type t =
     | Immediate
@@ -78,7 +83,7 @@ let with_config config f =
     match f () with
     | Ok _ as ok -> ok
     | Error e when n >= config.max_attempts ->
-        error_fields "Max retry attempts reached, giving up" ~fields:[
+        Log.warn_fields "Max retry attempts reached, giving up" ~fields:[
           ("max_attempts", Value.int config.max_attempts);
           ("attempt", Value.int n);
           Flo_semconv.error_type "MaxRetriesExceeded";
@@ -86,7 +91,9 @@ let with_config config f =
         ];
         Error e
     | Error e when not (Error.is_retryable e) ->
-        debugf "Error is not retryable, failing immediately: %s" (Format.asprintf "%a" Error.pp e);
+        Log.debug_fields "Error is not retryable, failing immediately" ~fields:[
+          Flo_semconv.error_message (Format.asprintf "%a" Error.pp e);
+        ];
         Error e
     | Error e ->
         let delay = Strategy.next_delay config.strategy ~attempt:n ~error:(Some e) in
@@ -98,7 +105,7 @@ let with_config config f =
           | Strategy.Telegram_aware _ -> "telegram_aware"
         in
 
-        warn_fields "Retry attempt" ~fields:[
+        Log.debug_fields "Retry attempt" ~fields:[
           ("attempt", Value.int n);
           ("max_attempts", Value.int config.max_attempts);
           ("delay_seconds", Value.float delay);
@@ -106,8 +113,11 @@ let with_config config f =
           Flo_semconv.error_message (Format.asprintf "%a" Error.pp e);
         ];
 
-        tracef "Backoff delay calculation: attempt=%d, strategy=%s, delay=%.3fs"
-          n strategy_name delay;
+        Log.trace_fields "Backoff delay calculation" ~fields:[
+          ("attempt", Value.int n);
+          ("strategy", Value.string strategy_name);
+          ("delay_seconds", Value.float delay);
+        ];
 
         (* Invoke retry callback if provided *)
         (match config.on_retry with

@@ -1,5 +1,10 @@
 open Flo
 
+(* Scoped logger for error analysis *)
+module Log = Flo_scoped.Make(struct
+  let namespace = "telegram.error"
+end)
+
 type response_parameters = {
   migrate_to_chat_id : Id.Chat.k Id.t option;
   retry_after : int option;
@@ -41,11 +46,14 @@ let is_retryable err =
     | Internal_error _ -> false
   in
 
-  tracef "is_retryable decision: %s -> %b" (Format.asprintf "%a" pp err) retryable;
+  Log.trace_fields "is_retryable decision" ~fields:[
+    Flo_semconv.error_message (Format.asprintf "%a" pp err);
+    ("retryable", Value.bool retryable);
+  ];
 
   (match err with
    | Http_error (code, _) when retryable ->
-       warn_fields "Retryable HTTP error detected" ~fields:[
+       Log.debug_fields "Retryable HTTP error detected" ~fields:[
          Flo_semconv.http_status_code code;
          Flo_semconv.error_type "HttpError";
          ("retryable", Value.bool true);
@@ -53,22 +61,24 @@ let is_retryable err =
    | Api_error { code; description; parameters } when retryable ->
        (match parameters with
         | Some { retry_after = Some seconds; _ } ->
-            warn_fields "Retryable API error with retry_after" ~fields:[
+            Log.debug_fields "Retryable API error with retry_after" ~fields:[
               Flo_telegram.api_error_code code;
               Flo_telegram.api_error_description description;
               ("retry_after_seconds", Value.int seconds);
               ("retryable", Value.bool true);
             ]
         | _ ->
-            warn_fields "Retryable API error detected" ~fields:[
+            Log.debug_fields "Retryable API error detected" ~fields:[
               Flo_telegram.api_error_code code;
               Flo_telegram.api_error_description description;
               ("retryable", Value.bool true);
             ])
    | Timeout when retryable ->
-       warn "Retryable timeout detected"
+       Log.debug "Retryable timeout detected"
    | _ when not retryable ->
-       debugf "Non-retryable error: %s" (Format.asprintf "%a" pp err)
+       Log.trace_fields "Non-retryable error" ~fields:[
+         Flo_semconv.error_message (Format.asprintf "%a" pp err);
+       ]
    | _ -> ());
 
   retryable
@@ -79,8 +89,11 @@ let retry_after err =
     | _ -> None
   in
   (match result with
-   | Some seconds -> tracef "Extracted retry_after: %d seconds" seconds
-   | None -> trace "No retry_after in error");
+   | Some seconds ->
+       Log.trace_fields "Extracted retry_after" ~fields:[
+         ("retry_after_seconds", Value.int seconds);
+       ]
+   | None -> Log.trace "No retry_after in error");
   result
 
 let parameters err =
@@ -90,10 +103,11 @@ let parameters err =
   in
   (match result with
    | Some { retry_after; migrate_to_chat_id } ->
-       tracef "Extracted parameters: retry_after=%s, migrate_to_chat_id=%s"
-         (match retry_after with Some s -> string_of_int s | None -> "none")
-         (match migrate_to_chat_id with Some cid -> Id.to_string cid | None -> "none")
-   | None -> trace "No parameters in error");
+       Log.trace_fields "Extracted parameters" ~fields:[
+         ("retry_after", Value.string (match retry_after with Some s -> string_of_int s | None -> "none"));
+         ("migrate_to_chat_id", Value.string (match migrate_to_chat_id with Some cid -> Id.to_string cid | None -> "none"));
+       ]
+   | None -> Log.trace "No parameters in error");
   result
 
 let or_fail = function
